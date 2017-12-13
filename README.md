@@ -24,6 +24,9 @@ curve collection service:
 - HTTP API for generating light curve collection footprint given a survey
   mosaic; generated datasets can then be footprint aware
 
+- HTTP API for generating stamps from a footprint mosaic for each object if one
+  is provided, and from DSS by default.
+
 - access control to all data based on users and groups, HTTP API access via key,
   user and group definition, etc.
 
@@ -61,3 +64,6 @@ Future functionality will include:
 
 - streaming data ingest and alert system for transients and other high cadence
   phenomena
+
+- collaboration tools, including object comments across federated datasets,
+  activity streams, and streaming status updates for objects
