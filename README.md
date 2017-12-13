@@ -16,6 +16,8 @@ curve collection service:
   results from searches, and generating output zip bundles containing search
   results and all matching light curves
 
+- HTTP API for accessing various data releases and versions of the light curves
+
 - HTTP API for generating light curves on demand in several formats from the
   collected light curves
 
