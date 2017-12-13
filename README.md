@@ -45,3 +45,19 @@ Python 3 and should be able to scale to millions of objects.
 
 - add support for search backends: (1) pickles only + SQlite or (2) pickles and
   Postgres
+
+
+## Stuff that will go in a proposal
+
+Future functionality will include:
+
+- federation APIs so multiple lcc-servers can appear in a single portal. this
+  will involve metadata tagging for bandpass, sky footprint, time coverage, etc.
+
+- public classification interfaces for periodic variable classification, a rich
+  exploration interface built on web-GL
+
+- extension to transient time-domain surveys
+
+- streaming data ingest and alert system for transients and other high cadence
+  phenomena
