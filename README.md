@@ -21,6 +21,9 @@ curve collection service:
 - HTTP API for generating light curves on demand in several formats from the
   collected light curves
 
+- HTTP API for plotting unphased, phased light curves on demand with applied
+  filters on columns, etc.
+
 - HTTP API for generating light curve collection footprint given a survey
   mosaic; generated datasets can then be footprint aware
 
