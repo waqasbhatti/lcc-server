@@ -70,3 +70,6 @@ Future functionality will include:
 
 - collaboration tools, including object comments across federated datasets,
   activity streams, and streaming status updates for objects
+
+- serving of calibrated FITS image stamps per object per epoch of any
+  time-series, so people can run photometry on their own
