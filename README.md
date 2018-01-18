@@ -73,3 +73,5 @@ Future functionality will include:
 
 - serving of calibrated FITS image stamps per object per epoch of any
   time-series, so people can run photometry on their own
+
+- adding in VO TAP query services
