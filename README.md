@@ -2,8 +2,6 @@ This is for the NSF CSSI program:
 https://www.nsf.gov/pubs/2018/nsf18531/nsf18531.htm
 
 Deadline: April 18, 2018
-CSSIQueries@nsf.gov
-Nigel A. Sharp, Program Director, MPS/AST, telephone: (703) 292-4905
 
 # NSF INFO
 

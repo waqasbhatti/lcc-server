@@ -1,0 +1,11 @@
+global-exclude *.bsp
+global-exclude *.pkl
+recursive-exclude astrobase/data *.png
+recursive-include astrobase/data/lcformats/ *
+recursive-include astrobase/cpserver/cps-assets *
+include LICENSE
+include README.rst
+include astrobase/astrobase.conf
+include astrobase/cpserver/checkplot-viewer.html
+include astrobase/cpserver/checkplot-viewer.js
+recursive-include tests *.py
