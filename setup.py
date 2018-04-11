@@ -10,8 +10,7 @@ modified by me.
 '''
 __version__ = '0.0.1'
 
-import sys, os.path
-
+import sys
 from setuptools import setup
 
 # pytesting stuff and imports copied wholesale from:
@@ -26,7 +25,7 @@ class PyTest(TestCommand):
 
     def run_tests(self):
         import shlex
-        #import here, cause outside the eggs aren't loaded
+        # import here, cause outside the eggs aren't loaded
         import pytest
 
         if not self.pytest_args:
@@ -51,6 +50,7 @@ INSTALL_REQUIRES = [
     'matplotlib',
     'requests',
     'tqdm',
+    'psycopg2-binary',
 ]
 
 EXTRAS_REQUIRE = {
@@ -84,13 +84,13 @@ setup(
         'lccserver',
         'lccserver.frames',
         'lccserver.frontend',
-        'lccserver.lightcurves',
+        'lccserver.lcfetch',
         'lccserver.mosaic',
-        'lccserver.search',
+        'lccserver.objectsearch',
         'lccserver.services'
     ],
     install_requires=INSTALL_REQUIRES,
-    extras_require=EXTRAS_REQUIRE,
+    # extras_require=EXTRAS_REQUIRE,
     tests_require=['pytest',],
     cmdclass={'test':PyTest},
     # entry_points={
