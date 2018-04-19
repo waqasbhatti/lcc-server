@@ -77,3 +77,11 @@ basedir/
 
 - can run many tornado servers for a single light curve set, they should be all
   independent and mostly readonly
+
+
+## later TODO
+
+- add a TAP server using the sqlite and kdtree. This will use sqlparse to parse
+  the DML and generate the correct numpy/sqlite statements for selecting things,
+  while keeping in mind that no writing to the database is allowed. maybe break
+  this out into a separate astrotap-server project
