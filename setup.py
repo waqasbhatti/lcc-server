@@ -11,7 +11,7 @@ modified by me.
 __version__ = '0.0.1'
 
 import sys
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # pytesting stuff and imports copied wholesale from:
 # https://docs.pytest.org/en/latest/goodpractices.html#test-discovery
@@ -80,15 +80,7 @@ setup(
     author='Waqas Bhatti',
     author_email='waqas.afzal.bhatti@gmail.com',
     license='MIT',
-    packages=[
-        'lccserver',
-        'lccserver.frames',
-        'lccserver.frontend',
-        'lccserver.lcfetch',
-        'lccserver.mosaic',
-        'lccserver.objectsearch',
-        'lccserver.services'
-    ],
+    packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
     # extras_require=EXTRAS_REQUIRE,
     tests_require=['pytest',],
