@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block pagecontent %}
+<div class="container">
+
+  <div class="row">
+    <h2>LCC server</h2>
+  </div>
+
+  <div class="row">
+
+    <h3>In collections</h3>
+
+  </div>
+
+  <div class="row">
+
+    <h3>Search for</h3>
+
+  </div>
+
+</div>
+{% end %}
+
+{% block pagejs_modules %}
+
+<script src="{{ static_url('js/lcc-server.js') }}"></script>
+
+{% end %}
+
+
+{% block pagejs %}
+
+$(document).ready(function() {
+
+
+
+
+});
+
+{% end %}

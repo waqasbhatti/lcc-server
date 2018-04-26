@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ static_url('css/bootstrap.min.css') }}">
+
+    <!-- Codemirror CSS -->
+    <link rel="stylesheet" href="{{ static_url('css/codemirror.css') }}">
+
+    <!-- lcc-server CSS -->
+    <link rel="stylesheet" href="{{ static_url('css/lcc-server.css') }}">
+
+    <title>{{ page_title }}</title>
+  </head>
+
+  <body>
+
+    {% block pagecontent %}
+    <div class="container-fluid">
+
+      <h1>Hello, world! This is the {{ page_title }} page.</h1>
+
+    </div>
+    {% end %}
+
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="{{ static_url('js/jquery.min.js' }}"></script>
+    <script src="{{ static_url('js/popper.min.js' }}"></script>
+    <script src="{{ static_url('js/bootstrap.min.js' }}"></script>
+
+    <!-- code mirror js -->
+    <script src="{{ static_url('js/codemirror.min.js' }}"></script>
+
+    <!-- mathjs -->
+    <script src="{{ static_url('js/math.min.js' }}"></script>
+
+    {% block pagejs_modules %}
+
+    {% end %}
+
+    <script>
+    {% block pagejs %}
+
+    {% end %}
+    </script>
+
+  </body>
+
+</html>
