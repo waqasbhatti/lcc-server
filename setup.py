@@ -54,7 +54,7 @@ INSTALL_REQUIRES = [
 ]
 
 EXTRAS_REQUIRE = {
-    'postgres':['psycopg2-binary'],
+    'postgres':['psycopg2'],
 }
 
 
@@ -93,4 +93,5 @@ setup(
     # },
     include_package_data=True,
     zip_safe=False,
+    python_requires='>=3.3',
 )
