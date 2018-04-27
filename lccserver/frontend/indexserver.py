@@ -15,59 +15,7 @@ from datetime import datetime
 from traceback import format_exc
 
 # setup a logger
-LOGGER = None
 LOGMOD = __name__
-DEBUG = False
-
-def set_logger_parent(parent_name):
-    globals()['LOGGER'] = logging.getLogger('%s.%s' % (parent_name, LOGMOD))
-
-def LOGDEBUG(message):
-    if LOGGER:
-        LOGGER.debug(message)
-    elif DEBUG:
-        print('[%s - DBUG] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGINFO(message):
-    if LOGGER:
-        LOGGER.info(message)
-    else:
-        print('[%s - INFO] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGERROR(message):
-    if LOGGER:
-        LOGGER.error(message)
-    else:
-        print('[%s - ERR!] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGWARNING(message):
-    if LOGGER:
-        LOGGER.warning(message)
-    else:
-        print('[%s - WRN!] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGEXCEPTION(message):
-    if LOGGER:
-        LOGGER.exception(message)
-    else:
-        print(
-            '[%s - EXC!] %s\nexception was: %s' % (
-                datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                message, format_exc()
-            )
-        )
 
 
 #############
@@ -89,6 +37,7 @@ import json
 import time
 import sys
 import socket
+import stat
 
 # this handles async updates of the checkplot pickles so the UI remains
 # responsive
@@ -141,19 +90,38 @@ modpath = os.path.abspath(os.path.dirname(__file__))
 # indexserver  will serve on 12500-12509
 # searchserver will serve on 12510-12519
 # lcserver     will serve on 12520-12529
-
 define('port',
        default=12500,
        help='Run on the given port.',
        type=int)
 
+# the address to listen on
 define('serve',
        default='127.0.0.1',
        help='Bind to given address and serve content.',
        type=str)
 
+# path to the cookie secrets file
+define('secretfile',
+       default=os.path.join(os.getcwd(), 'lccserver-secrets'),
+       help=('The path to a text file containing a strong randomly '
+             'generated token suitable for signing cookies.'),
+       type=str)
+
+# whether to run in debugmode or not
+define('debugmode',
+       default=0,
+       help='start up in debug mode if set to 1.',
+       type=int)
+
+# number of background threads in the pool executor
+define('backgroundworkers',
+       default=4,
+       help=('number of background workers to use '),
+       type=int)
+
 # the template path
-define('assetpath',
+define('templatepath',
        default=os.path.abspath(os.path.join(modpath,'templates')),
        help=('Sets the tornado template path.'),
        type=str)
@@ -174,19 +142,13 @@ define('basedir',
 
 # docspath is a directory that contains a bunch of markdown files that are read
 # by the lcc-server docshandler and then rendered to HTML using the usual
-# templates
+# templates. By default, this is in a docs subdir of the current dir, but this
+# should generally be in the basedir of the LCC collections directory.
 define('docspath',
        default=os.path.join(os.getcwd(), 'docs'),
        help=('Sets the documentation path for the lcc-server.'),
        type=str)
-define('debugmode',
-       default=0,
-       help='start up in debug mode if set to 1.',
-       type=int)
-define('backgroundworkers',
-       default=4,
-       help=('number of background workers to use '),
-       type=int)
+
 
 
 ############
@@ -212,71 +174,144 @@ def main():
     ## SET UP CONFIG ##
     ###################
 
-    MAXWORKERS = options.maxbackgroundworkers
+    MAXWORKERS = options.backgroundworkers
 
-    ASSETPATH = options.assetpath
-    DOCSPATH = options.docspath
+    BASEDIR = os.path.abspath(options.basedir)
+    TEMPLATEPATH = os.path.abspath(options.templatepath)
+    ASSETPATH = os.path.abspath(options.assetpath)
+    DOCSPATH = os.path.abspath(options.docspath)
 
-    CURRENTDIR = os.getcwd()
-    COLLECTIONS_BASEDIR = options.basedir
+    CURRENTDIR = os.path.abspath(os.getcwd())
+
+    # handle the session secret to generate coookies with signatures
+    if os.path.exists(options.secretfile):
+
+        with open(options.secretfile,'r') as infd:
+            SESSIONSECRET = infd.read().strip('\n')
+
+    else:
+
+        LOGGER.warning('no session secret file found. will make a new one: '
+                       '%s' % options.secretfile)
+        SESSIONSECRET = hashlib.sha512(os.urandom(20)).hexdigest()
+        with open(options.secretfile,'w') as outfd:
+            outfd.write(SESSIONSECRET)
+        os.chmod(options.secretfile, 0o100600)
 
 
     ####################################
     ## PERSISTENT BACKGROUND EXECUTOR ##
     ####################################
 
-    EXECUTOR = ThreadPoolExecutor(MAXPROCS)
+    EXECUTOR = ThreadPoolExecutor(MAXWORKERS)
 
     ##################
     ## URL HANDLERS ##
     ##################
-
 
     HANDLERS = [
         # index page
         (r'/',
          handlers.IndexHandler,
          {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':COLLECTIONS_BASEDIR}),
+          'basedir':BASEDIR}),
         # docs page index and other subdirs, renders markdown to HTML
-        (r'/docs/(.*)',
+        (r'/docs/?(.*)',
          handlers.DocsHandler,
          {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':COLLECTIONS_BASEDIR}),
+          'basedir':BASEDIR}),
         # about page
         (r'/about',
          handlers.AboutPageHandler,
          {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':COLLECTIONS_BASEDIR}),
+          'basedir':BASEDIR}),
         # this returns a JSON list of the currently available LC collections
         (r'/api/collections',
          handlers.CollectionsListHandler,
          {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':COLLECTIONS_BASEDIR}),
+          'basedir':BASEDIR}),
     ]
 
+    ########################
+    ## APPLICATION SET UP ##
+    ########################
 
-        app = tornado.web.Application(
+    app = tornado.web.Application(
         handlers=HANDLERS,
         static_path=ASSETPATH,
-        template_path=ASSETPATH,
+        template_path=TEMPLATEPATH,
         static_url_prefix='/static/',
         compress_response=True,
+        cookie_secret=SESSIONSECRET,
+        xsrf_cookies=True,
         debug=DEBUG,
     )
 
     # start up the HTTP server and our application. xheaders = True turns on
     # X-Forwarded-For support so we can see the remote IP in the logs
     http_server = tornado.httpserver.HTTPServer(app, xheaders=True)
+
+    ######################
+    ## start the server ##
+    ######################
+
+    # make sure the port we're going to listen on is ok
+    # inspired by how Jupyter notebook does this
+    portok = False
+    serverport = options.port
+    maxtries = 10
+    thistry = 0
+    while not portok and thistry < maxtries:
+        try:
+            http_server.listen(serverport, options.serve)
+            portok = True
+        except socket.error as e:
+            LOGGER.warning('%s:%s is already in use, trying port %s' %
+                           (options.serve, serverport, serverport + 1))
+            serverport = serverport + 1
+
+    if not portok:
+        LOGGER.error('could not find a free port after %s tries, giving up' %
+                     maxtries)
+        sys.exit(1)
+
+    LOGGER.info('started indexserver. listening on http://%s:%s' %
+                (options.serve, serverport))
+
+    # register the signal callbacks
+    signal.signal(signal.SIGINT,recv_sigint)
+    signal.signal(signal.SIGTERM,recv_sigint)
+
+    # start the IOLoop and begin serving requests
+    try:
+
+        tornado.ioloop.IOLoop.instance().start()
+
+    except KeyboardInterrupt:
+
+        LOGGER.info('received Ctrl-C: shutting down...')
+        tornado.ioloop.IOLoop.instance().stop()
+        # close down the processpool
+
+    EXECUTOR.shutdown()
+    time.sleep(3)
+
+# run the server
+if __name__ == '__main__':
+    main()

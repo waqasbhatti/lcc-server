@@ -51,6 +51,7 @@ INSTALL_REQUIRES = [
     'requests',
     'tqdm',
     'psycopg2-binary',
+    'markdown',
 ]
 
 EXTRAS_REQUIRE = {
@@ -85,13 +86,14 @@ setup(
     # extras_require=EXTRAS_REQUIRE,
     tests_require=['pytest',],
     cmdclass={'test':PyTest},
-    # entry_points={
-    #     'console_scripts':[
-    #         'checkplotserver=astrobase.cpserver.checkplotserver:main',
-    #         'checkplotlist=astrobase.cpserver.checkplotlist:main',
-    #     ],
-    # },
+    entry_points={
+        'console_scripts':[
+            'indexserver=lccserver.frontend.indexserver:main',
+            # 'searchserver=lccserver.frontend.searchserver:main',
+            # 'lcserver=lccserver.frontend.lcserver:main',
+        ],
+    },
     include_package_data=True,
     zip_safe=False,
-    python_requires='>=3.3',
+    python_requires='>=3.4',
 )
