@@ -9,11 +9,12 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="{{ static_url('css/bootstrap.min.css') }}">
 
-    <!-- Codemirror CSS -->
-    <link rel="stylesheet" href="{{ static_url('css/codemirror.css') }}">
-
     <!-- lcc-server CSS -->
     <link rel="stylesheet" href="{{ static_url('css/lcc-server.css') }}">
+
+    {% block pagecss %}
+
+    {% end %}
 
     <title>{{ page_title }}</title>
   </head>
@@ -32,12 +33,6 @@
     <script src="{{ static_url('js/jquery.min.js' }}"></script>
     <script src="{{ static_url('js/popper.min.js' }}"></script>
     <script src="{{ static_url('js/bootstrap.min.js' }}"></script>
-
-    <!-- code mirror js -->
-    <script src="{{ static_url('js/codemirror.min.js' }}"></script>
-
-    <!-- mathjs -->
-    <script src="{{ static_url('js/math.min.js' }}"></script>
 
     {% block pagejs_modules %}
 
