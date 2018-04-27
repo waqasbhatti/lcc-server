@@ -69,3 +69,8 @@ to use this:
 input#q {
     width: 20rem;
 }
+
+a.tab-link {
+    text-align: center;
+    color: inherit;
+}
