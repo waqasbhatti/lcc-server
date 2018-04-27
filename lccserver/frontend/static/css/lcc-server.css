@@ -74,3 +74,32 @@ a.tab-link {
     text-align: center;
     color: inherit;
 }
+
+table.table-sm {
+    font-size: 14px;
+}
+
+
+span.fts-col {
+    color: green;
+    font-weight: bold;
+}
+
+span.kdtree-col {
+    color: blue;
+    font-weight: bold;
+}
+
+thead.center-head {
+    text-align: center;
+}
+
+
+.lc-collection-overview {
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.search-controls {
+    min-height: 480px;
+}
