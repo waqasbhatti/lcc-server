@@ -130,6 +130,7 @@ def kdtree_from_lclist(lclistpkl, outfile):
 
 def objectinfo_to_sqlite(augcatpkl,
                          outfile,
+                         colinfo=None,
                          indexcols=None,
                          ftsindexcols=None):
     '''This writes the object information to an SQLite file.
@@ -137,6 +138,18 @@ def objectinfo_to_sqlite(augcatpkl,
     makes indexes for fast look up by objectid by default and any columns
     included in indexcols. also makes a full-text search index for any columns
     in ftsindexcols.
+
+    If colinfo is not None, it should be either a dict or JSON with elements
+    that are of the form:
+
+    'column_name':{'title':'column title',
+                   'description':'a long description of the column',
+                   'dtype':numpy dtype of the column,
+                   'format':string format specifier for this column},
+
+    where column_name should be each column in the augcatpkl file. Any column
+    that doesn't have a key in colinfo, it won't have any extra information
+    associated with it.
 
     NOTE: This requires FTS5 to be available in SQLite because we don't want to
     mess with ranking algorithms to be implemented for FTS4.
@@ -155,31 +168,48 @@ def objectinfo_to_sqlite(augcatpkl,
 
     LOGINFO('collecting column information from %s' % augcatpkl)
 
+
+    defaultcolinfo = {}
+
+
     for col in cols:
 
         thiscol_name = col.replace('.','_')
         thiscol_dtype = augcat['objects'][col].dtype
         colnames.append(thiscol_name)
 
+        defaultcolinfo[thiscol_name] = {'title':None,
+                                        'description':None,
+                                        'dtype':None,
+                                        'format':None}
+
         # strings
         if thiscol_dtype.type is np.str_:
 
             coldefs.append(('%s text' % thiscol_name, str))
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+            defaultcolinfo[thiscol_name]['format'] = '%s'
 
         # floats
         elif thiscol_dtype.type is np.float64:
 
             coldefs.append(('%s double precision' % thiscol_name, float))
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+            defaultcolinfo[thiscol_name]['format'] = '%.7f'
 
         # integers
         elif thiscol_dtype.type is np.int64:
 
             coldefs.append(('%s integer' % thiscol_name, int))
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+            defaultcolinfo[thiscol_name]['format'] = '%i'
 
         # everything is coerced into a string
         else:
 
             coldefs.append(('%s text' % thiscol_name, str))
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+            defaultcolinfo[thiscol_name]['format'] = '%s'
 
     # now, we'll generate the create statement
 
@@ -263,6 +293,52 @@ def objectinfo_to_sqlite(augcatpkl,
         # object_catalog table. see the astro-coffee implementation for hints
 
 
+    # get the column information if there is any
+    if isinstance(colinfo, dict):
+
+        overridecolinfo = colinfo
+
+    elif isinstance(colinfo, str) and os.path.exists(colinfo):
+
+        with open(colinfo,'r') as infd:
+            overridecolinfo = json.load(infd)
+
+    elif isinstance(colinfo, str):
+
+        try:
+            overridecolinfo = json.loads(colinfo)
+        except:
+            LOGERROR('could not understand colinfo argument')
+            overridecolinfo = None
+
+    else:
+        overridecolinfo = None
+
+    if overridecolinfo:
+
+        for col in defaultcolinfo:
+
+            if col in overridecolinfo:
+
+                if overridecolinfo[col]['name'] is not None:
+                    defaultcolinfo[col]['name'] = overridecolinfo[col]['name']
+
+                if overridecolinfo[col]['dtype'] is not None:
+                    defaultcolinfo[col]['dtype'] = overridecolinfo[col]['dtype']
+
+                if overridecolinfo[col]['format'] is not None:
+                    defaultcolinfo[col]['format'] = (
+                        overridecolinfo[col]['format']
+                    )
+
+                if overridecolinfo[col]['description'] is not None:
+                    defaultcolinfo[col]['description'] = (
+                        overridecolinfo[col]['description']
+                    )
+
+    # turn the column info into a JSON
+    columninfo_json = json.dumps(defaultcolinfo)
+
     # add some metadata to allow reading the LCs correctly later
     metadata = {'basedir':augcat['basedir'],
                 'lcformat':augcat['lcformat'],
@@ -272,8 +348,11 @@ def objectinfo_to_sqlite(augcatpkl,
                 'indexcols':[x.replace('.','_') for x in indexcols],
                 'ftsindexcols':[x.replace('.','_') for x in ftsindexcols]}
     metadata_json = json.dumps(metadata)
-    cur.execute('create table catalog_metadata (metadata_json text)')
-    cur.execute('insert into catalog_metadata values (?)', (metadata_json,))
+    cur.execute(
+        'create table catalog_metadata (metadata_json text, column_info text)'
+    )
+    cur.execute('insert into catalog_metadata values (?, ?)',
+                (metadata_json, columninfo_json))
 
     # commit and close the database
     db.commit()
