@@ -103,122 +103,129 @@ COLUMN_INFO = {
         'description':'absolute GAIA magnitude'
     },
     '{magcol}.beyond1std':{
-        'title':'f<sub>&gt; 1.0-&sigma;</sub>',
+        'title':'f<sub>&gt; 1.0-&sigma;</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.3f',
         'description':('fraction of measurements beyond 1-stdev '
                        'for mag col: {magcol}')
     },
     '{magcol}.comments':{
-        'title':'comments',
+        'title':'comments ({magcol})',
         'dtype':'U600',
         'format':'%s',
         'description':("comments on the object and its time-series "
                        "for mag col: {magcol}")
     },
     '{magcol}.eta_normal':{
-        'title':'&eta;',
+        'title':'&eta; ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('eta variability index of the '
                        'time-series for mag col: {magcol}')
     },
     '{magcol}.kurtosis':{
-        'title':'kurtosis',
+        'title':'kurtosis ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':'kurtosis of the time-series for mag col: {magcol}'
     },
     '{magcol}.linear_fit_slope':{
-        'title':'m<sub>linfit</sub>',
+        'title':'m<sub>linfit</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('slope of a linear fit to the time-series '
                        'for mag col: {magcol}')
     },
     '{magcol}.mad':{
-        'title':'MAD',
+        'title':'MAD ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('median absolute deviation of the time-series '
                        'for mag col: {magcol}')
     },
     '{magcol}.mag_iqr':{
-        'title':'IQR',
+        'title':'IQR ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('interquartile range of the time-series '
                        'for mag col: {magcol}')
     },
     '{magcol}.magnitude_ratio':{
-        'title':'&Delta;',
+        'title':'&Delta; ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('(max mag - med mag)/(max mag - min mag) '
                        'for mag col: {magcol}')
     },
     '{magcol}.median':{
-        'title':'median',
+        'title':'median ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':'median of the time-series for mag col: {magcol}'
     },
+    '{magcol}.ndet':{
+        'title':'nobs ({magcol})',
+        'dtype':'i8',
+        'format':'%i',
+        'description':('number of non-nan time-series observations '
+                       'for mag col: {magcol}')
+    },
     '{magcol}.objectisvar':{
-        'title':'variability flag',
+        'title':'variability flag ({magcol})',
         'dtype':'i8',
         'format':'%i',
         'description':("for mag col: {magcol}, 0 = unreviewed, 1 = variable, "
                        "2 = not variable, 3 = can't tell")
     },
     '{magcol}.skew':{
-        'title':'skew',
+        'title':'skew ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':'skew of the time-series for mag col: {magcol}'
     },
     '{magcol}.stdev':{
-        'title':'&sigma;',
+        'title':'&sigma; ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('standard deviation of the time-series '
                        'for mag col: {magcol}'),
     },
     '{magcol}.stetsonj':{
-        'title':'J<sub>stetson</sub>',
+        'title':'J<sub>stetson</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('Stetson J variability index of the '
                        'time-series for mag col: {magcol}')
     },
     '{magcol}.stetsonk':{
-        'title':'K<sub>stetson</sub>',
+        'title':'K<sub>stetson</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('Stetson K variability index of the '
                        'time-series for mag col: {magcol}')
     },
     '{magcol}.varepoch':{
-        'title':'epoch [JD]',
+        'title':'epoch ({magcol}) [JD]',
         'dtype':'f8',
         'format':'%.6f',
         'description':('for mag col: {magcol}, JD epoch of minimum '
-                       ' light if periodic variable')
+                       'light if periodic variable')
     },
     '{magcol}.varisperiodic':{
-        'title':'periodicity flag',
+        'title':'periodicity flag ({magcol})',
         'dtype':'i8',
         'format':'%i',
         'description':('for mag col: {magcol}, 0 = undetermined, 1 = periodic, '
                        '2 = not periodic, 3 = quasi-periodic')
     },
     '{magcol}.varperiod':{
-        'title':'period [days]',
+        'title':'period ({magcol}) [days]',
         'dtype':'f8',
         'format':'%.6f',
         'description':'for mag col: {magcol}, period of variability in days'
     },
     '{magcol}.vartags':{
-        'title':'variable tags',
+        'title':'variable tags ({magcol})',
         'dtype':'U600',
         'format':'%s',
         'description':'for mag col: {magcol}, variability tags for this object'
@@ -233,7 +240,7 @@ COLUMN_INFO = {
         'title':'color classes',
         'dtype':'U600',
         'format':'%s',
-        'description':'stellar classification using SEGUE color cuts in ugriz'
+        'description':'stellar classification using SDSS/SEGUE color cuts'
     },
     'decl':{
         'title':'&delta;',
@@ -391,13 +398,6 @@ COLUMN_INFO = {
         'dtype':'f8',
         'format':'%.3f',
         'description':'absolute GAIA magnitude'
-    },
-    '{magcol}.ndet':{
-        'title':'ndet ({magcol})',
-        'dtype':'i8',
-        'format':'%i',
-        'description':('number of non-nan time-series observations '
-                       'for mag col: {magcol}')
     },
     'objectid':{
         'title':'object ID',
@@ -586,8 +586,23 @@ def objectinfo_to_sqlite(augcatpkl,
     with open(augcatpkl, 'rb') as infd:
         augcat = pickle.load(infd)
 
-    # pull the columns out of the augcat
+    # pull the info columns out of the augcat
     cols = list(augcat['objects'].keys())
+
+    # get the magnitude columns
+    magcols = augcat['magcols']
+
+    # separate the info cols into columns that are independent of magcol and
+    # those affiliated with each magcol
+    mag_affil_cols = []
+
+    for mc in magcols:
+        for col in cols:
+            if mc in col:
+                mag_affil_cols.append(col)
+
+    unaffiliated_cols = list(set(cols) - set(mag_affil_cols))
+
 
     # get the dtypes for each column to generate the create statement
     coldefs = []
@@ -595,50 +610,221 @@ def objectinfo_to_sqlite(augcatpkl,
 
     LOGINFO('collecting column information from %s' % augcatpkl)
 
-
     defaultcolinfo = {}
 
+    # go through the unaffiliated columns first
 
-    for col in cols:
+    for col in unaffiliated_cols:
 
         thiscol_name = col.replace('.','_')
         thiscol_dtype = augcat['objects'][col].dtype
         colnames.append(thiscol_name)
 
+        # set up the default info element
         defaultcolinfo[thiscol_name] = {'title':None,
                                         'description':None,
                                         'dtype':None,
                                         'format':None}
 
+        colinfo_key = col
+
+        #
+        # now go through the various formats
+        #
+
         # strings
         if thiscol_dtype.type is np.str_:
 
             coldefs.append(('%s text' % thiscol_name, str))
+
+            if colinfo_key in COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COLUMN_INFO[colinfo_key]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%s'
+
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-            defaultcolinfo[thiscol_name]['format'] = '%s'
+
 
         # floats
         elif thiscol_dtype.type is np.float64:
 
             coldefs.append(('%s double precision' % thiscol_name, float))
+
+            if colinfo_key in COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COLUMN_INFO[colinfo_key]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%.7f'
+
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-            defaultcolinfo[thiscol_name]['format'] = '%.7f'
+
 
         # integers
         elif thiscol_dtype.type is np.int64:
 
             coldefs.append(('%s integer' % thiscol_name, int))
+
+            if colinfo_key in COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COLUMN_INFO[colinfo_key]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%i'
+
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-            defaultcolinfo[thiscol_name]['format'] = '%i'
+
 
         # everything is coerced into a string
         else:
 
             coldefs.append(('%s text' % thiscol_name, str))
+
+            if colinfo_key in COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COLUMN_INFO[colinfo_key]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%s'
+
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-            defaultcolinfo[thiscol_name]['format'] = '%s'
+
+
+    # now go though the mag affiliated columns, per magcol
+
+    for mc in magcols:
+
+        for col in mag_affil_cols:
+
+            # see if this is a magcol affiliated column
+            if mc in col:
+                sub_mc = mc
+            else:
+                continue
+
+            thiscol_name = col.replace('.','_')
+            thiscol_dtype = augcat['objects'][col].dtype
+            colnames.append(thiscol_name)
+
+            # set up the default info element
+            defaultcolinfo[thiscol_name] = {'title':None,
+                                            'description':None,
+                                            'dtype':None,
+                                            'format':None}
+
+            # this gets the correct substitution for the magcol
+            if sub_mc is not None:
+                colinfo_key = '{magcol}.%s' % col.split('.')[-1]
+            else:
+                colinfo_key = col
+
+            #
+            # now go through the various formats
+            #
+
+            # strings
+            if thiscol_dtype.type is np.str_:
+
+                coldefs.append(('%s text' % thiscol_name, str))
+
+                if colinfo_key in COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = (
+                        COLUMN_INFO[colinfo_key].copy()
+                    )
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%s'
+
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+                if sub_mc is not None:
+                    defaultcolinfo[thiscol_name]['title'] = (
+                        defaultcolinfo[thiscol_name]['title'].format(
+                            magcol=sub_mc
+                        )
+                    )
+                    defaultcolinfo[thiscol_name]['description'] = (
+                        defaultcolinfo[thiscol_name]['description'].format(
+                            magcol=sub_mc
+                        )
+                    )
+
+            # floats
+            elif thiscol_dtype.type is np.float64:
+
+                coldefs.append(('%s double precision' % thiscol_name, float))
+
+                if colinfo_key in COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = (
+                        COLUMN_INFO[colinfo_key].copy()
+                    )
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%.7f'
+
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+                if sub_mc is not None:
+                    defaultcolinfo[thiscol_name]['title'] = (
+                        defaultcolinfo[thiscol_name]['title'].format(
+                            magcol=sub_mc
+                        )
+                    )
+                    defaultcolinfo[thiscol_name]['description'] = (
+                        defaultcolinfo[thiscol_name]['description'].format(
+                            magcol=sub_mc
+                        )
+                    )
+
+            # integers
+            elif thiscol_dtype.type is np.int64:
+
+                coldefs.append(('%s integer' % thiscol_name, int))
+
+                if colinfo_key in COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = (
+                        COLUMN_INFO[colinfo_key].copy()
+                    )
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%i'
+
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+                if sub_mc is not None:
+                    defaultcolinfo[thiscol_name]['title'] = (
+                        defaultcolinfo[thiscol_name]['title'].format(
+                            magcol=sub_mc
+                        )
+                    )
+                    defaultcolinfo[thiscol_name]['description'] = (
+                        defaultcolinfo[thiscol_name]['description'].format(
+                            magcol=sub_mc
+                        )
+                    )
+
+            # everything is coerced into a string
+            else:
+
+                coldefs.append(('%s text' % thiscol_name, str))
+
+                if colinfo_key in COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = (
+                        COLUMN_INFO[colinfo_key].copy()
+                    )
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%s'
+
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+                if sub_mc is not None:
+                    defaultcolinfo[thiscol_name]['title'] = (
+                        defaultcolinfo[thiscol_name]['title'].format(
+                            magcol=sub_mc
+                        )
+                    )
+                    defaultcolinfo[thiscol_name]['description'] = (
+                        defaultcolinfo[thiscol_name]['description'].format(
+                            magcol=sub_mc
+                        )
+                    )
+
 
     # now, we'll generate the create statement
+
+    # now these are all cols
+    cols = unaffiliated_cols + mag_affil_cols
 
     column_and_type_list = ', '.join([x[0] for x in coldefs])
     column_list = ', '.join(colnames)
@@ -735,7 +921,7 @@ def objectinfo_to_sqlite(augcatpkl,
         try:
             overridecolinfo = json.loads(colinfo)
         except:
-            LOGERROR('could not understand colinfo argument')
+            LOGERROR('could not understand colinfo argument, skipping...')
             overridecolinfo = None
 
     else:
@@ -748,7 +934,7 @@ def objectinfo_to_sqlite(augcatpkl,
             if col in overridecolinfo:
 
                 if overridecolinfo[col]['title'] is not None:
-                    defaultcolinfo[col]['title'] = overridecolinfo[col]['name']
+                    defaultcolinfo[col]['title'] = overridecolinfo[col]['title']
 
                 if overridecolinfo[col]['dtype'] is not None:
                     defaultcolinfo[col]['dtype'] = overridecolinfo[col]['dtype']
@@ -767,13 +953,18 @@ def objectinfo_to_sqlite(augcatpkl,
     columninfo_json = json.dumps(defaultcolinfo)
 
     # add some metadata to allow reading the LCs correctly later
+
+    m_indexcols = indexcols if indexcols is not None else []
+    m_ftsindexcols = ftsindexcols if ftsindexcols is not None else []
+
+
     metadata = {'basedir':augcat['basedir'],
                 'lcformat':augcat['lcformat'],
                 'fileglob':augcat['fileglob'],
                 'nobjects':augcat['nfiles'],
                 'catalogcols':colnames,
-                'indexcols':[x.replace('.','_') for x in indexcols],
-                'ftsindexcols':[x.replace('.','_') for x in ftsindexcols]}
+                'indexcols':[x.replace('.','_') for x in m_indexcols],
+                'ftsindexcols':[x.replace('.','_') for x in m_ftsindexcols]}
     metadata_json = json.dumps(metadata)
     cur.execute(
         'create table catalog_metadata (metadata_json text, column_info text)'
