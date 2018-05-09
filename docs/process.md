@@ -45,7 +45,7 @@ collection-dir/
 
 - catalog-objectinfo.sqlite -> broken out from the lclist-catalog.pkl file
 
-- lcdir/ -> whatever subdir structure here is used
+- lightcurves/ -> whatever subdir structure here is used
 
 - periodfinding/
 

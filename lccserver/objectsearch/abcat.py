@@ -100,88 +100,114 @@ COLUMN_INFO = {
         'title':'M<sub>G</sub> [mag]',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'absolute GAIA magnitude'
+        'description':'absolute GAIA magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.beyond1std':{
         'title':'f<sub>&gt; 1.0-&sigma;</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.3f',
         'description':('fraction of measurements beyond 1-stdev '
-                       'for mag col: {magcol}')
+                       'for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.comments':{
         'title':'comments ({magcol})',
         'dtype':'U600',
         'format':'%s',
         'description':("comments on the object and its time-series "
-                       "for mag col: {magcol}")
+                       "for mag col: {magcol}"),
+        'index':False,
+        'ftsindex':True,
     },
     '{magcol}.eta_normal':{
         'title':'&eta; ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('eta variability index of the '
-                       'time-series for mag col: {magcol}')
+                       'time-series for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.kurtosis':{
         'title':'kurtosis ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'kurtosis of the time-series for mag col: {magcol}'
+        'description':'kurtosis of the time-series for mag col: {magcol}',
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.linear_fit_slope':{
         'title':'m<sub>linfit</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('slope of a linear fit to the time-series '
-                       'for mag col: {magcol}')
+                       'for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.mad':{
         'title':'MAD ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('median absolute deviation of the time-series '
-                       'for mag col: {magcol}')
+                       'for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.mag_iqr':{
         'title':'IQR ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('interquartile range of the time-series '
-                       'for mag col: {magcol}')
+                       'for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.magnitude_ratio':{
         'title':'&Delta; ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('(max mag - med mag)/(max mag - min mag) '
-                       'for mag col: {magcol}')
+                       'for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.median':{
         'title':'median ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'median of the time-series for mag col: {magcol}'
+        'description':'median of the time-series for mag col: {magcol}',
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.ndet':{
         'title':'nobs ({magcol})',
         'dtype':'i8',
         'format':'%i',
         'description':('number of non-nan time-series observations '
-                       'for mag col: {magcol}')
+                       'for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.objectisvar':{
         'title':'variability flag ({magcol})',
         'dtype':'i8',
         'format':'%i',
         'description':("for mag col: {magcol}, 0 = unreviewed, 1 = variable, "
-                       "2 = not variable, 3 = can't tell")
+                       "2 = not variable, 3 = can't tell"),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.skew':{
         'title':'skew ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'skew of the time-series for mag col: {magcol}'
+        'description':'skew of the time-series for mag col: {magcol}',
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.stdev':{
         'title':'&sigma; ({magcol})',
@@ -189,330 +215,438 @@ COLUMN_INFO = {
         'format':'%.5f',
         'description':('standard deviation of the time-series '
                        'for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.stetsonj':{
         'title':'J<sub>stetson</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('Stetson J variability index of the '
-                       'time-series for mag col: {magcol}')
+                       'time-series for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.stetsonk':{
         'title':'K<sub>stetson</sub> ({magcol})',
         'dtype':'f8',
         'format':'%.5f',
         'description':('Stetson K variability index of the '
-                       'time-series for mag col: {magcol}')
+                       'time-series for mag col: {magcol}'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.varepoch':{
         'title':'epoch ({magcol}) [JD]',
         'dtype':'f8',
         'format':'%.6f',
         'description':('for mag col: {magcol}, JD epoch of minimum '
-                       'light if periodic variable')
+                       'light if periodic variable'),
+        'index':False,
+        'ftsindex':False,
     },
     '{magcol}.varisperiodic':{
         'title':'periodicity flag ({magcol})',
         'dtype':'i8',
         'format':'%i',
         'description':('for mag col: {magcol}, 0 = undetermined, 1 = periodic, '
-                       '2 = not periodic, 3 = quasi-periodic')
+                       '2 = not periodic, 3 = quasi-periodic'),
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.varperiod':{
         'title':'period ({magcol}) [days]',
         'dtype':'f8',
         'format':'%.6f',
-        'description':'for mag col: {magcol}, period of variability in days'
+        'description':'for mag col: {magcol}, period of variability in days',
+        'index':True,
+        'ftsindex':False,
     },
     '{magcol}.vartags':{
         'title':'variable tags ({magcol})',
         'dtype':'U600',
         'format':'%s',
-        'description':'for mag col: {magcol}, variability tags for this object'
+        'description':'for mag col: {magcol}, variability tags for this object',
+        'index':False,
+        'ftsindex':True,
     },
     'bmag':{
         'title':'<em>B</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog magnitude in B filter'
+        'description':'catalog magnitude in B filter',
+        'index':True,
+        'ftsindex':False,
     },
     'color_classes':{
         'title':'color classes',
         'dtype':'U600',
         'format':'%s',
-        'description':'stellar classification using SDSS/SEGUE color cuts'
+        'description':'stellar classification using SDSS/SEGUE color cuts',
+        'index':False,
+        'ftsindex':True,
     },
     'decl':{
         'title':'&delta;',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'declination of the object [J2000 decimal degrees]'
+        'description':'declination of the object [J2000 decimal degrees]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_bmag':{
         'title':'A<sub>B</sub> [mag]',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in B band [mag]'
+        'description':'extinction in B band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_hmag':{
         'title':'A<sub>H</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in 2MASS H band [mag]'
+        'description':'extinction in 2MASS H band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_imag':{
         'title':'A<sub>I</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in I band [mag]'
+        'description':'extinction in I band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_jmag':{
         'title':'A<sub>J</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in 2MASS J band [mag]'
+        'description':'extinction in 2MASS J band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_kmag':{
         'title':'A<sub>Ks</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in 2MASS Ks band [mag]'
+        'description':'extinction in 2MASS Ks band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_rmag':{
         'title':'A<sub>R</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in R band [mag]'
+        'description':'extinction in R band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_sdssg':{
         'title':'A<sub>g</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in SDSS g band [mag]'
+        'description':'extinction in SDSS g band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_sdssi':{
         'title':'A<sub>i</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in SDSS i band [mag]'
+        'description':'extinction in SDSS i band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_sdssr':{
         'title':'A<sub>r</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in SDSS r band [mag]'
+        'description':'extinction in SDSS r band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_sdssu':{
         'title':'A<sub>u</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in SDSS u band [mag]'
+        'description':'extinction in SDSS u band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_sdssz':{
         'title':'A<sub>z</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in SDSS z band [mag]'
+        'description':'extinction in SDSS z band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'extinction_vmag':{
         'title':'A<sub>V</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'extinction in V band [mag]'
+        'description':'extinction in V band [mag]',
+        'index':True,
+        'ftsindex':False,
     },
     'gaia_id':{
         'title':'GAIA DR2 ID',
         'dtype':'U40',
         'format':'%s',
-        'description':'cross-matched GAIA DR2 source ID of the object'
+        'description':'cross-matched GAIA DR2 source ID of the object',
+        'index':True,
+        'ftsindex':False,
     },
     'gaia_parallax':{
         'title':'&omega; [mas]',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'GAIA DR2 parallax of the object in milliarcsec'
+        'description':'GAIA DR2 parallax of the object in milliarcsec',
+        'index':True,
+        'ftsindex':False,
     },
     'gaia_parallax_err':{
         'title':'&sigma;<sub>&omega;</sub>',
         'dtype':'f8',
         'format':'%.5f',
         'description':('error in the GAIA DR2 parallax of '
-                       'the object in milliarcsec')
+                       'the object in milliarcsec'),
+        'index':True,
+        'ftsindex':False,
     },
     'gaia_status':{
         'title':'GAIA status',
         'dtype':'U50',
         'format':'%s',
-        'description':'GAIA cross-match status'
+        'description':'GAIA cross-match status',
+        'index':False,
+        'ftsindex':False,
     },
     'gaiamag':{
         'title':'G [mag]',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'GAIA DR2 magnitude'
+        'description':'GAIA DR2 magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'gb':{
-        'title':'M<sub>G</sub>',
+        'title':'b',
         'dtype':'f8',
-        'format':'%.3f',
-        'description':'absolute GAIA magnitude'
+        'format':'%.5f',
+        'description':'galactic latitude [decimal degrees]',
+        'index':True,
+        'ftsindex':False,
     },
     'gl':{
         'title':'l',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'galactic longitude [decimal degrees]'
+        'description':'galactic longitude [decimal degrees]',
+        'index':True,
+        'ftsindex':False,
     },
     'hmag':{
         'title':'<em>H</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog 2MASS H band magnitude'
+        'description':'catalog 2MASS H band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'imag':{
         'title':'<em>I</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog I band magnitude'
+        'description':'catalog I band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'jmag':{
         'title':'<em>J</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog 2MASS J band magnitude'
+        'description':'catalog 2MASS J band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'kmag':{
         'title':'<em>K<sub>s</sub></em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog 2MASS Ks band magnitude'
+        'description':'catalog 2MASS Ks band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'lcfname':{
         'title':'LC filename',
         'dtype':'U600',
         'format':'%s',
-        'description':'light curve filename'
+        'description':'light curve filename',
+        'index':False,
+        'ftsindex':False,
     },
     'ndet':{
         'title':'M<sub>G</sub>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'absolute GAIA magnitude'
+        'description':'absolute GAIA magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'objectid':{
         'title':'object ID',
         'dtype':'U600',
         'format':'%s',
-        'description':'object ID'
+        'description':'object ID',
+        'index':False,
+        'ftsindex':True,
     },
     'objecttags':{
         'title':'object tags',
         'dtype':'U600',
         'format':'%s',
-        'description':'object type tags'
+        'description':'object type tags',
+        'index':False,
+        'ftsindex':True,
     },
     'pmdecl':{
         'title':'pmDEC [mas/yr]',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'proper motion in declination [mas/yr]'
+        'description':'proper motion in declination [mas/yr]',
+        'index':True,
+        'ftsindex':False,
     },
     'pmra':{
         'title':'pmRA [mas/yr]',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'proper motion in right ascension [mas/yr]'
+        'description':'proper motion in right ascension [mas/yr]',
+        'index':True,
+        'ftsindex':False,
     },
     'propermotion':{
         'title':'PM [mas/yr]',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'total proper motion [mas/yr]'
+        'description':'total proper motion [mas/yr]',
+        'index':True,
+        'ftsindex':False,
     },
     'ra':{
         'title':'&alpha;',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'right ascension of the object [J2000 decimal degrees]'
+        'description':'right ascension of the object [J2000 decimal degrees]',
+        'index':True,
+        'ftsindex':False,
     },
     'rmag':{
         'title':'<em>R</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog R band magnitude'
+        'description':'catalog R band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'rpmj':{
         'title':'RPM<sub>J</sub>',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'reduced proper motion of the object using 2MASS J mag'
+        'description':'reduced proper motion of the object using 2MASS J mag',
+        'index':True,
+        'ftsindex':False,
     },
     'sdssg':{
         'title':'<em>g</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog SDSS g band magnitude'
+        'description':'catalog SDSS g band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'sdssi':{
         'title':'<em>i</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog SDSS i band magnitude'
+        'description':'catalog SDSS i band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'sdssr':{
         'title':'<em>r</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog SDSS r band magnitude'
+        'description':'catalog SDSS r band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'sdssu':{
         'title':'<em>u</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog SDSS u band magnitude'
+        'description':'catalog SDSS u band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'sdssz':{
         'title':'<em>z</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog SDSS z band magnitude'
+        'description':'catalog SDSS z band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
     'simbad_best_mainid':{
         'title':'external object ID',
         'dtype':'U50',
         'format':'%s',
-        'description':'main SIMBAD ID for this object'
+        'description':'main SIMBAD ID for this object',
+        'index':True,
+        'ftsindex':False,
     },
     'simbad_best_objtype':{
         'title':'type flag',
         'dtype':'U20',
         'format':'%s',
         'description':('<a href="http://simbad.u-strasbg.fr/guide/chF.htx">'
-                       'SIMBAD object type flag for this object</a>')
+                       'SIMBAD object type flag for this object</a>'),
+        'index':False,
+        'ftsindex':True,
     },
     'simbad_best_allids':{
         'title':'other IDs',
         'dtype':'U600',
         'format':'%s',
-        'description':'other object IDs from SIMBAD'
+        'description':'other object IDs from SIMBAD',
+        'index':False,
+        'ftsindex':True,
     },
     'simbad_best_distarcsec':{
         'title':'SIMBAD dist',
         'dtype':'f8',
         'format':'%.5f',
-        'description':'distance in arcseconds from closest SIMBAD cross-match'
+        'description':'distance in arcseconds from closest SIMBAD cross-match',
+        'index':True,
+        'ftsindex':False,
     },
     'twomassid':{
         'title':'2MASS ID',
         'dtype':'U60',
         'format':'%s',
-        'description':'2MASS ID for this object'
+        'description':'2MASS ID for this object',
+        'index':True,
+        'ftsindex':False,
     },
     'vmag':{
         'title':'<em>V</em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'catalog V band magnitude'
+        'description':'catalog V band magnitude',
+        'index':True,
+        'ftsindex':False,
     },
 }
 
@@ -624,7 +758,9 @@ def objectinfo_to_sqlite(augcatpkl,
         defaultcolinfo[thiscol_name] = {'title':None,
                                         'description':None,
                                         'dtype':None,
-                                        'format':None}
+                                        'format':None,
+                                        'index':False,
+                                        'ftsindex':False}
 
         colinfo_key = col
 
@@ -671,7 +807,7 @@ def objectinfo_to_sqlite(augcatpkl,
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
 
-        # everything is coerced into a string
+        # everything else is coerced into a string
         else:
 
             coldefs.append(('%s text' % thiscol_name, str))
@@ -704,7 +840,9 @@ def objectinfo_to_sqlite(augcatpkl,
             defaultcolinfo[thiscol_name] = {'title':None,
                                             'description':None,
                                             'dtype':None,
-                                            'format':None}
+                                            'format':None,
+                                            'index':False,
+                                            'ftsindex':False}
 
             # this gets the correct substitution for the magcol
             if sub_mc is not None:
@@ -873,39 +1011,6 @@ def objectinfo_to_sqlite(augcatpkl,
 
         cur.execute(sqlinsert, tuple(thisrow))
 
-    # now create any indexes we want
-    if indexcols:
-        LOGINFO('creating indexes on columns %s' % repr(indexcols))
-
-        for indexcol in indexcols:
-
-            # the user gives the name of the col in the augcat pickle, which we
-            # convert to the database column name
-            indexcolname = indexcol.replace('.','_')
-            sqlindex = ('create index %s_idx on object_catalog (%s)' %
-                        (indexcolname, indexcolname))
-            cur.execute(sqlindex)
-
-    # create any full-text-search indices we want
-    if ftsindexcols:
-
-        LOGINFO('creating an FTS index on columns %s' % repr(ftsindexcols))
-
-        # generate the FTS table structure
-        ftscreate = ("create virtual table catalog_fts "
-                     "using fts5({column_list}, content=object_catalog)")
-        fts_column_list = ', '.join(
-            [x.replace('.','_') for x in ftsindexcols]
-        )
-        ftscreate = ftscreate.format(column_list=fts_column_list)
-
-        # create the FTS index
-        cur.execute(ftscreate)
-
-        # FIXME: add the FTS trigger statements here for an update to the main
-        # object_catalog table. see the astro-coffee implementation for hints
-
-
     # get the column information if there is any
     if isinstance(colinfo, dict):
 
@@ -948,6 +1053,79 @@ def objectinfo_to_sqlite(augcatpkl,
                     defaultcolinfo[col]['description'] = (
                         overridecolinfo[col]['description']
                     )
+
+
+    # now create any indexes we want
+    if indexcols:
+
+        LOGINFO('creating indexes on columns %s' % repr(indexcols))
+
+        for indexcol in indexcols:
+
+            # the user gives the name of the col in the augcat pickle, which we
+            # convert to the database column name
+            indexcolname = indexcol.replace('.','_')
+            sqlindex = ('create index %s_idx on object_catalog (%s)' %
+                        (indexcolname, indexcolname))
+            cur.execute(sqlindex)
+
+    else:
+
+        indexcols = []
+
+        for icol in defaultcolinfo.keys():
+
+            if defaultcolinfo[icol]['index']:
+                sqlindex = ('create index %s_idx on object_catalog (%s)' %
+                            (icol, icol))
+                cur.execute(sqlindex)
+                indexcols.append(icol)
+
+
+    # create any full-text-search indices we want
+    if ftsindexcols:
+
+        LOGINFO('creating an FTS index on columns %s' % repr(ftsindexcols))
+
+        # generate the FTS table structure
+        ftscreate = ("create virtual table catalog_fts "
+                     "using fts5({column_list}, content=object_catalog)")
+        fts_column_list = ', '.join(
+            [x.replace('.','_') for x in ftsindexcols]
+        )
+        ftscreate = ftscreate.format(column_list=fts_column_list)
+
+        # create the FTS index
+        cur.execute(ftscreate)
+
+        # execute the rebuild command to activate the indices
+        cur.execute("insert into catalog_fts(catalog_fts) values ('rebuild')")
+
+        # FIXME: add the FTS trigger statements here for an update to the main
+        # object_catalog table. see the astro-coffee implementation for hints
+
+    else:
+
+        ftsindexcols = []
+
+        for icol in defaultcolinfo.keys():
+
+            if defaultcolinfo[icol]['ftsindex']:
+                ftsindexcols.append(icol)
+
+        LOGINFO('creating an FTS index on columns %s' % repr(ftsindexcols))
+
+        # generate the FTS table structure
+        ftscreate = ("create virtual table catalog_fts "
+                     "using fts5({column_list}, content=object_catalog)")
+        fts_column_list = ', '.join(
+            [x.replace('.','_') for x in ftsindexcols]
+        )
+        ftscreate = ftscreate.format(column_list=fts_column_list)
+
+        # create the FTS index
+        cur.execute(ftscreate)
+
 
     # turn the column info into a JSON
     columninfo_json = json.dumps(defaultcolinfo)
