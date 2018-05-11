@@ -87,14 +87,6 @@ def LOGEXCEPTION(message):
 ###################
 
 
-
-
-def sqlite_objectid_search():
-    '''
-    This searches for objectids.
-
-    '''
-
 def sqlite_fulltext_search():
     '''
     This searches the columns for full text.
