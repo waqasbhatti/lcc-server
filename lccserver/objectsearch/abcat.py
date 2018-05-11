@@ -690,11 +690,22 @@ def kdtree_from_lclist(lclistpkl, outfile):
 
 def objectinfo_to_sqlite(augcatpkl,
                          outfile,
+                         lcset_name=None,
+                         lcset_desc=None,
+                         lcset_project=None,
+                         lcset_datarelease=None,
+                         lcset_citation=None,
+                         lcset_ispublic=True,
                          colinfo=None,
                          indexcols=None,
                          ftsindexcols=None):
 
     '''This writes the object information to an SQLite file.
+
+    lcset_* sets some metadata for the project. this is used by the top-level
+    lcc-collections.sqlite database for all LC collections.
+
+    FIXME: add this stuff
 
     makes indexes for fast look up by objectid by default and any columns
     included in indexcols. also makes a full-text search index for any columns
@@ -1166,5 +1177,49 @@ def objectinfo_to_postgres_table(lclistpkl,
                                  pgport=None):
     '''
     This writes the object information to a Postgres table.
+
+    '''
+
+
+
+
+##############################################
+## COLLECTING METADATA ABOUT LC COLLECTIONS ##
+##############################################
+
+def collect_lcc_info(lcc_basedir, outfile):
+    '''This writes or updates the lcc-collections.sqlite file in lcc_basedir.
+
+    each LC collection is identified by its subdirectory name. The following
+    files must be present in each LC collection subdirectory:
+
+    - lclist-catalog.pkl
+    - catalog-kdtree.pkl
+    - catalog-objectinfo.sqlite
+      - this must contain lcset_* metadata for the collection, so we can give it
+        a name, description, project name, last time of update, datarelease
+        number
+
+    Each LC collection must have the following subdirectories:
+
+    input:
+    - lightcurves/ -> the LCs in whatever format
+    - periodfinding/ -> the periodfinding result pickles
+    - checkplots/ -> the checkplot pickles
+
+    output:
+    - datasets/ -> the datasets generated from searches
+    - products/ -> the lightcurves.zip and dataset.zip for each dataset
+
+    lcc-collections.sqlite -> contains for each LC collection:
+
+                       - name, description, project name, date of last update,
+                         number of objects, footprint in RA/DEC, footprint in
+                         gl/gb, datareleae number, and an ispublic flag
+
+                       - basedir paths for each LC set to get to its catalog
+                         sqlite, kdtree, and datasets
+                       - columns, indexcols, ftscols for each dataset
+                       - sets of columns, indexcols and ftscols for all LC sets
 
     '''

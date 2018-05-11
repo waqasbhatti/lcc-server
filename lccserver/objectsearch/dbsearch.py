@@ -87,13 +87,20 @@ def LOGEXCEPTION(message):
 ###################
 
 
-def sqlite_fulltext_search():
+def sqlite_fulltext_search(dblist,):
     '''
     This searches the columns for full text.
 
     '''
 
-def sqlite_column_search():
+def sqlite_column_search(dblist, columns, conditions):
+    '''
+    This runs an arbitrary column search.
+
+    '''
+
+
+def sqlite_sql_search(dblist, sqlstatement):
     '''
     This runs an arbitrary column search.
 
