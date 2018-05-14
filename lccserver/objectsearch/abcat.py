@@ -163,16 +163,18 @@ def objectinfo_to_sqlite(augcatpkl,
     that are of the form:
 
     'column_name':{'title':'column title',
-                   'description':'a long description of the column',
                    'dtype':numpy dtype of the column,
-                   'format':string format specifier for this column},
+                   'format':string format specifier for this column,
+                   'description':'a long description of the column',
+                   'index': True if this should be indexed, False otherwise,
+                   'ftsindex': True if this should be FTS indexed, or False},
 
     where column_name should be each column in the augcatpkl file. Any column
-    that doesn't have a key in colinfo, it won't have any extra information
+    that doesn't have a key in colinfo won't have any extra information
     associated with it.
 
-    NOTE: This requires FTS5 to be available in SQLite because we don't want to
-    mess with ranking algorithms to be implemented for FTS4.
+    NOTE: This function requires FTS5 to be available in SQLite because we don't
+    want to mess with ranking algorithms to be implemented for FTS4.
 
     '''
 
@@ -635,7 +637,79 @@ def objectinfo_to_postgres_table(lclistpkl,
 ## COLLECTING METADATA ABOUT LC COLLECTIONS ##
 ##############################################
 
-def collect_lcc_info(lcc_basedir, outfile):
+
+SQLITE_LCC_CREATE = '''\
+-- make the main table
+create table lcc_index (
+  collection_id text not null,
+  lcformat_key text not null,
+  lcformat_reader_module text not null,
+  lcformat_reader_function text not null,
+  lcformat_glob text not null,
+  object_catalog_path text not null,
+  kdtree_pkl_path text not null,
+  lightcurves_dir_path text not null,
+  periodfinding_dir_path text,
+  checkplots_dir_path text,
+  datasets_dir_path text,
+  products_dir_path text,
+  ra_min real not null,
+  ra_max real not null,
+  decl_min real not null,
+  decl_max real not null,
+  nobjects integer not null,
+  catalog_columninfo_json text not null,
+  name text,
+  description text,
+  project text,
+  citation text,
+  ispublic integer,
+  datarelease integer default 0,
+  last_updated datetime,
+  last_indexed datetime,
+  primary key (collection_id, name, project, datarelease)
+);
+
+-- make some indexes
+
+-- fts indexes below
+
+-- activate the fts indexes
+'''
+
+SQLITE_LCC_INSERT = '''\
+insert or update into lcc_index (
+collection_id,
+lcformat_key, lcformat_reader_module, lcformat_reader_function, lcformat_glob,
+object_catalog_path, kdtree_pkl_path, lightcurves_dir_path,
+periodfinding_dir_path, checkplots_dir_path,
+datasets_dir_path, products_dir_path,
+ra_min, ra_max, decl_min, decl_max,
+nobjects,
+catalog_columninfo_json,
+name, description, project, citation, ispublic, datarelease,
+last_updated, last_indexed
+) values (
+?,
+?,?,?,?,
+?,?,?,
+?,?,
+?,?,?,?,
+?,
+?,
+?,?,?,?,?,?,
+?,datetime('now')
+)
+'''
+
+
+def sqlite_collect_lcc_info(
+        lcc_basedir,
+        collection_id,
+        lcformat_key,
+        lcformat_reader_module,
+        lcformat_reader_function,
+):
     '''This writes or updates the lcc-collections.sqlite file in lcc_basedir.
 
     each LC collection is identified by its subdirectory name. The following
@@ -661,9 +735,10 @@ def collect_lcc_info(lcc_basedir, outfile):
 
     lcc-collections.sqlite -> contains for each LC collection:
 
-                       - name, description, project name, date of last update,
-                         number of objects, footprint in RA/DEC, footprint in
-                         gl/gb, datareleae number, and an ispublic flag
+                       - collection-id (dirname), description, project name,
+                         date of last update, number of objects, footprint in
+                         RA/DEC, footprint in gl/gb, datareleae number, and an
+                         ispublic flag
 
                        - basedir paths for each LC set to get to its catalog
                          sqlite, kdtree, and datasets
@@ -671,3 +746,48 @@ def collect_lcc_info(lcc_basedir, outfile):
                        - sets of columns, indexcols and ftscols for all LC sets
 
     '''
+
+    # find the root DB
+    lccdb = os.path.join(lcc_basedir, 'lcc-index.sqlite')
+
+    # if it exists already, open it
+    if os.path.exists(lccdb):
+
+        database = sqlite3.open(
+            lccdb,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        cursor = database.cursor()
+        newdb = False
+
+    # if it doesn't exist, then make it
+    else:
+
+        database = sqlite3.open(
+            lccdb,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        cursor = database.cursor()
+
+        cursor.executescript(SQLITE_LCC_CREATE)
+        database.commit()
+        newdb = True
+
+    #
+    # now we're ready to operate on the given lcc-collection basedir
+    #
+
+    # 1. get the various paths
+
+    # 2. check if we can successfully import the lcformat reader func
+
+    # 3. open the catalog sqlite and then:
+    #    - get the minra, maxra, mindecl, maxdecl,
+    #    - get the nobjects
+    #    - get the column, index, and ftsindex information,
+    #    - get the name, desc, project, citation, ispublic, datarelease,
+    #      last_updated
+
+    # 4. execute the query to put all of this stuff into the lcc_index table.
+
+    # 5. commit
