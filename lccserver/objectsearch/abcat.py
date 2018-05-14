@@ -778,8 +778,41 @@ def sqlite_collect_lcc_info(
     #
 
     # 1. get the various paths
+    object_catalog_path = os.path.abspath(os.path.join(lcc_basedir,
+                                                       collection_id,
+                                                       'lclist-catalog.pkl'))
+    catalog_kdtree_path = os.path.abspath(os.path.join(lcc_basedir,
+                                                       collection_id,
+                                                       'catalog-kdtree.pkl'))
+    catalog_objectinfo_path = os.path.abspath(
+        os.path.join(lcc_basedir,
+                     collection_id,
+                     'catalog-objectinfo.sqlite')
+    )
+
+    # check that all of these exist
+    if not os.path.exists(object_catalog_path):
+        LOGERROR('could not find an object catalog pkl: %s '
+                 'for collection: %s, cannot continue' %
+                 (object_catalog_path, collection_id))
+        return None
+
+    if not os.path.exists(catalog_kdtree_path):
+        LOGERROR('could not find a catalog kdtree pkl: %s '
+                 'for collection: %s, cannot continue' %
+                 (catalog_kdtree_path, collection_id))
+        return None
+
+    if not os.path.exists(catalog_objectinfo_path):
+        LOGERROR('could not find a catalog objectinfo sqlite DB: %s '
+                 'for collection: %s, cannot continue' %
+                 (catalog_objectinfo_path, collection_id))
+        return None
+
 
     # 2. check if we can successfully import the lcformat reader func
+
+
 
     # 3. open the catalog sqlite and then:
     #    - get the minra, maxra, mindecl, maxdecl,
@@ -788,6 +821,6 @@ def sqlite_collect_lcc_info(
     #    - get the name, desc, project, citation, ispublic, datarelease,
     #      last_updated
 
-    # 4. execute the query to put all of this stuff into the lcc_index table.
+    # 4. execute the queries to put all of this stuff into the lcc_index table.
 
     # 5. commit
