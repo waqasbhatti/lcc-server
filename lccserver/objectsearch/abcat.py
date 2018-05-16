@@ -722,10 +722,10 @@ create table lcc_index (
 '''
 
 SQLITE_LCC_INSERT = '''\
-insert or update into lcc_index (
+insert or replace into lcc_index (
 collection_id,
 lcformat_key, lcformat_reader_module,
-lcformat_reader_function, lcformat_fileglob,
+lcformat_reader_function, lcformat_glob,
 object_catalog_path, kdtree_pkl_path, lightcurves_dir_path,
 periodfinding_dir_path, checkplots_dir_path,
 datasets_dir_path, products_dir_path,
@@ -737,8 +737,10 @@ name, description, project, citation, ispublic, datarelease,
 last_updated, last_indexed
 ) values (
 ?,
-?,?,?,?,
+?,?,
+?,?,
 ?,?,?,
+?,?,
 ?,?,
 ?,?,?,?,
 ?,
@@ -757,7 +759,7 @@ def sqlite_collect_lcc_info(
         lcformat_fileglob,
         lcformat_reader_module,
         lcformat_reader_function,
-        overwrite=True,
+        raiseonfail=False,
 ):
     '''This writes or updates the lcc-collections.sqlite file in lcc_basedir.
 
@@ -802,17 +804,16 @@ def sqlite_collect_lcc_info(
     # if it exists already, open it
     if os.path.exists(lccdb):
 
-        database = sqlite3.open(
+        database = sqlite3.connect(
             lccdb,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
         cursor = database.cursor()
-        newdb = False
 
     # if it doesn't exist, then make it
     else:
 
-        database = sqlite3.open(
+        database = sqlite3.connect(
             lccdb,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
@@ -820,7 +821,6 @@ def sqlite_collect_lcc_info(
 
         cursor.executescript(SQLITE_LCC_CREATE)
         database.commit()
-        newdb = True
 
     #
     # now we're ready to operate on the given lcc-collection basedir
@@ -957,7 +957,10 @@ def sqlite_collect_lcc_info(
         LOGEXCEPTION('could not import provided LC reader module/function or '
                      'could not read in a light curve from the expected '
                      'LC directory, cannot continue')
-        return None
+        if raiseonfail:
+            raise
+        else:
+            return None
 
     # 3. open the catalog sqlite and then:
     #    - get the minra, maxra, mindecl, maxdecl,
@@ -965,11 +968,6 @@ def sqlite_collect_lcc_info(
     #    - get the column, index, and ftsindex information,
     #    - get the name, desc, project, citation, ispublic, datarelease,
     #      last_updated
-
-    # if this is a new database, then create the basics
-    if newdb:
-        cursor.executescript(SQLITE_LCC_CREATE)
-        database.commit()
 
     # now, calculate the required object info from this collection's
     # objectinfo-catalog.sqlite file
@@ -1031,9 +1029,9 @@ def sqlite_collect_lcc_info(
             minra, maxra, mindecl, maxdecl,
             nobjects,
             column_info,
-            metadata['catalogcols'],
-            metadata['indexcols'],
-            metadata['ftsindexcols'],
+            ','.join(metadata['catalogcols']),
+            ','.join(metadata['indexcols']),
+            ','.join(metadata['ftsindexcols']),
             metadata['lcset_name'],
             metadata['lcset_desc'],
             metadata['lcset_project'],
@@ -1064,4 +1062,7 @@ def sqlite_collect_lcc_info(
                      catalog_objectinfo_path)
 
         database.close()
-        return None
+        if raiseonfail:
+            raise
+        else:
+            return None
