@@ -85,6 +85,7 @@ import json
 import sys
 import os
 import importlib
+import glob
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -600,13 +601,21 @@ def objectinfo_to_sqlite(augcatpkl,
     m_ftsindexcols = ftsindexcols if ftsindexcols is not None else []
 
 
-    metadata = {'basedir':augcat['basedir'],
-                'lcformat':augcat['lcformat'],
-                'fileglob':augcat['fileglob'],
-                'nobjects':augcat['nfiles'],
-                'catalogcols':colnames,
-                'indexcols':[x.replace('.','_') for x in m_indexcols],
-                'ftsindexcols':[x.replace('.','_') for x in m_ftsindexcols]}
+    metadata = {
+        'basedir':augcat['basedir'],
+        'lcformat':augcat['lcformat'],
+        'fileglob':augcat['fileglob'],
+        'nobjects':augcat['nfiles'],
+        'catalogcols':sorted(colnames),
+        'indexcols':sorted([x.replace('.','_') for x in m_indexcols]),
+        'ftsindexcols':sorted([x.replace('.','_') for x in m_ftsindexcols]),
+        'lcset_name':lcset_name,
+        'lcset_desc':lcset_desc,
+        'lcset_project':lcset_project,
+        'lcset_datarelease':lcset_datarelease,
+        'lcset_citation':lcset_citation,
+        'lcset_ispublic':lcset_ispublic
+    }
     metadata_json = json.dumps(metadata)
     cur.execute(
         'create table catalog_metadata (metadata_json text, column_info text)'
@@ -632,6 +641,8 @@ def objectinfo_to_postgres_table(lclistpkl,
     This writes the object information to a Postgres table.
 
     '''
+
+
 
 ##############################################
 ## LIGHT CURVE FORMAT MODULES AND FUNCTIONS ##
@@ -668,7 +679,6 @@ def check_extmodule(module, formatkey):
 ## COLLECTING METADATA ABOUT LC COLLECTIONS ##
 ##############################################
 
-
 SQLITE_LCC_CREATE = '''\
 -- make the main table
 create table lcc_index (
@@ -690,6 +700,9 @@ create table lcc_index (
   decl_max real not null,
   nobjects integer not null,
   catalog_columninfo_json text not null,
+  columnlist text,
+  indexedcols text,
+  ftsindexedcols text,
   name text,
   description text,
   project text,
@@ -711,13 +724,15 @@ create table lcc_index (
 SQLITE_LCC_INSERT = '''\
 insert or update into lcc_index (
 collection_id,
-lcformat_key, lcformat_reader_module, lcformat_reader_function, lcformat_glob,
+lcformat_key, lcformat_reader_module,
+lcformat_reader_function, lcformat_fileglob,
 object_catalog_path, kdtree_pkl_path, lightcurves_dir_path,
 periodfinding_dir_path, checkplots_dir_path,
 datasets_dir_path, products_dir_path,
 ra_min, ra_max, decl_min, decl_max,
 nobjects,
 catalog_columninfo_json,
+columnlist, indexedcols, ftsindexedcols,
 name, description, project, citation, ispublic, datarelease,
 last_updated, last_indexed
 ) values (
@@ -728,6 +743,7 @@ last_updated, last_indexed
 ?,?,?,?,
 ?,
 ?,
+?,?,?,
 ?,?,?,?,?,?,
 ?,datetime('now')
 )
@@ -738,8 +754,10 @@ def sqlite_collect_lcc_info(
         lcc_basedir,
         collection_id,
         lcformat_key,
+        lcformat_fileglob,
         lcformat_reader_module,
         lcformat_reader_function,
+        overwrite=True,
 ):
     '''This writes or updates the lcc-collections.sqlite file in lcc_basedir.
 
@@ -764,7 +782,7 @@ def sqlite_collect_lcc_info(
     - datasets/ -> the datasets generated from searches
     - products/ -> the lightcurves.zip and dataset.zip for each dataset
 
-    lcc-collections.sqlite -> contains for each LC collection:
+    lcc-index.sqlite -> contains for each LC collection:
 
                        - collection-id (dirname), description, project name,
                          date of last update, number of objects, footprint in
@@ -821,6 +839,36 @@ def sqlite_collect_lcc_info(
                      'catalog-objectinfo.sqlite')
     )
 
+    lightcurves_dir_path = os.path.abspath(
+        os.path.join(lcc_basedir,
+                     collection_id,
+                     'lightcurves')
+    )
+
+    periodfinding_dir_path = os.path.abspath(
+        os.path.join(lcc_basedir,
+                     collection_id,
+                     'periodfinding')
+    )
+
+    checkplots_dir_path = os.path.abspath(
+        os.path.join(lcc_basedir,
+                     collection_id,
+                     'checkplots')
+    )
+
+    datasets_dir_path = os.path.abspath(
+        os.path.join(lcc_basedir,
+                     collection_id,
+                     'datasets')
+    )
+
+    products_dir_path = os.path.abspath(
+        os.path.join(lcc_basedir,
+                     collection_id,
+                     'products')
+    )
+
     # check that all of these exist
     if not os.path.exists(object_catalog_path):
         LOGERROR('could not find an object catalog pkl: %s '
@@ -840,6 +888,37 @@ def sqlite_collect_lcc_info(
                  (catalog_objectinfo_path, collection_id))
         return None
 
+    if not os.path.exists(lightcurves_dir_path):
+        LOGERROR('could not find the expected light curves directory: %s '
+                 'for collection: %s, cannot continue' %
+                 (lightcurves_dir_path, collection_id))
+        return None
+
+    if not os.path.exists(periodfinding_dir_path):
+        LOGERROR('could not find the expected '
+                 'period-finding results directory: %s '
+                 'for collection: %s, cannot continue' %
+                 (periodfinding_dir_path, collection_id))
+        return None
+
+    if not os.path.exists(checkplots_dir_path):
+        LOGERROR('could not find the expected checkplot pickles directory: %s '
+                 'for collection: %s, cannot continue' %
+                 (checkplots_dir_path, collection_id))
+        return None
+
+    if not os.path.exists(datasets_dir_path):
+        LOGERROR('no existing output directory for datasets: %s '
+                 'for collection: %s, making a new one' %
+                 (datasets_dir_path, collection_id))
+        os.makedirs(datasets_dir_path)
+
+    if not os.path.exists(products_dir_path):
+        LOGERROR('no existing output directory for dataset products: %s '
+                 'for collection: %s, cannot continue' %
+                 (products_dir_path, collection_id))
+        os.makedirs(products_dir_path)
+
 
     # 2. check if we can successfully import the lcformat reader func
     try:
@@ -849,13 +928,35 @@ def sqlite_collect_lcc_info(
 
 
         # then, get the function we need to read the lightcurve
-        # NOTE: this is literally black magic
         readerfunc = getattr(readermodule, lcformat_reader_function)
+
+        # use the lcformat_fileglob to find light curves in the LC dir
+        lcformat_lcfiles = glob.glob(os.path.join(lightcurves_dir_path,
+                                                  lcformat_fileglob))
+        if len(lcformat_lcfiles) == 0:
+            LOGERROR('no light curves for lcformat key: %s, '
+                     'matching provided fileglob: %s '
+                     'found in expected light curves directory: %s, '
+                     'cannot continue' % (lcformat_key, lcformat_fileglob,
+                                          lightcurves_dir_path))
+            return None
+
+        # finally, read in a light curve to see if it works as expected
+        lcdict = readerfunc(lcformat_lcfiles[0])
+
+        if isinstance(lcdict, (tuple, list)) and len(lcdict) == 2:
+            lcdict = lcdict[0]
+
+        LOGINFO('imported provided LC reader module and function, '
+                'and test-read a %s light curve successfully from %s...' %
+                (lcformat_key, lightcurves_dir_path))
+
 
     except Exception as e:
 
-        LOGEXCEPTION('could not import provided LC reader module/function, '
-                     'cannot continue')
+        LOGEXCEPTION('could not import provided LC reader module/function or '
+                     'could not read in a light curve from the expected '
+                     'LC directory, cannot continue')
         return None
 
     # 3. open the catalog sqlite and then:
@@ -865,6 +966,102 @@ def sqlite_collect_lcc_info(
     #    - get the name, desc, project, citation, ispublic, datarelease,
     #      last_updated
 
-    # 4. execute the queries to put all of this stuff into the lcc_index table.
+    # if this is a new database, then create the basics
+    if newdb:
+        cursor.executescript(SQLITE_LCC_CREATE)
+        database.commit()
 
-    # 5. commit
+    # now, calculate the required object info from this collection's
+    # objectinfo-catalog.sqlite file
+
+    try:
+
+        objectinfo = sqlite3.connect(
+            catalog_objectinfo_path,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        ocur = objectinfo.cursor()
+
+        query = ("select count(*), min(ra), max(ra), min(decl), max(decl) from "
+                 "object_catalog")
+        ocur.execute(query)
+        row = ocur.fetchone()
+
+        # 1. this is the nobjects and footprint (or a poor approximation of one)
+        # FIXME: maybe use a convex hull or alpha shape here
+        nobjects, minra, maxra, mindecl, maxdecl = row
+
+        # 2. get the column info out
+        query = ("select metadata_json, column_info from catalog_metadata")
+        ocur.execute(query)
+        metadata, column_info = ocur.fetchone()
+
+        # from the metadata, we collect the collection's name, description,
+        # project, citation, ispublic, datarelease, columnlist, indexedcols,
+        # ftsindexedcols
+        metadata = json.loads(metadata)
+
+        # this is the time when the catalog-objectinfo.sqlite was last created
+        # (stat_result.st_ctime). we assume this is the same time at which the
+        # collection was updated to add new items or update information
+        last_updated = datetime.fromtimestamp(
+            os.stat(catalog_objectinfo_path).st_ctime
+        )
+
+        # close the objectinfo-catalog.sqlite file
+        ocur.close()
+        objectinfo.close()
+
+        # 3. put these things into the lcc-index database
+
+        # prepare the query items
+        items = (
+            collection_id,
+            lcformat_key,
+            lcformat_reader_module,
+            lcformat_reader_function,
+            lcformat_fileglob,
+            object_catalog_path,
+            catalog_kdtree_path,
+            lightcurves_dir_path,
+            periodfinding_dir_path,
+            checkplots_dir_path,
+            datasets_dir_path,
+            products_dir_path,
+            minra, maxra, mindecl, maxdecl,
+            nobjects,
+            column_info,
+            metadata['catalogcols'],
+            metadata['indexcols'],
+            metadata['ftsindexcols'],
+            metadata['lcset_name'],
+            metadata['lcset_desc'],
+            metadata['lcset_project'],
+            metadata['lcset_citation'],
+            metadata['lcset_ispublic'],
+            metadata['lcset_datarelease'],
+            last_updated
+        )
+
+        # 4. execute the queries to put all of this stuff into the lcc_index
+        # table and commit
+        cursor.execute(SQLITE_LCC_INSERT, items)
+        database.commit()
+
+        # all done!
+        LOGINFO('added light curve collection: '
+                '%s with %s objects, LCs at: %s to the light curve '
+                'collection index database: %s' %
+                (lcformat_key, nobjects, lightcurves_dir_path, lccdb))
+
+        # return the path of the lcc-index.sqlite database
+        return lccdb
+
+    except Exception as e:
+
+        LOGEXCEPTION('could not get collection data from the object '
+                     'catalog SQLite database: %s, cannot continue' %
+                     catalog_objectinfo_path)
+
+        database.close()
+        return None
