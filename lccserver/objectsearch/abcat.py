@@ -82,6 +82,9 @@ import os.path
 import pickle
 import sqlite3
 import json
+import sys
+import os
+import importlib
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -630,6 +633,34 @@ def objectinfo_to_postgres_table(lclistpkl,
 
     '''
 
+##############################################
+## LIGHT CURVE FORMAT MODULES AND FUNCTIONS ##
+##############################################
+
+def check_extmodule(module, formatkey):
+    '''This just imports the module specified.
+
+    '''
+
+    try:
+
+        if os.path.exists(module):
+
+            sys.path.append(os.path.dirname(module))
+            importedok = importlib.import_module(
+                os.path.basename(module.replace('.py',''))
+            )
+        else:
+            importedok = importlib.import_module(module)
+
+    except Exception as e:
+
+        LOGEXCEPTION('could not import the module: %s for LC format: %s. '
+                     'check the file path or fully qualified module name?'
+                     % (module, formatkey))
+        importedok = False
+
+    return importedok
 
 
 
@@ -811,8 +842,21 @@ def sqlite_collect_lcc_info(
 
 
     # 2. check if we can successfully import the lcformat reader func
+    try:
+        # see if we can import the reader module
+        readermodule = check_extmodule(lcformat_reader_module,
+                                       lcformat_key)
 
 
+        # then, get the function we need to read the lightcurve
+        # NOTE: this is literally black magic
+        readerfunc = getattr(readermodule, lcformat_reader_function)
+
+    except Exception as e:
+
+        LOGEXCEPTION('could not import provided LC reader module/function, '
+                     'cannot continue')
+        return None
 
     # 3. open the catalog sqlite and then:
     #    - get the minra, maxra, mindecl, maxdecl,
