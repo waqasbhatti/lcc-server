@@ -1066,3 +1066,16 @@ def sqlite_collect_lcc_info(
             raise
         else:
             return None
+
+
+
+#############################################
+## FUNCTIONS FOR COLLECTION INDEX DATABASE ##
+#############################################
+
+def calculate_collection_footprint(lcc_basedir,
+                                   collection_id=None):
+    '''This calculates the sky footprint of a single or all collections in an
+    lcc-index.sqlite file.
+
+    '''

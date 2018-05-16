@@ -74,6 +74,38 @@ def LOGEXCEPTION(message):
 ## IMPORTS ##
 #############
 
+import os
+import sqlite3
+
+
+#####################################
+## UTILITY FUNCTIONS FOR DATABASES ##
+#####################################
+
+def sqlite_join_collections(basedir, lcclist):
+    '''This returns an instance of sqlite3 connection with all sqlite DBs
+    corresponding to the collections in lcclist attached to it.
+
+    Useful for cross-collection searches.
+
+    Also returns:
+
+    - the set of columns that are common to all collections
+    - the set of indexed cols and FTS indexed cols available
+    - the reformed database identifiers (e.g. hatnet-kepler -> hatnet_kepler)
+
+    '''
+
+    # open the index database
+    indexdbf = os.path.join(basedir, 'lcc-index.sqlite')
+    indexdb = sqlite3.connect(
+        indexdbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = indexdb.cursor()
+
+    # get the info we need
+    query = ("select ")
 
 
 
@@ -87,21 +119,37 @@ def LOGEXCEPTION(message):
 ###################
 
 
-def sqlite_fulltext_search(dblist,):
+def sqlite_fulltext_search(basedir, lcclist, ftsquery):
     '''
     This searches the columns for full text.
 
     '''
 
-def sqlite_column_search(dblist, columns, conditions):
+
+def sqlite_column_search(basedir, lcclist, columns, conditions):
     '''
     This runs an arbitrary column search.
 
     '''
 
 
-def sqlite_sql_search(dblist, sqlstatement):
+def sqlite_sql_search(basedir, lcclist, sqlstatement):
     '''
     This runs an arbitrary column search.
+
+    '''
+
+
+###################
+## KDTREE SEARCH ##
+###################
+
+def kdtree_conesearch(basedir, lcclist, searchparams):
+    '''
+    This does a cone-search using searchparams over all lcc in lcclist.
+
+    - do an overlap between footprint of lcc and cone size
+    - figure out which lccs to use
+    - run kdtree search for each of these and concat the results
 
     '''
