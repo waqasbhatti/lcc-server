@@ -591,6 +591,9 @@ def objectinfo_to_sqlite(augcatpkl,
         # create the FTS index
         cur.execute(ftscreate)
 
+        # execute the rebuild command to activate the indices
+        cur.execute("insert into catalog_fts(catalog_fts) values ('rebuild')")
+
 
     # turn the column info into a JSON
     columninfo_json = json.dumps(defaultcolinfo)

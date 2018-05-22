@@ -204,21 +204,48 @@ def sqlite_get_collections(basedir,
 ###################
 
 
-def sqlite_fulltext_search(basedir, lcclist, ftsquery):
+def sqlite_fulltext_search(basedir,
+                           lcclist,
+                           ftsquerystr,
+                           columns,
+                           require_ispublic=True):
     '''
     This searches the columns for full text.
 
     '''
 
+    dbinfo = sqlite_get_collections(basedir,
+                                    lcclist,
+                                    require_ispublic=require_ispublic)
 
-def sqlite_column_search(basedir, lcclist, columns, conditions):
+
+    db = dbinfo['database']
+    cur = dbinfo['cursor']
+
+    available_lcc = dbinfo['databases']
+
+    # now we have to execute the FTS query for all of the attached databases.
+    for lcc in available_lcc:
+
+        q = ("select %s from %s where %s")
+
+
+
+def sqlite_column_search(basedir,
+                         lcclist,
+                         columns,
+                         conditions,
+                         require_ispublic=True):
     '''
     This runs an arbitrary column search.
 
     '''
 
 
-def sqlite_sql_search(basedir, lcclist, sqlstatement):
+def sqlite_sql_search(basedir,
+                      lcclist,
+                      sqlstatement,
+                      require_ispublic=True):
     '''
     This runs an arbitrary column search.
 
