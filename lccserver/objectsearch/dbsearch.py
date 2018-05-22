@@ -82,7 +82,9 @@ import sqlite3
 ## UTILITY FUNCTIONS FOR DATABASES ##
 #####################################
 
-def sqlite_join_collections(basedir, lcclist):
+def sqlite_get_collections(basedir,
+                           lcclist,
+                           require_ispublic=True):
     '''This returns an instance of sqlite3 connection with all sqlite DBs
     corresponding to the collections in lcclist attached to it.
 
@@ -105,7 +107,90 @@ def sqlite_join_collections(basedir, lcclist):
     cur = indexdb.cursor()
 
     # get the info we need
-    query = ("select ")
+    query = ("select collection_id, object_catalog_path, kdtree_pkl_path, "
+             "columnlist, indexedcols, ftsindexedcols, name, "
+             "description, project, ispublic, datarelease, "
+             "ra_min, ra_max, decl_min, decl_max, nobjects from lcc_index "
+             "where collection_id in (?)")
+
+    if require_ispublic:
+        query = query + ' and ispublic = 1'
+
+    db_lcclist = ','.join(lcclist)
+
+    cur.execute(query, (db_lcclist,))
+
+    results = cur.fetchall()
+
+    indexdb.close()
+
+    # if we got the databases, then proceed
+    if results and len(results) > 0:
+
+        results = zip(list(*results))
+
+        (collection_id, object_catalog_path,
+         kdtree_pkl_path, columnlist,
+         indexedcols, ftsindexedcols, name,
+         description, project,
+         ispublic, datarelease,
+         minra, maxra, mindecl, maxdecl, nobjects) = results
+
+        dbnames = [x.replace('-','_') for x in collection_id]
+
+        columns_available = ','.join(columnlist)
+        columns_available = list(set(columns_available.split(',')))
+
+        indexed_cols_available = ','.join(indexedcols)
+        indexed_cols_available = list(set(indexed_cols_available.split(',')))
+
+        ftsindexed_cols_available = ','.join(ftsindexedcols)
+        ftsindexed_cols_available = list(
+            set(ftsindexed_cols_available.split(','))
+        )
+
+        # this is the connection we will return
+        newconn = sqlite3.connect(
+            ':memory:',
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        newcur = newconn.cursor()
+
+        for dbn, catpath in zip(dbnames, object_catalog_path):
+            newcur.execute("attach database '%s' as %s" % (catpath, dbn))
+
+        outdict = {
+            'connection':newconn,
+            'cursor':newcur,
+            'databases':dbnames,
+            'columns':columns_available,
+            'indexedcols':indexed_cols_available,
+            'ftscols':ftsindexed_cols_available,
+            'info':{'collection_id':collection_id,
+                    'object_catalog_path':object_catalog_path,
+                    'kdtree_pkl_path':kdtree_pkl_path,
+                    'columnlist':columnlist,
+                    'indexedcols':indexedcols,
+                    'ftsindexedcols':ftsindexedcols,
+                    'name':name,
+                    'description':description,
+                    'project':project,
+                    'ispublic':ispublic,
+                    'datarelease':datarelease,
+                    'minra':minra,
+                    'maxra':maxra,
+                    'mindecl':mindecl,
+                    'maxdecl':maxdecl,
+                    'nobjects':nobjects}
+        }
+
+        return outdict
+
+    else:
+
+        LOGERROR('could not find any information '
+                 'about the requested LCC collections')
+        return None
 
 
 

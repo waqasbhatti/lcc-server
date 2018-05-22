@@ -1019,7 +1019,7 @@ def sqlite_collect_lcc_info(
             lcformat_reader_module,
             lcformat_reader_function,
             lcformat_fileglob,
-            object_catalog_path,
+            catalog_objectinfo_path,
             catalog_kdtree_path,
             lightcurves_dir_path,
             periodfinding_dir_path,
