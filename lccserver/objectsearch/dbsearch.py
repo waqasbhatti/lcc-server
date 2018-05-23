@@ -154,6 +154,7 @@ def sqlite_get_collections(basedir,
             ':memory:',
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
+        newconn.row_factory = sqlite3.Row
         newcur = newconn.cursor()
 
         for dbn, catpath in zip(dbnames, object_catalog_path):
@@ -198,6 +199,77 @@ def sqlite_get_collections(basedir,
 ## PARSING SEARCH PARAMS ##
 ###########################
 
+SQLITE_ALLOWED_WORDS = ['and','between','in',
+                        'is','isnull','like','not',
+                        'notnull','null','or',
+                        '=','<','>','<=','>=','!=','%']
+
+# this is from Tornado's source (MIT License):
+# http://www.tornadoweb.org/en/stable/_modules/tornado/escape.html#squeeze
+def squeeze(value):
+    """Replace all sequences of whitespace chars with a single space."""
+    return re.sub(r"[\x00-\x20]+", " ", value).strip()
+
+
+def validate_sqlite_filters(filterstring, columnlist):
+    '''This validates the sqlitecurve filter string.
+
+    This MUST be valid SQL but not contain any commands.
+
+    '''
+
+    # first, lowercase, then squeeze to single spaces
+    stringelems = squeeze(filterstring).lower()
+
+    # replace shady characters
+    stringelems = filterstring.replace('(','')
+    stringelems = stringelems.replace(')','')
+    stringelems = stringelems.replace(',','')
+    stringelems = stringelems.replace("'",'"')
+    stringelems = stringelems.replace('\n',' ')
+    stringelems = stringelems.replace('\t',' ')
+    stringelems = squeeze(stringelems)
+
+    # split into words
+    stringelems = stringelems.split(' ')
+    stringelems = [x.strip() for x in stringelems]
+
+    # get rid of all numbers
+    stringwords = []
+    for x in stringelems:
+        try:
+            floatcheck = float(x)
+        except ValueError as e:
+            stringwords.append(x)
+
+    # get rid of everything within quotes
+    stringwords2 = []
+    for x in stringwords:
+        if not(x.startswith('"') and x.endswith('"')):
+            stringwords2.append(x)
+    stringwords2 = [x for x in stringwords2 if len(x) > 0]
+
+    # check the filterstring words against the allowed words
+    wordset = set(stringwords2)
+
+    # generate the allowed word set for these LC columns
+    allowedwords = SQLITE_ALLOWED_WORDS + columnlist
+    checkset = set(allowedwords)
+
+    validatecheck = list(wordset - checkset)
+
+    # if there are words left over, then this filter string is suspicious
+    if len(validatecheck) > 0:
+
+        # check if validatecheck contains an elem with % in it
+        LOGWARNING("provided SQL filter string '%s' "
+                   "contains non-allowed keywords" % filterstring)
+        return None
+
+    else:
+        return filterstring
+
+
 
 ###################
 ## SQLITE SEARCH ##
@@ -208,9 +280,22 @@ def sqlite_fulltext_search(basedir,
                            lcclist,
                            ftsquerystr,
                            columns,
+                           extraconditions=None,
                            require_ispublic=True):
-    '''
-    This searches the columns for full text.
+    '''This searches the specified collections for a full-text match.
+
+    basedir is the directory where lcc-index.sqlite is located.
+
+    ftsquerystr is string to query against the FTS indexed columns. this is in
+    the usual FTS syntax:
+
+    https://www.sqlite.org/fts5.html#full_text_query_syntax
+
+    columns is a list that specifies which columns to return after the query is
+    complete.
+
+    require_ispublic sets if the query is restricted to public light curve
+    collections only.
 
     '''
 
@@ -219,15 +304,63 @@ def sqlite_fulltext_search(basedir,
                                     require_ispublic=require_ispublic)
 
 
-    db = dbinfo['database']
+    db = dbinfo['connection']
     cur = dbinfo['cursor']
 
     available_lcc = dbinfo['databases']
+    available_columns = dbinfo['columns']
+
+    # get the columns together
+    columnstr = ', '.join('a.%s' % c for c in columns)
+
+    # this is the query that will be used for FTS
+    q = ("select {columnstr} from {collection_id}.object_catalog a join "
+         "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
+         "catalog_fts match '{ftsquerystr}' {extraconditions} "
+         "order by bm25(catalog_fts)")
+
+    # handle the extra conditions
+    if extraconditions is not None:
+
+        # validate this string
+        extraconditions = validate_sqlite_filters(extraconditions,
+                                                  available_columns)
+
 
     # now we have to execute the FTS query for all of the attached databases.
+    results = {}
+
     for lcc in available_lcc:
 
-        q = ("select %s from %s where %s")
+        # if we have extra filters, apply them
+        if extraconditions is not None:
+
+            extraconditionstr = extraconditions
+
+        else:
+
+            extraconditionstr = ''
+
+        q = q.format(columnstr=columnstr,
+                     collection_id=lcc,
+                     ftsquerystr=ftsquerystr,
+                     extraconditions=extraconditionstr)
+
+
+        cur.execute(q)
+        results[lcc] = cur.fetchall()
+
+    results['collections'] = available_lcc
+    results['columns'] = available_columns
+
+    results['args'] = {'lcclist':lcclist,
+                       'ftsquerystr':ftsquerystr,
+                       'columns':columns,
+                       'extraconditions':extraconditions}
+
+
+    db.close()
+    return results
 
 
 
