@@ -276,7 +276,6 @@ def validate_sqlite_filters(filterstring, columnlist):
 ## SQLITE SEARCH ##
 ###################
 
-
 def sqlite_fulltext_search(basedir,
                            lcclist,
                            ftsquerystr,
@@ -304,24 +303,24 @@ def sqlite_fulltext_search(basedir,
 
     '''
 
+    # connect to all the specified databases
     dbinfo = sqlite_get_collections(basedir,
                                     lcclist,
                                     require_ispublic=require_ispublic)
-
-
     db = dbinfo['connection']
     cur = dbinfo['cursor']
 
+    # get the available databases and columns
     available_lcc = dbinfo['databases']
     available_columns = dbinfo['columns']
 
-    # get the columns together
+    # get the requested columns together
     columnstr = ', '.join('a.%s' % c for c in columns)
 
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
          "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
-         "catalog_fts match '{ftsquerystr}' {extraconditions} "
+         "catalog_fts match ? {extraconditions} "
          "order by bm25(catalog_fts)")
 
     # handle the extra conditions
@@ -346,13 +345,16 @@ def sqlite_fulltext_search(basedir,
 
             extraconditionstr = ''
 
+        # format the query
         q = q.format(columnstr=columnstr,
                      collection_id=lcc,
                      ftsquerystr=ftsquerystr,
                      extraconditions=extraconditionstr)
 
+        # execute the query
+        cur.execute(q, (ftsquerystr,))
 
-        cur.execute(q)
+        # put the results into the right place
         results[lcc] = cur.fetchall()
 
     results['databases'] = available_lcc
