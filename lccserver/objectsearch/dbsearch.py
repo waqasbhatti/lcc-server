@@ -84,7 +84,7 @@ import re
 #####################################
 
 def sqlite_get_collections(basedir,
-                           lcclist,
+                           lcclist=None,
                            require_ispublic=True):
     '''This returns an instance of sqlite3 connection with all sqlite DBs
     corresponding to the collections in lcclist attached to it.
@@ -112,17 +112,31 @@ def sqlite_get_collections(basedir,
              "columnlist, indexedcols, ftsindexedcols, name, "
              "description, project, ispublic, datarelease, "
              "ra_min, ra_max, decl_min, decl_max, nobjects from lcc_index "
-             "where collection_id in (?)")
+             "{lccspec}")
 
-    if require_ispublic:
-        query = query + ' and ispublic = 1'
+    # handle the case where lcclist is not provided, we'll use any LCC available
+    # in the database
+    if lcclist is not None:
 
-    db_lcclist = ','.join(lcclist)
+        query = query.format(lccspec='where collection_id in (?)')
+        db_lcclist = ','.join(lcclist)
 
-    cur.execute(query, (db_lcclist,))
+        if require_ispublic:
+            query = query + ' and ispublic = 1'
+
+        cur.execute(query, (db_lcclist,))
+
+    # otherwise, we'll provide a list of LCCs
+    else:
+
+        query = query.format(lccspec='')
+
+        if require_ispublic:
+            query = query + ' where ispublic = 1'
+
+        cur.execute(query)
 
     results = cur.fetchall()
-
     indexdb.close()
 
     # if we got the databases, then proceed
@@ -205,11 +219,14 @@ SQLITE_ALLOWED_WORDS = ['and','between','in',
                         'notnull','null','or',
                         '=','<','>','<=','>=','!=','%']
 
+
+
 # this is from Tornado's source (MIT License):
 # http://www.tornadoweb.org/en/stable/_modules/tornado/escape.html#squeeze
 def squeeze(value):
     """Replace all sequences of whitespace chars with a single space."""
     return re.sub(r"[\x00-\x20]+", " ", value).strip()
+
 
 
 def validate_sqlite_filters(filterstring, columnlist):
@@ -277,16 +294,16 @@ def validate_sqlite_filters(filterstring, columnlist):
 ###################
 
 def sqlite_fulltext_search(basedir,
-                           lcclist,
                            ftsquerystr,
                            columns,
                            extraconditions=None,
+                           lcclist=None,
                            require_ispublic=True):
     '''This searches the specified collections for a full-text match.
 
     basedir is the directory where lcc-index.sqlite is located.
 
-    ftsquerystr is string to query against the FTS indexed columns. this is in
+    ftsquerystr is string to query against the FTS indexed columns. This is in
     the usual FTS syntax:
 
     https://www.sqlite.org/fts5.html#full_text_query_syntax
@@ -298,6 +315,9 @@ def sqlite_fulltext_search(basedir,
     the where statement. This will be parsed and if it contains any non-allowed
     keywords, extraconditions will be disabled.
 
+    lcclist is the list of light curve collection IDs to search in. If this is
+    None, all light curve collections are searched.
+
     require_ispublic sets if the query is restricted to public light curve
     collections only.
 
@@ -305,7 +325,7 @@ def sqlite_fulltext_search(basedir,
 
     # connect to all the specified databases
     dbinfo = sqlite_get_collections(basedir,
-                                    lcclist,
+                                    lcclist=lcclist,
                                     require_ispublic=require_ispublic)
     db = dbinfo['connection']
     cur = dbinfo['cursor']
@@ -313,6 +333,22 @@ def sqlite_fulltext_search(basedir,
     # get the available databases and columns
     available_lcc = dbinfo['databases']
     available_columns = dbinfo['columns']
+
+    if lcclist is not None:
+
+        inlcc = set([x.replace('-','_') for x in lcclist])
+        uselcc = list(set(available_lcc).intersection(inlcc))
+
+        if not uselcc:
+            LOGERROR("none of the specified input LC collections are valid")
+            db.close()
+            return None
+
+    else:
+
+        LOGWARNING("no input LC collections specified, using all of them")
+        uselcc = available_lcc
+
 
     # get the requested columns together
     columnstr = ', '.join('a.%s' % c for c in columns)
@@ -334,7 +370,7 @@ def sqlite_fulltext_search(basedir,
     # now we have to execute the FTS query for all of the attached databases.
     results = {}
 
-    for lcc in available_lcc:
+    for lcc in uselcc:
 
         # if we have extra filters, apply them
         if extraconditions is not None:
@@ -357,12 +393,16 @@ def sqlite_fulltext_search(basedir,
         # put the results into the right place
         results[lcc] = cur.fetchall()
 
+        LOGINFO('executed FTS query: "%s" successfully '
+                'for collection: %s, matching nrows: %s' %
+                (ftsquerystr, lcc, len(results[lcc])))
+
     results['databases'] = available_lcc
     results['columns'] = available_columns
 
-    results['args'] = {'lcclist':lcclist,
-                       'ftsquerystr':ftsquerystr,
+    results['args'] = {'ftsquerystr':ftsquerystr,
                        'columns':columns,
+                       'lcclist':lcclist,
                        'extraconditions':extraconditions}
 
 
@@ -372,22 +412,55 @@ def sqlite_fulltext_search(basedir,
 
 
 def sqlite_column_search(basedir,
-                         lcclist,
                          columns,
                          conditions,
+                         sortconditions=None,
+                         lcclist=None,
                          require_ispublic=True):
-    '''
-    This runs an arbitrary column search.
+    '''This runs an arbitrary column search.
+
+    basedir is the directory where lcc-index.sqlite is located.
+
+    ftsquerystr is string to query against the FTS indexed columns. this is in
+    the usual FTS syntax:
+
+    https://www.sqlite.org/fts5.html#full_text_query_syntax
+
+    columns is a list that specifies which columns to return after the query is
+    complete.
+
+    extraconditions is a string in SQL format that applies extra conditions to
+    the where statement. This will be parsed and if it contains any non-allowed
+    keywords, extraconditions will be disabled.
+
+    require_ispublic sets if the query is restricted to public light curve
+    collections only.
 
     '''
 
 
 def sqlite_sql_search(basedir,
-                      lcclist,
                       sqlstatement,
+                      lcclist=None,
                       require_ispublic=True):
-    '''
-    This runs an arbitrary column search.
+    '''This runs an arbitrary SQL statement search.
+
+    basedir is the directory where lcc-index.sqlite is located.
+
+    ftsquerystr is string to query against the FTS indexed columns. this is in
+    the usual FTS syntax:
+
+    https://www.sqlite.org/fts5.html#full_text_query_syntax
+
+    columns is a list that specifies which columns to return after the query is
+    complete.
+
+    extraconditions is a string in SQL format that applies extra conditions to
+    the where statement. This will be parsed and if it contains any non-allowed
+    keywords, extraconditions will be disabled.
+
+    require_ispublic sets if the query is restricted to public light curve
+    collections only.
 
     '''
 
@@ -396,12 +469,33 @@ def sqlite_sql_search(basedir,
 ## KDTREE SEARCH ##
 ###################
 
-def kdtree_conesearch(basedir, lcclist, searchparams):
-    '''
-    This does a cone-search using searchparams over all lcc in lcclist.
+def sqlite_kdtree_conesearch(basedir,
+                             conesearchparams,
+                             columns,
+                             extraconditions=None,
+                             lcclist=None,
+                             require_ispublic=True):
+    '''This does a cone-search using searchparams over all lcc in lcclist.
 
     - do an overlap between footprint of lcc and cone size
     - figure out which lccs to use
     - run kdtree search for each of these and concat the results
+
+    basedir is the directory where lcc-index.sqlite is located.
+
+    ftsquerystr is string to query against the FTS indexed columns. this is in
+    the usual FTS syntax:
+
+    https://www.sqlite.org/fts5.html#full_text_query_syntax
+
+    columns is a list that specifies which columns to return after the query is
+    complete.
+
+    extraconditions is a string in SQL format that applies extra conditions to
+    the where statement. This will be parsed and if it contains any non-allowed
+    keywords, extraconditions will be disabled.
+
+    require_ispublic sets if the query is restricted to public light curve
+    collections only.
 
     '''
