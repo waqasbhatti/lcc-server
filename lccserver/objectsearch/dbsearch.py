@@ -680,3 +680,36 @@ def sqlite_kdtree_conesearch(basedir,
     collections only.
 
     '''
+    # connect to all the specified databases
+    dbinfo = sqlite_get_collections(basedir,
+                                    lcclist=lcclist,
+                                    require_ispublic=require_ispublic)
+    db = dbinfo['connection']
+    cur = dbinfo['cursor']
+
+    # get the available databases and columns
+    available_lcc = dbinfo['databases']
+    available_columns = dbinfo['columns']
+
+    if lcclist is not None:
+
+        inlcc = set([x.replace('-','_') for x in lcclist])
+        uselcc = list(set(available_lcc).intersection(inlcc))
+
+        if not uselcc:
+            LOGERROR("none of the specified input LC collections are valid")
+            db.close()
+            return None
+
+    else:
+
+        LOGWARNING("no input LC collections specified, using all of them")
+        uselcc = available_lcc
+
+
+    # get the requested columns together
+    columnstr = ', '.join('a.%s' % c for c in getcolumns)
+
+    # this is the query that will be used
+    q = ("select {columnstr} from {collection_id}.object_catalog a "
+         "{wherecondition} {sortcondition} {limitcondition}")
