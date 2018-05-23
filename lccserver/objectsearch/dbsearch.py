@@ -219,7 +219,9 @@ SQLITE_ALLOWED_WORDS = ['and','between','in',
                         'notnull','null','or',
                         '=','<','>','<=','>=','!=','%']
 
+SQLITE_ALLOWED_ORDERBY = ['asc','desc']
 
+SQLITE_ALLOWED_LIMIT = ['limit']
 
 # this is from Tornado's source (MIT License):
 # http://www.tornadoweb.org/en/stable/_modules/tornado/escape.html#squeeze
@@ -229,7 +231,10 @@ def squeeze(value):
 
 
 
-def validate_sqlite_filters(filterstring, columnlist):
+def validate_sqlite_filters(filterstring,
+                            columnlist=None,
+                            allowedsqlwords=SQLITE_ALLOWED_WORDS,
+                            otherkeywords=None):
     '''This validates the sqlitecurve filter string.
 
     This MUST be valid SQL but not contain any commands.
@@ -271,7 +276,17 @@ def validate_sqlite_filters(filterstring, columnlist):
     wordset = set(stringwords2)
 
     # generate the allowed word set for these LC columns
-    allowedwords = SQLITE_ALLOWED_WORDS + columnlist
+    if columnlist is not None:
+        allowedcolumnlist = columnlist
+    else:
+        allowedcolumnlist = []
+
+    allowedwords = allowedsqlwords + allowedcolumnlist
+
+    # this allows us to handle other stuff like ADQL operators
+    if otherkeywords is not None:
+        allowedwords = allowedwords + otherkeywords
+
     checkset = set(allowedwords)
 
     validatecheck = list(wordset - checkset)
@@ -295,7 +310,7 @@ def validate_sqlite_filters(filterstring, columnlist):
 
 def sqlite_fulltext_search(basedir,
                            ftsquerystr,
-                           columns,
+                           getcolumns,
                            extraconditions=None,
                            lcclist=None,
                            require_ispublic=True):
@@ -351,7 +366,7 @@ def sqlite_fulltext_search(basedir,
 
 
     # get the requested columns together
-    columnstr = ', '.join('a.%s' % c for c in columns)
+    columnstr = ', '.join('a.%s' % c for c in getcolumns)
 
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
@@ -364,7 +379,7 @@ def sqlite_fulltext_search(basedir,
 
         # validate this string
         extraconditions = validate_sqlite_filters(extraconditions,
-                                                  available_columns)
+                                                  columnlist=available_columns)
 
 
     # now we have to execute the FTS query for all of the attached databases.
@@ -372,36 +387,58 @@ def sqlite_fulltext_search(basedir,
 
     for lcc in uselcc:
 
-        # if we have extra filters, apply them
-        if extraconditions is not None:
+        try:
 
-            extraconditionstr = 'and (%s)' % extraconditions
+            # if we have extra filters, apply them
+            if extraconditions is not None:
 
-        else:
+                extraconditionstr = 'and (%s)' % extraconditions
 
-            extraconditionstr = ''
+            else:
 
-        # format the query
-        q = q.format(columnstr=columnstr,
-                     collection_id=lcc,
-                     ftsquerystr=ftsquerystr,
-                     extraconditions=extraconditionstr)
+                extraconditionstr = ''
 
-        # execute the query
-        cur.execute(q, (ftsquerystr,))
+            # format the query
+            thisq = q.format(columnstr=columnstr,
+                             collection_id=lcc,
+                             ftsquerystr=ftsquerystr,
+                             extraconditions=extraconditionstr)
 
-        # put the results into the right place
-        results[lcc] = cur.fetchall()
+            # execute the query
+            cur.execute(thisq, (ftsquerystr,))
 
-        LOGINFO('executed FTS query: "%s" successfully '
-                'for collection: %s, matching nrows: %s' %
-                (ftsquerystr, lcc, len(results[lcc])))
+            # put the results into the right place
+            results[lcc] = {'result':cur.fetchall(),
+                            'query':thisq.replace('?',"'%s'" % ftsquerystr),
+                            'success':True}
+            results[lcc]['nmatches'] = len(results[lcc]['result'])
 
+            msg = ('executed FTS query: "%s" successfully '
+                   'for collection: %s, matching nrows: %s' %
+                   (ftsquerystr, lcc, results[lcc]['nmatches']))
+            results[lcc]['message'] = msg
+            LOGINFO(msg)
+
+        except Exception as e:
+
+            msg = ('failed to execute FTS query: "%s" '
+                   'for collection: %s, exception: %s' %
+                   (ftsquerystr, lcc, e))
+
+            LOGEXCEPTION(msg)
+            results[lcc] = {'result':[],
+                            'query':thisq.replace('?',"'%s'" % ftsquerystr),
+                            'nmatches':0,
+                            'message':msg,
+                            'success':False}
+
+
+    # at the end, add in some useful info
     results['databases'] = available_lcc
     results['columns'] = available_columns
 
     results['args'] = {'ftsquerystr':ftsquerystr,
-                       'columns':columns,
+                       'getcolumns':getcolumns,
                        'lcclist':lcclist,
                        'extraconditions':extraconditions}
 
@@ -412,9 +449,10 @@ def sqlite_fulltext_search(basedir,
 
 
 def sqlite_column_search(basedir,
-                         columns,
-                         conditions,
-                         sortconditions=None,
+                         getcolumns,
+                         conditions=None,
+                         sortby=None,
+                         limit=None,
                          lcclist=None,
                          require_ispublic=True):
     '''This runs an arbitrary column search.
@@ -429,14 +467,153 @@ def sqlite_column_search(basedir,
     columns is a list that specifies which columns to return after the query is
     complete.
 
-    extraconditions is a string in SQL format that applies extra conditions to
-    the where statement. This will be parsed and if it contains any non-allowed
-    keywords, extraconditions will be disabled.
-
     require_ispublic sets if the query is restricted to public light curve
     collections only.
 
     '''
+
+    # connect to all the specified databases
+    dbinfo = sqlite_get_collections(basedir,
+                                    lcclist=lcclist,
+                                    require_ispublic=require_ispublic)
+    db = dbinfo['connection']
+    cur = dbinfo['cursor']
+
+    # get the available databases and columns
+    available_lcc = dbinfo['databases']
+    available_columns = dbinfo['columns']
+
+    if lcclist is not None:
+
+        inlcc = set([x.replace('-','_') for x in lcclist])
+        uselcc = list(set(available_lcc).intersection(inlcc))
+
+        if not uselcc:
+            LOGERROR("none of the specified input LC collections are valid")
+            db.close()
+            return None
+
+    else:
+
+        LOGWARNING("no input LC collections specified, using all of them")
+        uselcc = available_lcc
+
+
+    # get the requested columns together
+    columnstr = ', '.join('a.%s' % c for c in getcolumns)
+
+    # this is the query that will be used
+    q = ("select {columnstr} from {collection_id}.object_catalog a "
+         "{wherecondition} {sortcondition} {limitcondition}")
+
+    # validate the column conditions
+    if conditions is not None:
+
+        wherecondition = validate_sqlite_filters(conditions,
+                                                 columnlist=available_columns)
+
+        if not wherecondition:
+            wherecondition = ''
+        else:
+            wherecondition = 'where %s' % wherecondition
+
+    else:
+
+        wherecondition = ''
+
+
+    # validate the sortby condition
+    if sortby is not None:
+
+        # validate the sort condition
+        sortcondition = validate_sqlite_filters(
+            sortby,
+            columnlist=available_columns,
+            allowedsqlwords=SQLITE_ALLOWED_ORDERBY
+        )
+
+        if not sortcondition:
+            sortcondition = ''
+        else:
+            sortcondition = 'order by %s' % sortcondition
+
+    else:
+
+        sortcondition = ''
+
+
+    # validate the limit condition
+    if limit is not None:
+
+        # validate the sort condition
+        limitcondition = validate_sqlite_filters(
+            str(limit),
+            columnlist=available_columns,
+            allowedsqlwords=SQLITE_ALLOWED_LIMIT
+        )
+
+        if not limitcondition:
+            limitcondition = ''
+        else:
+            limitcondition = 'limit %s' % limitcondition
+
+    else:
+
+        limitcondition = ''
+
+
+    # finally, run the queries for each collection
+    results = {}
+
+    for lcc in uselcc:
+
+        thisq = q.format(columnstr=columnstr,
+                         collection_id=lcc,
+                         wherecondition=wherecondition,
+                         sortcondition=sortcondition,
+                         limitcondition=limitcondition)
+
+        try:
+
+            cur.execute(thisq)
+
+            # put the results into the right place
+            results[lcc] = {'result':cur.fetchall(),
+                            'query':thisq,
+                            'success':True}
+            results[lcc]['nmatches'] = len(results[lcc]['result'])
+
+            msg = ('executed query successfully for collection: %s'
+                   ', matching nrows: %s' %
+                   (lcc, results[lcc]['nmatches']))
+            results[lcc]['message'] = msg
+            LOGINFO(msg)
+
+        except Exception as e:
+
+            msg = ('failed to execute query for '
+                   'collection: %s, exception: %s' % (lcc, e))
+
+            LOGEXCEPTION(msg)
+            results[lcc] = {'result':[],
+                            'query':thisq,
+                            'nmatches':0,
+                            'message':msg,
+                            'success':False}
+
+    # at the end, add in some useful info
+    results['databases'] = available_lcc
+    results['columns'] = available_columns
+
+    results['args'] = {'getcolumns':getcolumns,
+                       'conditions':conditions,
+                       'sortby':sortby,
+                       'limit':limit,
+                       'lcclist':lcclist}
+
+    db.close()
+    return results
+
 
 
 def sqlite_sql_search(basedir,
@@ -471,7 +648,7 @@ def sqlite_sql_search(basedir,
 
 def sqlite_kdtree_conesearch(basedir,
                              conesearchparams,
-                             columns,
+                             getcolumns=None,
                              extraconditions=None,
                              lcclist=None,
                              require_ispublic=True):
@@ -488,8 +665,10 @@ def sqlite_kdtree_conesearch(basedir,
 
     https://www.sqlite.org/fts5.html#full_text_query_syntax
 
-    columns is a list that specifies which columns to return after the query is
-    complete.
+    getcolumns is a list that specifies which columns to return after the query
+    is complete. NOTE: If this is None, this query is executed just as a 'check
+    query' to see if there are any matching objects for conesearchparams in the
+    LCC.
 
     extraconditions is a string in SQL format that applies extra conditions to
     the where statement. This will be parsed and if it contains any non-allowed
