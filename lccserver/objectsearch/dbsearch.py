@@ -76,6 +76,7 @@ def LOGEXCEPTION(message):
 
 import os
 import sqlite3
+import re
 
 
 #####################################
@@ -238,7 +239,7 @@ def validate_sqlite_filters(filterstring, columnlist):
     stringwords = []
     for x in stringelems:
         try:
-            floatcheck = float(x)
+            _ = float(x)
         except ValueError as e:
             stringwords.append(x)
 
@@ -294,6 +295,10 @@ def sqlite_fulltext_search(basedir,
     columns is a list that specifies which columns to return after the query is
     complete.
 
+    extraconditions is a string in SQL format that applies extra conditions to
+    the where statement. This will be parsed and if it contains any non-allowed
+    keywords, extraconditions will be disabled.
+
     require_ispublic sets if the query is restricted to public light curve
     collections only.
 
@@ -335,7 +340,7 @@ def sqlite_fulltext_search(basedir,
         # if we have extra filters, apply them
         if extraconditions is not None:
 
-            extraconditionstr = extraconditions
+            extraconditionstr = 'and (%s)' % extraconditions
 
         else:
 
@@ -350,7 +355,7 @@ def sqlite_fulltext_search(basedir,
         cur.execute(q)
         results[lcc] = cur.fetchall()
 
-    results['collections'] = available_lcc
+    results['databases'] = available_lcc
     results['columns'] = available_columns
 
     results['args'] = {'lcclist':lcclist,
