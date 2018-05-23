@@ -639,6 +639,8 @@ def sqlite_sql_search(basedir,
     require_ispublic sets if the query is restricted to public light curve
     collections only.
 
+    FIXME: this will require an sql parser to do it right.
+
     '''
 
 
