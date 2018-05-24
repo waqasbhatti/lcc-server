@@ -757,7 +757,7 @@ def sqlite_kdtree_conesearch(basedir,
         columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
                      'a.ra as in_ra, a.decl as in_decl')
 
-    # this is the query that will be used
+    # this is the query that will be used to query the database only
     q = ("select {columnstr} from {collection_id}.object_catalog a "
          "join _temp_objectid_list b on (a.objectid = b.objectid) "
          "{extraconditions} order by b.objectid asc")
@@ -993,3 +993,44 @@ def sqlite_xmatch_search(basedir,
     collections specified for use in the xmatch search.
 
     '''
+    # connect to all the specified databases
+    dbinfo = sqlite_get_collections(basedir,
+                                    lcclist=lcclist,
+                                    require_ispublic=require_ispublic)
+    db = dbinfo['connection']
+    cur = dbinfo['cursor']
+
+    # get the available databases and columns
+    available_lcc = dbinfo['databases']
+    available_columns = dbinfo['columns']
+
+    if lcclist is not None:
+
+        inlcc = set([x.replace('-','_') for x in lcclist])
+        uselcc = list(set(available_lcc).intersection(inlcc))
+
+        if not uselcc:
+            LOGERROR("none of the specified input LC collections are valid")
+            db.close()
+            return None
+
+    else:
+
+        LOGWARNING("no input LC collections specified, using all of them")
+        uselcc = available_lcc
+
+
+    # get the requested columns together
+    if getcolumns is not None:
+        columnstr = ', '.join('a.%s' % c for c in getcolumns)
+
+        # we add some columns that will always be present to use in sorting and
+        # filtering
+        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
+                     'a.ra as in_ra, a.decl as in_decl, %s' % columnstr)
+
+    # otherwise, if there are no columns, get the default set of columns for a
+    # 'check' cone-search query
+    else:
+        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
+                     'a.ra as in_ra, a.decl as in_decl')
