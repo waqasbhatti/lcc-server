@@ -92,7 +92,8 @@ from astrobase.coordutils import conesearch_kdtree, \
 
 def sqlite_get_collections(basedir,
                            lcclist=None,
-                           require_ispublic=True):
+                           require_ispublic=True,
+                           return_connection=True):
     '''This returns an instance of sqlite3 connection with all sqlite DBs
     corresponding to the collections in lcclist attached to it.
 
@@ -171,16 +172,24 @@ def sqlite_get_collections(basedir,
             set(ftsindexed_cols_available.split(','))
         )
 
-        # this is the connection we will return
-        newconn = sqlite3.connect(
-            ':memory:',
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
-        newconn.row_factory = sqlite3.Row
-        newcur = newconn.cursor()
+        if return_connection:
 
-        for dbn, catpath in zip(dbnames, object_catalog_path):
-            newcur.execute("attach database '%s' as %s" % (catpath, dbn))
+            # this is the connection we will return
+            newconn = sqlite3.connect(
+                ':memory:',
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            )
+            newconn.row_factory = sqlite3.Row
+            newcur = newconn.cursor()
+
+            for dbn, catpath in zip(dbnames, object_catalog_path):
+                newcur.execute("attach database '%s' as %s" % (catpath, dbn))
+
+        else:
+
+            newconn = None
+            newcur = None
+
 
         outdict = {
             'connection':newconn,
@@ -189,22 +198,24 @@ def sqlite_get_collections(basedir,
             'columns':columns_available,
             'indexedcols':indexed_cols_available,
             'ftscols':ftsindexed_cols_available,
-            'info':{'collection_id':collection_id,
-                    'object_catalog_path':object_catalog_path,
-                    'kdtree_pkl_path':kdtree_pkl_path,
-                    'columnlist':columnlist,
-                    'indexedcols':indexedcols,
-                    'ftsindexedcols':ftsindexedcols,
-                    'name':name,
-                    'description':description,
-                    'project':project,
-                    'ispublic':ispublic,
-                    'datarelease':datarelease,
-                    'minra':minra,
-                    'maxra':maxra,
-                    'mindecl':mindecl,
-                    'maxdecl':maxdecl,
-                    'nobjects':nobjects}
+            'info':{
+                'collection_id':collection_id,
+                'object_catalog_path':object_catalog_path,
+                'kdtree_pkl_path':kdtree_pkl_path,
+                'columnlist':columnlist,
+                'indexedcols':indexedcols,
+                'ftsindexedcols':ftsindexedcols,
+                'name':name,
+                'description':description,
+                'project':project,
+                'ispublic':ispublic,
+                'datarelease':datarelease,
+                'minra':minra,
+                'maxra':maxra,
+                'mindecl':mindecl,
+                'maxdecl':maxdecl,
+                'nobjects':nobjects
+            }
         }
 
         return outdict
@@ -652,9 +663,9 @@ def sqlite_sql_search(basedir,
     '''
 
 
-###################
-## KDTREE SEARCH ##
-###################
+#################
+## CONE SEARCH ##
+#################
 
 def sqlite_kdtree_conesearch(basedir,
                              center_ra,
@@ -923,19 +934,22 @@ def sqlite_kdtree_conesearch(basedir,
 
 
 
-def sqlite_kdtree_xmatchsearch(basedir,
-                               center_ra,
-                               center_decl,
-                               radius_arcmin,
-                               getcolumns=None,
-                               extraconditions=None,
-                               lcclist=None,
-                               require_ispublic=True,
-                               conesearchworkers=1):
+###################
+## XMATCH SEARCH ##
+###################
+
+def sqlite_xmatch_search(basedir,
+                         inputdata,
+                         matchusing='coords',
+                         getcolumns=None,
+                         extraconditions=None,
+                         lcclist=None,
+                         require_ispublic=True):
     '''
     This does an xmatch between the input and LCC databases.
 
     - xmatch using objectid
-    - xmatch using coordinates
+    - xmatch using coordinates and kdtrees
+    - xmatch using an arbitrary column in the input and any column in the LCCs
 
     '''
