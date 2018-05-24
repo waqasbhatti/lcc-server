@@ -727,7 +727,7 @@ def sqlite_kdtree_conesearch(basedir,
     # this is the query that will be used
     q = ("select {columnstr} from {collection_id}.object_catalog a "
          "join _temp_objectid_list b on (a.objectid = b.objectid) "
-         "{extraconditions}")
+         "{extraconditions} order by b.objectid asc")
 
     # handle the extra conditions
     if extraconditions is not None:
@@ -788,7 +788,12 @@ def sqlite_kdtree_conesearch(basedir,
         matching_ras = kdtreedict['ra'][np.atleast_1d(kdtinds)]
         matching_decls = kdtreedict['decl'][np.atleast_1d(kdtinds)]
 
-        import ipdb; ipdb.set_trace()
+        # sort them so we have a stable order we can use later in the sql
+        # statement
+        objectid_sortind = np.argsort(matching_objectids)
+        matching_objectids = matching_objectids[objectid_sortind]
+        matching_ras = matching_ras[objectid_sortind]
+        matching_decls = matching_decls[objectid_sortind]
 
         try:
 
@@ -822,6 +827,7 @@ def sqlite_kdtree_conesearch(basedir,
             cur.execute(create_temptable_q)
             cur.executemany(insert_temptable_q,
                             [(x,) for x in matching_objectids])
+
             # now run our query
             cur.execute(thisq)
 
@@ -858,8 +864,9 @@ def sqlite_kdtree_conesearch(basedir,
                 if 'dist_arcsec' not in row:
                     row['dist_arcsec'] = searchcenter_distarcsec
 
+
             # make sure to resort the rows in the order of the distances
-            # rows = sorted(rows, key=lambda row: row['dist_arcsec'])
+            rows = sorted(rows, key=lambda row: row['dist_arcsec'])
 
             # generate the output dict key
             results[lcc] = {'result':rows,
@@ -886,7 +893,6 @@ def sqlite_kdtree_conesearch(basedir,
                 'message':msg,
                 'success':False
             }
-            raise
 
 
     # at the end, add in some useful info
