@@ -228,6 +228,19 @@ def sqlite_get_collections(basedir,
 
 
 
+def sqlite_list_collections(basedir,
+                            require_ispublic=True):
+    '''
+    This just lists the collections in basedir.
+
+    '''
+
+    return sqlite_get_collections(basedir,
+                                  require_ispublic=require_ispublic,
+                                  return_connection=False)
+
+
+
 ###########################
 ## PARSING SEARCH PARAMS ##
 ###########################
@@ -732,8 +745,17 @@ def sqlite_kdtree_conesearch(basedir,
     # get the requested columns together
     if getcolumns is not None:
         columnstr = ', '.join('a.%s' % c for c in getcolumns)
+
+        # we add some columns that will always be present to use in sorting and
+        # filtering
+        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
+                     'a.ra as in_ra, a.decl as in_decl, %s' % columnstr)
+
+    # otherwise, if there are no columns, get the default set of columns for a
+    # 'check' cone-search query
     else:
-        columnstr = 'a.objectid as in_oid,b.objectid as db_oid, a.ra, a.decl'
+        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
+                     'a.ra as in_ra, a.decl as in_decl')
 
     # this is the query that will be used
     q = ("select {columnstr} from {collection_id}.object_catalog a "
@@ -865,10 +887,11 @@ def sqlite_kdtree_conesearch(basedir,
             # for each row of the results, add in the objectid, ra, decl if
             # they're not already present in the requested columns. also add in
             # the distance from the center of the cone search
-            for row, obj, ra, decl in zip(rows,
-                                          matching_objectids,
-                                          matching_ras,
-                                          matching_decls):
+            for row in rows:
+
+                obj = row['in_oid']
+                ra = row['in_ra']
+                decl = row['in_decl']
 
                 # figure out the distances from the search center
                 searchcenter_distarcsec = great_circle_dist(
@@ -940,16 +963,33 @@ def sqlite_kdtree_conesearch(basedir,
 
 def sqlite_xmatch_search(basedir,
                          inputdata,
-                         matchusing='coords',
+                         inputmatchcol=None,
+                         dbmatchcol=None,
                          getcolumns=None,
                          extraconditions=None,
                          lcclist=None,
                          require_ispublic=True):
-    '''
-    This does an xmatch between the input and LCC databases.
+    '''This does an xmatch between the input and LCC databases.
 
-    - xmatch using objectid
     - xmatch using coordinates and kdtrees
     - xmatch using an arbitrary column in the input and any column in the LCCs
+
+    inputdata is a dict of the form:
+
+    {'col1':[list of col1 items],
+     'col2':[list of col2 items],
+     'col3':[list of col3 items],
+     'col4':[list of col4 items],
+     'colN':[list of colN items],
+     'colra':'name of right ascension column if present' or None,
+     'coldec':'name of declination column if present' or None}
+
+    if inputmatchcol is None and dbmatchcol is None -> do coord xmatch.
+
+    if one of 'colra', 'coldec' is None, a coordinate xmatch is not possible.
+
+    otherwise, inputmatchcol and dbmatchcol should both not be None and be names
+    of columns in the input data dict and an available column in the light curve
+    collections specified for use in the xmatch search.
 
     '''
