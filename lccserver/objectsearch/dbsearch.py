@@ -77,6 +77,13 @@ def LOGEXCEPTION(message):
 import os
 import sqlite3
 import re
+import pickle
+
+import numpy as np
+
+from astrobase.coordutils import conesearch_kdtree, \
+    xmatch_kdtree, \
+    great_circle_dist
 
 
 #####################################
@@ -398,6 +405,7 @@ def sqlite_fulltext_search(basedir,
 
                 extraconditionstr = ''
 
+
             # format the query
             thisq = q.format(columnstr=columnstr,
                              collection_id=lcc,
@@ -427,7 +435,7 @@ def sqlite_fulltext_search(basedir,
 
             LOGEXCEPTION(msg)
             results[lcc] = {'result':[],
-                            'query':thisq.replace('?',"'%s'" % ftsquerystr),
+                            'query':q,
                             'nmatches':0,
                             'message':msg,
                             'success':False}
@@ -649,11 +657,14 @@ def sqlite_sql_search(basedir,
 ###################
 
 def sqlite_kdtree_conesearch(basedir,
-                             conesearchparams,
+                             center_ra,
+                             center_decl,
+                             radius_arcmin,
                              getcolumns=None,
                              extraconditions=None,
                              lcclist=None,
-                             require_ispublic=True):
+                             require_ispublic=True,
+                             conesearchworkers=1):
     '''This does a cone-search using searchparams over all lcc in lcclist.
 
     - do an overlap between footprint of lcc and cone size
@@ -708,8 +719,205 @@ def sqlite_kdtree_conesearch(basedir,
 
 
     # get the requested columns together
-    columnstr = ', '.join('a.%s' % c for c in getcolumns)
+    if getcolumns is not None:
+        columnstr = ', '.join('a.%s' % c for c in getcolumns)
+    else:
+        columnstr = 'a.objectid as in_oid,b.objectid as db_oid, a.ra, a.decl'
 
     # this is the query that will be used
     q = ("select {columnstr} from {collection_id}.object_catalog a "
-         "{wherecondition} {sortcondition} {limitcondition}")
+         "join _temp_objectid_list b on (a.objectid = b.objectid) "
+         "{extraconditions}")
+
+    # handle the extra conditions
+    if extraconditions is not None:
+
+        # validate this string
+        extraconditions = validate_sqlite_filters(extraconditions,
+                                                  columnlist=available_columns)
+
+
+    # now go through each LCC
+    # - load the kdtree
+    # - run the cone-search
+    # - see if we have any results.
+    #   - if we do, get the appropriate columns from the LCC in the same order
+    #     as that of the results from the cone search. then add in the distance
+    #     info from the cone-search results
+    #   - if we don't, return null result for this LCC
+    results = {}
+
+    for lcc in uselcc:
+
+        # get the kdtree path
+        dbindex = available_lcc.index(lcc)
+        kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
+
+        # if we can't find the kdtree, we can't do anything. skip this LCC
+        if not os.path.exists(kdtree_fpath):
+
+            msg = 'cannot find kdtree for LCC: %s, skipping...' % lcc
+
+            LOGERROR(msg)
+
+            results[lcc] = {'result':[],
+                            'query':(center_ra, center_decl, radius_arcmin),
+                            'nmatches':0,
+                            'message':msg,
+                            'success':False}
+            continue
+
+        # otherwise, continue as normal
+
+        with open(kdtree_fpath, 'rb') as infd:
+            kdtreedict = pickle.load(infd)
+
+        kdt = kdtreedict['kdtree']
+
+        searchradiusdeg = radius_arcmin/60.0
+
+        # do the conesearch and get the appropriate kdtree indices
+        kdtinds = conesearch_kdtree(kdt,
+                                    center_ra,
+                                    center_decl,
+                                    searchradiusdeg,
+                                    conesearchworkers=conesearchworkers)
+
+        # get the objectids associated with these indices
+        matching_objectids = kdtreedict['objectid'][np.atleast_1d(kdtinds)]
+        matching_ras = kdtreedict['ra'][np.atleast_1d(kdtinds)]
+        matching_decls = kdtreedict['decl'][np.atleast_1d(kdtinds)]
+
+        import ipdb; ipdb.set_trace()
+
+        try:
+
+            # if we have extra filters, apply them
+            if extraconditions is not None:
+
+                extraconditionstr = 'where (%s)' % extraconditions
+
+            else:
+
+                extraconditionstr = ''
+
+            # now, we'll get the corresponding info from the database
+            thisq = q.format(columnstr=columnstr,
+                             collection_id=lcc,
+                             extraconditions=extraconditionstr)
+
+
+            # first, we need to add a temporary table that contains the object
+            # IDs of the kdtree results.
+            create_temptable_q = (
+                "create table _temp_objectid_list "
+                "(objectid text, primary key (objectid))"
+            )
+            insert_temptable_q = (
+                "insert into _temp_objectid_list values (?)"
+            )
+
+            LOGINFO('creating temporary match table for '
+                    '%s matching kdtree results...' % matching_objectids.size)
+            cur.execute(create_temptable_q)
+            cur.executemany(insert_temptable_q,
+                            [(x,) for x in matching_objectids])
+            # now run our query
+            cur.execute(thisq)
+
+            # get the results
+            rows = [dict(x) for x in cur.fetchall()]
+
+            # remove the temporary table
+            cur.execute('drop table _temp_objectid_list')
+
+            LOGINFO('table-kdtree match complete, generating result rows...')
+
+            # for each row of the results, add in the objectid, ra, decl if
+            # they're not already present in the requested columns. also add in
+            # the distance from the center of the cone search
+            for row, obj, ra, decl in zip(rows,
+                                          matching_objectids,
+                                          matching_ras,
+                                          matching_decls):
+
+                # figure out the distances from the search center
+                searchcenter_distarcsec = great_circle_dist(
+                    center_ra,
+                    center_decl,
+                    ra,
+                    decl
+                )
+
+                if 'objectid' not in row:
+                    row['objectid'] = obj
+                if 'ra' not in row:
+                    row['ra'] = ra
+                if 'decl' not in row:
+                    row['decl'] = decl
+                if 'dist_arcsec' not in row:
+                    row['dist_arcsec'] = searchcenter_distarcsec
+
+            # make sure to resort the rows in the order of the distances
+            # rows = sorted(rows, key=lambda row: row['dist_arcsec'])
+
+            # generate the output dict key
+            results[lcc] = {'result':rows,
+                            'query':thisq,
+                            'success':True}
+
+            results[lcc]['nmatches'] = len(rows)
+            msg = ('executed query successfully for collection: %s'
+                   ', matching nrows: %s' %
+                   (lcc, results[lcc]['nmatches']))
+            results[lcc]['message'] = msg
+            LOGINFO(msg)
+
+        except Exception as e:
+
+            msg = ('failed to execute query for collection: %s, exception: %s' %
+                   (lcc, e))
+            LOGEXCEPTION(msg)
+
+            results[lcc] = {
+                'result':[],
+                'query':q,
+                'nmatches':0,
+                'message':msg,
+                'success':False
+            }
+            raise
+
+
+    # at the end, add in some useful info
+    results['databases'] = available_lcc
+    results['columns'] = available_columns
+
+    results['args'] = {'center_ra':center_ra,
+                       'center_decl':center_decl,
+                       'radius_arcmin':radius_arcmin,
+                       'getcolumns':getcolumns,
+                       'extraconditions':extraconditions,
+                       'lcclist':lcclist}
+
+    db.close()
+    return results
+
+
+
+def sqlite_kdtree_xmatchsearch(basedir,
+                               center_ra,
+                               center_decl,
+                               radius_arcmin,
+                               getcolumns=None,
+                               extraconditions=None,
+                               lcclist=None,
+                               require_ispublic=True,
+                               conesearchworkers=1):
+    '''
+    This does an xmatch between the input and LCC databases.
+
+    - xmatch using objectid
+    - xmatch using coordinates
+
+    '''
