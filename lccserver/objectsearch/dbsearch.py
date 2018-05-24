@@ -757,7 +757,6 @@ def sqlite_kdtree_conesearch(basedir,
         if not os.path.exists(kdtree_fpath):
 
             msg = 'cannot find kdtree for LCC: %s, skipping...' % lcc
-
             LOGERROR(msg)
 
             results[lcc] = {'result':[],
@@ -782,6 +781,19 @@ def sqlite_kdtree_conesearch(basedir,
                                     center_decl,
                                     searchradiusdeg,
                                     conesearchworkers=conesearchworkers)
+
+        # if we returned nothing, that means we had no matches
+        if not kdtinds:
+
+            msg = 'no matches in kdtree for LCC: %s, skipping...' % lcc
+            LOGERROR(msg)
+
+            results[lcc] = {'result':[],
+                            'query':(center_ra, center_decl, radius_arcmin),
+                            'nmatches':0,
+                            'message':msg,
+                            'success':False}
+            continue
 
         # get the objectids associated with these indices
         matching_objectids = kdtreedict['objectid'][np.atleast_1d(kdtinds)]
