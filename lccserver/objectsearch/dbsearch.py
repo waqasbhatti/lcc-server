@@ -81,9 +81,8 @@ import pickle
 
 import numpy as np
 
-from astrobase.coordutils import conesearch_kdtree, \
-    xmatch_kdtree, \
-    great_circle_dist
+from astrobase.coordutils import make_kdtree, conesearch_kdtree, \
+    xmatch_kdtree, great_circle_dist
 
 
 #####################################
@@ -963,6 +962,8 @@ def sqlite_kdtree_conesearch(basedir,
 
 def sqlite_xmatch_search(basedir,
                          inputdata,
+                         xmatch_dist_arcsec=3.0,
+                         xmatch_closest_only=False,
                          inputmatchcol=None,
                          dbmatchcol=None,
                          getcolumns=None,
@@ -974,17 +975,22 @@ def sqlite_xmatch_search(basedir,
     - xmatch using coordinates and kdtrees
     - xmatch using an arbitrary column in the input and any column in the LCCs
 
-    inputdata is a dict of the form:
+    inputdata is a dict that has a form like the following:
 
-    {'col1':[list of col1 items],
-     'col2':[list of col2 items],
-     'col3':[list of col3 items],
-     'col4':[list of col4 items],
-     'colN':[list of colN items],
+    {'data':{'col1':[list of col1 items],
+             'col2':[list of col2 items],
+             'col3':[list of col3 items],
+             'col4':[list of col4 items],
+             'colN':[list of colN items]},
+     'columns':['col1','col2','col3','col4','colN'],
+     'types':['int','float','float','str','bool'],
+     'colobjectid':name of the objectid column (if None, we'll fake objectids),
      'colra':'name of right ascension column if present' or None,
      'coldec':'name of declination column if present' or None}
 
-    if inputmatchcol is None and dbmatchcol is None -> do coord xmatch.
+    if inputmatchcol is None
+       and dbmatchcol is None
+       and inputdata['xmatch_dist_arcsec'] is not None -> do coord xmatch
 
     if one of 'colra', 'coldec' is None, a coordinate xmatch is not possible.
 
@@ -1022,15 +1028,206 @@ def sqlite_xmatch_search(basedir,
 
     # get the requested columns together
     if getcolumns is not None:
-        columnstr = ', '.join('a.%s' % c for c in getcolumns)
+
+        columnstr = ', '.join('b.%s' % c for c in getcolumns)
 
         # we add some columns that will always be present to use in sorting and
         # filtering
-        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
-                     'a.ra as in_ra, a.decl as in_decl, %s' % columnstr)
+        columnstr = ('b.objectid as db_oid, '
+                     'b.ra as db_ra, b.decl as db_decl, %s' % columnstr)
 
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
     else:
-        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
-                     'a.ra as in_ra, a.decl as in_decl')
+        columnstr = ('b.objectid as db_oid, '
+                     'b.ra as db_ra, b.decl as db_decl')
+
+
+    # make sure we have everything we need from the inputdata
+
+    # if the input data doesn't have an objectid column, we'll make a fake one
+    if inputdata['colobjectid'] is None:
+
+        inputdata['columns'].append('in_objectid')
+        inputdata['types'].append('str')
+        inputdata['colobjectid'] = 'in_objectid'
+
+        inputdata['data']['in_objectid'] = [
+            'object-%s' % x
+            for x in range(len(input['data'][inputdata['columns'][0]]))
+        ]
+
+    # decide if we're doing an xmatch via coords...
+    if (inputdata['colra'] is not None and
+        inputdata['coldec'] is not None and
+        xmatch_dist_arcsec is not None):
+
+        xmatch_type = 'coord'
+
+        # we'll generate a kdtree here for cross-matching
+        xmatch_ra = np.as_1d(inputdata['data'][inputdata['colra']])
+        xmatch_decl = np.ainputdata['data'][inputdata['coldec']]
+        xmatch_col = None
+
+    # or if we're doing an xmatch by table column...
+    elif ((inputdata['colra'] is None or inputdata['coldec'] is None) and
+          (inputmatchcol is not None and dbmatchcol is not None)):
+
+        xmatch_type = 'column'
+        xmatch_col = (
+            inputmatchcol.replace(' ','_').replace('-','_').replace('.','_')
+        )
+
+    # or if we're doing something completely nonsensical
+    else:
+
+        LOGERROR("column xmatch mode selected but one "
+                 "of inputmatchcol/dbmatchcol is not provided, can't continue")
+        db.close()
+        return None
+
+
+    ###########################################
+    ## create a temporary xmatch table first ##
+    ###########################################
+
+    # prepare the input data for inserting into a temporary xmatch table
+    datatable = [inputdata['data'][x] for x in inputdata['columns']]
+
+    # convert to tuples per row for use with sqlite.cursor.executemany()
+    datatable = zip(*list(datatable))
+
+    col_defs = []
+    col_names = []
+
+    for col, coltype in zip(inputdata['columns'], inputdata['types']):
+
+        # normalize the column name and add it to a tracking list
+        thiscol_name = col.replace(' ','_').replace('-','_').replace('.','_')
+        col_names.append(thiscol_name)
+
+        thiscol_type = coltype
+
+        if thiscol_type == 'str':
+            col_defs.append('%s text' % thiscol_name)
+        elif thiscol_type == 'int':
+            col_defs.append('%s integer' % thiscol_name)
+        elif thiscol_type == 'float':
+            col_defs.append('%s double precision' % thiscol_name)
+        elif thiscol_type == 'bool':
+            col_defs.append('%s integer' % thiscol_name)
+        else:
+            col_defs.append('%s text' % thiscol_name)
+
+    column_and_type_list = ', '.join(col_defs)
+
+    # this is the SQL to create the temporary xmatch table
+    create_temptable_q = (
+        "create table _temp_xmatch_table "
+        "({column_and_type_list}, primary key ({objectid_col}))"
+    ).format(column_and_type_list=column_and_type_list,
+             objectid_col=inputdata['colobjectid'])
+
+    # this is the SQL to make an index on the match column in the xmatch table
+    index_temptable_q = (
+        "create index xmatch_index on _temp_xmatch_table({xmatch_colname})"
+    ).format(xmatch_colname=xmatch_col)
+
+    # this is the SQL to insert all of the input data columns into the xmatch
+    # table
+    insert_temptable_q = (
+        "insert into _temp_xmatch_table values ({placeholders})"
+    ).format(placeholders=', '.join(['?']*len(col_names)))
+
+    # 1. create the temporary xmatch table
+    cur.execute(create_temptable_q)
+
+    # 2. insert the input data columns
+    cur.executemany(insert_temptable_q, datatable)
+
+    # 3. index the xmatch column
+    if xmatch_type == 'column':
+        cur.execute(index_temptable_q)
+
+    # this is the column string to be used in the query to join the LCC and
+    # xmatch tables
+    columnstr = '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
+
+    ###########################################
+    ## figure out the xmatch type and run it ##
+    ###########################################
+
+    # handle the extra conditions
+    if extraconditions is not None:
+
+        # validate this string
+        extraconditions = validate_sqlite_filters(extraconditions,
+                                                  columnlist=available_columns)
+
+
+    # handle xmatching by coordinates
+    if xmatch_type == 'coord':
+
+        results = {}
+
+        # go through each LCC
+        for lcc in uselcc:
+
+            # get the kdtree path
+            dbindex = available_lcc.index(lcc)
+            kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
+
+            # if we can't find the kdtree, we can't do anything. skip this LCC
+            if not os.path.exists(kdtree_fpath):
+
+                msg = 'cannot find kdtree for LCC: %s, skipping...' % lcc
+                LOGERROR(msg)
+
+                results[lcc] = {'result':[],
+                                'query':'xmatch',
+                                'nmatches':0,
+                                'message':msg,
+                                'success':False}
+                continue
+
+
+            # if we found the lcc's kdtree, load it and do the xmatch now
+            with open(kdtree_fpath, 'rb') as infd:
+                kdtreedict = pickle.load(infd)
+
+            # load this LCC's ra, decl, and objectids
+            lcc_ra = kdtreedict['ra']
+            lcc_decl = kdtreedict['decl']
+            lcc_objectids = kdtreedict['objectid']
+
+            # this is the distance to use for xmatching
+            xmatch_dist_deg = xmatch_dist_arcsec/3600.0
+
+            # reform the input objectids into a numpy array
+            if inputdata['colobjectid'] is not None:
+
+                xmatch_objectids = np.as_1d(
+                    inputdata['data'][inputdata['colobjectid']]
+                )
+
+            else:
+
+                xmatch_objectids = np.as_1d(
+                    inputdata['in_objectid']
+                )
+
+            # generate a kdtree for the inputdata coordinates
+            kdt = make_kdtree(xmatch_ra, xmatch_decl)
+
+            # run the xmatch. NOTE: here, the extra, extdecl are the LCC ra,
+            # decl because we want to get potentially multiple matches in the
+            # LCC to each input coordinate
+            kdt_matchinds, ext_matchinds = xmatch_kdtree(
+                kdt,
+                lcc_ra, lcc_decl,
+                xmatch_dist_deg,
+                closestonly=xmatch_closest_only
+            )
+
+            # now, we'll go through each of the xmatches and get their requested
+            # information from the database
