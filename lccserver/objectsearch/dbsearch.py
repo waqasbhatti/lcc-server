@@ -1,8 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''{{ name }}.py - {{ author }} ({{ email }}) - {{ month }} {{ year }}
+'''dbsearch.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - May 2018
 License: MIT - see the LICENSE file for the full text.
+
+This contains the implementations of database search for LCC server.
+
+This has:
+
+- full text search
+- cone search
+- column search based on arbitrary conditions
+- cross-matching to input data based on coordinates and distance or columns
+
+TODO:
+
+- arbitrary SQL statement search (this will likely be some sort of ADQL search,
+  we need an SQL parser to do this correctly because we need to recognize custom
+  functions, etc.)
+
+FIXME:
+
+- for column search and extraconditions, we parse the SQL ourselves to validate
+  it and remove harmful stuff. This is likely not as safe as the actual SQL
+  parameter substitution code in SQLite. How to get around this?
 
 '''
 
