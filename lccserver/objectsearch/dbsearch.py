@@ -361,7 +361,7 @@ def validate_sqlite_filters(filterstring,
 
 def sqlite_fulltext_search(basedir,
                            ftsquerystr,
-                           getcolumns,
+                           getcolumns=None,
                            extraconditions=None,
                            lcclist=None,
                            require_ispublic=True):
@@ -374,8 +374,8 @@ def sqlite_fulltext_search(basedir,
 
     https://www.sqlite.org/fts5.html#full_text_query_syntax
 
-    columns is a list that specifies which columns to return after the query is
-    complete.
+    getcolumns is a list that specifies which columns to return after the query
+    is complete.
 
     extraconditions is a string in SQL format that applies extra conditions to
     the where statement. This will be parsed and if it contains any non-allowed
@@ -415,9 +415,20 @@ def sqlite_fulltext_search(basedir,
         LOGWARNING("no input LC collections specified, using all of them")
         uselcc = available_lcc
 
+    # we have some default columns that we'll always get
+    # if we have some columns to get, get them and append default cols
+    if getcolumns is not None:
 
-    # get the requested columns together
-    columnstr = ', '.join('a.%s' % c for c in getcolumns)
+        # get the requested columns together
+        columnstr = ', '.join('a.%s' % c for c in getcolumns)
+        columnstr = ('%s, a.objectid as db_oid, a.ra as db_ra, '
+                     'a.decl as db_decl, a.lcfname as db_lcfname' % columnstr)
+
+    # otherwise, if there are no columns, use the default ones
+    else:
+
+        columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
+                     'a.decl as db_decl, a.lcfname as db_lcfname')
 
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
@@ -501,7 +512,7 @@ def sqlite_fulltext_search(basedir,
 
 
 def sqlite_column_search(basedir,
-                         getcolumns,
+                         getcolumns=None,
                          conditions=None,
                          sortby=None,
                          limit=None,
@@ -516,8 +527,8 @@ def sqlite_column_search(basedir,
 
     https://www.sqlite.org/fts5.html#full_text_query_syntax
 
-    columns is a list that specifies which columns to return after the query is
-    complete.
+    getcolumns is a list that specifies which columns to return after the query
+    is complete.
 
     require_ispublic sets if the query is restricted to public light curve
     collections only.
@@ -551,8 +562,20 @@ def sqlite_column_search(basedir,
         uselcc = available_lcc
 
 
-    # get the requested columns together
-    columnstr = ', '.join('a.%s' % c for c in getcolumns)
+    # we have some default columns that we'll always get
+    # if we have some columns to get, get them and append default cols
+    if getcolumns is not None:
+
+        # get the requested columns together
+        columnstr = ', '.join('a.%s' % c for c in getcolumns)
+        columnstr = ('%s, a.objectid as db_oid, a.ra as db_ra, '
+                     'a.decl as db_decl, a.lcfname as db_lcfname' % columnstr)
+
+    # otherwise, if there are no columns, use the default ones
+    else:
+
+        columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
+                     'a.decl as db_decl, a.lcfname as db_lcfname')
 
     # this is the query that will be used
     q = ("select {columnstr} from {collection_id}.object_catalog a "
@@ -769,13 +792,18 @@ def sqlite_kdtree_conesearch(basedir,
         # we add some columns that will always be present to use in sorting and
         # filtering
         columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
-                     'a.ra as in_ra, a.decl as in_decl, %s' % columnstr)
+                     'a.ra as in_ra, a.decl as in_decl, '
+                     'b.ra as db_ra, b.decl as db_decl, '
+                     'b.lcfname as db_lcfname '
+                     '%s' % columnstr)
 
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
     else:
         columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
-                     'a.ra as in_ra, a.decl as in_decl')
+                     'a.ra as in_ra, a.decl as in_decl, '
+                     'b.ra as db_ra, b.decl as db_decl, '
+                     'b.lcfname as db_lcfname')
 
     # this is the query that will be used to query the database only
     q = ("select {columnstr} from {collection_id}.object_catalog a "
@@ -1056,13 +1084,15 @@ def sqlite_xmatch_search(basedir,
         # we add some columns that will always be present to use in sorting and
         # filtering
         columnstr = ('b.objectid as db_oid, '
-                     'b.ra as db_ra, b.decl as db_decl, %s' % columnstr)
+                     'b.ra as db_ra, b.decl as db_decl, '
+                     'b.lcfname as db_lcfname, %s' % columnstr)
 
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
     else:
         columnstr = ('b.objectid as db_oid, '
-                     'b.ra as db_ra, b.decl as db_decl')
+                     'b.ra as db_ra, b.decl as db_decl, '
+                     'b.lcfname as db_lcfname')
 
 
     # make sure we have everything we need from the inputdata
