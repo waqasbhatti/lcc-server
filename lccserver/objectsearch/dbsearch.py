@@ -969,7 +969,8 @@ def sqlite_xmatch_search(basedir,
                          getcolumns=None,
                          extraconditions=None,
                          lcclist=None,
-                         require_ispublic=True):
+                         require_ispublic=True,
+                         max_matchradius_arcsec=30.0):
     '''This does an xmatch between the input and LCC databases.
 
     - xmatch using coordinates and kdtrees
@@ -1069,6 +1070,11 @@ def sqlite_xmatch_search(basedir,
         xmatch_decl = np.ainputdata['data'][inputdata['coldec']]
         xmatch_col = None
 
+        if xmatch_dist_arcsec > max_matchradius_arcsec:
+            xmatch_dist_arcsec = max_matchradius_arcsec
+            LOGWARNING('match radius %.3f > max possible, setting to %.3f'
+                       % (xmatch_dist_arcsec, max_matchradius_arcsec))
+
     # or if we're doing an xmatch by table column...
     elif ((inputdata['colra'] is None or inputdata['coldec'] is None) and
           (inputmatchcol is not None and dbmatchcol is not None)):
@@ -1082,7 +1088,8 @@ def sqlite_xmatch_search(basedir,
     else:
 
         LOGERROR("column xmatch mode selected but one "
-                 "of inputmatchcol/dbmatchcol is not provided, can't continue")
+                 "of inputmatchcol/dbmatchcol is not provided, "
+                 "can't continue")
         db.close()
         return None
 
@@ -1151,7 +1158,9 @@ def sqlite_xmatch_search(basedir,
 
     # this is the column string to be used in the query to join the LCC and
     # xmatch tables
-    columnstr = '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
+    xmatch_columnstr = (
+        '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
+    )
 
     ###########################################
     ## figure out the xmatch type and run it ##
@@ -1169,6 +1178,12 @@ def sqlite_xmatch_search(basedir,
     if xmatch_type == 'coord':
 
         results = {}
+
+        q = (
+            "select {columnstr} from {collection_id}.object_catalog b "
+            "where a.objectid in ({placeholders}) {extraconditionstr} "
+            "order by b.objectid"
+        )
 
         # go through each LCC
         for lcc in uselcc:
@@ -1233,18 +1248,183 @@ def sqlite_xmatch_search(basedir,
             # information from the database
 
             # note that the query string below assumes that we only have less
-            # than 99 matches per input objectid. This should be a reasonable
+            # than 999 matches per input objectid (this is the max number of
+            # input arguments to sqlite3). This should be a reasonable
             # assumption if the match radius isn't too large. We should enforce
             # a match radius of no more than a few arcseconds to make sure this
             # is true.
+
+            this_lcc_results = []
+
+            # if we have extra filters, apply them
+            if extraconditions is not None:
+
+                extraconditionstr = 'and (%s)' % extraconditions
+
+            else:
+
+                extraconditionstr = ''
+
             for kdti in kdt_matchinds:
 
-                # get the objectids corresponding to this input objectid
+                # get the LCC objectids corresponding to this input objectid
+                lcc_objectid_ind = np.as_1d(lcc_matchinds[kdti])
+                matching_lcc_objectids = lcc_objectids[lcc_objectid_ind]
 
-                q = (
-                    "select {columnstr} from {collection_id}.object_catalog a "
-                    "where a.objectid in ({placeholders}) order by a.objectid"
-                )
+                placeholders = ','.join(['?']*matching_lcc_objectids.size)
+                thisq = q.format(columnstr=columnstr,
+                                 collection_id=lcc,
+                                 placeholders=placeholders,
+                                 extraconditionstr=extraconditionstr)
+
+                cur.execute(thisq, tuple(matching_lcc_objectids))
+
+                rows = [dict(x) for x in cur.fetchall()]
+
+                # add in the information from the input data
+                inputdata_row = datatable[kdti]
+                inputdata_dict = {}
+
+                for icol, item in zip(col_names, inputdata_row):
+                    ircol = 'in_%s' % icol
+                    inputdata_dict[ircol] = item
+
+                # for each row add in the input object's info
+                rows = [x.update(inputdata_dict) for x in rows]
+
+                # add in the distance from the input object
+                for row in rows:
+
+                    in_lcc_dist = great_circle_dist(
+                        row['db_ra'],
+                        row['db_decl'],
+                        row['in_%s' % inputdata['colra']],
+                        row['in_%s' % inputdata['coldec']]
+                    )
+                    row['dist_arcsec'] = in_lcc_dist
 
                 # we'll order the results of this objectid search by distance
                 # from the input object.
+                rows = sorted(rows, key=lambda row: row['dist_arcsec'])
+                this_lcc_results.extend(rows)
+
+            #
+            # done with this LCC, add in the results to the results dict
+            #
+            results[lcc] = {'result':this_lcc_results,
+                            'query':thisq,
+                            'success':True}
+            results[lcc]['nmatches'] = len(this_lcc_results)
+            msg = ("executed query successfully for collection: %s, "
+                   "matching nrows: %s" % (lcc, results[lcc]['nmatches']))
+            results[lcc]['message'] = msg
+            LOGINFO(msg)
+
+        #
+        # done with all LCCs
+        #
+
+        # at the end, add in some useful info
+        results['databases'] = available_lcc
+        results['columns'] = available_columns
+
+        results['args'] = {'xmatch_dist_arcsec':xmatch_dist_arcsec,
+                           'xmatch_closest_only':xmatch_closest_only,
+                           'inputmatchcol':inputmatchcol,
+                           'dbmatchcol':dbmatchcol,
+                           'getcolumns':getcolumns,
+                           'extraconditions':extraconditions,
+                           'lcclist':lcclist}
+
+        # delete the temporary xmatch table
+        cur.execute('drop table _temp_xmatch_table')
+
+        db.close()
+        return results
+
+
+    elif xmatch_type == 'column':
+
+        # this will be a straightforward table join using the inputmatchcol and
+        # the dbmatchcol
+        results = {}
+
+        # if we have extra filters, apply them
+        if extraconditions is not None:
+
+            extraconditionstr = 'where (%s)' % extraconditions
+
+        else:
+
+            extraconditionstr = ''
+
+        # we use a left outer join because we want to keep all the input columns
+        # and notice when there are no database matches
+        q = (
+            "select {columnstr} from "
+            "_temp_xmatch_table a "
+            "left outer join "
+            "{collection_id}.object_catalog b on "
+            "(a.{input_xmatch_col} = b.{db_xmatch_col}) {extraconditionstr} "
+            "order by a.{input_xmatch_col} asc"
+        )
+
+        # go through each LCC
+        for lcc in uselcc:
+
+            # execute the xmatch statement
+            thisq = q.format(columnstr=xmatch_columnstr,
+                             collection_id=lcc,
+                             input_xmatch_col=xmatch_col,
+                             db_xmatch_col=dbmatchcol,
+                             extraconditionstr=extraconditionstr)
+
+            try:
+
+                cur.execute(thisq)
+
+                # put the results into the right place
+                results[lcc] = {'result':cur.fetchall(),
+                                'query':thisq,
+                                'success':True}
+                results[lcc]['nmatches'] = len(results[lcc]['result'])
+
+                msg = ('executed query successfully for collection: %s'
+                       ', matching nrows: %s' %
+                       (lcc, results[lcc]['nmatches']))
+                results[lcc]['message'] = msg
+                LOGINFO(msg)
+
+            except Exception as e:
+
+
+                msg = ('failed to execute query for '
+                       'collection: %s, exception: %s' % (lcc, e))
+
+                LOGEXCEPTION(msg)
+                results[lcc] = {'result':[],
+                                'query':thisq,
+                                'nmatches':0,
+                                'message':msg,
+                                'success':False}
+        #
+        # done with all LCCs
+        #
+
+        # at the end, add in some useful info
+        results['databases'] = available_lcc
+        results['columns'] = available_columns
+
+        results['args'] = {'xmatch_dist_arcsec':xmatch_dist_arcsec,
+                           'xmatch_closest_only':xmatch_closest_only,
+                           'inputmatchcol':inputmatchcol,
+                           'dbmatchcol':dbmatchcol,
+                           'getcolumns':getcolumns,
+                           'extraconditions':extraconditions,
+                           'lcclist':lcclist}
+
+        # delete the temporary xmatch table
+        cur.execute('drop table _temp_xmatch_table')
+
+        db.close()
+        return results
