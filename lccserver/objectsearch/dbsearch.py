@@ -1222,12 +1222,29 @@ def sqlite_xmatch_search(basedir,
             # run the xmatch. NOTE: here, the extra, extdecl are the LCC ra,
             # decl because we want to get potentially multiple matches in the
             # LCC to each input coordinate
-            kdt_matchinds, ext_matchinds = xmatch_kdtree(
+            kdt_matchinds, lcc_matchinds = xmatch_kdtree(
                 kdt,
                 lcc_ra, lcc_decl,
                 xmatch_dist_deg,
                 closestonly=xmatch_closest_only
             )
 
-            # now, we'll go through each of the xmatches and get their requested
+            # now, we'll go through each of the xmatches, get their requested
             # information from the database
+
+            # note that the query string below assumes that we only have less
+            # than 99 matches per input objectid. This should be a reasonable
+            # assumption if the match radius isn't too large. We should enforce
+            # a match radius of no more than a few arcseconds to make sure this
+            # is true.
+            for kdti in kdt_matchinds:
+
+                # get the objectids corresponding to this input objectid
+
+                q = (
+                    "select {columnstr} from {collection_id}.object_catalog a "
+                    "where a.objectid in ({placeholders}) order by a.objectid"
+                )
+
+                # we'll order the results of this objectid search by distance
+                # from the input object.
