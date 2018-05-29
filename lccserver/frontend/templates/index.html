@@ -167,7 +167,7 @@
              aria-selected="true">
             <img class="icon-svg"
               src="{{ static_url('images/ic_search_black_48px.svg') }}"><br>
-            Search by columns
+            Search DB columns
           </a>
         </li>
 
@@ -180,7 +180,7 @@
              aria-controls="conesearch"
              aria-selected="false">
             <img src="{{ static_url('images/ic_filter_tilt_shift_black_48px.svg') }}"><br>
-            Search by coordinates
+            Search near coordinates
           </a>
         </li>
 
@@ -193,22 +193,36 @@
              aria-controls="xmatch"
              aria-selected="false">
             <img src="{{ static_url('images/ic_cloud_upload_black_48px.svg') }}"><br>
-            Search for cross-matches
+            Find cross-matches
           </a>
         </li>
 
         <li class="nav-item">
           <a class="nav-link tab-link"
-             id="sql-tab"
+             id="fts-tab"
              data-toggle="tab"
-             href="#sql"
+             href="#fts"
              role="tab"
-             aria-controls="sql"
+             aria-controls="fts"
              aria-selected="false">
             <img src="{{ static_url('images/ic_speaker_notes_black_48px.svg') }}"><br>
-            Run an SQL query
+            Full-text search
           </a>
         </li>
+
+
+        <!-- <li class="nav-item"> -->
+        <!--   <a class="nav-link tab-link" -->
+        <!--      id="sql-tab" -->
+        <!--      data-toggle="tab" -->
+        <!--      href="#sql" -->
+        <!--      role="tab" -->
+        <!--      aria-controls="sql" -->
+        <!--      aria-selected="false"> -->
+        <!--     <img src="{{ static_url('images/ic_speaker_notes_black_48px.svg') }}"><br> -->
+        <!--     Run an SQL query -->
+        <!--   </a> -->
+        <!-- </li> -->
 
       </ul>
 
@@ -249,15 +263,26 @@
         </div>
 
         <div class="tab-pane"
-             id="sql" role="tabpanel" aria-labelledby="sql-tab">
+             id="fts" role="tabpanel" aria-labelledby="fts-tab">
 
           <div class="row mt-2">
             <div class="col-12">
-              sql
+              fts
             </div>
           </div>
 
         </div>
+
+        <!-- <div class="tab-pane" -->
+        <!--      id="sql" role="tabpanel" aria-labelledby="sql-tab"> -->
+
+        <!--   <div class="row mt-2"> -->
+        <!--     <div class="col-12"> -->
+        <!--       sql -->
+        <!--     </div> -->
+        <!--   </div> -->
+
+        <!-- </div> -->
 
       </div>
 
