@@ -127,3 +127,74 @@ def sqlite_get_dataset(basedir, setname):
 ################################################################
 ## FUNCTIONS THAT WRAP DBSEARCH FUNCTIONS AND RETURN DATASETS ##
 ################################################################
+
+
+def sqlite_dataset_fulltext_search(basedir,
+                                   ftsquerystr,
+                                   getcolumns=None,
+                                   extraconditions=None,
+                                   lcclist=None,
+                                   require_ispublic=True):
+    '''
+    This does a full-text search and returns a dataset.
+
+    '''
+
+
+
+def sqlite_dataset_column_search(basedir,
+                                 getcolumns=None,
+                                 conditions=None,
+                                 sortby=None,
+                                 limit=None,
+                                 lcclist=None,
+                                 require_ispublic=True):
+    '''
+    This does a column search and returns a dataset.
+
+    '''
+
+
+
+def sqlite_dataset_sql_search(basedir,
+                              sqlstatement,
+                              lcclist=None,
+                              require_ispublic=True):
+    '''
+    This does an arbitrary SQL search and returns a dataset.
+
+    '''
+
+
+
+def sqlite_dataset_kdtree_conesearch(basedir,
+                                     center_ra,
+                                     center_decl,
+                                     radius_arcmin,
+                                     getcolumns=None,
+                                     extraconditions=None,
+                                     lcclist=None,
+                                     require_ispublic=True,
+                                     conesearchworkers=1):
+    '''
+    This does a cone-search and returns a dataset.
+
+    '''
+
+
+
+def sqlite_xmatch_search(basedir,
+                         inputdata,
+                         xmatch_dist_arcsec=3.0,
+                         xmatch_closest_only=False,
+                         inputmatchcol=None,
+                         dbmatchcol=None,
+                         getcolumns=None,
+                         extraconditions=None,
+                         lcclist=None,
+                         require_ispublic=None,
+                         max_matchradius_arcsec=30.0):
+    '''This does an xmatch between the input and LCC databases and returns a
+    dataset.
+
+    '''
