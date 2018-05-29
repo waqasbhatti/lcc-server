@@ -1066,8 +1066,8 @@ def sqlite_xmatch_search(basedir,
         xmatch_type = 'coord'
 
         # we'll generate a kdtree here for cross-matching
-        xmatch_ra = np.as_1d(inputdata['data'][inputdata['colra']])
-        xmatch_decl = np.ainputdata['data'][inputdata['coldec']]
+        xmatch_ra = np.atleast_1d(inputdata['data'][inputdata['colra']])
+        xmatch_decl = np.atleast_1d(inputdata['data'][inputdata['coldec']])
         xmatch_col = None
 
         if xmatch_dist_arcsec > max_matchradius_arcsec:
@@ -1102,7 +1102,7 @@ def sqlite_xmatch_search(basedir,
     datatable = [inputdata['data'][x] for x in inputdata['columns']]
 
     # convert to tuples per row for use with sqlite.cursor.executemany()
-    datatable = zip(*list(datatable))
+    datatable = list(zip(*datatable))
 
     col_defs = []
     col_names = []
@@ -1181,7 +1181,7 @@ def sqlite_xmatch_search(basedir,
 
         q = (
             "select {columnstr} from {collection_id}.object_catalog b "
-            "where a.objectid in ({placeholders}) {extraconditionstr} "
+            "where b.objectid in ({placeholders}) {extraconditionstr} "
             "order by b.objectid"
         )
 
@@ -1217,19 +1217,6 @@ def sqlite_xmatch_search(basedir,
 
             # this is the distance to use for xmatching
             xmatch_dist_deg = xmatch_dist_arcsec/3600.0
-
-            # reform the input objectids into a numpy array
-            if inputdata['colobjectid'] is not None:
-
-                xmatch_objectids = np.as_1d(
-                    inputdata['data'][inputdata['colobjectid']]
-                )
-
-            else:
-
-                xmatch_objectids = np.as_1d(
-                    inputdata['in_objectid']
-                )
 
             # generate a kdtree for the inputdata coordinates
             kdt = make_kdtree(xmatch_ra, xmatch_decl)
@@ -1268,7 +1255,7 @@ def sqlite_xmatch_search(basedir,
             for kdti in kdt_matchinds:
 
                 # get the LCC objectids corresponding to this input objectid
-                lcc_objectid_ind = np.as_1d(lcc_matchinds[kdti])
+                lcc_objectid_ind = np.atleast_1d(lcc_matchinds[kdti])
                 matching_lcc_objectids = lcc_objectids[lcc_objectid_ind]
 
                 placeholders = ','.join(['?']*matching_lcc_objectids.size)
@@ -1290,7 +1277,7 @@ def sqlite_xmatch_search(basedir,
                     inputdata_dict[ircol] = item
 
                 # for each row add in the input object's info
-                rows = [x.update(inputdata_dict) for x in rows]
+                _ = [x.update(inputdata_dict) for x in rows]
 
                 # add in the distance from the input object
                 for row in rows:
@@ -1407,6 +1394,7 @@ def sqlite_xmatch_search(basedir,
                                 'nmatches':0,
                                 'message':msg,
                                 'success':False}
+                raise
         #
         # done with all LCCs
         #
