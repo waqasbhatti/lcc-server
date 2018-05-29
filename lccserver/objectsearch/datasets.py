@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''{{ name }}.py - {{ author }} ({{ email }}) - {{ month }} {{ year }}
+'''datasets.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - May 2018
 License: MIT - see the LICENSE file for the full text.
 
 '''
@@ -73,3 +73,57 @@ def LOGEXCEPTION(message):
 #############
 ## IMPORTS ##
 #############
+
+
+
+########################################
+## FUNCTIONS THAT OPERATE ON DATASETS ##
+########################################
+
+def sqlite_new_dataset(basedir,
+                       searchresult,
+                       ispublic=True):
+    '''
+    new dataset function.
+
+    setispublic controls if the dataset is public
+
+    '''
+
+
+
+def sqlite_remove_dataset(basedir, setname):
+    '''
+    This removes the specified dataset.
+
+    '''
+
+
+
+def sqlite_update_dataset(basedir, setname, updatedict):
+    '''
+    This updates a dataset.
+
+    '''
+
+
+def sqlite_list_datasets(basedir, require_ispublic=True):
+    '''
+    This just lists all the datasets available.
+
+    '''
+
+
+def sqlite_get_dataset(basedir, setname):
+    '''
+    This gets the dataset as a dictionary.
+
+    '''
+
+
+
+
+
+################################################################
+## FUNCTIONS THAT WRAP DBSEARCH FUNCTIONS AND RETURN DATASETS ##
+################################################################

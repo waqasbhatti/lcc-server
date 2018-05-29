@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''{{ name }}.py - {{ author }} ({{ email }}) - {{ month }} {{ year }}
+'''lightcurves.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - May 2018
 License: MIT - see the LICENSE file for the full text.
 
 '''
@@ -73,3 +73,16 @@ def LOGEXCEPTION(message):
 #############
 ## IMPORTS ##
 #############
+
+
+
+
+###########################
+## LC HANDLING FUNCTIONS ##
+###########################
+
+def lightcurves_to_zipfile(dataset, lcfnames, outzipfile):
+    '''
+    This writes light curves to a zip associated with dataset.
+
+    '''
