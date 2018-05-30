@@ -74,6 +74,61 @@ def LOGEXCEPTION(message):
 ## IMPORTS ##
 #############
 
+import os
+import os.path
+import sqlite3
+import pickle
+
+import numpy as np
+
+from . import dbsearch
+dbsearch.set_logger_parent(__name__)
+
+
+#########################################
+## INITIALIZING A DATASET INDEX SQLITE ##
+#########################################
+
+SQLITE_DATASET_CREATE = '''\
+-- make the main table
+
+create table lcc_datasets (
+  setid text not null,
+  created_on datetime not null,
+  last_updated datetime not null,
+  nobjects integer not null,
+  is_public integer,
+  name text,
+  description text,
+  citation text,
+  primary key (setid)
+);
+'''
+
+def sqlite_datasets_db_create(basedir):
+    '''
+    This makes a new datasets DB in basedir.
+
+    '''
+
+    # get the dataset dir
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+    # open the datasets database
+    datasets_dbf = os.path.join(datasetdir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = db.cursor()
+
+    cur.executescript(SQLITE_DATASET_CREATE)
+    db.commit()
+
+    db.close()
+
+    return datasets_dbf
+
 
 
 ########################################
@@ -84,11 +139,46 @@ def sqlite_new_dataset(basedir,
                        searchresult,
                        ispublic=True):
     '''
-    new dataset function.
+    create new dataset function.
 
-    setispublic controls if the dataset is public
+    ispublic controls if the dataset is public
+
+    this produces a pickle that goes into /datasets/random-set-id.pkl
+
+    and also produces an entry that goes into the lcc-datasets.sqlite DB
+
+    the pickle has the following structure:
+
+    {'setid': the randomly generated set id,
+     'name': the name of the dataset or None,
+     'desc': a description of the dataset or None,
+     'ispublic': boolean indicating if the dataset is public, default True,
+     'collections': the names of the collections making up this dataset,
+     'columns': a list of the columns in the search result,
+     'result': a list containing the search result lists of dicts / collection,
+     'searchtype': what kind of search produced this dataset,
+     'searchargs': the args dict from the search result dict,
+     'success': the boolean from the search result dict
+     'message': the message from the search result dict,
+     'lczipfpath': the path to the light curve ZIP in basedir/products/,
+     'cpzipfpath': the path to the checkplot ZIP in basedir/products,
+     'pfzipfpath': the path to the periodfinding ZIP in basedir/products,
+
 
     '''
+
+    # get the dataset dir
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+    # open the datasets database
+    datasets_dbf = os.path.join(datasetdir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = db.cursor()
+
+    #
 
 
 
@@ -98,6 +188,8 @@ def sqlite_remove_dataset(basedir, setname):
 
     '''
 
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
 
 
 def sqlite_update_dataset(basedir, setname, updatedict):
@@ -106,12 +198,18 @@ def sqlite_update_dataset(basedir, setname, updatedict):
 
     '''
 
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+
 
 def sqlite_list_datasets(basedir, require_ispublic=True):
     '''
     This just lists all the datasets available.
 
     '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
 
 
 def sqlite_get_dataset(basedir, setname):
@@ -120,6 +218,7 @@ def sqlite_get_dataset(basedir, setname):
 
     '''
 
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
 
 
 
@@ -140,6 +239,8 @@ def sqlite_dataset_fulltext_search(basedir,
 
     '''
 
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
 
 
 def sqlite_dataset_column_search(basedir,
@@ -154,6 +255,8 @@ def sqlite_dataset_column_search(basedir,
 
     '''
 
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
 
 
 def sqlite_dataset_sql_search(basedir,
@@ -164,6 +267,8 @@ def sqlite_dataset_sql_search(basedir,
     This does an arbitrary SQL search and returns a dataset.
 
     '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
 
 
 
@@ -180,6 +285,8 @@ def sqlite_dataset_kdtree_conesearch(basedir,
     This does a cone-search and returns a dataset.
 
     '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
 
 
 
@@ -198,3 +305,5 @@ def sqlite_xmatch_search(basedir,
     dataset.
 
     '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))

@@ -783,21 +783,25 @@ def sqlite_collect_lcc_info(
     - periodfinding/ -> the periodfinding result pickles
     - checkplots/ -> the checkplot pickles
 
-    output:
+    At the top level of the basedir we have:
+
     - datasets/ -> the datasets generated from searches
     - products/ -> the lightcurves.zip and dataset.zip for each dataset
 
-    lcc-index.sqlite -> contains for each LC collection:
+    - lcc-index.sqlite -> contains for each LC collection:
 
-                       - collection-id (dirname), description, project name,
-                         date of last update, number of objects, footprint in
-                         RA/DEC, footprint in gl/gb, datareleae number, and an
-                         ispublic flag
+                          - collection-id (dirname), description, project name,
+                            date of last update, number of objects, footprint in
+                            RA/DEC, footprint in gl/gb, datareleae number, and
+                            an ispublic flag
 
-                       - basedir paths for each LC set to get to its catalog
-                         sqlite, kdtree, and datasets
-                       - columns, indexcols, ftscols for each dataset
-                       - sets of columns, indexcols and ftscols for all LC sets
+                          - basedir paths for each LC set to get to its catalog
+                            sqlite, kdtree, and datasets
+
+                          - columns, indexcols, ftscols for each dataset
+
+                          - sets of columns, indexcols and ftscols for all LC
+                            sets
 
     '''
 
@@ -862,13 +866,11 @@ def sqlite_collect_lcc_info(
 
     datasets_dir_path = os.path.abspath(
         os.path.join(lcc_basedir,
-                     collection_id,
                      'datasets')
     )
 
     products_dir_path = os.path.abspath(
         os.path.join(lcc_basedir,
-                     collection_id,
                      'products')
     )
 

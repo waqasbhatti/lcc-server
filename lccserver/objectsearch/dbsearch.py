@@ -96,6 +96,7 @@ def LOGEXCEPTION(message):
 #############
 
 import os
+import os.path
 import sqlite3
 import re
 import pickle
