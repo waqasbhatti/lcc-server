@@ -162,7 +162,7 @@ def sqlite_new_dataset(basedir,
      'message': the message from the search result dict,
      'lczipfpath': the path to the light curve ZIP in basedir/products/,
      'cpzipfpath': the path to the checkplot ZIP in basedir/products,
-     'pfzipfpath': the path to the periodfinding ZIP in basedir/products,
+     'pfzipfpath': the path to the periodfinding ZIP in basedir/products,}
 
 
     '''
@@ -182,7 +182,7 @@ def sqlite_new_dataset(basedir,
 
 
 
-def sqlite_remove_dataset(basedir, setname):
+def sqlite_remove_dataset(basedir, setid):
     '''
     This removes the specified dataset.
 
@@ -192,7 +192,7 @@ def sqlite_remove_dataset(basedir, setname):
 
 
 
-def sqlite_update_dataset(basedir, setname, updatedict):
+def sqlite_update_dataset(basedir, setid, updatedict):
     '''
     This updates a dataset.
 
@@ -212,7 +212,7 @@ def sqlite_list_datasets(basedir, require_ispublic=True):
 
 
 
-def sqlite_get_dataset(basedir, setname):
+def sqlite_get_dataset(basedir, setid):
     '''
     This gets the dataset as a dictionary.
 
@@ -221,6 +221,40 @@ def sqlite_get_dataset(basedir, setname):
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
 
 
+
+def sqlite_generate_dataset_lczip(basedir, setid):
+    '''
+    This generates a light curve zip for the specified setid.
+
+    make sure to generate a SHA256 sum as well to ensure download integrity.
+
+    this goes into a basedir/products/dataset-<setid>-lightcurves.zip file.
+
+    '''
+
+
+
+def sqlite_generate_dataset_cpzip(basedir, setid):
+    '''
+    This generates a checkplot zip for the specified setid.
+
+    make sure to generate a SHA256 sum as well to ensure download integrity.
+
+    this goes into a basedir/products/dataset-<setid>-checkplots.zip file.
+
+    '''
+
+
+
+def sqlite_generate_dataset_pfzip(basedir, setid):
+    '''
+    This generates a checkplot zip for the specified setid.
+
+    make sure to generate a SHA256 sum as well to ensure download integrity.
+
+    this goes into a basedir/products/dataset-<setid>-pfresults.zip file.
+
+    '''
 
 
 ################################################################
@@ -307,3 +341,9 @@ def sqlite_xmatch_search(basedir,
     '''
 
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+
+
+#####################################
+## SEARCHING FOR STUFF IN DATASETS ##
+#####################################
