@@ -109,6 +109,8 @@ def sqlite_datasets_db_create(basedir):
     '''
     This makes a new datasets DB in basedir.
 
+    Most of the information is stored in the dataset pickle itself.
+
     '''
 
     # get the dataset dir

@@ -53,6 +53,18 @@ collection-dir/
 
 - catalog-objectinfo.sqlite -> broken out from the lclist-catalog.pkl file
 
+generated using something similar to:
+
+abcat.objectinfo_to_sqlite(
+    'lclist-catalog.pkl',
+    'catalog-objectinfo.sqlite',
+    lcset_name='HATNet Kepler field',
+    lcset_desc='HATNet observations of the Kepler Field from 2004 to 2014',
+    lcset_project='HATNet',
+    lcset_datarelease=0,
+    lcset_citation='Bakos+ 2004',
+)
+
 - lightcurves/ -> whatever subdir structure here is used
 
 - periodfinding/
