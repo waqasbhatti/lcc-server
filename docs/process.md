@@ -138,7 +138,7 @@ abcat.objectinfo_to_sqlite(
 - frontend hookup. Use ProcessPoolExecutor.
   - search functions: FTS, coord, xmatch, column search, parse coord strings
   - dataset functions: list all datasets, show dataset
-  -
+  - collection functions: list all collections and their properties
 
 - JS hookup, simple POST processing only for now.
   - later, using async JSON load for dataset processing.

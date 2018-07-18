@@ -365,7 +365,8 @@ def sqlite_fulltext_search(basedir,
                            getcolumns=None,
                            extraconditions=None,
                            lcclist=None,
-                           require_ispublic=True):
+                           require_ispublic=True,
+                           raiseonfail=False):
     '''This searches the specified collections for a full-text match.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -513,6 +514,9 @@ def sqlite_fulltext_search(basedir,
                             'message':msg,
                             'success':False}
 
+            if raiseonfail:
+                raise
+
 
     # at the end, add in some useful info
     results['databases'] = available_lcc
@@ -522,6 +526,7 @@ def sqlite_fulltext_search(basedir,
                        'getcolumns':rescolumns,
                        'lcclist':lcclist,
                        'extraconditions':extraconditions}
+    results['search'] = 'sqlite_fulltext_search'
 
 
     db.close()
@@ -535,7 +540,8 @@ def sqlite_column_search(basedir,
                          sortby=None,
                          limit=None,
                          lcclist=None,
-                         require_ispublic=True):
+                         require_ispublic=True,
+                         raiseonfail=False):
     '''This runs an arbitrary column search.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -710,6 +716,9 @@ def sqlite_column_search(basedir,
                             'message':msg,
                             'success':False}
 
+            if raiseonfail:
+                raise
+
     # at the end, add in some useful info
     results['databases'] = available_lcc
     results['columns'] = available_columns
@@ -719,6 +728,7 @@ def sqlite_column_search(basedir,
                        'sortby':sortby,
                        'limit':limit,
                        'lcclist':lcclist}
+    results['search'] = 'sqlite_column_search'
 
     db.close()
     return results
@@ -728,7 +738,8 @@ def sqlite_column_search(basedir,
 def sqlite_sql_search(basedir,
                       sqlstatement,
                       lcclist=None,
-                      require_ispublic=True):
+                      require_ispublic=True,
+                      raiseonfail=False):
     '''This runs an arbitrary SQL statement search.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -1060,6 +1071,8 @@ def sqlite_kdtree_conesearch(basedir,
                        'extraconditions':extraconditions,
                        'lcclist':lcclist}
 
+    results['search'] = 'sqlite_kdtree_conesearch'
+
     db.close()
     return results
 
@@ -1079,7 +1092,8 @@ def sqlite_xmatch_search(basedir,
                          extraconditions=None,
                          lcclist=None,
                          require_ispublic=True,
-                         max_matchradius_arcsec=30.0):
+                         max_matchradius_arcsec=30.0,
+                         raiseonfail=False):
     '''This does an xmatch between the input and LCC databases.
 
     - xmatch using coordinates and kdtrees
@@ -1448,6 +1462,7 @@ def sqlite_xmatch_search(basedir,
                            'getcolumns':rescolumns,
                            'extraconditions':extraconditions,
                            'lcclist':lcclist}
+        results['search'] = 'sqlite_xmatch_search'
 
         # delete the temporary xmatch table
         cur.execute('drop table _temp_xmatch_table')
@@ -1520,7 +1535,8 @@ def sqlite_xmatch_search(basedir,
                                 'nmatches':0,
                                 'message':msg,
                                 'success':False}
-                raise
+                if raiseonfail:
+                    raise
         #
         # done with all LCCs
         #
@@ -1536,6 +1552,7 @@ def sqlite_xmatch_search(basedir,
                            'getcolumns':rescolumns,
                            'extraconditions':extraconditions,
                            'lcclist':lcclist}
+        results['search'] = 'sqlite_xmatch_search'
 
         # delete the temporary xmatch table
         cur.execute('drop table _temp_xmatch_table')

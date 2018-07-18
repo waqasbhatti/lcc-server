@@ -79,8 +79,10 @@ import os.path
 import sqlite3
 import pickle
 import secrets
-
-import numpy as np
+import gzip
+from zipfile import ZipFile
+import json
+import subprocess
 
 from . import dbsearch
 dbsearch.set_logger_parent(__name__)
@@ -100,11 +102,19 @@ create table lcc_datasets (
   nobjects integer not null,
   status text not null,
   is_public integer,
+  lczip_shasum text,
+  cpzip_shasum text,
+  pfzip_shasum text,
+  dataset_shasum text,
   name text,
   description text,
   citation text,
   primary key (setid)
 );
+
+-- set the WAL mode on
+pragma journal_mode = wal;
+pragma journal_size_limit = 52428800;
 '''
 
 def sqlite_datasets_db_create(basedir):
@@ -115,11 +125,10 @@ def sqlite_datasets_db_create(basedir):
 
     '''
 
-    # get the dataset dir
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
-    # open the datasets database
-    datasets_dbf = os.path.join(datasetdir, 'lcc-datasets.sqlite')
+    # make the datasets database
+    datasets_dbf = os.path.abspath(
+        os.path.join(basedir, 'lcc-datasets.sqlite')
+    )
     db = sqlite3.connect(
         datasets_dbf,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
@@ -152,11 +161,8 @@ def sqlite_prepare_dataset(basedir,
 
     '''
 
-    # get the dataset dir
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
     # open the datasets database
-    datasets_dbf = os.path.join(datasetdir, 'lcc-datasets.sqlite')
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
     db = sqlite3.connect(
         datasets_dbf,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
@@ -164,7 +170,7 @@ def sqlite_prepare_dataset(basedir,
     cur = db.cursor()
 
     # generate an 8-byte random token for use as the setid
-    setid = secrets.token_urlsafe(8)
+    setid = secrets.token_urlsafe(8).replace('-','Z').replace('_','a')
     creationdt = datetime.utcnow().isoformat()
 
     # update the database to prepare for this new dataset
@@ -179,6 +185,7 @@ def sqlite_prepare_dataset(basedir,
 
     cur.execute(query, params)
     db.commit()
+    db.close()
 
     return setid, creationdt
 
@@ -211,27 +218,35 @@ def sqlite_new_dataset(basedir,
      'searchargs': the args dict from the search result dict,
      'success': the boolean from the search result dict
      'message': the message from the search result dict,
-     'history': a list of (datetime, status string) tuples indicating history,
      'lczipfpath': the path to the light curve ZIP in basedir/products/,
-     'cpzipfpath': the path to the checkplot ZIP in basedir/products,
-     'pfzipfpath': the path to the periodfinding ZIP in basedir/products,}
+     later: 'cpzipfpath': path to the checkplot ZIP in basedir/products,
+     later: 'pfzipfpath': path to the periodfinding ZIP in basedir/products,}
 
 
     '''
 
     # get the dataset dir
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+    productdir = os.path.abspath(os.path.join(basedir, 'products'))
 
-    # open the datasets database
-    datasets_dbf = os.path.join(datasetdir, 'lcc-datasets.sqlite')
-    db = sqlite3.connect(
-        datasets_dbf,
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-    )
-    cur = db.cursor()
+    # get some stuff out of the search result
+    collections = searchresult['databases']
+    columns = searchresult['args']['getcolumns']
 
+    # the result should be a dict with key:val = collection:result
+    result = {x:searchresult[x]['result'] for x in collections}
 
+    searchtype = searchresult['search']
+    searchargs = searchresult['args']
 
+    # success and message is a dict for each collection searched
+    success = {x:searchresult[x]['success'] for x in collections}
+    message = {x:searchresult[x]['message'] for x in collections}
+
+    # total number of objects found
+    nmatches = {x:searchresult[x]['nmatches'] for x in collections}
+
+    total_nmatches = sum(searchresult[x]['nmatches'] for x in collections)
 
     # create the dict for the dataset pickle
     dataset = {
@@ -239,12 +254,186 @@ def sqlite_new_dataset(basedir,
         'name':'New dataset',
         'desc':'Created at %s' % creationdt,
         'ispublic':ispublic,
+        'collections':collections,
+        'columns':columns,
+        'result':result,
+        'searchtype':searchtype,
+        'searchargs':searchargs,
+        'success':success,
+        'message':message,
+        'nmatches':nmatches
     }
 
-    # create the
+    # generate the dataset pickle filepath
+    dataset_fname = 'dataset-%s.pkl.gz' % setid
+    dataset_fpath = os.path.join(datasetdir, dataset_fname)
+
+    # generate the name of the lczipfile
+    lczip_fname = 'lightcurves-%s.zip' % setid
+    lczip_fpath = os.path.join(productdir, lczip_fname)
+
+    # generate the name of the cpzipfile
+    cpzip_fname = 'checkplots-%s.zip' % setid
+    cpzip_fpath = os.path.join(productdir, cpzip_fname)
+
+    # generate the name of the pfzipfile
+    pfzip_fname = 'pfresults-%s.zip' % setid
+    pfzip_fpath = os.path.join(productdir, pfzip_fname)
+
+    # put these into the dataset dict
+    dataset['lczipfpath'] = lczip_fpath
+    dataset['cpzipfpath'] = cpzip_fpath
+    dataset['pfzipfpath'] = pfzip_fpath
+
+    # get the list of all light curve files for this dataset
+    dataset_lclist = []
+
+    for collection in collections:
+
+        thiscoll_lclist = [x['db_lcfname'] for x in result[collection]]
+        dataset_lclist.extend(thiscoll_lclist)
+
+    dataset['lclist'] = dataset_lclist
+
+
+    # write the pickle to the datasets directory
+    with gzip.open(dataset_fpath,'wb') as outfd:
+        pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+    LOGINFO('wrote dataset pickle for search results to %s, setid: %s' %
+            (dataset_fpath, setid))
+
+    # generate the SHA256 sum for the written file
+    try:
+        p = subprocess.run('sha256sum %s' % dataset_fpath,
+                           shell=True, timeout=60.0, capture_output=True)
+        shasum = p.stdout.decode().split()[0]
+
+    except Exception as e:
+
+        LOGWARNING('could not calculate SHA256 sum for %s' % dataset_fpath)
+        shasum = 'warning-no-sha256sum-available'
+
+    # open the datasets database
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = db.cursor()
+
+    # generate the entry in the lcc-datasets.sqlite table and commit it
+    query = ("update lcc_datasets set "
+             "last_updated = ?, nobjects = ?, "
+             "status = ?, dataset_shasum = ?")
+
+    params = (datetime.utcnow().isoformat(),
+              total_nmatches,
+              'complete',
+              shasum)
+    cur.execute(query, params)
+    db.commit()
+    db.close()
+
+    LOGINFO('updated entry for setid: %s, total nmatches: %s' %
+            (setid, total_nmatches))
+
+    # return the setid
+    return setid
 
 
 
+def sqlite_make_dataset_lczip(basedir, setid, override_lcdir=None):
+    '''
+    This makes a zip file for the light curves in the dataset.
+
+    '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+    # look in the datasetdir for the dataset pickle
+    dataset_fpath = os.path.join(datasetdir, 'dataset-%s.pkl.gz' % setid)
+
+    if os.path.exists(dataset_fpath):
+
+        with gzip.open(dataset_fpath,'rb') as infd:
+            dataset = pickle.load(infd)
+
+        # get the list of light curve files
+        dataset_lclist = dataset['lclist']
+
+        # if we're collecting from some special directory
+        if override_lcdir and os.path.exists(override_lcdir):
+
+            dataset_lclist = [os.path.join(override_lcdir,
+                                           os.path.basename(x)) for x in
+                              dataset_lclist]
+
+        zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
+
+
+        # get the expected name of the output zipfile
+        lczip_fpath = dataset['lczipfpath']
+
+        LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
+                (len(dataset_lclist), lczip_fpath, setid))
+
+        # set up the zipfile
+        with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
+            for lcf in dataset_lclist:
+                if os.path.exists(lcf):
+                    outzip.write(lcf, os.path.basename(lcf))
+                else:
+                    zipfile_lclist[os.path.basename(lcf)] = 'missing'
+
+            # add the manifest to the zipfile
+            outzip.writestr('lczip-manifest.json',
+                            json.dumps(zipfile_lclist,
+                                       ensure_ascii=True,
+                                       indent=2))
+
+        LOGINFO('done, zip written successfully.')
+
+        try:
+
+            p = subprocess.run('sha256sum %s' % lczip_fpath,
+                               shell=True, timeout=60.0, capture_output=True)
+            shasum = p.stdout.decode().split()[0]
+
+        except Exception as e:
+
+            LOGWARNING('could not calculate SHA256 sum for %s' % dataset_fpath)
+            shasum = 'warning-no-sha256sum-available'
+
+        # open the datasets database
+        datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+        db = sqlite3.connect(
+            datasets_dbf,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        cur = db.cursor()
+
+        # generate the entry in the lcc-datasets.sqlite table and commit it
+        query = ("update lcc_datasets set "
+                 "last_updated = ?, lczip_shasum = ?")
+
+        params = (datetime.utcnow().isoformat(), shasum)
+        cur.execute(query, params)
+        db.commit()
+        db.close()
+
+        LOGINFO('updated entry for setid: %s with LC zip SHASUM' % setid)
+        return lczip_fpath
+
+    else:
+
+        LOGERROR('setid: %s, dataset pickle expected at %s does not exist!' %
+                 (setid, dataset_fpath))
+        return None
+
+
+
+# LATER
 def sqlite_remove_dataset(basedir, setid):
     '''
     This removes the specified dataset.
@@ -255,6 +444,7 @@ def sqlite_remove_dataset(basedir, setid):
 
 
 
+# LATER
 def sqlite_update_dataset(basedir, setid, updatedict):
     '''
     This updates a dataset.
@@ -264,6 +454,10 @@ def sqlite_update_dataset(basedir, setid, updatedict):
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
 
 
+
+######################################
+## LISTING AND GETTING DATASET INFO ##
+######################################
 
 def sqlite_list_datasets(basedir, require_ispublic=True):
     '''
@@ -285,45 +479,11 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
 
 
 
-def sqlite_generate_dataset_lczip(basedir, setid):
-    '''
-    This generates a light curve zip for the specified setid.
-
-    make sure to generate a SHA256 sum as well to ensure download integrity.
-
-    this goes into a basedir/products/dataset-<setid>-lightcurves.zip file.
-
-    '''
-
-
-
-def sqlite_generate_dataset_cpzip(basedir, setid):
-    '''
-    This generates a checkplot zip for the specified setid.
-
-    make sure to generate a SHA256 sum as well to ensure download integrity.
-
-    this goes into a basedir/products/dataset-<setid>-checkplots.zip file.
-
-    '''
-
-
-
-def sqlite_generate_dataset_pfzip(basedir, setid):
-    '''
-    This generates a checkplot zip for the specified setid.
-
-    make sure to generate a SHA256 sum as well to ensure download integrity.
-
-    this goes into a basedir/products/dataset-<setid>-pfresults.zip file.
-
-    '''
-
-
 ################################################################
 ## FUNCTIONS THAT WRAP DBSEARCH FUNCTIONS AND RETURN DATASETS ##
 ################################################################
 
+# ALL LATER
 
 def sqlite_dataset_fulltext_search(basedir,
                                    ftsquerystr,
