@@ -342,6 +342,9 @@ def sqlite_new_dataset(basedir,
     return setid
 
 
+############################################
+## FUNCTIONS THAT DEAL WITH LC COLLECTION ##
+############################################
 
 def sqlite_make_dataset_lczip(basedir,
                               setid,

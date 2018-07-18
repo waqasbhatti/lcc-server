@@ -764,7 +764,7 @@ def sqlite_collect_lcc_info(
         lcformat_reader_function,
         raiseonfail=False,
 ):
-    '''This writes or updates the lcc-collections.sqlite file in lcc_basedir.
+    '''This writes or updates the lcc-index.sqlite file in lcc_basedir.
 
     each LC collection is identified by its subdirectory name. The following
     files must be present in each LC collection subdirectory:
@@ -1072,6 +1072,63 @@ def sqlite_collect_lcc_info(
         else:
             return None
 
+
+##################################################
+## FUNCTIONS THAT DEAL WITH LIGHT CURVE FORMATS ##
+##################################################
+
+def get_lcformat_description(lcc_basedir, collection_id):
+    '''
+    This reads the lcformat column description file and returns a dict.
+
+    The description file is a JSON located under the collection's
+    collection_id directory/lcformat-description.json.
+
+    '''
+
+    # open the lcc-index.sqlite DB
+
+    # get the location of the lcformat-description.json file
+
+    # read the JSON
+
+    # dereference the metadata_keys
+
+    # load the reader module and get the reader and normalize functions
+
+    # return the format dict, reader func and normalize func
+
+
+
+def build_csvlc_header(lcdict,
+                       lcformat_dict,
+                       comment_char='#'):
+    '''This generates a CSV header from an lcdict and a given lcformat_dict.
+
+    Get the lcformat_dict from get_lcformat_description.
+
+    This makes a JSON formatted ASCII header offset with the comment character.
+
+    '''
+
+
+def convert_to_csvlc(lcfile,
+                     lcformat_dict,
+                     csvlc_version=1,
+                     comment_char='#',
+                     column_separator=','):
+    '''This converts any readable LC to a common-format CSV LC.
+
+    The first 3 lines of the file are always:
+
+    LCC-CSVLC-<csvlc_version>
+    <comment_char>
+    <column_separator>
+
+    so reader functions can recognize it automatically (like
+    astrobase.hatsurveys.hatlc.py).
+
+    '''
 
 
 #############################################

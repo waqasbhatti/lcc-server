@@ -125,6 +125,8 @@ abcat.objectinfo_to_sqlite(
 
 ## Implement the following
 
+- COMMON FORMAT CSV LC CONVERTER
+
 - dataset pickle creation with SHA256 sum, listing, deletion, editing
 
 - light curve zip creation with SHA256 sum, deletion, editing when dataset
