@@ -425,11 +425,28 @@ def sqlite_fulltext_search(basedir,
         columnstr = ('%s, a.objectid as db_oid, a.ra as db_ra, '
                      'a.decl as db_decl, a.lcfname as db_lcfname' % columnstr)
 
+        rescolumns = getcolumns[::] + ['in_oid',
+                                       'db_oid',
+                                       'in_ra',
+                                       'in_decl',
+                                       'db_ra',
+                                       'db_decl',
+                                       'db_lcfname']
+
+
     # otherwise, if there are no columns, use the default ones
     else:
 
         columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
                      'a.decl as db_decl, a.lcfname as db_lcfname')
+
+        rescolumns = ['in_oid',
+                      'db_oid',
+                      'in_ra',
+                      'in_decl',
+                      'db_ra',
+                      'db_decl',
+                      'db_lcfname']
 
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
@@ -502,7 +519,7 @@ def sqlite_fulltext_search(basedir,
     results['columns'] = available_columns
 
     results['args'] = {'ftsquerystr':ftsquerystr,
-                       'getcolumns':getcolumns,
+                       'getcolumns':rescolumns,
                        'lcclist':lcclist,
                        'extraconditions':extraconditions}
 
@@ -572,11 +589,27 @@ def sqlite_column_search(basedir,
         columnstr = ('%s, a.objectid as db_oid, a.ra as db_ra, '
                      'a.decl as db_decl, a.lcfname as db_lcfname' % columnstr)
 
+        rescolumns = getcolumns[::] + ['in_oid',
+                                       'db_oid',
+                                       'in_ra',
+                                       'in_decl',
+                                       'db_ra',
+                                       'db_decl',
+                                       'db_lcfname']
+
     # otherwise, if there are no columns, use the default ones
     else:
 
         columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
                      'a.decl as db_decl, a.lcfname as db_lcfname')
+
+        rescolumns = ['in_oid',
+                      'db_oid',
+                      'in_ra',
+                      'in_decl',
+                      'db_ra',
+                      'db_decl',
+                      'db_lcfname']
 
     # this is the query that will be used
     q = ("select {columnstr} from {collection_id}.object_catalog a "
@@ -681,7 +714,7 @@ def sqlite_column_search(basedir,
     results['databases'] = available_lcc
     results['columns'] = available_columns
 
-    results['args'] = {'getcolumns':getcolumns,
+    results['args'] = {'getcolumns':rescolumns,
                        'conditions':conditions,
                        'sortby':sortby,
                        'limit':limit,
@@ -732,7 +765,8 @@ def sqlite_kdtree_conesearch(basedir,
                              extraconditions=None,
                              lcclist=None,
                              require_ispublic=True,
-                             conesearchworkers=1):
+                             conesearchworkers=1,
+                             raiseonfail=False):
     '''This does a cone-search using searchparams over all lcc in lcclist.
 
     - do an overlap between footprint of lcc and cone size
@@ -795,16 +829,34 @@ def sqlite_kdtree_conesearch(basedir,
         columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
                      'a.ra as in_ra, a.decl as in_decl, '
                      'b.ra as db_ra, b.decl as db_decl, '
-                     'b.lcfname as db_lcfname '
+                     'a.lcfname as db_lcfname '
                      '%s' % columnstr)
+
+        rescolumns = getcolumns[::] + ['in_oid',
+                                       'db_oid',
+                                       'in_ra',
+                                       'in_decl',
+                                       'db_ra',
+                                       'db_decl',
+                                       'db_lcfname']
 
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
     else:
+
         columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
                      'a.ra as in_ra, a.decl as in_decl, '
                      'b.ra as db_ra, b.decl as db_decl, '
-                     'b.lcfname as db_lcfname')
+                     'a.lcfname as db_lcfname')
+
+        rescolumns = ['in_oid',
+                      'db_oid',
+                      'in_ra',
+                      'in_decl',
+                      'db_ra',
+                      'db_decl',
+                      'db_lcfname']
+
 
     # this is the query that will be used to query the database only
     q = ("select {columnstr} from {collection_id}.object_catalog a "
@@ -910,17 +962,21 @@ def sqlite_kdtree_conesearch(basedir,
             # IDs of the kdtree results.
             create_temptable_q = (
                 "create table _temp_objectid_list "
-                "(objectid text, primary key (objectid))"
+                "(objectid text, ra double precision, decl double precision, "
+                "primary key (objectid))"
             )
             insert_temptable_q = (
-                "insert into _temp_objectid_list values (?)"
+                "insert into _temp_objectid_list values (?, ?, ?)"
             )
 
             LOGINFO('creating temporary match table for '
                     '%s matching kdtree results...' % matching_objectids.size)
             cur.execute(create_temptable_q)
             cur.executemany(insert_temptable_q,
-                            [(x,) for x in matching_objectids])
+                            [(x,y,z) for (x,y,z) in
+                             zip(matching_objectids,
+                                 matching_ras,
+                                 matching_decls)])
 
             # now run our query
             cur.execute(thisq)
@@ -986,8 +1042,11 @@ def sqlite_kdtree_conesearch(basedir,
                 'query':q,
                 'nmatches':0,
                 'message':msg,
-                'success':False
+                'success':False,
             }
+
+            if raiseonfail:
+                raise
 
 
     # at the end, add in some useful info
@@ -997,7 +1056,7 @@ def sqlite_kdtree_conesearch(basedir,
     results['args'] = {'center_ra':center_ra,
                        'center_decl':center_decl,
                        'radius_arcmin':radius_arcmin,
-                       'getcolumns':getcolumns,
+                       'getcolumns':rescolumns,
                        'extraconditions':extraconditions,
                        'lcclist':lcclist}
 
@@ -1088,6 +1147,14 @@ def sqlite_xmatch_search(basedir,
                      'b.ra as db_ra, b.decl as db_decl, '
                      'b.lcfname as db_lcfname, %s' % columnstr)
 
+        rescolumns = getcolumns[::] + ['in_oid',
+                                       'db_oid',
+                                       'in_ra',
+                                       'in_decl',
+                                       'db_ra',
+                                       'db_decl',
+                                       'db_lcfname']
+
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
     else:
@@ -1095,6 +1162,13 @@ def sqlite_xmatch_search(basedir,
                      'b.ra as db_ra, b.decl as db_decl, '
                      'b.lcfname as db_lcfname')
 
+        rescolumns = ['in_oid',
+                      'db_oid',
+                      'in_ra',
+                      'in_decl',
+                      'db_ra',
+                      'db_decl',
+                      'db_lcfname']
 
     # make sure we have everything we need from the inputdata
 
@@ -1371,7 +1445,7 @@ def sqlite_xmatch_search(basedir,
                            'xmatch_closest_only':xmatch_closest_only,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
-                           'getcolumns':getcolumns,
+                           'getcolumns':rescolumns,
                            'extraconditions':extraconditions,
                            'lcclist':lcclist}
 
@@ -1459,7 +1533,7 @@ def sqlite_xmatch_search(basedir,
                            'xmatch_closest_only':xmatch_closest_only,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
-                           'getcolumns':getcolumns,
+                           'getcolumns':rescolumns,
                            'extraconditions':extraconditions,
                            'lcclist':lcclist}
 
