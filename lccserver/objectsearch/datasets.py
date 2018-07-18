@@ -343,7 +343,10 @@ def sqlite_new_dataset(basedir,
 
 
 
-def sqlite_make_dataset_lczip(basedir, setid, override_lcdir=None):
+def sqlite_make_dataset_lczip(basedir,
+                              setid,
+                              convert_to_csvlc=True,
+                              override_lcdir=None):
     '''
     This makes a zip file for the light curves in the dataset.
 
@@ -465,7 +468,15 @@ def sqlite_list_datasets(basedir, require_ispublic=True):
 
     '''
 
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+    datasets_dbf = os.path.abspath(
+        os.path.join(basedir, 'lcc-datasets.sqlite')
+    )
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = db.cursor()
+
 
 
 
@@ -495,9 +506,6 @@ def sqlite_dataset_fulltext_search(basedir,
     This does a full-text search and returns a dataset.
 
     '''
-
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
 
 
 def sqlite_dataset_column_search(basedir,

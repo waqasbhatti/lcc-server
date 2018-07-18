@@ -140,7 +140,9 @@ def sqlite_get_collections(basedir,
     query = ("select collection_id, object_catalog_path, kdtree_pkl_path, "
              "columnlist, indexedcols, ftsindexedcols, name, "
              "description, project, ispublic, datarelease, "
-             "ra_min, ra_max, decl_min, decl_max, nobjects from lcc_index "
+             "ra_min, ra_max, decl_min, decl_max, nobjects, "
+             "lcformat_key, lcformat_reader_module, lcformat_reader_function "
+             "from lcc_index "
              "{lccspec}")
 
     # handle the case where lcclist is not provided, we'll use any LCC available
@@ -178,7 +180,8 @@ def sqlite_get_collections(basedir,
          indexedcols, ftsindexedcols, name,
          description, project,
          ispublic, datarelease,
-         minra, maxra, mindecl, maxdecl, nobjects) = results
+         minra, maxra, mindecl, maxdecl,
+         nobjects, lcformat, lcmodule, lcfunc) = results
 
         dbnames = [x.replace('-','_') for x in collection_id]
 
@@ -235,7 +238,10 @@ def sqlite_get_collections(basedir,
                 'maxra':maxra,
                 'mindecl':mindecl,
                 'maxdecl':maxdecl,
-                'nobjects':nobjects
+                'nobjects':nobjects,
+                'lcformat':lcformat,
+                'lcmodule':lcmodule,
+                'lcfunc':lcfunc,
             }
         }
 
@@ -468,6 +474,11 @@ def sqlite_fulltext_search(basedir,
 
     for lcc in uselcc:
 
+        dbindex = available_lcc.index(lcc)
+        lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
+        lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
+        lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+
         try:
 
             # if we have extra filters, apply them
@@ -501,6 +512,10 @@ def sqlite_fulltext_search(basedir,
             results[lcc]['message'] = msg
             LOGINFO(msg)
 
+            results[lcc]['lcformat'] = lcc_lcformat
+            results[lcc]['lcmodule'] = lcc_lcmodule
+            results[lcc]['lcfunc'] = lcc_lcfunc
+
         except Exception as e:
 
             msg = ('failed to execute FTS query: "%s" '
@@ -513,6 +528,10 @@ def sqlite_fulltext_search(basedir,
                             'nmatches':0,
                             'message':msg,
                             'success':False}
+
+            results[lcc]['lcformat'] = lcc_lcformat
+            results[lcc]['lcmodule'] = lcc_lcmodule
+            results[lcc]['lcfunc'] = lcc_lcfunc
 
             if raiseonfail:
                 raise
@@ -682,6 +701,11 @@ def sqlite_column_search(basedir,
 
     for lcc in uselcc:
 
+        dbindex = available_lcc.index(lcc)
+        lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
+        lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
+        lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+
         thisq = q.format(columnstr=columnstr,
                          collection_id=lcc,
                          wherecondition=wherecondition,
@@ -703,6 +727,9 @@ def sqlite_column_search(basedir,
                    (lcc, results[lcc]['nmatches']))
             results[lcc]['message'] = msg
             LOGINFO(msg)
+            results[lcc]['lcformat'] = lcc_lcformat
+            results[lcc]['lcmodule'] = lcc_lcmodule
+            results[lcc]['lcfunc'] = lcc_lcfunc
 
         except Exception as e:
 
@@ -715,6 +742,9 @@ def sqlite_column_search(basedir,
                             'nmatches':0,
                             'message':msg,
                             'success':False}
+            results[lcc]['lcformat'] = lcc_lcformat
+            results[lcc]['lcmodule'] = lcc_lcmodule
+            results[lcc]['lcfunc'] = lcc_lcfunc
 
             if raiseonfail:
                 raise
@@ -897,6 +927,9 @@ def sqlite_kdtree_conesearch(basedir,
         # get the kdtree path
         dbindex = available_lcc.index(lcc)
         kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
+        lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
+        lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
+        lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
 
         # if we can't find the kdtree, we can't do anything. skip this LCC
         if not os.path.exists(kdtree_fpath):
@@ -1041,6 +1074,9 @@ def sqlite_kdtree_conesearch(basedir,
                    (lcc, results[lcc]['nmatches']))
             results[lcc]['message'] = msg
             LOGINFO(msg)
+            results[lcc]['lcformat'] = lcc_lcformat
+            results[lcc]['lcmodule'] = lcc_lcmodule
+            results[lcc]['lcfunc'] = lcc_lcfunc
 
         except Exception as e:
 
@@ -1055,6 +1091,9 @@ def sqlite_kdtree_conesearch(basedir,
                 'message':msg,
                 'success':False,
             }
+            results[lcc]['lcformat'] = lcc_lcformat
+            results[lcc]['lcmodule'] = lcc_lcmodule
+            results[lcc]['lcfunc'] = lcc_lcfunc
 
             if raiseonfail:
                 raise
@@ -1331,6 +1370,9 @@ def sqlite_xmatch_search(basedir,
             # get the kdtree path
             dbindex = available_lcc.index(lcc)
             kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
+            lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
+            lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
+            lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
 
             # if we can't find the kdtree, we can't do anything. skip this LCC
             if not os.path.exists(kdtree_fpath):
@@ -1343,6 +1385,10 @@ def sqlite_xmatch_search(basedir,
                                 'nmatches':0,
                                 'message':msg,
                                 'success':False}
+                results[lcc]['lcformat'] = lcc_lcformat
+                results[lcc]['lcmodule'] = lcc_lcmodule
+                results[lcc]['lcfunc'] = lcc_lcfunc
+
                 continue
 
 
@@ -1417,7 +1463,8 @@ def sqlite_xmatch_search(basedir,
                     inputdata_dict[ircol] = item
 
                 # for each row add in the input object's info
-                _ = [x.update(inputdata_dict) for x in rows]
+                for x in rows:
+                    x.update(inputdata_dict)
 
                 # add in the distance from the input object
                 for row in rows:
@@ -1446,6 +1493,10 @@ def sqlite_xmatch_search(basedir,
                    "matching nrows: %s" % (lcc, results[lcc]['nmatches']))
             results[lcc]['message'] = msg
             LOGINFO(msg)
+
+            results[lcc]['lcformat'] = lcc_lcformat
+            results[lcc]['lcmodule'] = lcc_lcmodule
+            results[lcc]['lcfunc'] = lcc_lcfunc
 
         #
         # done with all LCCs
@@ -1500,6 +1551,11 @@ def sqlite_xmatch_search(basedir,
         # go through each LCC
         for lcc in uselcc:
 
+            dbindex = available_lcc.index(lcc)
+            lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
+            lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
+            lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+
             # execute the xmatch statement
             thisq = q.format(columnstr=xmatch_columnstr,
                              collection_id=lcc,
@@ -1523,6 +1579,10 @@ def sqlite_xmatch_search(basedir,
                 results[lcc]['message'] = msg
                 LOGINFO(msg)
 
+                results[lcc]['lcformat'] = lcc_lcformat
+                results[lcc]['lcmodule'] = lcc_lcmodule
+                results[lcc]['lcfunc'] = lcc_lcfunc
+
             except Exception as e:
 
 
@@ -1534,7 +1594,10 @@ def sqlite_xmatch_search(basedir,
                                 'query':thisq,
                                 'nmatches':0,
                                 'message':msg,
-                                'success':False}
+                                'success':False,
+                                'lcformat':lcc_lcformat,
+                                'lcmodule':lcc_lcmodule,
+                                'lcfunc': lcc_lcfunc}
                 if raiseonfail:
                     raise
         #
