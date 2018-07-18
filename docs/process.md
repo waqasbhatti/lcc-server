@@ -120,3 +120,25 @@ abcat.objectinfo_to_sqlite(
   the DML and generate the correct numpy/sqlite statements for selecting things,
   while keeping in mind that no writing to the database is allowed. maybe break
   this out into a separate astrotap-server project
+
+
+
+## Implement the following
+
+- dataset pickle creation with SHA256 sum, listing, deletion, editing
+
+- light curve zip creation with SHA256 sum, deletion, editing when dataset
+  edited
+
+- checkplot zip creation with SHA256 sum, deletion, editing when dataset edited
+
+- periodfinding zip creation with SHA256 sum, deletion, editing when dataset
+  edited
+
+- frontend hookup. Use ProcessPoolExecutor.
+  - search functions: FTS, coord, xmatch, column search, parse coord strings
+  - dataset functions: list all datasets, show dataset
+  -
+
+- JS hookup, simple POST processing only for now.
+  - later, using async JSON load for dataset processing.

@@ -78,6 +78,7 @@ import os
 import os.path
 import sqlite3
 import pickle
+import secrets
 
 import numpy as np
 
@@ -97,6 +98,7 @@ create table lcc_datasets (
   created_on datetime not null,
   last_updated datetime not null,
   nobjects integer not null,
+  status text not null,
   is_public integer,
   name text,
   description text,
@@ -137,7 +139,54 @@ def sqlite_datasets_db_create(basedir):
 ## FUNCTIONS THAT OPERATE ON DATASETS ##
 ########################################
 
+def sqlite_prepare_dataset(basedir,
+                           ispublic=True):
+    '''
+    This generates a setid to use for the next step below.
+
+    datasets can have the following statuses:
+
+    'initialized'
+    'complete'
+    'failed'
+
+    '''
+
+    # get the dataset dir
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+    # open the datasets database
+    datasets_dbf = os.path.join(datasetdir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = db.cursor()
+
+    # generate an 8-byte random token for use as the setid
+    setid = secrets.token_urlsafe(8)
+    creationdt = datetime.utcnow().isoformat()
+
+    # update the database to prepare for this new dataset
+    query = ("insert into lcc_datasets "
+             "(setid, created_on, last_updated, nobjects, status) "
+             "values (?, ?, ?, ?, ?)")
+    params = (setid,
+              creationdt,
+              creationdt,
+              0,
+              'initialized')
+
+    cur.execute(query, params)
+    db.commit()
+
+    return setid, creationdt
+
+
+
 def sqlite_new_dataset(basedir,
+                       setid,
+                       creationdt,
                        searchresult,
                        ispublic=True):
     '''
@@ -162,6 +211,7 @@ def sqlite_new_dataset(basedir,
      'searchargs': the args dict from the search result dict,
      'success': the boolean from the search result dict
      'message': the message from the search result dict,
+     'history': a list of (datetime, status string) tuples indicating history,
      'lczipfpath': the path to the light curve ZIP in basedir/products/,
      'cpzipfpath': the path to the checkplot ZIP in basedir/products,
      'pfzipfpath': the path to the periodfinding ZIP in basedir/products,}
@@ -180,7 +230,18 @@ def sqlite_new_dataset(basedir,
     )
     cur = db.cursor()
 
-    #
+
+
+
+    # create the dict for the dataset pickle
+    dataset = {
+        'setid':setid,
+        'name':'New dataset',
+        'desc':'Created at %s' % creationdt,
+        'ispublic':ispublic,
+    }
+
+    # create the
 
 
 
@@ -214,9 +275,9 @@ def sqlite_list_datasets(basedir, require_ispublic=True):
 
 
 
-def sqlite_get_dataset(basedir, setid):
+def sqlite_get_dataset(basedir, setid, returnjson=False):
     '''
-    This gets the dataset as a dictionary.
+    This gets the dataset as a dictionary and optionally as JSON.
 
     '''
 
