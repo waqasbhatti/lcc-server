@@ -182,7 +182,7 @@ def sqlite_prepare_dataset(basedir,
 
     # update the database to prepare for this new dataset
     query = ("insert into lcc_datasets "
-             "(setid, created_on, last_updated, nobjects, status, ispublic) "
+             "(setid, created_on, last_updated, nobjects, status, is_public) "
              "values (?, ?, ?, ?, ?, ?)")
     params = (setid,
               creationdt,
@@ -445,8 +445,59 @@ def sqlite_make_dataset_lczip(basedir,
                 pool.close()
                 pool.join()
 
+                # update this collection's light curve list
+                for olc, nlc, dsrow in zip(collection_lclist,
+                                           results,
+                                           dataset['result'][collection]):
+                    if os.path.exists(nlc):
+                        dsrow['db_lcfname'] = nlc
+
+
+                # update the global LC list
                 dataset_lclist.extend(results)
 
+            # we'll need to update the dataset pickle to reflect the new LC
+            # locations
+            dataset['lclist'] = dataset_lclist
+
+            # write the changes to the pickle and update the SHASUM
+            with gzip.open(dataset_fpath,'wb') as outfd:
+                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+            try:
+
+                p = subprocess.run('sha256sum %s' % dataset_fpath,
+                                   shell=True,
+                                   timeout=60.0,
+                                   capture_output=True)
+                shasum = p.stdout.decode().split()[0]
+
+            except Exception as e:
+
+                LOGWARNING('could not calculate SHA256 sum for %s' %
+                           dataset_fpath)
+                shasum = 'warning-no-sha256sum-available'
+
+            # update the database with the new SHASUM
+            datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+            db = sqlite3.connect(
+                datasets_dbf,
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            )
+            cur = db.cursor()
+
+            # generate the entry in the lcc-datasets.sqlite table and commit it
+            query = ("update lcc_datasets set "
+                     "last_updated = ?, dataset_shasum = ?")
+
+            params = (datetime.utcnow().isoformat(), shasum)
+            cur.execute(query, params)
+            db.commit()
+            db.close()
+
+
+        # if we're not converting LCs, just update the LC locations if override
+        # is provided
         else:
 
             # get the list of light curve files
@@ -459,7 +510,55 @@ def sqlite_make_dataset_lczip(basedir,
                                                os.path.basename(x)) for x in
                                   dataset_lclist]
 
+                for dsrow in dataset['result'][collection]:
 
+                    dsrow['db_lcfname'] = os.path.join(
+                        override_lcdir,
+                        os.path.basename(dsrow['db_lcfname'])
+                    )
+                dataset['lclist'] = dataset_lclist
+
+                # write the changes to the pickle and update the SHASUM
+                with gzip.open(dataset_fpath,'wb') as outfd:
+                    pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+                try:
+
+                    p = subprocess.run('sha256sum %s' % dataset_fpath,
+                                       shell=True,
+                                       timeout=60.0,
+                                       capture_output=True)
+                    shasum = p.stdout.decode().split()[0]
+
+                except Exception as e:
+
+                    LOGWARNING('could not calculate SHA256 sum for %s' %
+                               dataset_fpath)
+                    shasum = 'warning-no-sha256sum-available'
+
+                # update the database with the new SHASUM
+                datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+                db = sqlite3.connect(
+                    datasets_dbf,
+                    detect_types=(
+                        sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+                    )
+                )
+                cur = db.cursor()
+
+                # generate the entry in the lcc-datasets.sqlite table and commit
+                # it
+                query = ("update lcc_datasets set "
+                         "last_updated = ?, dataset_shasum = ?")
+
+                params = (datetime.utcnow().isoformat(), shasum)
+                cur.execute(query, params)
+                db.commit()
+                db.close()
+
+        #
+        # FINALLY, CARRY OUT THE ZIP OPERATION
+        #
         zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
 
         # get the expected name of the output zipfile
@@ -492,7 +591,7 @@ def sqlite_make_dataset_lczip(basedir,
 
         except Exception as e:
 
-            LOGWARNING('could not calculate SHA256 sum for %s' % dataset_fpath)
+            LOGWARNING('could not calculate SHA256 sum for %s' % lczip_fpath)
             shasum = 'warning-no-sha256sum-available'
 
         # open the datasets database
@@ -661,9 +760,25 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
     '''
     This gets the dataset as a dictionary and optionally as JSON.
 
+    Returns a dict generated from the dataset pickle.
+
     '''
 
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+    dataset_pickle = 'dataset-%s.pkl.gz' % setid
+    dataset_fpath = os.path.join(datasetdir, dataset_pickle)
+
+    if not os.path.exists(dataset_fpath):
+        LOGERROR('expected dataset pickle does not exist for setid: %s' %
+                 setid)
+        return None
+
+    # read in the pickle
+    with gzip.open(dataset_fpath,'rb') as infd:
+        dataset = pickle.load(infd)
+
+
 
 
 
