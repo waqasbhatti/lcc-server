@@ -1095,7 +1095,7 @@ def dict_get(datadict, keylist):
 
 
 
-def get_lcformat_description(lcc_basedir, collection_id):
+def get_lcformat_description(descpath):
     '''
     This reads the lcformat column description file and returns a dict.
 
@@ -1103,124 +1103,94 @@ def get_lcformat_description(lcc_basedir, collection_id):
     collection_id directory/lcformat-description.json.
 
     '''
-    # open the index database
-    indexdbf = os.path.join(lcc_basedir, 'lcc-index.sqlite')
-    indexdb = sqlite3.connect(
-        indexdbf,
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-    )
-    cur = indexdb.cursor()
+    # read the JSON
+    with open(descpath,'rb') as infd:
 
-    # get the location of the lcformat-description.json file
-    query = ("select lcformat_key, lcformat_desc_path "
-             "from lcc_index where collection_id = ?")
-    params = (collection_id,)
+        formatdesc = json.load(infd)
+        formatkey = formatdesc['lc_formatkey']
 
-    cur.execute(query, params)
-    row = cur.fetchone()
+    # 1. generate the metadata info dict
+    metadata_info = {}
 
-    if row and len(row) > 0:
+    for key in formatdesc['metadata_keys']:
 
-        formatkey, descpath = row
+        desc, textform, caster = formatdesc['metadata_keys'][key]
 
-        # read the JSON
-        with open(descpath,'rb') as infd:
-            formatdesc = json.load(infd)
+        deref_key = key.split('.')
 
-        # 1. generate the metadata info dict
-        metadata_info = {}
-
-        for key in formatdesc['metadata_keys']:
-
-            desc, textform, caster = formatdesc['metadata_keys'][key]
-
-            deref_key = key.split('.')
-
-            thiskey_info = {'deref': deref_key,
-                            'desc': desc,
-                            'format': textform,
-                            'caster': caster}
-            metadata_info[key] = thiskey_info
+        thiskey_info = {'deref': deref_key,
+                        'desc': desc,
+                        'format': textform,
+                        'caster': caster}
+        metadata_info[key] = thiskey_info
 
 
-        # 2. get the column info
-        column_info = {}
-        column_keys = []
+    # 2. get the column info
+    column_info = {}
+    column_keys = []
 
-        # 2a. first, get the unaffiliated columns
-        for key in formatdesc['unaffiliated_cols']:
+    # 2a. first, get the unaffiliated columns
+    for key in formatdesc['unaffiliated_cols']:
 
+        desc, textform, dtype = formatdesc['column_keys'][key]
+
+        column_info[key] = {'desc':desc,
+                            'format':textform,
+                            'dtype':dtype}
+        column_keys.append(key)
+
+    # 2b. next, get the per magnitude columns
+    apertures = formatdesc['mag_apertures']
+
+    for key in formatdesc['per_aperture_cols']:
+
+        for ap in apertures:
+
+            fullkey = '%s_%s' % (key, ap)
             desc, textform, dtype = formatdesc['column_keys'][key]
+            desc = desc % ap
 
-            column_info[key] = {'desc':desc,
-                                'format':textform,
-                                'dtype':dtype}
-            column_keys.append(key)
-
-        # 2b. next, get the per magnitude columns
-        apertures = formatdesc['mag_apertures']
-
-        for key in formatdesc['per_aperture_cols']:
-
-            for ap in apertures:
-
-                fullkey = '%s_%s' % (key, ap)
-                desc, textform, dtype = formatdesc['column_keys'][key]
-                desc = desc % ap
-
-                column_info[fullkey] = {'desc':desc,
-                                        'format':textform,
-                                        'dtype':dtype}
-                column_keys.append(fullkey)
+            column_info[fullkey] = {'desc':desc,
+                                    'format':textform,
+                                    'dtype':dtype}
+            column_keys.append(fullkey)
 
 
-        # 3. load the reader module and get the reader and normalize functions
-        reader_module_name = formatdesc['lc_readermodule']
-        reader_func_name = formatdesc['lc_readerfunc']
-        norm_module_name = formatdesc['lc_normalizemodule']
-        norm_func_name = formatdesc['lc_normalizefunc']
+    # 3. load the reader module and get the reader and normalize functions
+    reader_module_name = formatdesc['lc_readermodule']
+    reader_func_name = formatdesc['lc_readerfunc']
+    norm_module_name = formatdesc['lc_normalizemodule']
+    norm_func_name = formatdesc['lc_normalizefunc']
 
-        # see if we can import the reader module
-        readermodule = check_extmodule(reader_module_name, formatkey)
+    # see if we can import the reader module
+    readermodule = check_extmodule(reader_module_name, formatkey)
 
-        if norm_module_name:
-            normmodule = check_extmodule(norm_module_name, formatkey)
-        else:
-            normmodule = None
-
-        # then, get the function we need to read the lightcurve
-        readerfunc = getattr(readermodule, reader_func_name)
-
-        if norm_module_name and norm_func_name:
-            normfunc = getattr(normmodule, norm_func_name)
-        else:
-            normfunc = None
-
-
-        # this is the final metadata dict
-
-        returndict = {
-            'formatkey':formatkey,
-            'readerfunc':readerfunc,
-            'normfunc':normfunc,
-            'columns':column_info,
-            'colkeys':column_keys,
-            'metadata':metadata_info
-        }
-
-
-        # return the format dict, reader func and normalize func
-        indexdb.close()
-
-        return returndict
-
+    if norm_module_name:
+        normmodule = check_extmodule(norm_module_name, formatkey)
     else:
+        normmodule = None
 
-        LOGERROR('could not find format key or format desc for collection: %s' %
-                 collection_id)
+    # then, get the function we need to read the lightcurve
+    readerfunc = getattr(readermodule, reader_func_name)
 
-        indexdb.close()
-        return None
+    if norm_module_name and norm_func_name:
+        normfunc = getattr(normmodule, norm_func_name)
+    else:
+        normfunc = None
+
+
+    # this is the final metadata dict
+
+    returndict = {
+        'formatkey':formatkey,
+        'readerfunc':readerfunc,
+        'normfunc':normfunc,
+        'columns':column_info,
+        'colkeys':column_keys,
+        'metadata':metadata_info
+    }
+
+    return returndict
 
 
 
@@ -1228,7 +1198,8 @@ def convert_to_csvlc(lcfile,
                      lcformat_dict,
                      csvlc_version=1,
                      comment_char='#',
-                     column_separator=','):
+                     column_separator=',',
+                     skip_converted=False):
     '''This converts any readable LC to a common-format CSV LC.
 
     The first 3 lines of the file are always:
@@ -1248,7 +1219,6 @@ def convert_to_csvlc(lcfile,
     lcformat-description.json file.
 
     '''
-
     # use the lcformat_dict to read (and normalize) the lcdict
     readerfunc = lcformat_dict['readerfunc']
     normfunc = lcformat_dict['normfunc']
@@ -1275,6 +1245,18 @@ def convert_to_csvlc(lcfile,
             }
         except:
             pass
+
+    # the filename
+    outfile = '%s-csvlc.gz' % meta['objectid']['val']
+
+    # we'll put the CSV LC in the same place as the original LC
+    outpath = os.path.join(os.path.dirname(lcfile), outfile)
+
+    # if we're supposed to skip an existing file, do so here
+    if skip_converted and os.path.exists(outpath):
+        LOGWARNING('%s exists already and skip_converted = True, skipping...' %
+                   outpath)
+        return outpath
 
     # extract the column info
     columns = {}
@@ -1307,12 +1289,6 @@ def convert_to_csvlc(lcfile,
 
     # the final format string for each column line
     line_formstr = '%s\n' % ('%s' % column_separator).join(line_formstr)
-
-    # the filename
-    outfile = '%s-csvlc.gz' % meta['objectid']['val']
-
-    # we'll put the CSV LC in the same place as the original LC
-    outpath = os.path.join(os.path.dirname(lcfile), outfile)
 
     # now, put together everything
     with gzip.open(outpath, 'wb') as outfd:
@@ -1347,7 +1323,6 @@ def convert_to_csvlc(lcfile,
             outfd.write(formline.encode())
 
     return outpath
-
 
 
 

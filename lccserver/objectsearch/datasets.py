@@ -83,11 +83,14 @@ import gzip
 from zipfile import ZipFile
 import json
 import subprocess
+from multiprocessing import Pool
 
 
 from . import dbsearch
 dbsearch.set_logger_parent(__name__)
 
+from . import abcat
+abcat.set_logger_parent(__name__)
 
 #########################################
 ## INITIALIZING A DATASET INDEX SQLITE ##
@@ -244,6 +247,11 @@ def sqlite_new_dataset(basedir,
     success = {x:searchresult[x]['success'] for x in collections}
     message = {x:searchresult[x]['message'] for x in collections}
 
+    # get the LC formats for each collection searched so we can reform LCs into
+    # a common format later on
+    lcformatkey = {x:searchresult[x]['lcformatkey'] for x in collections}
+    lcformatdesc = {x:searchresult[x]['lcformatdesc'] for x in collections}
+
     # total number of objects found
     nmatches = {x:searchresult[x]['nmatches'] for x in collections}
 
@@ -261,6 +269,8 @@ def sqlite_new_dataset(basedir,
         'searchtype':searchtype,
         'searchargs':searchargs,
         'success':success,
+        'lcformatkey':lcformatkey,
+        'lcformatdesc':lcformatdesc,
         'message':message,
         'nmatches':nmatches
     }
@@ -347,9 +357,34 @@ def sqlite_new_dataset(basedir,
 ## FUNCTIONS THAT DEAL WITH LC COLLECTION ##
 ############################################
 
+def csvlc_convert_worker(task):
+    '''
+    This is a worker for the function below.
+
+    '''
+
+    lcfile, formatdict, convertopts = task
+
+    try:
+        csvlc = abcat.convert_to_csvlc(lcfile,
+                                       formatdict,
+                                       **convertopts)
+        LOGINFO('converted %s -> %s ok' % (lcfile, csvlc))
+        return csvlc
+    except Exception as e:
+        LOGEXCEPTION('failed to convert %s' % lcfile)
+        return '%s conversion to CSVLC failed' % lcfile
+
+
+
 def sqlite_make_dataset_lczip(basedir,
                               setid,
                               convert_to_csvlc=True,
+                              converter_processes=4,
+                              converter_csvlc_version=1,
+                              converter_comment_char='#',
+                              converter_column_separator=',',
+                              converter_skip_converted=True,
                               override_lcdir=None):
     '''
     This makes a zip file for the light curves in the dataset.
@@ -366,18 +401,60 @@ def sqlite_make_dataset_lczip(basedir,
         with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
-        # get the list of light curve files
-        dataset_lclist = dataset['lclist']
+        # if we're supposed to regen the LCs into a common format, do so here
+        if convert_to_csvlc:
 
-        # if we're collecting from some special directory
-        if override_lcdir and os.path.exists(override_lcdir):
+            dataset_lclist = []
 
-            dataset_lclist = [os.path.join(override_lcdir,
-                                           os.path.basename(x)) for x in
-                              dataset_lclist]
+            # we'll do this by collection
+            for collection in dataset['collections']:
+
+                # load the format description
+                lcformatdesc = dataset['lcformatdesc'][collection]
+                lcformatdict = abcat.get_lcformat_description(
+                    lcformatdesc
+                )
+                convertopts = {'csvlc_version':converter_csvlc_version,
+                               'comment_char':converter_comment_char,
+                               'column_separator':converter_column_separator,
+                               'skip_converted':converter_skip_converted}
+
+                collection_lclist = [
+                    x['db_lcfname'] for x in dataset['result'][collection]
+                ]
+
+                # handle the lcdir override if present
+                if override_lcdir and os.path.exists(override_lcdir):
+                    collection_lclist = [
+                        os.path.join(override_lcdir,
+                                     os.path.basename(x))
+                        for x in collection_lclist
+                    ]
+
+                # now, we'll convert these light curves in parallel
+                pool = Pool(converter_processes)
+                tasks = [(x, lcformatdict, convertopts) for x in
+                         collection_lclist]
+                results = pool.map(csvlc_convert_worker, tasks)
+                pool.close()
+                pool.join()
+
+                dataset_lclist.extend(results)
+
+        else:
+
+            # get the list of light curve files
+            dataset_lclist = dataset['lclist']
+
+            # if we're collecting from some special directory
+            if override_lcdir and os.path.exists(override_lcdir):
+
+                dataset_lclist = [os.path.join(override_lcdir,
+                                               os.path.basename(x)) for x in
+                                  dataset_lclist]
+
 
         zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
-
 
         # get the expected name of the output zipfile
         lczip_fpath = dataset['lczipfpath']
