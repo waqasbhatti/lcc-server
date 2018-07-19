@@ -86,6 +86,10 @@ import sys
 import os
 import importlib
 import glob
+from functools import reduce
+from operator import getitem
+from textwrap import indent
+import gzip
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -1077,9 +1081,19 @@ def sqlite_collect_lcc_info(
             return None
 
 
+
 ##################################################
 ## FUNCTIONS THAT DEAL WITH LIGHT CURVE FORMATS ##
 ##################################################
+
+def dict_get(datadict, keylist):
+    '''
+    This gets the requested key by walking the datadict.
+
+    '''
+    return reduce(getitem, keylist, datadict)
+
+
 
 def get_lcformat_description(lcc_basedir, collection_id):
     '''
@@ -1118,12 +1132,12 @@ def get_lcformat_description(lcc_basedir, collection_id):
 
         for key in formatdesc['metadata_keys']:
 
-            name, textform, caster = formatdesc['metadata_keys'][key]
+            desc, textform, caster = formatdesc['metadata_keys'][key]
 
             deref_key = key.split('.')
 
             thiskey_info = {'deref': deref_key,
-                            'name': name,
+                            'desc': desc,
                             'format': textform,
                             'caster': caster}
             metadata_info[key] = thiskey_info
@@ -1131,15 +1145,17 @@ def get_lcformat_description(lcc_basedir, collection_id):
 
         # 2. get the column info
         column_info = {}
+        column_keys = []
 
         # 2a. first, get the unaffiliated columns
         for key in formatdesc['unaffiliated_cols']:
 
-            desc, textform, caster = formatdesc['column_keys'][key]
+            desc, textform, dtype = formatdesc['column_keys'][key]
 
             column_info[key] = {'desc':desc,
                                 'format':textform,
-                                'caster':caster}
+                                'dtype':dtype}
+            column_keys.append(key)
 
         # 2b. next, get the per magnitude columns
         apertures = formatdesc['mag_apertures']
@@ -1149,13 +1165,13 @@ def get_lcformat_description(lcc_basedir, collection_id):
             for ap in apertures:
 
                 fullkey = '%s_%s' % (key, ap)
-                desc, textform, caster = formatdesc['column_keys'][key]
+                desc, textform, dtype = formatdesc['column_keys'][key]
                 desc = desc % ap
 
                 column_info[fullkey] = {'desc':desc,
                                         'format':textform,
-                                        'caster':caster}
-
+                                        'dtype':dtype}
+                column_keys.append(fullkey)
 
 
         # 3. load the reader module and get the reader and normalize functions
@@ -1188,6 +1204,7 @@ def get_lcformat_description(lcc_basedir, collection_id):
             'readerfunc':readerfunc,
             'normfunc':normfunc,
             'columns':column_info,
+            'colkeys':column_keys,
             'metadata':metadata_info
         }
 
@@ -1206,17 +1223,6 @@ def get_lcformat_description(lcc_basedir, collection_id):
         return None
 
 
-def build_csvlc_header(lcdict,
-                       lcformat_dict,
-                       comment_char='#'):
-    '''This generates a CSV header from an lcdict and a given lcformat_dict.
-
-    Get the lcformat_dict from get_lcformat_description.
-
-    This makes a JSON formatted ASCII header offset with the comment character.
-
-    '''
-
 
 def convert_to_csvlc(lcfile,
                      lcformat_dict,
@@ -1231,10 +1237,118 @@ def convert_to_csvlc(lcfile,
     <comment_char>
     <column_separator>
 
+    The next lines are offset with comment_char and are JSON formatted
+    descriptions of: (i) the object metadata, (ii) the column info. Finally, we
+    have the columns separated with column_separator.
+
     so reader functions can recognize it automatically (like
     astrobase.hatsurveys.hatlc.py).
 
+    This will normalize the light curve as specified in the
+    lcformat-description.json file.
+
     '''
+
+    # use the lcformat_dict to read (and normalize) the lcdict
+    readerfunc = lcformat_dict['readerfunc']
+    normfunc = lcformat_dict['normfunc']
+
+    lcdict = readerfunc(lcfile)
+
+    if isinstance(lcdict, (tuple, list)) and isinstance(lcdict[0], dict):
+        lcdict = lcdict[0]
+
+    if normfunc:
+        lcdict = normfunc(lcdict)
+
+    # extract the metadata keys
+    meta = {}
+
+    for key in lcformat_dict['metadata']:
+
+        try:
+            thismetainfo = lcformat_dict['metadata'][key]
+            val = dict_get(lcdict, thismetainfo['deref'])
+            meta[thismetainfo['deref'][-1]] = {
+                'val':val,
+                'desc':thismetainfo['desc'],
+            }
+        except:
+            pass
+
+    # extract the column info
+    columns = {}
+
+    # generate the format string for each line
+    line_formstr = []
+
+    available_keys = []
+    ki = 0
+
+    for key in lcformat_dict['colkeys']:
+
+        if key in lcdict:
+
+            thiscolinfo = lcformat_dict['columns'][key]
+
+            line_formstr.append(thiscolinfo['format'])
+
+            columns[key] = {
+                'colnum': ki,
+                'dtype':thiscolinfo['dtype'],
+                'desc':thiscolinfo['desc']
+            }
+            available_keys.append(key)
+            ki = ki + 1
+
+    # generate the header bits
+    metajson = indent(json.dumps(meta, indent=2), '%s ' % comment_char)
+    coljson = indent(json.dumps(columns, indent=2), '%s ' % comment_char)
+
+    # the final format string for each column line
+    line_formstr = '%s\n' % ('%s' % column_separator).join(line_formstr)
+
+    # the filename
+    outfile = '%s-csvlc.gz' % meta['objectid']['val']
+
+    # we'll put the CSV LC in the same place as the original LC
+    outpath = os.path.join(os.path.dirname(lcfile), outfile)
+
+    # now, put together everything
+    with gzip.open(outpath, 'wb') as outfd:
+
+        # first, write the format spec
+        outfd.write(('LCC-CSVLC-V%s\n' % csvlc_version).encode())
+        outfd.write(('%s\n' % comment_char).encode())
+        outfd.write(('%s\n' % column_separator).encode())
+
+        # second, write the metadata JSON
+        outfd.write(('%s OBJECT METADATA\n' % comment_char).encode())
+        outfd.write(('%s\n' % metajson).encode())
+        outfd.write(('%s\n' % (comment_char,)).encode())
+
+        # third, write the column JSON
+        outfd.write(('%s COLUMN DEFINITIONS\n' % comment_char).encode())
+        outfd.write(('%s\n' % coljson).encode())
+
+        # finally, prepare to write the LC columns
+        outfd.write(('%s\n' % (comment_char,)).encode())
+        outfd.write(('%s LIGHTCURVE\n' % comment_char).encode())
+
+        # last, write the columns themselves
+        nlines = len(lcdict[lcformat_dict['colkeys'][0]])
+
+        for lineind in range(nlines):
+
+            thisline = [
+                lcdict[x][lineind] for x in available_keys
+            ]
+            formline = line_formstr % tuple(thisline)
+            outfd.write(formline.encode())
+
+    return outpath
+
+
 
 
 #############################################
