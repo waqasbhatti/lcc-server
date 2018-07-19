@@ -25,6 +25,10 @@ FIXME:
   it and remove harmful stuff. This is likely not as safe as the actual SQL
   parameter substitution code in SQLite. How to get around this?
 
+FIXME: ADD IN THE COLUMNSPEC AND DBCOLLID FOR EACH COLLECTION RESULT
+FIXME: ADD IN THE EXTRA COLUMNSPEC DEFINITIONS FOR DB_OID, DB_RA, etc.
+
+
 '''
 
 #############
@@ -100,6 +104,7 @@ import os.path
 import sqlite3
 import re
 import pickle
+import json
 
 import numpy as np
 
@@ -141,7 +146,7 @@ def sqlite_get_collections(basedir,
              "columnlist, indexedcols, ftsindexedcols, name, "
              "description, project, ispublic, datarelease, "
              "ra_min, ra_max, decl_min, decl_max, nobjects, "
-             "lcformat_key, lcformat_desc_path "
+             "lcformat_key, lcformat_desc_path, catalog_columninfo_json "
              "from lcc_index "
              "{lccspec}")
 
@@ -181,7 +186,7 @@ def sqlite_get_collections(basedir,
          description, project,
          ispublic, datarelease,
          minra, maxra, mindecl, maxdecl,
-         nobjects, lcformatkey, lcformatdesc) = results
+         nobjects, lcformatkey, lcformatdesc, columnjson) = results
 
         dbnames = [x.replace('-','_') for x in collection_id]
 
@@ -224,6 +229,7 @@ def sqlite_get_collections(basedir,
             'ftscols':ftsindexed_cols_available,
             'info':{
                 'collection_id':collection_id,
+                'db_collection_id':[d.replace('-','_') for d in collection_id],
                 'object_catalog_path':object_catalog_path,
                 'kdtree_pkl_path':kdtree_pkl_path,
                 'columnlist':columnlist,
@@ -241,6 +247,7 @@ def sqlite_get_collections(basedir,
                 'nobjects':nobjects,
                 'lcformatkey':lcformatkey,
                 'lcformatdesc':lcformatdesc,
+                'columnjson': [json.loads(c) for c in columnjson]
             }
         }
 
@@ -476,6 +483,30 @@ def sqlite_fulltext_search(basedir,
         dbindex = available_lcc.index(lcc)
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+        lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
+        lcc_dbcollid = dbinfo['info']['db_collection_id'][dbindex]
+
+        # update the lcc_columnspec with the extra columns we always return
+        lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['in_oid']['title'] = 'input object ID'
+
+        lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['db_oid']['title'] = 'database object ID'
+
+        lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['in_ra']['title'] = 'input &alpha;'
+
+        lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['in_decl']['title'] = 'input &delta;'
+
+        lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['db_ra']['title'] = 'database &alpha;'
+
+        lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['db_decl']['title'] = 'database &delta;'
+
+        lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
+        lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
 
         try:
 
@@ -512,6 +543,8 @@ def sqlite_fulltext_search(basedir,
 
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['dbcollid'] = lcc_dbcollid
 
         except Exception as e:
 
@@ -528,6 +561,8 @@ def sqlite_fulltext_search(basedir,
 
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['dbcollid'] = lcc_dbcollid
 
             if raiseonfail:
                 raise

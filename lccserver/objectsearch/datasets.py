@@ -765,7 +765,6 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
     '''
 
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
     dataset_pickle = 'dataset-%s.pkl.gz' % setid
     dataset_fpath = os.path.join(datasetdir, dataset_pickle)
 
@@ -778,7 +777,72 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
     with gzip.open(dataset_fpath,'rb') as infd:
         dataset = pickle.load(infd)
 
+    returndict = {
+        'setid':dataset['setid'],
+        'name':dataset['name'],
+        'desc':dataset['desc'],
+        'ispublic':dataset['ispublic'],
+        'columns':dataset['columns'],
+        'searchtype':dataset['searchtype'],
+        'searchargs':dataset['searchargs'],
+        'lczip':dataset['lczipfpath'],
+        'cpzip':dataset['cpzipfpath'],
+        'pfzip':dataset['pfzipfpath'],
+    }
 
+    # get the lczip, cpzip, pfzip, dataset pkl shasums from the DB
+    # also get the created_on, last_updated, nobjects, status
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = db.cursor()
+
+    query = ("select created_on, last_updated, nobjects, status, "
+             "lczip_shasum, cpzip_shasum, pfzip_shasum, dataset_shasum "
+             "from lcc_datasets where setid = ?")
+    params = (dataset['setid'],)
+    cur.execute(query, params)
+    row = cur.fetchone()
+    db.close()
+
+    # update these in the returndict
+    returndict['created_on'] = row[0]
+    returndict['last_updated'] = row[1]
+    returndict['nobjects'] = row[2]
+    returndict['status'] = row[3]
+    returndict['lczip_shasum'] = row[4]
+    returndict['cpzip_shasum'] = row[5]
+    returndict['pfzip_shasum'] = row[6]
+    returndict['dataset_shasum'] = row[7]
+
+    # we also need to get the dataset column definitions and units, etc.
+    # get these from the lcc-index.sqlite database
+    # FIXME: these should be in the search result itself actually
+
+
+    # the results are per-collection
+    returndict['collections'] = dataset['collections']
+    returndict['result'] = {}
+
+    for coll in dataset['collections']:
+
+        returndict['result'][coll] = {'data':dataset['result'][coll],
+                                      'success':dataset['success'][coll],
+                                      'message':dataset['message'][coll],
+                                      'nmatches':dataset['nmatches'][coll]}
+
+    if returnjson:
+
+        retjson = json.dump(returndict)
+        retjson = retjson.replace('nan','null')
+
+        return retjson
+
+    else:
+
+        return returndict
 
 
 
