@@ -141,7 +141,7 @@ def sqlite_get_collections(basedir,
              "columnlist, indexedcols, ftsindexedcols, name, "
              "description, project, ispublic, datarelease, "
              "ra_min, ra_max, decl_min, decl_max, nobjects, "
-             "lcformat_key, lcformat_reader_module, lcformat_reader_function "
+             "lcformat_key, lcformat_desc_path "
              "from lcc_index "
              "{lccspec}")
 
@@ -181,7 +181,7 @@ def sqlite_get_collections(basedir,
          description, project,
          ispublic, datarelease,
          minra, maxra, mindecl, maxdecl,
-         nobjects, lcformat, lcmodule, lcfunc) = results
+         nobjects, lcformatkey, lcformatdesc) = results
 
         dbnames = [x.replace('-','_') for x in collection_id]
 
@@ -239,9 +239,8 @@ def sqlite_get_collections(basedir,
                 'mindecl':mindecl,
                 'maxdecl':maxdecl,
                 'nobjects':nobjects,
-                'lcformat':lcformat,
-                'lcmodule':lcmodule,
-                'lcfunc':lcfunc,
+                'lcformatkey':lcformatkey,
+                'lcformatdesc':lcformatdesc,
             }
         }
 
@@ -475,9 +474,8 @@ def sqlite_fulltext_search(basedir,
     for lcc in uselcc:
 
         dbindex = available_lcc.index(lcc)
-        lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
-        lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
-        lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+        lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
+        lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
         try:
 
@@ -512,9 +510,8 @@ def sqlite_fulltext_search(basedir,
             results[lcc]['message'] = msg
             LOGINFO(msg)
 
-            results[lcc]['lcformat'] = lcc_lcformat
-            results[lcc]['lcmodule'] = lcc_lcmodule
-            results[lcc]['lcfunc'] = lcc_lcfunc
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
 
         except Exception as e:
 
@@ -529,9 +526,8 @@ def sqlite_fulltext_search(basedir,
                             'message':msg,
                             'success':False}
 
-            results[lcc]['lcformat'] = lcc_lcformat
-            results[lcc]['lcmodule'] = lcc_lcmodule
-            results[lcc]['lcfunc'] = lcc_lcfunc
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
 
             if raiseonfail:
                 raise
@@ -702,9 +698,8 @@ def sqlite_column_search(basedir,
     for lcc in uselcc:
 
         dbindex = available_lcc.index(lcc)
-        lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
-        lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
-        lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+        lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
+        lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
         thisq = q.format(columnstr=columnstr,
                          collection_id=lcc,
@@ -727,9 +722,9 @@ def sqlite_column_search(basedir,
                    (lcc, results[lcc]['nmatches']))
             results[lcc]['message'] = msg
             LOGINFO(msg)
-            results[lcc]['lcformat'] = lcc_lcformat
-            results[lcc]['lcmodule'] = lcc_lcmodule
-            results[lcc]['lcfunc'] = lcc_lcfunc
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+
 
         except Exception as e:
 
@@ -742,9 +737,8 @@ def sqlite_column_search(basedir,
                             'nmatches':0,
                             'message':msg,
                             'success':False}
-            results[lcc]['lcformat'] = lcc_lcformat
-            results[lcc]['lcmodule'] = lcc_lcmodule
-            results[lcc]['lcfunc'] = lcc_lcfunc
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
 
             if raiseonfail:
                 raise
@@ -926,10 +920,10 @@ def sqlite_kdtree_conesearch(basedir,
 
         # get the kdtree path
         dbindex = available_lcc.index(lcc)
+
         kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
-        lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
-        lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
-        lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+        lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
+        lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
         # if we can't find the kdtree, we can't do anything. skip this LCC
         if not os.path.exists(kdtree_fpath):
@@ -1074,9 +1068,9 @@ def sqlite_kdtree_conesearch(basedir,
                    (lcc, results[lcc]['nmatches']))
             results[lcc]['message'] = msg
             LOGINFO(msg)
-            results[lcc]['lcformat'] = lcc_lcformat
-            results[lcc]['lcmodule'] = lcc_lcmodule
-            results[lcc]['lcfunc'] = lcc_lcfunc
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+
 
         except Exception as e:
 
@@ -1091,9 +1085,8 @@ def sqlite_kdtree_conesearch(basedir,
                 'message':msg,
                 'success':False,
             }
-            results[lcc]['lcformat'] = lcc_lcformat
-            results[lcc]['lcmodule'] = lcc_lcmodule
-            results[lcc]['lcfunc'] = lcc_lcfunc
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
 
             if raiseonfail:
                 raise
@@ -1369,10 +1362,11 @@ def sqlite_xmatch_search(basedir,
 
             # get the kdtree path
             dbindex = available_lcc.index(lcc)
+
             kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
-            lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
-            lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
-            lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+            lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
+            lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+
 
             # if we can't find the kdtree, we can't do anything. skip this LCC
             if not os.path.exists(kdtree_fpath):
@@ -1385,9 +1379,8 @@ def sqlite_xmatch_search(basedir,
                                 'nmatches':0,
                                 'message':msg,
                                 'success':False}
-                results[lcc]['lcformat'] = lcc_lcformat
-                results[lcc]['lcmodule'] = lcc_lcmodule
-                results[lcc]['lcfunc'] = lcc_lcfunc
+                results[lcc]['lcformatkey'] = lcc_lcformatkey
+                results[lcc]['lcformatdesc'] = lcc_lcformatdesc
 
                 continue
 
@@ -1494,9 +1487,8 @@ def sqlite_xmatch_search(basedir,
             results[lcc]['message'] = msg
             LOGINFO(msg)
 
-            results[lcc]['lcformat'] = lcc_lcformat
-            results[lcc]['lcmodule'] = lcc_lcmodule
-            results[lcc]['lcfunc'] = lcc_lcfunc
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
 
         #
         # done with all LCCs
@@ -1552,9 +1544,8 @@ def sqlite_xmatch_search(basedir,
         for lcc in uselcc:
 
             dbindex = available_lcc.index(lcc)
-            lcc_lcformat = dbinfo['info']['lcformat'][dbindex]
-            lcc_lcmodule = dbinfo['info']['lcmodule'][dbindex]
-            lcc_lcfunc = dbinfo['info']['lcfunc'][dbindex]
+            lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
+            lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
             # execute the xmatch statement
             thisq = q.format(columnstr=xmatch_columnstr,
@@ -1579,9 +1570,9 @@ def sqlite_xmatch_search(basedir,
                 results[lcc]['message'] = msg
                 LOGINFO(msg)
 
-                results[lcc]['lcformat'] = lcc_lcformat
-                results[lcc]['lcmodule'] = lcc_lcmodule
-                results[lcc]['lcfunc'] = lcc_lcfunc
+                results[lcc]['lcformatkey'] = lcc_lcformatkey
+                results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+
 
             except Exception as e:
 
@@ -1594,10 +1585,10 @@ def sqlite_xmatch_search(basedir,
                                 'query':thisq,
                                 'nmatches':0,
                                 'message':msg,
-                                'success':False,
-                                'lcformat':lcc_lcformat,
-                                'lcmodule':lcc_lcmodule,
-                                'lcfunc': lcc_lcfunc}
+                                'success':False}
+                results[lcc]['lcformatkey'] = lcc_lcformatkey
+                results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+
                 if raiseonfail:
                     raise
         #

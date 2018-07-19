@@ -687,16 +687,12 @@ SQLITE_LCC_CREATE = '''\
 create table lcc_index (
   collection_id text not null,
   lcformat_key text not null,
-  lcformat_reader_module text not null,
-  lcformat_reader_function text not null,
-  lcformat_glob text not null,
+  lcformat_desc_path text not null,
   object_catalog_path text not null,
   kdtree_pkl_path text not null,
   lightcurves_dir_path text not null,
   periodfinding_dir_path text,
   checkplots_dir_path text,
-  datasets_dir_path text,
-  products_dir_path text,
   ra_min real not null,
   ra_max real not null,
   decl_min real not null,
@@ -726,42 +722,35 @@ create table lcc_index (
 
 SQLITE_LCC_INSERT = '''\
 insert or replace into lcc_index (
-collection_id,
-lcformat_key, lcformat_reader_module,
-lcformat_reader_function, lcformat_glob,
-object_catalog_path, kdtree_pkl_path, lightcurves_dir_path,
-periodfinding_dir_path, checkplots_dir_path,
-datasets_dir_path, products_dir_path,
-ra_min, ra_max, decl_min, decl_max,
-nobjects,
-catalog_columninfo_json,
-columnlist, indexedcols, ftsindexedcols,
-name, description, project, citation, ispublic, datarelease,
-last_updated, last_indexed
+  collection_id,
+  lcformat_key, lcformat_desc_path,
+  object_catalog_path, kdtree_pkl_path, lightcurves_dir_path,
+  periodfinding_dir_path, checkplots_dir_path,
+  ra_min, ra_max, decl_min, decl_max,
+  nobjects,
+  catalog_columninfo_json,
+  columnlist, indexedcols, ftsindexedcols,
+  name, description, project, citation, ispublic, datarelease,
+  last_updated, last_indexed
 ) values (
-?,
-?,?,
-?,?,
-?,?,?,
-?,?,
-?,?,
-?,?,?,?,
-?,
-?,
-?,?,?,
-?,?,?,?,?,?,
-?,datetime('now')
+  ?,
+  ?,?,
+  ?,?,?,
+  ?,?,
+  ?,?,?,?,
+  ?,
+  ?,
+  ?,?,?,
+  ?,?,?,?,?,?,
+  ?,datetime('now')
 )
 '''
+
 
 
 def sqlite_collect_lcc_info(
         lcc_basedir,
         collection_id,
-        lcformat_key,
-        lcformat_fileglob,
-        lcformat_reader_module,
-        lcformat_reader_function,
         raiseonfail=False,
 ):
     '''This writes or updates the lcc-index.sqlite file in lcc_basedir.
@@ -775,6 +764,8 @@ def sqlite_collect_lcc_info(
       - this must contain lcset_* metadata for the collection, so we can give it
         a name, description, project name, last time of update, datarelease
         number
+    - lcformat-description.json
+      - this contains the basic information for the LC format recognition
 
     Each LC collection must have the following subdirectories:
 
@@ -864,14 +855,10 @@ def sqlite_collect_lcc_info(
                      'checkplots')
     )
 
-    datasets_dir_path = os.path.abspath(
+    lcformat_desc_path = os.path.abspath(
         os.path.join(lcc_basedir,
-                     'datasets')
-    )
-
-    products_dir_path = os.path.abspath(
-        os.path.join(lcc_basedir,
-                     'products')
+                     collection_id,
+                     'lcformat-description.json')
     )
 
     # check that all of these exist
@@ -912,28 +899,45 @@ def sqlite_collect_lcc_info(
                  (checkplots_dir_path, collection_id))
         return None
 
-    if not os.path.exists(datasets_dir_path):
-        LOGERROR('no existing output directory for datasets: %s '
+    if not os.path.exists(lcformat_desc_path):
+        LOGERROR('no lcformat-description.json file '
+                 'found in collection directory: %s, cannot continue'
                  'for collection: %s, making a new one' %
-                 (datasets_dir_path, collection_id))
-        os.makedirs(datasets_dir_path)
-
-    if not os.path.exists(products_dir_path):
-        LOGERROR('no existing output directory for dataset products: %s '
-                 'for collection: %s, cannot continue' %
-                 (products_dir_path, collection_id))
-        os.makedirs(products_dir_path)
-
+                 (lcformat_desc_path,))
 
     # 2. check if we can successfully import the lcformat reader func
     try:
+
+
+        # read the lcformat-description.json file to get the reader module,
+        # reader function, normalization module, and normalization function
+
+        with open(lcformat_desc_path,'rb') as infd:
+            lcformat_dict = json.load(infd)
+
+        lcformat_key = lcformat_dict['lc_formatkey']
+        lcformat_fileglob = lcformat_dict['lc_fileglob']
+        lcformat_reader_module = lcformat_dict['lc_readermodule']
+        lcformat_reader_function = lcformat_dict['lc_readerfunc']
+        lcformat_norm_module = lcformat_dict['lc_normalizemodule']
+        lcformat_norm_function = lcformat_dict['lc_normalizefunc']
+
         # see if we can import the reader module
         readermodule = check_extmodule(lcformat_reader_module,
                                        lcformat_key)
 
+        if lcformat_norm_module:
+            normmodule = check_extmodule(lcformat_norm_module, lcformat_key)
+        else:
+            normmodule = None
 
         # then, get the function we need to read the lightcurve
         readerfunc = getattr(readermodule, lcformat_reader_function)
+
+        if lcformat_norm_function:
+            normfunc = getattr(normmodule, lcformat_norm_function)
+        else:
+            normfunc = None
 
         # use the lcformat_fileglob to find light curves in the LC dir
         lcformat_lcfiles = glob.glob(os.path.join(lightcurves_dir_path,
@@ -956,6 +960,10 @@ def sqlite_collect_lcc_info(
                 'and test-read a %s light curve successfully from %s...' %
                 (lcformat_key, lightcurves_dir_path))
 
+        # now test the normalization function
+        if normmodule and normfunc:
+            normlcd = normfunc(lcdict)
+            LOGINFO('normalization function tested and works OK')
 
     except Exception as e:
 
@@ -1021,16 +1029,12 @@ def sqlite_collect_lcc_info(
         items = (
             collection_id,
             lcformat_key,
-            lcformat_reader_module,
-            lcformat_reader_function,
-            lcformat_fileglob,
+            lcformat_desc_path,
             catalog_objectinfo_path,
             catalog_kdtree_path,
             lightcurves_dir_path,
             periodfinding_dir_path,
             checkplots_dir_path,
-            datasets_dir_path,
-            products_dir_path,
             minra, maxra, mindecl, maxdecl,
             nobjects,
             column_info,
@@ -1085,19 +1089,121 @@ def get_lcformat_description(lcc_basedir, collection_id):
     collection_id directory/lcformat-description.json.
 
     '''
-
-    # open the lcc-index.sqlite DB
+    # open the index database
+    indexdbf = os.path.join(lcc_basedir, 'lcc-index.sqlite')
+    indexdb = sqlite3.connect(
+        indexdbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = indexdb.cursor()
 
     # get the location of the lcformat-description.json file
+    query = ("select lcformat_key, lcformat_desc_path "
+             "from lcc_index where collection_id = ?")
+    params = (collection_id,)
 
-    # read the JSON
+    cur.execute(query, params)
+    row = cur.fetchone()
 
-    # dereference the metadata_keys
+    if row and len(row) > 0:
 
-    # load the reader module and get the reader and normalize functions
+        formatkey, descpath = row
 
-    # return the format dict, reader func and normalize func
+        # read the JSON
+        with open(descpath,'rb') as infd:
+            formatdesc = json.load(infd)
 
+        # 1. generate the metadata info dict
+        metadata_info = {}
+
+        for key in formatdesc['metadata_keys']:
+
+            name, textform, caster = formatdesc['metadata_keys'][key]
+
+            deref_key = key.split('.')
+
+            thiskey_info = {'deref': deref_key,
+                            'name': name,
+                            'format': textform,
+                            'caster': caster}
+            metadata_info[key] = thiskey_info
+
+
+        # 2. get the column info
+        column_info = {}
+
+        # 2a. first, get the unaffiliated columns
+        for key in formatdesc['unaffiliated_cols']:
+
+            desc, textform, caster = formatdesc['column_keys'][key]
+
+            column_info[key] = {'desc':desc,
+                                'format':textform,
+                                'caster':caster}
+
+        # 2b. next, get the per magnitude columns
+        apertures = formatdesc['mag_apertures']
+
+        for key in formatdesc['per_aperture_cols']:
+
+            for ap in apertures:
+
+                fullkey = '%s_%s' % (key, ap)
+                desc, textform, caster = formatdesc['column_keys'][key]
+                desc = desc % ap
+
+                column_info[fullkey] = {'desc':desc,
+                                        'format':textform,
+                                        'caster':caster}
+
+
+
+        # 3. load the reader module and get the reader and normalize functions
+        reader_module_name = formatdesc['lc_readermodule']
+        reader_func_name = formatdesc['lc_readerfunc']
+        norm_module_name = formatdesc['lc_normalizemodule']
+        norm_func_name = formatdesc['lc_normalizefunc']
+
+        # see if we can import the reader module
+        readermodule = check_extmodule(reader_module_name, formatkey)
+
+        if norm_module_name:
+            normmodule = check_extmodule(norm_module_name, formatkey)
+        else:
+            normmodule = None
+
+        # then, get the function we need to read the lightcurve
+        readerfunc = getattr(readermodule, reader_func_name)
+
+        if norm_module_name and norm_func_name:
+            normfunc = getattr(normmodule, norm_func_name)
+        else:
+            normfunc = None
+
+
+        # this is the final metadata dict
+
+        returndict = {
+            'formatkey':formatkey,
+            'readerfunc':readerfunc,
+            'normfunc':normfunc,
+            'columns':column_info,
+            'metadata':metadata_info
+        }
+
+
+        # return the format dict, reader func and normalize func
+        indexdb.close()
+
+        return returndict
+
+    else:
+
+        LOGERROR('could not find format key or format desc for collection: %s' %
+                 collection_id)
+
+        indexdb.close()
+        return None
 
 
 def build_csvlc_header(lcdict,
