@@ -256,6 +256,11 @@ def sqlite_new_dataset(basedir,
     lcformatkey = {x:searchresult[x]['lcformatkey'] for x in collections}
     lcformatdesc = {x:searchresult[x]['lcformatdesc'] for x in collections}
 
+    # get the columnspecs and actual collectionids for each collection searched
+    # so we can return the column names and descriptions as well
+    columnspec = {x:searchresult[x]['columnspec'] for x in collections}
+    collid = {x:searchresult[x]['collid'] for x in collections}
+
     # total number of objects found
     nmatches = {x:searchresult[x]['nmatches'] for x in collections}
 
@@ -275,6 +280,8 @@ def sqlite_new_dataset(basedir,
         'success':success,
         'lcformatkey':lcformatkey,
         'lcformatdesc':lcformatdesc,
+        'columnspec':columnspec,
+        'collid':collid,
         'message':message,
         'nmatches':nmatches
     }
@@ -817,11 +824,6 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
     returndict['pfzip_shasum'] = row[6]
     returndict['dataset_shasum'] = row[7]
 
-    # we also need to get the dataset column definitions and units, etc.
-    # get these from the lcc-index.sqlite database
-    # FIXME: these should be in the search result itself actually
-
-
     # the results are per-collection
     returndict['collections'] = dataset['collections']
     returndict['result'] = {}
@@ -831,7 +833,9 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
         returndict['result'][coll] = {'data':dataset['result'][coll],
                                       'success':dataset['success'][coll],
                                       'message':dataset['message'][coll],
-                                      'nmatches':dataset['nmatches'][coll]}
+                                      'nmatches':dataset['nmatches'][coll],
+                                      'columnspec':dataset['columnspec'][coll],
+                                      'collid':dataset['collid'][coll]}
 
     if returnjson:
 

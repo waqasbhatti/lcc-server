@@ -483,8 +483,9 @@ def sqlite_fulltext_search(basedir,
         dbindex = available_lcc.index(lcc)
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+
         lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
-        lcc_dbcollid = dbinfo['info']['db_collection_id'][dbindex]
+        lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
         # update the lcc_columnspec with the extra columns we always return
         lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
@@ -544,7 +545,7 @@ def sqlite_fulltext_search(basedir,
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
             results[lcc]['columnspec'] = lcc_columnspec
-            results[lcc]['dbcollid'] = lcc_dbcollid
+            results[lcc]['collid'] = lcc_collid
 
         except Exception as e:
 
@@ -562,7 +563,7 @@ def sqlite_fulltext_search(basedir,
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
             results[lcc]['columnspec'] = lcc_columnspec
-            results[lcc]['dbcollid'] = lcc_dbcollid
+            results[lcc]['collid'] = lcc_collid
 
             if raiseonfail:
                 raise
@@ -736,6 +737,32 @@ def sqlite_column_search(basedir,
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
+        lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
+        lcc_collid = dbinfo['info']['collection_id'][dbindex]
+
+        # update the lcc_columnspec with the extra columns we always return
+        lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['in_oid']['title'] = 'input object ID'
+
+        lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['db_oid']['title'] = 'database object ID'
+
+        lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['in_ra']['title'] = 'input &alpha;'
+
+        lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['in_decl']['title'] = 'input &delta;'
+
+        lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['db_ra']['title'] = 'database &alpha;'
+
+        lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['db_decl']['title'] = 'database &delta;'
+
+        lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
+        lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
+
+
         thisq = q.format(columnstr=columnstr,
                          collection_id=lcc,
                          wherecondition=wherecondition,
@@ -759,6 +786,8 @@ def sqlite_column_search(basedir,
             LOGINFO(msg)
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['collid'] = lcc_collid
 
 
         except Exception as e:
@@ -774,6 +803,8 @@ def sqlite_column_search(basedir,
                             'success':False}
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['collid'] = lcc_collid
 
             if raiseonfail:
                 raise
@@ -960,6 +991,31 @@ def sqlite_kdtree_conesearch(basedir,
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
+        lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
+        lcc_collid = dbinfo['info']['collection_id'][dbindex]
+
+        # update the lcc_columnspec with the extra columns we always return
+        lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['in_oid']['title'] = 'input object ID'
+
+        lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['db_oid']['title'] = 'database object ID'
+
+        lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['in_ra']['title'] = 'input &alpha;'
+
+        lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['in_decl']['title'] = 'input &delta;'
+
+        lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['db_ra']['title'] = 'database &alpha;'
+
+        lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['db_decl']['title'] = 'database &delta;'
+
+        lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
+        lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
+
         # if we can't find the kdtree, we can't do anything. skip this LCC
         if not os.path.exists(kdtree_fpath):
 
@@ -971,6 +1027,11 @@ def sqlite_kdtree_conesearch(basedir,
                             'nmatches':0,
                             'message':msg,
                             'success':False}
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['collid'] = lcc_collid
+
             continue
 
         # otherwise, continue as normal
@@ -1000,6 +1061,11 @@ def sqlite_kdtree_conesearch(basedir,
                             'nmatches':0,
                             'message':msg,
                             'success':False}
+            results[lcc]['lcformatkey'] = lcc_lcformatkey
+            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['collid'] = lcc_collid
+
             continue
 
         # get the objectids associated with these indices
@@ -1105,6 +1171,8 @@ def sqlite_kdtree_conesearch(basedir,
             LOGINFO(msg)
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['collid'] = lcc_collid
 
 
         except Exception as e:
@@ -1122,6 +1190,8 @@ def sqlite_kdtree_conesearch(basedir,
             }
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['collid'] = lcc_collid
 
             if raiseonfail:
                 raise
@@ -1402,6 +1472,30 @@ def sqlite_xmatch_search(basedir,
             lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
             lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
+            lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
+            lcc_collid = dbinfo['info']['collection_id'][dbindex]
+
+            # update the lcc_columnspec with the extra columns we always return
+            lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['in_oid']['title'] = 'input object ID'
+
+            lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['db_oid']['title'] = 'database object ID'
+
+            lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['in_ra']['title'] = 'input &alpha;'
+
+            lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['in_decl']['title'] = 'input &delta;'
+
+            lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['db_ra']['title'] = 'database &alpha;'
+
+            lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['db_decl']['title'] = 'database &delta;'
+
+            lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
+            lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
 
             # if we can't find the kdtree, we can't do anything. skip this LCC
             if not os.path.exists(kdtree_fpath):
@@ -1416,6 +1510,8 @@ def sqlite_xmatch_search(basedir,
                                 'success':False}
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['columnspec'] = lcc_columnspec
+                results[lcc]['collid'] = lcc_collid
 
                 continue
 
@@ -1524,6 +1620,8 @@ def sqlite_xmatch_search(basedir,
 
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['columnspec'] = lcc_columnspec
+            results[lcc]['collid'] = lcc_collid
 
         #
         # done with all LCCs
@@ -1582,6 +1680,31 @@ def sqlite_xmatch_search(basedir,
             lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
             lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
+            lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
+            lcc_collid = dbinfo['info']['collection_id'][dbindex]
+
+            # update the lcc_columnspec with the extra columns we always return
+            lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['in_oid']['title'] = 'input object ID'
+
+            lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['db_oid']['title'] = 'database object ID'
+
+            lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['in_ra']['title'] = 'input &alpha;'
+
+            lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['in_decl']['title'] = 'input &delta;'
+
+            lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['db_ra']['title'] = 'database &alpha;'
+
+            lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['db_decl']['title'] = 'database &delta;'
+
+            lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
+            lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
+
             # execute the xmatch statement
             thisq = q.format(columnstr=xmatch_columnstr,
                              collection_id=lcc,
@@ -1607,6 +1730,8 @@ def sqlite_xmatch_search(basedir,
 
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['columnspec'] = lcc_columnspec
+                results[lcc]['collid'] = lcc_collid
 
 
             except Exception as e:
@@ -1623,6 +1748,8 @@ def sqlite_xmatch_search(basedir,
                                 'success':False}
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['columnspec'] = lcc_columnspec
+                results[lcc]['collid'] = lcc_collid
 
                 if raiseonfail:
                     raise
