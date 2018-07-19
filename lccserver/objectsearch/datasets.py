@@ -116,6 +116,9 @@ create table lcc_datasets (
   primary key (setid)
 );
 
+-- reversed time lookup fast index
+create index updated_time_idx on lcc_datasets (last_updated desc);
+
 -- set the WAL mode on
 pragma journal_mode = wal;
 pragma journal_size_limit = 52428800;
@@ -179,13 +182,14 @@ def sqlite_prepare_dataset(basedir,
 
     # update the database to prepare for this new dataset
     query = ("insert into lcc_datasets "
-             "(setid, created_on, last_updated, nobjects, status) "
-             "values (?, ?, ?, ?, ?)")
+             "(setid, created_on, last_updated, nobjects, status, ispublic) "
+             "values (?, ?, ?, ?, ?, ?)")
     params = (setid,
               creationdt,
               creationdt,
               0,
-              'initialized')
+              'initialized',
+              1 if ispublic else 0)
 
     cur.execute(query, params)
     db.commit()
@@ -336,12 +340,13 @@ def sqlite_new_dataset(basedir,
     # generate the entry in the lcc-datasets.sqlite table and commit it
     query = ("update lcc_datasets set "
              "last_updated = ?, nobjects = ?, "
-             "status = ?, dataset_shasum = ?")
+             "status = ?, dataset_shasum = ?, is_public = ?")
 
     params = (datetime.utcnow().isoformat(),
               total_nmatches,
               'complete',
-              shasum)
+              shasum,
+              1 if ispublic else 0)
     cur.execute(query, params)
     db.commit()
     db.close()
@@ -351,6 +356,7 @@ def sqlite_new_dataset(basedir,
 
     # return the setid
     return setid
+
 
 
 ############################################
@@ -543,9 +549,25 @@ def sqlite_update_dataset(basedir, setid, updatedict):
 ## LISTING AND GETTING DATASET INFO ##
 ######################################
 
-def sqlite_list_datasets(basedir, require_ispublic=True):
+def sqlite_list_datasets(basedir,
+                         require_ispublic=True):
     '''
     This just lists all the datasets available.
+
+    setid
+    created_on
+    last_updated
+    nobjects
+    status
+    is_public
+    dataset_fpath
+    dataset_shasum
+    lczip_fpath
+    lczip_shasum
+    name
+    description
+    citation
+
 
     '''
 
@@ -556,8 +578,82 @@ def sqlite_list_datasets(basedir, require_ispublic=True):
         datasets_dbf,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
     )
+
+    # return nice dict-ish things
+    db.row_factory = sqlite3.Row
     cur = db.cursor()
 
+    query = ("select setid, created_on, last_updated, nobjects, is_public, "
+             "dataset_shasum, lczip_shasum, cpzip_shasum, pfzip_shasum, "
+             "name, description, citation from "
+             "lcc_datasets where status = 'complete' {public_cond} "
+             "order by last_updated desc")
+
+    if require_ispublic:
+        query = query.format(public_cond='and (is_public = 1)')
+    else:
+        query = query.format(public_cond='')
+
+    cur.execute(query)
+    rows = cur.fetchall()
+
+    if rows and len(rows) > 0:
+
+        rows = [dict(x) for x in rows]
+
+        # we'll generate fpaths for the various products
+        for row in rows:
+
+            dataset_pickle = os.path.join(
+                basedir,'datasets','dataset-%s.pkl.gz' % row['setid']
+            )
+            dataset_lczip = os.path.join(
+                basedir,'products','lightcurves-%s.zip' % row['setid']
+            )
+            dataset_cpzip = os.path.join(
+                basedir,'products','checkplots-%s.zip' % row['setid']
+            )
+            dataset_pfzip = os.path.join(
+                basedir,'products','pfresults-%s.zip' % row['setid']
+            )
+
+            if os.path.exists(dataset_pickle):
+                row['dataset_fpath'] = dataset_pickle
+            else:
+                row['dataset_fpath'] = None
+
+            if os.path.exists(dataset_lczip):
+                row['lczip_fpath'] = dataset_lczip
+            else:
+                row['lczip_fpath'] = None
+
+            if os.path.exists(dataset_cpzip):
+                row['cpzip_fpath'] = dataset_cpzip
+            else:
+                row['cpzip_fpath'] = None
+
+            if os.path.exists(dataset_pfzip):
+                row['pfzip_fpath'] = dataset_pfzip
+            else:
+                row['pfzip_fpath'] = None
+
+        # this is the returndict
+        returndict = {
+            'status':'ok',
+            'result':rows,
+            'message':'found %s datasets in total' % len(rows)
+        }
+
+    else:
+
+        returndict = {
+            'status':'failed',
+            'result':None,
+            'message':'found no datasets matching query parameters'
+        }
+
+    db.close()
+    return returndict
 
 
 

@@ -125,7 +125,7 @@ abcat.objectinfo_to_sqlite(
 
 ## Implement the following
 
-- COMMON FORMAT CSV LC CONVERTER
+[x] COMMON FORMAT CSV LC CONVERTER
 
 - dataset pickle creation with SHA256 sum, listing, deletion, editing
 
@@ -144,3 +144,20 @@ abcat.objectinfo_to_sqlite(
 
 - JS hookup, simple POST processing only for now.
   - later, using async JSON load for dataset processing.
+
+
+search query submission steps:
+
+- parse the query
+- return dataset ID using prepare_dataset
+- submit the search function
+- once the function is done, make_new_dataset to generate the dataset pickle
+- return the dataset in JSON form to the frontend
+- make a ZIP file for the light curves and return that link when done
+
+status values:
+
+- parsing query
+- running query
+- fetching light curves
+- complete
