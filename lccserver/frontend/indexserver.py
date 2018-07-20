@@ -11,8 +11,6 @@ License: MIT - see the LICENSE file for the full text.
 #############
 
 import logging
-from datetime import datetime
-from traceback import format_exc
 
 # setup a logger
 LOGMOD = __name__
@@ -24,23 +22,13 @@ LOGMOD = __name__
 
 import os
 import os.path
-import gzip
-try:
-    import cPickle as pickle
-except:
-    import pickle
-import base64
 import hashlib
 import signal
-import logging
-import json
 import time
 import sys
 import socket
-import stat
 
-# this handles async updates of the checkplot pickles so the UI remains
-# responsive
+# this handles async background stuff
 from concurrent.futures import ProcessPoolExecutor
 
 # setup signal trapping on SIGINT
@@ -75,7 +63,9 @@ from tornado.options import define, options
 ## DEFINING URL HANDLERS ##
 ###########################
 
-from . import indexserver_handlers as handlers
+from . import indexserver_handlers as ih
+from . import searchserver_handlers as sh
+from . import dataserver_handlers as dh
 
 
 ###############################
@@ -210,9 +200,14 @@ def main():
     ##################
 
     HANDLERS = [
+
+        #################
+        ## BASIC STUFF ##
+        #################
+
         # index page
         (r'/',
-         handlers.IndexHandler,
+         ih.IndexHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
@@ -221,16 +216,21 @@ def main():
           'basedir':BASEDIR}),
         # docs page index and other subdirs, renders markdown to HTML
         (r'/docs/?(.*)',
-         handlers.DocsHandler,
+         ih.DocsHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
+        ######################
+        ## FIRST LEVEL APIS ##
+        ######################
+
         # this returns a JSON list of the currently available LC collections
         (r'/api/collections',
-         handlers.CollectionListHandler,
+         ih.CollectionListHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
@@ -239,22 +239,90 @@ def main():
           'basedir':BASEDIR}),
         # this returns a JSON list of the currently available datasets
         (r'/api/datasets',
-         handlers.DatasetListHandler,
+         ih.DatasetListHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
+        ###################################
+        ## STATIC FILE DOWNLOAD HANDLERS ##
+        ###################################
+
+        # this handles static file downloads for collection info
         (r'/c/(.*)',
          tornado.web.StaticFileHandler,
          {'path':BASEDIR}),
+        # this handles static file downloads for dataset pickles
         (r'/d/(.*)',
          tornado.web.StaticFileHandler,
          {'path':os.path.join(BASEDIR,'datasets')}),
+        # this handles static file downloads for dataset products
         (r'/p/(.*)',
          tornado.web.StaticFileHandler,
          {'path':os.path.join(BASEDIR,'products')}),
+        # this handles static file downloads for individual light curves
+        (r'/l/(.*)',
+         tornado.web.StaticFileHandler,
+         {'path':BASEDIR}),
+
+        ##################################
+        ## SEARCH API ENDPOINT HANDLERS ##
+        ##################################
+
+        # this is the basic column search API endpoint
+        (r'/api/columnsearch',
+         sh.ColumnSearchHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR}),
+        # this is the cone search API endpoint
+        (r'/api/conesearch',
+         sh.ConeSearchHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR}),
+        # this is the FTS search API endpoint
+        (r'/api/quicksearch',
+         sh.FTSearchHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR}),
+        # this is the xmatch search API endpoint
+        (r'/api/xmatch',
+         sh.XMatchHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR}),
+
+        ##############################################
+        ## DATASET DISPLAY AND LIVE-UPDATE HANDLERS ##
+        ##############################################
+
+        # this is the dataset display API
+        (r'/dataset/(.*)',
+         dh.DataSetHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR}),
+
     ]
 
     ########################

@@ -158,6 +158,20 @@
 
         <li class="nav-item">
           <a class="nav-link active tab-link"
+             id="collections-tab"
+             data-toggle="tab"
+             href="#collections"
+             role="tab"
+             aria-controls="collections"
+             aria-selected="true">
+            <img class="icon-svg"
+              src="{{ static_url('images/twotone-shopping_cart-24px.svg') }}"><br>
+            Light curve collections
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link tab-link"
              id="columns-tab"
              data-toggle="tab"
              href="#columns"
@@ -165,7 +179,7 @@
              aria-controls="columns"
              aria-selected="true">
             <img class="icon-svg"
-              src="{{ static_url('images/ic_search_black_48px.svg') }}"><br>
+              src="{{ static_url('images/twotone-view_week-24px.svg') }}"><br>
             Search DB columns
           </a>
         </li>
@@ -178,7 +192,7 @@
              role="tab"
              aria-controls="conesearch"
              aria-selected="false">
-            <img src="{{ static_url('images/ic_filter_tilt_shift_black_48px.svg') }}"><br>
+            <img src="{{ static_url('images/twotone-brightness_high-24px.svg') }}"><br>
             Search near coordinates
           </a>
         </li>
@@ -191,7 +205,7 @@
              role="tab"
              aria-controls="xmatch"
              aria-selected="false">
-            <img src="{{ static_url('images/ic_cloud_upload_black_48px.svg') }}"><br>
+            <img src="{{ static_url('images/twotone-cloud_upload-24px.svg') }}"><br>
             Find cross-matches
           </a>
         </li>
@@ -204,7 +218,7 @@
              role="tab"
              aria-controls="fts"
              aria-selected="false">
-            <img src="{{ static_url('images/ic_speaker_notes_black_48px.svg') }}"><br>
+            <img src="{{ static_url('images/twotone-language-24px.svg') }}"><br>
             Full-text search
           </a>
         </li>
@@ -229,6 +243,17 @@
       <div class="tab-content" id="myTabContent">
 
         <div class="tab-pane show active"
+             id="collections" role="tabpanel" aria-labelledby="collections-tab">
+
+          <div class="row mt-2">
+            <div class="col-12">
+              collections
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tab-pane"
              id="columns" role="tabpanel" aria-labelledby="columns-tab">
 
           <div class="row mt-2">
@@ -291,7 +316,7 @@
 
   <div class="row">
     <!-- notifications go in here -->
-    <div class="col-12">
+    <div class="col-12" id="query-notifications">
 
 
 
