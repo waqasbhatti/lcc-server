@@ -15,8 +15,8 @@ to use this:
 
 .spinner {
   margin: 10px auto;
-  width: 50px;
-  height: 40px;
+  width: 40px;
+  height: auto;
   text-align: center;
   font-size: 1rem;
 }
@@ -105,10 +105,10 @@ thead.center-head {
 }
 
 .icon-svg {
-    width: 40px;
+    width: 36px;
     height: auto;
 }
 
 .top-margin-row {
-    margin-top: 4rem;
+    margin-top: 3rem;
 }

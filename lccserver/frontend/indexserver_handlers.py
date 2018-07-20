@@ -160,8 +160,6 @@ class DocsHandler(tornado.web.RequestHandler):
 
         '''
 
-        LOGGER.info(repr(docpage))
-
         # get a specific documentation page
         if docpage and len(docpage) > 0:
 

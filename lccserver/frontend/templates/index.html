@@ -81,7 +81,7 @@
 
       <ul class="nav nav-tabs" id="myTab" role="tablist">
 
-        <li class="nav-item mr-auto">
+        <li class="nav-item">
           <a class="nav-link active tab-link"
              id="collections-tab"
              data-toggle="tab"
@@ -92,6 +92,20 @@
             <img class="icon-svg"
                  src="{{ static_url('images/twotone-shopping_cart-24px.svg') }}"><br>
             Collections
+          </a>
+        </li>
+
+        <li class="nav-item mr-auto">
+          <a class="nav-link tab-link"
+             id="datasets-tab"
+             data-toggle="tab"
+             href="#datasets"
+             role="tab"
+             aria-controls="datasets"
+             aria-selected="false">
+            <img class="icon-svg"
+                 src="{{ static_url('images/twotone-archive-24px.svg') }}"><br>
+            Datasets
           </a>
         </li>
 
@@ -160,9 +174,10 @@
              aria-controls="results"
              aria-selected="false">
             <span id="search-notifications">
-              <img class="icon-svg"
-                   src="{{ static_url('images/twotone-archive-24px.svg') }}"><br>
-              Results
+              <img id="search-notification-icon"
+                   class="icon-svg"
+                   src="{{ static_url('images/twotone-sync-24px.png') }}"><br>
+              <span id="search-notification-text">Query status</span>
             </span>
           </a>
         </li>
@@ -199,71 +214,17 @@
 
                 <thead class="bg-light">
                   <tr>
-                    <th scope="col" width="200">Name</th>
-                    <th scope="col" width="200">Description</th>
-                    <th scope="col" width="100">Objects</th>
-                    <th scope="col" width="100">Center<br>(RA, Dec)</th>
-                    <th scope="col" width="150">Extent<br>(RA, Dec)</th>
-                    <th scope="col" width="200">Columns<br>
-                      <span class="fts-col">full text search
-                        available</span>,
-                      <span class="kdtree-col">spatial index search available</span>
+                    <th scope="col" width="80">Name</th>
+                    <th scope="col" width="100">Description</th>
+                    <th scope="col" width="100">Coordinates<br>(&alpha;, &delta;) [decimal deg]</th>
+                    <th scope="col" width="250">Columns<br>
+                      (<span class="kdtree-col">indexed columns</span>, <span class="fts-col"><abbr title="full text search">FTS</abbr> indexed columns</span>)
+
                     </th>
                   </tr>
                 </thead>
 
                 <tbody id="lcc-collection-tablerows">
-
-                  <tr>
-
-                    <td>
-                      HATNet Kepler field observations (<code>hatnet_kepler_field</code>)
-                    </td>
-
-                    <td>
-                      Light curves from the HATNet Exoplanet Survey's
-                      observations of the Kepler Field from 2004 to 2014.
-                    </td>
-
-                    <td>
-                      404563
-                    </td>
-
-                    <td>
-                      290.0, 45.0
-                    </td>
-
-                    <td>
-                      (240.0, 25.0) to<br>(350.0, 60.0)
-                    </td>
-
-                    <td>
-                      <code>abs_gaiamag,
-                        aep_000.beyond1std, <span class="fts-col">aep_000.comments</span>,
-                        aep_000.eta_normal, aep_000.kurtosis,
-                        aep_000.linear_fit_slope, aep_000.mad, aep_000.mag_iqr,
-                        aep_000.magnitude_ratio, aep_000.median,
-                        aep_000.objectisvar, aep_000.skew, aep_000.stdev,
-                        aep_000.stetsonj, aep_000.stetsonk, aep_000.varepoch,
-                        aep_000.varperiod, <span class="fts-col">aep_000.vartags</span>,
-                        bmag, <span class="fts-col">color_classes</span>,
-                        <span class="kdtree-col">decl</span>,
-                        extinction_bmag, extinction_hmag, extinction_imag,
-                        extinction_jmag, extinction_kmag, extinction_rmag,
-                        extinction_sdssg, extinction_sdssi, extinction_sdssr,
-                        extinction_sdssu, extinction_sdssz, extinction_vmag,
-                        gaia_id, gaia_parallax, gaia_parallax_err, gaia_status,
-                        gaiamag, gb, gl, hmag, imag, jmag, kmag, lcfname, ndet,
-                        ndet_aep_000,
-                        ndet_atf_000, <span class="fts-col">objectid</span>,
-                        <span class="fts-col">objecttags</span>, pmdecl, pmra,
-                        propermotion, <span class="kdtree-col">ra</span>, rmag,
-                        rpmj, sdssg, sdssi, sdssr, sdssu,
-                        sdssz, <span class="fts-col">twomassid</span>, vmag
-                      </code>
-                    </td>
-
-                  </tr>
 
                 </tbody>
 
@@ -272,7 +233,12 @@
             </div>
           </div>
 
-          <div class="row mt-4">
+        </div>
+
+        <div class="tab-pane"
+             id="datasets" role="tabpanel" aria-labelledby="datasets-tab">
+
+          <div class="row mt-2">
             <div class="col-12">
 
               <h3>Datasets from recent search queries</h3>
@@ -397,12 +363,13 @@
 $(document).ready(function() {
 
 // get the light curve collections
+lcc_ui.get_lc_collections();
 
 // get the most recent 25 datasets
-lccui.get_recent_datasets(25);
+lcc_ui.get_recent_datasets(25);
 
 // UI action setup
-lccui.action_setup();
+lcc_ui.action_setup();
 
 
 

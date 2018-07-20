@@ -1,31 +1,31 @@
-var lccui = {
+var lcc_ui = {
 
     // alert types: 'primary', 'secondary', 'success', 'danger', 'warning',
     //              'info', 'light', 'dark'
     alert_box: function(message, alert_type) {
 
-        var alert = '<div class="alert alert-' + alert_type +
+        var alert = '<div class="mt-4 alert alert-' + alert_type +
             ' alert-dismissible fade show"' +
             ' role="alert">' + message +
             '<button type="button" class="close" data-dismiss="alert" ' +
             'aria-label="Close"><span aria-hidden="true">&times;</span>' +
             '</button></div>';
 
-        $('#alert-box').html(alert);
+        // can stack multiple alerts
+        $('#alert-box').append(alert);
 
     },
 
     // this function generates a spinner
     make_spinner: function (message, target) {
 
-        var spinner = message +
-            '<div class="spinner">' +
+        var spinner = '<div class="spinner">' +
             '<div class="rect1"></div>' +
             '<div class="rect2"></div>' +
             '<div class="rect3"></div>' +
             '<div class="rect4"></div>' +
             '<div class="rect5"></div>' +
-            '</div>';
+            '</div>' + message;
 
         $(target).html(spinner);
 
@@ -81,7 +81,7 @@ var lccui = {
 
             // if something broke, alert the user
             if (status != 'ok') {
-                lccui.alert_box(message, 'danger');
+                lcc_ui.alert_box(message, 'danger');
             }
 
             // otherwise, fill in the datasets table
@@ -216,7 +216,6 @@ var lccui = {
                         moment(lastupdated + 'Z').fromNow() +
                         '</span>' +
                         '</td>';
-                    console.log(table_lastupdated);
 
                     //
                     // finally, add this row
@@ -241,7 +240,7 @@ var lccui = {
             var message = 'could not get list of recent ' +
                 'datasets from the LCC server backend';
 
-            lccui.alert_box(message, 'danger');
+            lcc_ui.alert_box(message, 'danger');
 
         });
 
@@ -249,9 +248,167 @@ var lccui = {
 
     get_lc_collections: function() {
 
+        var geturl = '/api/collections';
+
+        // clear out the recent queries box to keep things fresh
+        $('#lcc-collection-tablerows').empty();
+
+        $.getJSON(geturl, function (data) {
+
+            var status = data.status;
+            var result = data.result;
+            var message = data.message;
+
+            // if something broke, alert the user
+            if (status != 'ok') {
+                lcc_ui.alert_box(message, 'danger');
+            }
+
+            // otherwise, fill in the collections table
+            else {
+
+                var collections = result.collections;
+                var collection_ids = collections.collection_id;
+
+                //we use all available columns to figure out the common cols and
+                //also the per collection special cols
+                var available_columns = result.available_columns;
+                var indexed_columns = result.available_index_columns;
+                var fts_columns = result.available_fts_columns;
+
+                var rowind = 0;
+
+                for (rowind; rowind < collection_ids.length; rowind++) {
+
+                    //
+                    // name column
+                    //
+                    var db_collid = collections.db_collection_id[rowind];
+                    var collname = collections.name[rowind];
+                    var table_column_name = '<td width="80">' +
+                        collname + ' (<code>' + db_collid + '</code>)' +
+                        '</td>';
+
+                    //
+                    // description column
+                    //
+                    var desc = collections.description[rowind];
+                    var nobjects = collections.nobjects[rowind];
+                    var table_column_desc = '<td width="100">' +
+                        desc + '<br><br>Number of objects: <code>' +
+                        nobjects +
+                        '</code></td>';
+
+                    //
+                    // extent column
+                    //
+                    var minra = collections.minra[rowind];
+                    var maxra = collections.maxra[rowind];
+                    var mindecl = collections.mindecl[rowind];
+                    var maxdecl = collections.maxdecl[rowind];
+
+                    var center_ra = math.format((minra + maxra)/2.0,5)
+                    var center_decl = math.format((mindecl + maxdecl)/2.0,5);
+                    minra = math.format(minra,5);
+                    maxra = math.format(maxra,5);
+                    mindecl = math.format(mindecl,5);
+                    maxdecl = math.format(maxdecl,5);
+
+                    var table_column_coords = '<td width="100">' +
+                        'center: <code>(' +
+                        center_ra + ', ' + center_decl +
+                        ')</code><br>' +
+                        'SE: <code>(' +
+                        maxra + ', ' + mindecl +
+                        ')</code><br>' +
+                        'NW: <code>(' + minra + ', ' + maxdecl + ')</code>' +
+                        '</td>';
+
+                    //
+                    // coldesc column
+                    //
+
+                    // get the column list for this collection
+                    // FIXME: prepend the db_collection_id for each colname?
+                    var columns =
+                        collections.columnlist[rowind].split(',').sort();
+
+                    // get the indexed columns for the collection
+                    // FIXME: prepend the db_collection_id for each colname?
+                    var indexedcols =
+                        collections.indexedcols[rowind].split(',').sort();
+
+                    // get the FTS columns for this collection
+                    // FIXME: prepend the db_collection_id for each colname?
+                    var ftscols =
+                        collections.ftsindexedcols[rowind].split(',').sort();
+
+                    var colind = 0;
+
+                    // we'll make an list with three sections
+                    // 1. indexed columns
+                    // 2. full-text search enabled columns
+                    // 3. other columns
+                    var formatted_colspec = [];
+
+                    for (colind; colind < columns.length; colind++) {
+
+                        var thiscol = columns[colind];
+                        if (ftscols.indexOf(thiscol) != -1) {
+                            formatted_colspec.push('<span class="fts-col">' +
+                                                   thiscol + '</span>');
+                        }
+                        else if (indexedcols.indexOf(thiscol) != -1) {
+                            formatted_colspec.push('<span class="kdtree-col">' +
+                                                   thiscol + '</span>');
+                        }
+                        else {
+                            formatted_colspec.push(thiscol);
+                        }
+
+                    }
+                    var formatted_column_list = formatted_colspec.join(', ');
+
+                    //
+                    // build this table row
+                    //
+                    var table_row = '<tr>' +
+                        table_column_name +
+                        table_column_desc +
+                        table_column_coords +
+                        '<td width="250"><code>' +
+                        formatted_column_list +
+                        '</code></td>' +
+                        '</tr>';
+                    $('#lcc-collection-tablerows').append(table_row);
+
+                }
+
+
+                // we'll update the lcc_search variables here too so we can
+                // build control panes on the fly
+
+
+            }
+
+            // at the end, activate the tooltips
+            $('[data-toggle="tooltip"]').tooltip();
+
+        }).fail(function (xhr) {
+            var message = 'could not get list of recent ' +
+                'LC collections from the LCC server backend';
+
+            lcc_ui.alert_box(message, 'danger');
+
+        });
 
 
 
     }
 
 }
+
+
+var lcc_search = {
+
+};
