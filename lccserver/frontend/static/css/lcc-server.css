@@ -103,3 +103,8 @@ thead.center-head {
 .search-controls {
     min-height: 480px;
 }
+
+.icon-svg {
+    width: 48px;
+    height: auto;
+}
