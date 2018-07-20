@@ -246,6 +246,15 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+        (r'/c/(.*)',
+         tornado.web.StaticFileHandler,
+         {'path':BASEDIR}),
+        (r'/d/(.*)',
+         tornado.web.StaticFileHandler,
+         {'path':os.path.join(BASEDIR,'datasets')}),
+        (r'/p/(.*)',
+         tornado.web.StaticFileHandler,
+         {'path':os.path.join(BASEDIR,'products')}),
     ]
 
     ########################

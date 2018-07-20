@@ -189,7 +189,7 @@ class DocsHandler(tornado.web.RequestHandler):
 
             else:
 
-                error_message = ("No docs page found matching: '%s'" % docpage)
+                error_message = ("No docs page found matching: '%s'." % docpage)
                 self.render('errorpage.html',
                             page_title='404 - Page not found',
                             error_message=error_message)
@@ -253,7 +253,22 @@ class CollectionListHandler(tornado.web.RequestHandler):
             self.basedir
         )
 
-        self.write(collections)
+        collection_info = collections['info']
+
+        # censor some bits
+        del collection_info['kdtree_pkl_path']
+        del collection_info['object_catalog_path']
+
+        # we'll reform the lcformatdesc path so it can be downloaded directly
+        # from the LCC server
+        lcformatdesc = collection_info['lcformatdesc']
+        lcformatdesc = [
+            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
+        ]
+        collection_info['lcformatdesc'] = lcformatdesc
+
+        # return to sender
+        self.write(collection_info)
         self.finish()
 
 
@@ -291,10 +306,64 @@ class DatasetListHandler(tornado.web.RequestHandler):
 
         '''
 
-        dataset_list = yield self.executor.submit(
+        dataset_info = yield self.executor.submit(
             datasets.sqlite_list_datasets,
             self.basedir
         )
 
-        self.write(dataset_list)
+        # we'll have to censor stuff here as well
+        dataset_list = []
+
+        for dataset in dataset_info['result']:
+
+            if isinstance(dataset, dict):
+
+                # this should always be there
+                try:
+                    dataset_fpath = dataset['dataset_fpath']
+                    dataset_fpath = dataset_fpath.replace(
+                        os.path.join(self.basedir,'datasets'),
+                        '/d'
+                    )
+                except:
+                    dataset_fpath = None
+
+                try:
+                    lczip_fpath = dataset['lczip_fpath']
+                    lczip_fpath = lczip_fpath.replace(
+                        os.path.join(self.basedir,'products'),
+                        '/p'
+                    )
+                except:
+                    lczip_fpath = None
+
+                try:
+                    cpzip_fpath = dataset['cpzip_fpath']
+                    cpzip_fpath = cpzip_fpath.replace(
+                        os.path.join(self.basedir,'products'),
+                        '/p'
+                    )
+                except:
+                    cpzip_fpath = None
+
+                try:
+                    pfzip_fpath = dataset['pfzip_fpath']
+                    pfzip_fpath = pfzip_fpath.replace(
+                        os.path.join(self.basedir,'products'),
+                        '/p'
+                    )
+                except:
+                    pfzip_fpath = None
+
+                # update this listing
+                dataset['dataset_fpath'] = dataset_fpath
+                dataset['lczip_fpath'] = lczip_fpath
+                dataset['cpzip_fpath'] = cpzip_fpath
+                dataset['pfzip_fpath'] = pfzip_fpath
+
+                dataset_list.append(dataset)
+
+        dataset_info['result'] = dataset_list
+
+        self.write(dataset_info)
         self.finish()
