@@ -218,7 +218,7 @@
                     <th scope="col" width="100">Description</th>
                     <th scope="col" width="100">Coordinates<br>(&alpha;, &delta;) [decimal deg]</th>
                     <th scope="col" width="250">Columns<br>
-                      (<span class="kdtree-col">indexed columns</span>, <span class="fts-col"><abbr title="full text search">FTS</abbr> indexed columns</span>)
+                      (<span class="kdtree-col">indexed columns</span>, <span class="fts-col" data-toggle="tooltip" title="full text search is available for these columns">FTS indexed columns</span>)
 
                     </th>
                   </tr>
@@ -267,33 +267,11 @@
         </div>
 
         <div class="tab-pane"
-             id="columns" role="tabpanel" aria-labelledby="columns-tab">
-
-          <div class="row mt-2">
-            <div class="col-12">
-              columns
-            </div>
-          </div>
-
-        </div>
-
-        <div class="tab-pane"
              id="conesearch" role="tabpanel" aria-labelledby="conesearch-tab">
 
           <div class="row mt-2">
             <div class="col-12">
-              cone
-            </div>
-          </div>
-
-        </div>
-
-        <div class="tab-pane"
-             id="xmatch" role="tabpanel" aria-labelledby="xmatch-tab">
-
-          <div class="row mt-2">
-            <div class="col-12">
-              xmatch
+              <h3>Run a cone-search query</h3>
             </div>
           </div>
 
@@ -304,7 +282,29 @@
 
           <div class="row mt-2">
             <div class="col-12">
-              fts
+              <h3>Search for object names, descriptions, or tags</h3>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tab-pane"
+             id="columns" role="tabpanel" aria-labelledby="columns-tab">
+
+          <div class="row mt-2">
+            <div class="col-12">
+              <h3>Build a query using database columns and filter conditions</h3>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tab-pane"
+             id="xmatch" role="tabpanel" aria-labelledby="xmatch-tab">
+
+          <div class="row mt-2">
+            <div class="col-12">
+              <h3>Upload and cross-match catalogs against LC collections</h3>
             </div>
           </div>
 
@@ -326,7 +326,7 @@
 
           <div class="row mt-2">
             <div class="col-12">
-              results go here
+              <h3>View status and results of running or completed queries</h3>
             </div>
           </div>
 

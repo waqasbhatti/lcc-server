@@ -81,12 +81,12 @@ table.table-sm {
 
 
 span.fts-col {
-    color: green;
+    color: #d95f02;
     font-weight: bold;
 }
 
 span.kdtree-col {
-    color: blue;
+    color: #7570b3;
     font-weight: bold;
 }
 
@@ -111,4 +111,12 @@ thead.center-head {
 
 .top-margin-row {
     margin-top: 3rem;
+}
+
+span.pop-span {
+    cursor: pointer;
+}
+
+code {
+    color: #636363;
 }

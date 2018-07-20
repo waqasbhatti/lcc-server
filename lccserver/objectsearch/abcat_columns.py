@@ -548,8 +548,8 @@ COLUMN_INFO = {
         'dtype':'U60',
         'format':'%s',
         'description':'2MASS ID for this object',
-        'index':True,
-        'ftsindex':False,
+        'index':False,
+        'ftsindex':True,
     },
     'vmag':{
         'title':'<em>V</em>',

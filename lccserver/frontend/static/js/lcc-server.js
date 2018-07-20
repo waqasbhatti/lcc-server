@@ -354,16 +354,33 @@ var lcc_ui = {
                     for (colind; colind < columns.length; colind++) {
 
                         var thiscol = columns[colind];
-                        if (ftscols.indexOf(thiscol) != -1) {
-                            formatted_colspec.push('<span class="fts-col">' +
-                                                   thiscol + '</span>');
-                        }
-                        else if (indexedcols.indexOf(thiscol) != -1) {
-                            formatted_colspec.push('<span class="kdtree-col">' +
-                                                   thiscol + '</span>');
-                        }
-                        else {
-                            formatted_colspec.push(thiscol);
+
+                        var thiscol_title =
+                            collections.columnjson[rowind][thiscol]['title'];
+                        var thiscol_desc =
+                            collections.columnjson[rowind][thiscol]['description'];
+
+                        if (thiscol_title != null && thiscol_desc != null) {
+
+                            var col_popover = '<span class="pop-span" ' +
+                                'data-toggle="popover" ' +
+                                'data-placement="top" ' +
+                                'data-title="' + thiscol_title + '" ' +
+                                'data-content="' + thiscol_desc + '" ' +
+                                'data-html="true">' + thiscol + '</span>';
+
+                            if (ftscols.indexOf(thiscol) != -1) {
+                                formatted_colspec.push('<span class="fts-col">' +
+                                                       col_popover + '</span>');
+                            }
+                            else if (indexedcols.indexOf(thiscol) != -1) {
+                                formatted_colspec.push('<span class="kdtree-col">' +
+                                                       col_popover + '</span>');
+                            }
+                            else {
+                                formatted_colspec.push(col_popover);
+                            }
+
                         }
 
                     }
@@ -391,8 +408,9 @@ var lcc_ui = {
 
             }
 
-            // at the end, activate the tooltips
+            // at the end, activate the tooltips and popovers
             $('[data-toggle="tooltip"]').tooltip();
+            $('[data-toggle="popover"]').popover();
 
         }).fail(function (xhr) {
             var message = 'could not get list of recent ' +
