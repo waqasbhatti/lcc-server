@@ -41,7 +41,7 @@ import stat
 
 # this handles async updates of the checkplot pickles so the UI remains
 # responsive
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 # setup signal trapping on SIGINT
 def recv_sigint(signum, stack):
@@ -203,7 +203,7 @@ def main():
     ## PERSISTENT BACKGROUND EXECUTOR ##
     ####################################
 
-    EXECUTOR = ThreadPoolExecutor(MAXWORKERS)
+    EXECUTOR = ProcessPoolExecutor(MAXWORKERS)
 
     ##################
     ## URL HANDLERS ##
@@ -228,18 +228,18 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
-        # about page
-        (r'/about',
-         handlers.AboutPageHandler,
+        # this returns a JSON list of the currently available LC collections
+        (r'/api/collections',
+         handlers.CollectionListHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
-        # this returns a JSON list of the currently available LC collections
-        (r'/api/collections',
-         handlers.CollectionsListHandler,
+        # this returns a JSON list of the currently available datasets
+        (r'/api/datasets',
+         handlers.DatasetListHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,

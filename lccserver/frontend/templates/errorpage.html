@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block pagecontent %}
+
+<!-- the top bar -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+
+  <a class="navbar-brand" href="/">LCC Server</a>
+
+  <button class="navbar-toggler"
+          type="button"
+          data-toggle="collapse"
+          data-target="#navbarNavAltMarkup"
+          aria-controls="navbarNavAltMarkup"
+          aria-expanded="false"
+          aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+    <div class="navbar-nav">
+      <a class="nav-item nav-link active" href="/">
+        Home <span class="sr-only">(current)</span>
+      </a>
+      <a class="nav-item nav-link" href="/docs">Docs</a>
+    </div>
+  </div>
+
+  <form class="form-inline" action="/api/quicksearch" method="post">
+
+    {% module xsrf_form_html() %}
+
+    <select class="custom-select form-control" id="qt" name="qt">
+      <option value="conesearch" selected>Quick cone search</option>
+      <option value="objectidsearch">Quick object search</option>
+      <option value="xmatchsearch">Quick cross-match search</option>
+    </select>
+
+    <div class="input-group">
+
+      <input class="form-control ml-sm-2" id="q" name="q"
+             type="search"
+             placeholder="[RA] [Dec] [optional radius (arcmin)]"
+             aria-label="Search">
+      <div class="input-group-append">
+        <button class="btn btn-outline-success my-2 my-sm-0"
+                type="submit">Go</button>
+      </div>
+
+    </div>
+
+  </form>
+
+</nav>
+
+<div class="container">
+
+  <div class="row mt-4">
+    <div class="col-12">
+
+      <h1>Uh oh, something went wrong!</h1>
+
+      <p>{{ error_message }}</p>
+
+    </div>
+  </div>
+
+</div>
+
+
+{% end %}
+
+
+{% block pagejs_modules %}
+
+<!-- mathjs -->
+<script src="{{ static_url('js/math.min.js') }}"></script>
+
+<!-- our own js modules -->
+<script src="{{ static_url('js/lcc-server.js') }}"></script>
+
+{% end %}
+
+
+{% block pagejs %}
+
+$(document).ready(function() {
+
+
+// UI action setup
+lccui.action_setup();
+
+
+});
+
+{% end %}

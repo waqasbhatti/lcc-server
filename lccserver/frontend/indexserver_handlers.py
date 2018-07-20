@@ -14,21 +14,9 @@ These are Tornado handlers for the indexserver.
 
 import os
 import os.path
-try:
-    import cPickle as pickle
-except:
-    import pickle
-import base64
 import logging
-import time as utime
-
-try:
-    from cStringIO import StringIO as strio
-except:
-    from io import BytesIO as strio
-
 import numpy as np
-from numpy import ndarray
+
 
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
@@ -76,13 +64,19 @@ LOGGER = logging.getLogger(__name__)
 import tornado.ioloop
 import tornado.httpserver
 import tornado.web
+
 from tornado.escape import xhtml_escape, xhtml_unescape, url_unescape
 from tornado import gen
+
+import markdown
 
 ###################
 ## LOCAL IMPORTS ##
 ###################
 
+from ..objectsearch import datasets
+datasets.set_logger_parent(__name__)
+from ..objectsearch import dbsearch
 
 
 #####################
@@ -124,7 +118,7 @@ class IndexHandler(tornado.web.RequestHandler):
 
         self.render(
             'index.html',
-            page_title='LCC server',
+            page_title='LCC Server',
         )
 
 
@@ -166,8 +160,10 @@ class DocsHandler(tornado.web.RequestHandler):
 
         '''
 
+        LOGGER.info(repr(docpage))
+
         # get a specific documentation page
-        if docpage is not None:
+        if docpage and len(docpage) > 0:
 
             # get the Markdown file from the docpage specifier
 
@@ -180,33 +176,49 @@ class DocsHandler(tornado.web.RequestHandler):
                     doc_markdown = infd.read()
 
                 # render the markdown to HTML
-                doc_html = doc_markdown
+                doc_html = markdown.markdown(doc_markdown)
 
                 # get the docpage's title
-                page_title = self.docindex[docpage]['title']
+                page_title = self.docindex[docpage]
 
                 self.render(
-                    'doc-page.html',
+                    'docs-page.html',
                     page_title=page_title,
                     page_content=doc_html,
                 )
 
+            else:
+
+                error_message = ("No docs page found matching: '%s'" % docpage)
+                self.render('errorpage.html',
+                            page_title='404 - Page not found',
+                            error_message=error_message)
+
         # otherwise get the documentation index
         else:
 
-            # we pass the doc index dict to the template directly
+            doc_md_file = os.path.join(self.docspath, 'index.md')
+
+            with open(doc_md_file,'r') as infd:
+                doc_markdown = infd.read()
+
+            # render the markdown to HTML
+            doc_html = markdown.markdown(doc_markdown)
+
+            # get the docpage's title
+            page_title = self.docindex['index']
+
             self.render(
-                'doc-index.html',
-                page_title='docs index',
-                doc_index=self.docindex,
+                'docs-page.html',
+                page_title=page_title,
+                page_content=doc_html,
             )
 
 
 
-class AboutPageHandler(tornado.web.RequestHandler):
-    '''This handles the index page.
-
-    This page shows the current project.
+class CollectionListHandler(tornado.web.RequestHandler):
+    '''
+    This handles the collections list API.
 
     '''
 
@@ -230,19 +242,23 @@ class AboutPageHandler(tornado.web.RequestHandler):
         self.basedir = basedir
 
 
+    @gen.coroutine
     def get(self):
-        '''This handles GET requests to the index page.
+        '''This gets the list of collections currently available.
 
         '''
 
-        self.render(
-            'about.html',
-            page_title='About the LCC server',
+        collections = yield self.executor.submit(
+            dbsearch.sqlite_list_collections,
+            self.basedir
         )
 
+        self.write(collections)
+        self.finish()
 
 
-class CollectionsListHandler(tornado.web.RequestHandler):
+
+class DatasetListHandler(tornado.web.RequestHandler):
     '''
     This handles the collections list API.
 
@@ -269,31 +285,16 @@ class CollectionsListHandler(tornado.web.RequestHandler):
 
 
 
-
+    @gen.coroutine
     def get(self):
-        '''This gets the list of collections currently available.
-
-        Returns a JSON that forms a table with stuff like so:
-
-        collection name, collection long title, collection description,
-        collection center RA, collection center DEC collection RA extent,
-        collection DEC extent, number of objects in collection, collection
-        column names and descriptions, collection index columns, collection FTS
-        index columns
-
-        the collection name maps directly to a collection-dir where we can find
-        the following files:
-
-        - catalog-kdtree.pkl
-        - catalog-objectinfo.sqlite
-
-        the catalog-kdtree.pkl for each collection is loaded into memory by a
-        searchserver.py instance. the catalog-objectinfo.sqlite is accessed
-        async on demand by the searchserver.py instance.
+        '''This gets the list of datasets currently available.
 
         '''
 
-        # this fires an async submit to the function:
-        # ..objectsearch.collections.list_collections(). this returns a dict
-        # containing the info above, this dict is returned to the frontend as
-        # JSON
+        dataset_list = yield self.executor.submit(
+            datasets.sqlite_list_datasets,
+            self.basedir
+        )
+
+        self.write(dataset_list)
+        self.finish()
