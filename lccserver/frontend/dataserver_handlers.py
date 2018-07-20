@@ -83,7 +83,83 @@ datasets.set_logger_parent(__name__)
 ## DATASET DISPLAY HANDLER ##
 #############################
 
-class DataSetHandler(tornado.web.RequestHandler):
+class DatasetHandler(tornado.web.RequestHandler):
+    '''
+    This handles the column search API.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   templatepath,
+                   assetpath,
+                   docspath,
+                   executor,
+                   basedir):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.docspath = docspath
+        self.executor = executor
+        self.basedir = basedir
+
+
+    @gen.coroutine
+    def get(self):
+        '''This runs the query.
+
+        '''
+
+        collections = yield self.executor.submit(
+            dbsearch.sqlite_list_collections,
+            self.basedir
+        )
+
+        collection_info = collections['info']
+        all_columns = collections['columns']
+        all_indexed_columns = collections['indexedcols']
+        all_fts_columns = collections['ftscols']
+
+        # censor some bits
+        del collection_info['kdtree_pkl_path']
+        del collection_info['object_catalog_path']
+
+        # we'll reform the lcformatdesc path so it can be downloaded directly
+        # from the LCC server
+        lcformatdesc = collection_info['lcformatdesc']
+        lcformatdesc = [
+            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
+        ]
+        collection_info['lcformatdesc'] = lcformatdesc
+
+        returndict = {
+            'status':'ok',
+            'result':{'available_columns':all_columns,
+                      'available_indexed_columns':all_indexed_columns,
+                      'available_fts_columns':all_fts_columns,
+                      'collections':collection_info},
+            'message':(
+                'found %s collections in total' %
+                len(collection_info['collection_id'])
+            )
+        }
+
+        # return to sender
+        self.write(returndict)
+        self.finish()
+
+
+
+#############################
+## DATASET LISTING HANDLER ##
+#############################
+
+class AllDatasetsHandler(tornado.web.RequestHandler):
     '''
     This handles the column search API.
 

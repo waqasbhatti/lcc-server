@@ -61,6 +61,18 @@
 
 </nav>
 
+
+<!-- this is where all the alerts go -->
+<div class="container">
+  <div class="row">
+    <div class="col-12">
+      <div id="alert-box">
+
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- the main search form -->
 <div class="container-fluid">
   <div class="row top-margin-row search-controls">
@@ -183,7 +195,7 @@
 
               <h3>Available light curve collections</h3>
 
-              <table id="lcc-collections-table" class="table table-hover table-sm">
+              <table id="lcc-collections-table" class="table table-sm">
 
                 <thead class="bg-light">
                   <tr>
@@ -270,10 +282,10 @@
                 <thead class="bg-light">
                   <tr>
                     <th scope="col" width="100">Set ID</th>
-                    <th scope="col" width="100">Objects</th>
+                    <th scope="col" width="80">Objects</th>
                     <th scope="col" width="200">Query</th>
-                    <th scope="col" width="200">Products</th>
-                    <th scope="col" width="100">Last updated</th>
+                    <th scope="col" width="150">Products</th>
+                    <th scope="col" width="150">Last updated</th>
                   </tr>
                 </thead>
 
@@ -384,9 +396,14 @@
 
 $(document).ready(function() {
 
+// get the light curve collections
+
+// get the most recent 25 datasets
+lccui.get_recent_datasets(25);
 
 // UI action setup
 lccui.action_setup();
+
 
 
 });

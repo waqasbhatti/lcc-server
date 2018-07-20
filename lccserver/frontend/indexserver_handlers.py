@@ -321,9 +321,16 @@ class DatasetListHandler(tornado.web.RequestHandler):
 
         '''
 
+        try:
+            nrecent = self.get_argument('nsets')
+            nrecent = int(xhtml_escape(nrecent))
+        except:
+            nrecent = 25
+
         dataset_info = yield self.executor.submit(
             datasets.sqlite_list_datasets,
-            self.basedir
+            self.basedir,
+            nrecent=nrecent
         )
 
         # we'll have to censor stuff here as well

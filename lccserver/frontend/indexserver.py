@@ -214,6 +214,7 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
         # docs page index and other subdirs, renders markdown to HTML
         (r'/docs/?(.*)',
          ih.DocsHandler,
@@ -223,10 +224,12 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
         # static files like images, etc associated with docs
         (r'/doc-static/(.*)',
          tornado.web.StaticFileHandler,
          {'path':os.path.join(BASEDIR, 'docs', 'static')}),
+
 
         ######################
         ## FIRST LEVEL APIS ##
@@ -241,6 +244,7 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
         # this returns a JSON list of the currently available datasets
         (r'/api/datasets',
          ih.DatasetListHandler,
@@ -259,18 +263,22 @@ def main():
         (r'/c/(.*)',
          tornado.web.StaticFileHandler,
          {'path':BASEDIR}),
+
         # this handles static file downloads for dataset pickles
         (r'/d/(.*)',
          tornado.web.StaticFileHandler,
          {'path':os.path.join(BASEDIR,'datasets')}),
+
         # this handles static file downloads for dataset products
         (r'/p/(.*)',
          tornado.web.StaticFileHandler,
          {'path':os.path.join(BASEDIR,'products')}),
+
         # this handles static file downloads for individual light curves
         (r'/l/(.*)',
          tornado.web.StaticFileHandler,
          {'path':BASEDIR}),
+
 
         ##################################
         ## SEARCH API ENDPOINT HANDLERS ##
@@ -285,6 +293,7 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
         # this is the cone search API endpoint
         (r'/api/conesearch',
          sh.ConeSearchHandler,
@@ -294,6 +303,7 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
         # this is the FTS search API endpoint
         (r'/api/quicksearch',
          sh.FTSearchHandler,
@@ -303,6 +313,7 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
         # this is the xmatch search API endpoint
         (r'/api/xmatch',
          sh.XMatchHandler,
@@ -313,19 +324,29 @@ def main():
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
 
+
         ##############################################
         ## DATASET DISPLAY AND LIVE-UPDATE HANDLERS ##
         ##############################################
 
-        # this is the dataset display API
-        (r'/dataset/(.*)',
-         dh.DataSetHandler,
+        # this is the dataset display API for a single dataset
+        (r'/set/(.*)',
+         dh.DatasetHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+        # this just shows all datasets in a big table - disabled for now
+        # (r'/datasets',
+        #  dh.AllDatasetsHandler,
+        #  {'currentdir':CURRENTDIR,
+        #   'templatepath':TEMPLATEPATH,
+        #   'assetpath':ASSETPATH,
+        #   'docspath':DOCSPATH,
+        #   'executor':EXECUTOR,
+        #   'basedir':BASEDIR}),
 
     ]
 
