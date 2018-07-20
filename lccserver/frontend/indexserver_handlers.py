@@ -254,6 +254,9 @@ class CollectionListHandler(tornado.web.RequestHandler):
         )
 
         collection_info = collections['info']
+        all_columns = collections['columns']
+        all_indexed_columns = collections['indexedcols']
+        all_fts_columns = collections['ftscols']
 
         # censor some bits
         del collection_info['kdtree_pkl_path']
@@ -267,8 +270,20 @@ class CollectionListHandler(tornado.web.RequestHandler):
         ]
         collection_info['lcformatdesc'] = lcformatdesc
 
+        returndict = {
+            'status':'ok',
+            'result':{'available_columns':all_columns,
+                      'available_indexed_columns':all_indexed_columns,
+                      'available_fts_columns':all_fts_columns,
+                      'collections':collection_info},
+            'message':(
+                'found %s collections in total' %
+                len(collection_info['collection_id'])
+            )
+        }
+
         # return to sender
-        self.write(collection_info)
+        self.write(returndict)
         self.finish()
 
 
