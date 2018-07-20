@@ -223,6 +223,10 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+        # static files like images, etc associated with docs
+        (r'/doc-static/(.*)',
+         tornado.web.StaticFileHandler,
+         {'path':os.path.join(BASEDIR, 'docs', 'static')}),
 
         ######################
         ## FIRST LEVEL APIS ##

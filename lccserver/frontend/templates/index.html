@@ -63,13 +63,13 @@
 
 <!-- the main search form -->
 <div class="container-fluid">
-  <div class="row mt-4 search-controls">
+  <div class="row top-margin-row search-controls">
 
     <div class="col-12">
 
       <ul class="nav nav-tabs" id="myTab" role="tablist">
 
-        <li class="nav-item">
+        <li class="nav-item mr-auto">
           <a class="nav-link active tab-link"
              id="collections-tab"
              data-toggle="tab"
@@ -78,22 +78,8 @@
              aria-controls="collections"
              aria-selected="true">
             <img class="icon-svg"
-              src="{{ static_url('images/twotone-shopping_cart-24px.svg') }}"><br>
-            Light curve collections
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link tab-link"
-             id="columns-tab"
-             data-toggle="tab"
-             href="#columns"
-             role="tab"
-             aria-controls="columns"
-             aria-selected="true">
-            <img class="icon-svg"
-              src="{{ static_url('images/twotone-view_week-24px.svg') }}"><br>
-            Search DB columns
+                 src="{{ static_url('images/twotone-shopping_cart-24px.svg') }}"><br>
+            Collections
           </a>
         </li>
 
@@ -113,6 +99,34 @@
 
         <li class="nav-item">
           <a class="nav-link tab-link"
+             id="fts-tab"
+             data-toggle="tab"
+             href="#fts"
+             role="tab"
+             aria-controls="fts"
+             aria-selected="false">
+            <img class="icon-svg"
+                 src="{{ static_url('images/twotone-language-24px.svg') }}"><br>
+            Search by ID
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link tab-link"
+             id="columns-tab"
+             data-toggle="tab"
+             href="#columns"
+             role="tab"
+             aria-controls="columns"
+             aria-selected="true">
+            <img class="icon-svg"
+                 src="{{ static_url('images/twotone-view_week-24px.svg') }}"><br>
+            Search DB columns
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link tab-link"
              id="xmatch-tab"
              data-toggle="tab"
              href="#xmatch"
@@ -125,34 +139,36 @@
           </a>
         </li>
 
-        <li class="nav-item">
+        <li class="nav-item ml-auto">
           <a class="nav-link tab-link"
-             id="fts-tab"
+             id="results-tab"
              data-toggle="tab"
-             href="#fts"
+             href="#results"
              role="tab"
-             aria-controls="fts"
+             aria-controls="results"
              aria-selected="false">
-            <img class="icon-svg"
-                 src="{{ static_url('images/twotone-language-24px.svg') }}"><br>
-            Full-text search
+            <span id="search-notifications">
+              <img class="icon-svg"
+                   src="{{ static_url('images/twotone-archive-24px.svg') }}"><br>
+              Results
+            </span>
           </a>
         </li>
 
 
         <!-- <li class="nav-item"> -->
-        <!--   <a class="nav-link tab-link" -->
-        <!--      id="sql-tab" -->
-        <!--      data-toggle="tab" -->
-        <!--      href="#sql" -->
-        <!--      role="tab" -->
-        <!--      aria-controls="sql" -->
-        <!--      aria-selected="false"> -->
-        <!--     <img class="icon-svg"
-                      src="{{ static_url('images/twotone-search-24px.svg') }}"><br> -->
-        <!--     Run an SQL query -->
-        <!--   </a> -->
-        <!-- </li> -->
+          <!--   <a class="nav-link tab-link" -->
+          <!--      id="sql-tab" -->
+          <!--      data-toggle="tab" -->
+          <!--      href="#sql" -->
+          <!--      role="tab" -->
+          <!--      aria-controls="sql" -->
+          <!--      aria-selected="false"> -->
+            <!--     <img class="icon-svg"
+                     src="{{ static_url('images/twotone-search-24px.svg') }}"><br> -->
+            <!--     Run an SQL query -->
+            <!--   </a> -->
+          <!-- </li> -->
 
       </ul>
 
@@ -164,7 +180,109 @@
 
           <div class="row mt-2">
             <div class="col-12">
-              collections
+
+              <h3>Available light curve collections</h3>
+
+              <table id="lcc-collections-table" class="table table-hover table-sm">
+
+                <thead class="bg-light">
+                  <tr>
+                    <th scope="col" width="200">Name</th>
+                    <th scope="col" width="200">Description</th>
+                    <th scope="col" width="100">Objects</th>
+                    <th scope="col" width="100">Center<br>(RA, Dec)</th>
+                    <th scope="col" width="150">Extent<br>(RA, Dec)</th>
+                    <th scope="col" width="200">Columns<br>
+                      <span class="fts-col">full text search
+                        available</span>,
+                      <span class="kdtree-col">spatial index search available</span>
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody id="lcc-collection-tablerows">
+
+                  <tr>
+
+                    <td>
+                      HATNet Kepler field observations (<code>hatnet_kepler_field</code>)
+                    </td>
+
+                    <td>
+                      Light curves from the HATNet Exoplanet Survey's
+                      observations of the Kepler Field from 2004 to 2014.
+                    </td>
+
+                    <td>
+                      404563
+                    </td>
+
+                    <td>
+                      290.0, 45.0
+                    </td>
+
+                    <td>
+                      (240.0, 25.0) to<br>(350.0, 60.0)
+                    </td>
+
+                    <td>
+                      <code>abs_gaiamag,
+                        aep_000.beyond1std, <span class="fts-col">aep_000.comments</span>,
+                        aep_000.eta_normal, aep_000.kurtosis,
+                        aep_000.linear_fit_slope, aep_000.mad, aep_000.mag_iqr,
+                        aep_000.magnitude_ratio, aep_000.median,
+                        aep_000.objectisvar, aep_000.skew, aep_000.stdev,
+                        aep_000.stetsonj, aep_000.stetsonk, aep_000.varepoch,
+                        aep_000.varperiod, <span class="fts-col">aep_000.vartags</span>,
+                        bmag, <span class="fts-col">color_classes</span>,
+                        <span class="kdtree-col">decl</span>,
+                        extinction_bmag, extinction_hmag, extinction_imag,
+                        extinction_jmag, extinction_kmag, extinction_rmag,
+                        extinction_sdssg, extinction_sdssi, extinction_sdssr,
+                        extinction_sdssu, extinction_sdssz, extinction_vmag,
+                        gaia_id, gaia_parallax, gaia_parallax_err, gaia_status,
+                        gaiamag, gb, gl, hmag, imag, jmag, kmag, lcfname, ndet,
+                        ndet_aep_000,
+                        ndet_atf_000, <span class="fts-col">objectid</span>,
+                        <span class="fts-col">objecttags</span>, pmdecl, pmra,
+                        propermotion, <span class="kdtree-col">ra</span>, rmag,
+                        rpmj, sdssg, sdssi, sdssr, sdssu,
+                        sdssz, <span class="fts-col">twomassid</span>, vmag
+                      </code>
+                    </td>
+
+                  </tr>
+
+                </tbody>
+
+              </table>
+
+            </div>
+          </div>
+
+          <div class="row mt-4">
+            <div class="col-12">
+
+              <h3>Datasets from recent search queries</h3>
+
+              <table id="lcc-datasets-table" class="table table-hover table-sm">
+
+                <thead class="bg-light">
+                  <tr>
+                    <th scope="col" width="100">Set ID</th>
+                    <th scope="col" width="100">Objects</th>
+                    <th scope="col" width="200">Query</th>
+                    <th scope="col" width="200">Products</th>
+                    <th scope="col" width="100">Last updated</th>
+                  </tr>
+                </thead>
+
+                <tbody id="lcc-datasets-tablerows">
+
+                </tbody>
+
+              </table>
+
             </div>
           </div>
 
@@ -217,13 +335,24 @@
         <!-- <div class="tab-pane" -->
         <!--      id="sql" role="tabpanel" aria-labelledby="sql-tab"> -->
 
-        <!--   <div class="row mt-2"> -->
-        <!--     <div class="col-12"> -->
-        <!--       sql -->
-        <!--     </div> -->
-        <!--   </div> -->
+          <!--   <div class="row mt-2"> -->
+            <!--     <div class="col-12"> -->
+              <!--       sql -->
+              <!--     </div> -->
+            <!--   </div> -->
 
-        <!-- </div> -->
+          <!-- </div> -->
+
+        <div class="tab-pane"
+             id="results" role="tabpanel" aria-labelledby="results-tab">
+
+          <div class="row mt-2">
+            <div class="col-12">
+              results go here
+            </div>
+          </div>
+
+        </div>
 
       </div>
 
@@ -231,104 +360,8 @@
 
   </div>
 
-  <div class="row">
-    <!-- notifications go in here -->
-    <div class="col-12" id="query-notifications">
-
-
-
-    </div>
-  </div>
-
 </div>
 
-
-<!-- the list of all light curve collections available -->
-<div class="container-fluid">
-
-  <div class="row mt-4 lc-collection-overview">
-
-    <div class="col-12">
-      <h3>Available light curve collections</h3>
-
-      <table id="lcc-collections-table" class="table table-hover table-sm">
-
-        <thead class="bg-light">
-          <tr>
-            <th scope="col" width="200">Name</th>
-            <th scope="col" width="200">Description</th>
-            <th scope="col" width="100">Objects</th>
-            <th scope="col" width="100">Center<br>(RA, Dec)</th>
-            <th scope="col" width="150">Extent<br>(RA, Dec)</th>
-            <th scope="col" width="200">Columns<br>
-              <span class="fts-col">full text search
-                available</span>,
-              <span class="kdtree-col">spatial index search available</span>
-            </th>
-          </tr>
-        </thead>
-
-        <tbody id="lcc-collection-tablerows">
-
-          <tr>
-
-            <td>
-              HATNet Kepler field observations (<code>hatnet_kepler_field</code>)
-            </td>
-
-            <td>
-              Light curves from the HATNet Exoplanet Survey's
-              observations of the Kepler Field from 2004 to 2014.
-            </td>
-
-            <td>
-              404563
-            </td>
-
-            <td>
-              290.0, 45.0
-            </td>
-
-            <td>
-              (240.0, 25.0) to<br>(350.0, 60.0)
-            </td>
-
-            <td>
-              <code>abs_gaiamag,
-                aep_000.beyond1std, <span class="fts-col">aep_000.comments</span>,
-                aep_000.eta_normal, aep_000.kurtosis,
-                aep_000.linear_fit_slope, aep_000.mad, aep_000.mag_iqr,
-                aep_000.magnitude_ratio, aep_000.median,
-                aep_000.objectisvar, aep_000.skew, aep_000.stdev,
-                aep_000.stetsonj, aep_000.stetsonk, aep_000.varepoch,
-                aep_000.varperiod, <span class="fts-col">aep_000.vartags</span>,
-                bmag, <span class="fts-col">color_classes</span>,
-                <span class="kdtree-col">decl</span>,
-                extinction_bmag, extinction_hmag, extinction_imag,
-                extinction_jmag, extinction_kmag, extinction_rmag,
-                extinction_sdssg, extinction_sdssi, extinction_sdssr,
-                extinction_sdssu, extinction_sdssz, extinction_vmag,
-                gaia_id, gaia_parallax, gaia_parallax_err, gaia_status,
-                gaiamag, gb, gl, hmag, imag, jmag, kmag, lcfname, ndet,
-                ndet_aep_000,
-                ndet_atf_000, <span class="fts-col">objectid</span>,
-                <span class="fts-col">objecttags</span>, pmdecl, pmra,
-                propermotion, <span class="kdtree-col">ra</span>, rmag,
-                rpmj, sdssg, sdssi, sdssr, sdssu,
-                sdssz, <span class="fts-col">twomassid</span>, vmag
-              </code>
-            </td>
-
-          </tr>
-
-        </tbody>
-
-      </table>
-
-    </div>
-  </div>
-
-</div>
 
 {% end %}
 

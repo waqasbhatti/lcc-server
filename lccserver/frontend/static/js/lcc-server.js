@@ -32,6 +32,20 @@ var lccui = {
 
         });
 
+    },
+
+    get_recent_datasets: function(nrecent) {
+
+
+
+
+    },
+
+    get_lc_collections: function() {
+
+
+
+
     }
 
 }

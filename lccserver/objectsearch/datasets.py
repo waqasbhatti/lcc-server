@@ -110,6 +110,9 @@ create table lcc_datasets (
   cpzip_shasum text,
   pfzip_shasum text,
   dataset_shasum text,
+  queried_collections text,
+  query_type text,
+  query_params text,
   name text,
   description text,
   citation text,
@@ -266,11 +269,14 @@ def sqlite_new_dataset(basedir,
 
     total_nmatches = sum(searchresult[x]['nmatches'] for x in collections)
 
+    setname = 'New dataset using collections: %s' % ', '.join(collections)
+    setdesc = 'Created at %s UTC, using query: %s' % (creationdt, searchtype)
+
     # create the dict for the dataset pickle
     dataset = {
         'setid':setid,
-        'name':'New dataset',
-        'desc':'Created at %s' % creationdt,
+        'name':setname,
+        'desc':setdesc,
         'ispublic':ispublic,
         'collections':collections,
         'columns':columns,
@@ -346,14 +352,25 @@ def sqlite_new_dataset(basedir,
 
     # generate the entry in the lcc-datasets.sqlite table and commit it
     query = ("update lcc_datasets set "
+             "name = ?, description = ?, "
              "last_updated = ?, nobjects = ?, "
-             "status = ?, dataset_shasum = ?, is_public = ?")
+             "status = ?, dataset_shasum = ?, is_public = ?, "
+             "queried_collections = ?, query_type = ?, query_params = ? "
+             "where setid = ?")
 
-    params = (datetime.utcnow().isoformat(),
-              total_nmatches,
-              'complete',
-              shasum,
-              1 if ispublic else 0)
+    params = (
+        setname,
+        setdesc,
+        datetime.utcnow().isoformat(),
+        total_nmatches,
+        'complete',
+        shasum,
+        1 if ispublic else 0,
+        ', '.join(collections),
+        searchtype,
+        json.dumps(searchargs),
+        setid
+    )
     cur.execute(query, params)
     db.commit()
     db.close()
@@ -495,9 +512,9 @@ def sqlite_make_dataset_lczip(basedir,
 
             # generate the entry in the lcc-datasets.sqlite table and commit it
             query = ("update lcc_datasets set "
-                     "last_updated = ?, dataset_shasum = ?")
+                     "last_updated = ?, dataset_shasum = ? where setid = ?")
 
-            params = (datetime.utcnow().isoformat(), shasum)
+            params = (datetime.utcnow().isoformat(), shasum, setid)
             cur.execute(query, params)
             db.commit()
             db.close()
@@ -556,9 +573,9 @@ def sqlite_make_dataset_lczip(basedir,
                 # generate the entry in the lcc-datasets.sqlite table and commit
                 # it
                 query = ("update lcc_datasets set "
-                         "last_updated = ?, dataset_shasum = ?")
+                         "last_updated = ?, dataset_shasum = ? where setid = ?")
 
-                params = (datetime.utcnow().isoformat(), shasum)
+                params = (datetime.utcnow().isoformat(), shasum, setid)
                 cur.execute(query, params)
                 db.commit()
                 db.close()
@@ -611,9 +628,9 @@ def sqlite_make_dataset_lczip(basedir,
 
         # generate the entry in the lcc-datasets.sqlite table and commit it
         query = ("update lcc_datasets set "
-                 "last_updated = ?, lczip_shasum = ?")
+                 "last_updated = ?, lczip_shasum = ? where setid = ?")
 
-        params = (datetime.utcnow().isoformat(), shasum)
+        params = (datetime.utcnow().isoformat(), shasum, setid)
         cur.execute(query, params)
         db.commit()
         db.close()
@@ -656,6 +673,7 @@ def sqlite_update_dataset(basedir, setid, updatedict):
 ######################################
 
 def sqlite_list_datasets(basedir,
+                         nrecent=10,
                          require_ispublic=True):
     '''
     This just lists all the datasets available.
@@ -691,14 +709,22 @@ def sqlite_list_datasets(basedir,
 
     query = ("select setid, created_on, last_updated, nobjects, is_public, "
              "dataset_shasum, lczip_shasum, cpzip_shasum, pfzip_shasum, "
-             "name, description, citation from "
+             "name, description, citation, "
+             "queried_collections, query_type, query_params from "
              "lcc_datasets where status = 'complete' {public_cond} "
-             "order by last_updated desc")
+             "order by last_updated desc limit {nrecent}")
+
+    # make sure we never get more than 25 recent datasets
+    if nrecent > 25:
+        nrecent = 25
+
 
     if require_ispublic:
-        query = query.format(public_cond='and (is_public = 1)')
+        query = query.format(public_cond='and (is_public = 1)',
+                             nrecent=nrecent)
     else:
-        query = query.format(public_cond='')
+        query = query.format(public_cond='',
+                             nrecent=nrecent)
 
     cur.execute(query)
     rows = cur.fetchall()
