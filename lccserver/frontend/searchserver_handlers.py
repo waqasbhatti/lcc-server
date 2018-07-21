@@ -195,10 +195,22 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
         # FIXME: this is temporary
         # add error and escaping handling here
+        # we'll need parsing for different kinds of RA/DEC
+        # - sexagesimal
+        # - decimal
+        # - ':' vs ' ' as separators in
+        # use the regex from previously
+
+
         center_ra = float(self.get_argument('center_ra'))
         center_decl = float(self.get_argument('center_decl'))
         radius_arcmin = float(self.get_argument('radius_arcmin'))
-        result_ispublic = bool(self.get_argument('result_ispublic'))
+        result_ispublic = (
+            True if int(self.get_argument('result_ispublic')) else False
+        )
+
+        # optional stream argument
+        stream = self.get_argument('stream', default=0)
 
 
         #

@@ -218,7 +218,9 @@
                     <th scope="col" width="100">Description</th>
                     <th scope="col" width="100">Coordinates<br>(&alpha;, &delta;) [decimal deg]</th>
                     <th scope="col" width="250">Columns<br>
-                      (<span class="kdtree-col">indexed columns</span>, <span class="fts-col" data-toggle="tooltip" title="full text search is available for these columns">FTS indexed columns</span>)
+                      (<span class="kdtree-col">indexed columns</span>,
+                      <span class="fts-col" data-toggle="tooltip"
+                            title="full text search is available for these columns">FTS indexed columns</span>)
 
                     </th>
                   </tr>
@@ -283,8 +285,20 @@
             </div>
 
             <div class="col-sm-4">
-              button postfix to the coordinate box
+              button postfix to the coordinate box<br>
+              also a checkbox to set if the resulting dataset should be public
             </div>
+
+            <ul>
+              <li>submit the query in stream mode</li>
+              <li>flash the query status tab when the query is successfully submitted and we receive a setid. we can do with addClass('animated flash') or similar. also remember to set a pill badge on the query notification text span so we know how many queries are running currently.</li>
+              <li>stream the status updates in a dedicated div on the status tab</li>
+              <li>when done, flash the query status tab again to indicate completion</li>
+              <li>hit /api/datasets again to update the list of datasets</li>
+              <li>the datasets tab and download links to each dataset should have rel=nofollow</li>
+              <li>the light curve download links should all have rel=nofollow as well</li>
+              <li>remember to set <code>proxy_buffering off;</code> in the nginx proxy location element</li>
+            </ul>
 
           </div>
 
@@ -293,17 +307,17 @@
 
             <div class="col-sm-12 col-md-4">
               <h4>Use LC collections</h4>
-              use collections
+              use collections (updated whenever we call /api/collections)
             </div>
 
             <div class="col-sm-12 col-md-4">
               <h4>Retrieve database columns</h4>
-              retrieve these columns
+              retrieve these columns (updated whenever we call /api/collections)
             </div>
 
             <div class="col-sm-12 col-md-4">
               <h4>Apply extra filters</h4>
-              apply the following conditions to results
+              apply the following conditions to results (updated whenever we call /api/collections)
             </div>
 
           </div>
