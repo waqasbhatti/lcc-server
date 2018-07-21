@@ -311,6 +311,16 @@ $(document).ready(function() {
 // UI action setup
 lcc_ui.action_setup();
 
+// format all the moments
+$('.moment-format').each(function (index, elem) {
+
+// get the text we need
+var mt = moment($(this).text()).fromNow();
+$(this).html($(this).text() + ' <strong>(' + mt + ')</strong>');
+
+});
+
+
 
 });
 
