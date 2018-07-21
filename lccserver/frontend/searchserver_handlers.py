@@ -204,7 +204,13 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         #
         # we'll use line-delimited JSON to respond
         #
+        # FIXME: this should be selectable using an arg: stream=1 or 0
 
+        # FIXME: we might want to end early for API requests and just return the
+        # setid, from which one can get the URL for the dataset if it finishes
+        # looks like we can use RequestHandler.on_finish() to do this, but we
+        # need to figure out how to pass stuff to that function from here (maybe
+        # a self.postprocess_items boolean will work?)
 
         # Q1. prepare the dataset
         setinfo = yield self.executor.submit(
@@ -216,10 +222,12 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         setid, creationdt = setinfo
 
         # A1. we have a setid, send this back to the client
-        retdict = {"status":"streaming",
-                   "result":{"setid":setid},  # add submit datetime, args, etc.
-                   "message":"received a setid: %s" % setid,
-                   "time":'%sZ' % datetime.utcnow().isoformat()}
+        retdict = {
+            "message":"received a setid: %s" % setid,
+            "status":"streaming",
+            "result":{"setid":setid},  # add submit datetime, args, etc.
+            "time":'%sZ' % datetime.utcnow().isoformat()
+        }
         retdict = '%s\n' % json.dumps(retdict)
         self.set_header('Content-Type','application/json')
         self.write(retdict)
@@ -241,12 +249,12 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             nrows = 42
 
             retdict = {
+                "message":"query complete, objects matched: %s" % nrows,
                 "status":"streaming",
                 "result":{
                     "setid":setid,
                     "nrows":nrows
                 },
-                "message":"query complete, objects matched: %s" % nrows,
                 "time":'%sZ' % datetime.utcnow().isoformat()
             }
             retdict = '%s\n' % json.dumps(retdict)
@@ -266,13 +274,13 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             # A3. we have the dataset pickle generated, send back an update
             dataset_pickle = "/d/dataset-%s.pkl.gz" % dspkl_setid
             retdict = {
+                "message":("dataset pickle generation complete: %s" %
+                           dataset_pickle),
                 "status":"streaming",
                 "result":{
                     "setid":dspkl_setid,
                     "dataset_pickle":dataset_pickle
                 },
-                "message":("dataset pickle generation complete: %s" %
-                           dataset_pickle),
                 "time":'%sZ' % datetime.utcnow().isoformat()
             }
             retdict = '%s\n' % json.dumps(retdict)
@@ -294,19 +302,33 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             # A4. we're done with collecting light curves
             lczip_url = '/p/%s' % os.path.basename(lczip)
             retdict = {
-                "status":"ok",
+                "message":("dataset LC ZIP complete: %s" % lczip_url),
+                "status":"streaming",
                 "result":{
                     "setid":dspkl_setid,
                     "dataset_lczip":lczip_url
                 },
-                "message":("dataset LC ZIP complete: %s" % lczip_url),
                 "time":'%sZ' % datetime.utcnow().isoformat()
             }
             retdict = '%s\n' % json.dumps(retdict)
             self.write(retdict)
             yield self.flush()
 
-            # A5. finish request
+            # A5. finish request by sending back the dataset URL
+            dataset_url = "/set/%s" % dspkl_setid
+            retdict = {
+                "message":("dataset now ready: %s" % dataset_url),
+                "status":"ok",
+                "result":{
+                    "setid":dspkl_setid,
+                    "seturl":dataset_url
+                },
+                "time":'%sZ' % datetime.utcnow().isoformat()
+            }
+            retdict = '%s\n' % json.dumps(retdict)
+            self.write(retdict)
+            yield self.flush()
+
             self.finish()
 
         else:
