@@ -110,7 +110,183 @@ class DatasetHandler(tornado.web.RequestHandler):
 
 
     @gen.coroutine
-    def get(self):
+    def get(self, setid):
+        '''This runs the query.
+
+        '''
+        # get the returnjson argument
+        try:
+            returnjson = self.get_argument('json',default='0')
+            returnjson = True if returnjson == '1' else False
+        except:
+            returnjson = False
+
+
+        if setid is None or len(setid) == 0:
+
+            message = (
+                "No dataset ID was provided or that dataset ID doesn't exist."
+            )
+
+            if returnjson:
+
+                self.write({'status':'failed',
+                            'result':None,
+                            'message':message})
+                self.finish()
+
+            else:
+
+                self.render('errorpage.html',
+                            message=message,
+                            page_title='404 - no dataset by that name exists')
+
+
+        #
+        # get the dataset ID from the provided URL
+        #
+
+        # get the setid
+        setid = xhtml_escape(setid)
+
+        # retrieve this dataset. we'll not provide returnjson to the backend
+        # because we want to censor some things before sending them back
+        ds = yield self.executor.submit(
+            datasets.sqlite_get_dataset,
+            self.basedir, setid,
+        )
+
+        if ds is None:
+
+            message = (
+                "No dataset ID was provided or provided "
+                "dataset ID: %s doesn't exist." % setid
+            )
+
+            if returnjson:
+
+                self.write({'status':'failed',
+                            'result':None,
+                            'message':message})
+                self.finish()
+
+            else:
+
+                self.render('errorpage.html',
+                            message=message,
+                            page_title='404 - no dataset by that name exists')
+
+
+        #
+        # if everything went as planned, retrieve the data in specified format
+        #
+
+        # first, we'll censor some bits
+        dataset_pickle = '/d/dataset-%s.pkl.gz' % setid
+        ds['dataset_pickle'] = dataset_pickle
+
+        if os.path.exists(os.path.join(self.basedir,
+                                       'datasets',
+                                       'dataset-%s.csv' % setid)):
+            dataset_csv = '/d/dataset-%s.csv' % setid
+            ds['dataset_csv'] = dataset_csv
+        else:
+            ds['dataset_csv'] = None
+
+
+        if os.path.exists(ds['lczip']):
+            dataset_lczip = ds['lczip'].replace(os.path.join(self.basedir,
+                                                             'products'),
+                                                '/p')
+            ds['lczip'] = dataset_lczip
+        else:
+            ds['lczip'] = None
+
+
+        if os.path.exists(ds['pfzip']):
+            dataset_pfzip = ds['pfzip'].replace(os.path.join(self.basedir,
+                                                             'products'),
+                                                '/p')
+            ds['pfzip'] = dataset_pfzip
+        else:
+            ds['pfzip'] = None
+
+
+        if os.path.exists(ds['cpzip']):
+            dataset_cpzip = ds['cpzip'].replace(os.path.join(self.basedir,
+                                                             'products'),
+                                                '/p')
+            ds['cpzip'] = dataset_cpzip
+        else:
+            ds['cpzip'] = None
+
+
+        # replace the LC paths with the correct URLs
+        for coll in ds['collections']:
+
+            for entry in ds['result'][coll]['data']:
+
+                if 'db_lcfname' in entry:
+                    entry['db_lcfname'] = (
+                        entry['db_lcfname'].replace(self.basedir, '/l')
+                    )
+                if 'lcfname' in entry:
+                    entry['lcfname'] = (
+                        entry['lcfname'].replace(self.basedir, '/l')
+                    )
+
+        #
+        # we're all done with reforming
+        #
+
+        # if we're returning JSON, dump and then return
+        if returnjson:
+
+            dsjson = json.dumps(ds)
+            dsjson = dsjson.replace('nan','null')
+            self.set_header('Content-Type','application/json')
+            self.write(ds)
+            self.finish()
+
+        # otherwise, we're going to render the dataset to a template
+        else:
+
+            self.render('dataset.html',
+                        page_title='LCC Dataset %s' % setid,
+                        setid=setid)
+
+
+
+
+class DatasetAJAXHandler(tornado.web.RequestHandler):
+    '''
+    This handles the column search API.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   templatepath,
+                   assetpath,
+                   docspath,
+                   executor,
+                   basedir):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.docspath = docspath
+        self.executor = executor
+        self.basedir = basedir
+
+
+
+    @gen.coroutine
+    def get(self, setid):
         '''This runs the query.
 
         '''
@@ -152,8 +328,6 @@ class DatasetHandler(tornado.web.RequestHandler):
         # return to sender
         self.write(returndict)
         self.finish()
-
-
 
 #############################
 ## DATASET LISTING HANDLER ##

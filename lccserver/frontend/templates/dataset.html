@@ -19,10 +19,13 @@
 
   <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
     <div class="navbar-nav">
-      <a class="nav-item nav-link active" href="/">
-        Home <span class="sr-only">(current)</span>
+      <a class="nav-item nav-link" href="/">
+        Home
       </a>
       <a class="nav-item nav-link" href="/docs">Docs</a>
+      <a class="nav-item nav-link active" href="/set/{{ setid }}">
+        LCC Dataset {{ setid }}
+      </a> <span class="sr-only">(current)</span>
     </div>
   </div>
 
@@ -58,9 +61,6 @@
   <div class="row mt-4">
     <div class="col-12">
 
-      <h1>Uh oh, something went wrong!</h1>
-
-      <p>{{ error_message }}</p>
 
     </div>
   </div>

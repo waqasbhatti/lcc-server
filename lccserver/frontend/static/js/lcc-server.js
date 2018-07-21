@@ -405,7 +405,6 @@ var lcc_ui = {
                 // we'll update the lcc_search variables here too so we can
                 // build control panes on the fly
 
-
             }
 
             // at the end, activate the tooltips and popovers

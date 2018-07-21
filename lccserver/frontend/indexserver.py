@@ -338,6 +338,17 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
+        # this is the associated set data AJAX endpoint
+        (r'/set-data/(.*)',
+         dh.DatasetAJAXHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR}),
+
         # this just shows all datasets in a big table - disabled for now
         # (r'/datasets',
         #  dh.AllDatasetsHandler,

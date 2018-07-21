@@ -84,6 +84,7 @@ from zipfile import ZipFile
 import json
 import subprocess
 from multiprocessing import Pool
+from textwrap import indent
 
 
 from . import dbsearch
@@ -673,7 +674,7 @@ def sqlite_update_dataset(basedir, setid, updatedict):
 ######################################
 
 def sqlite_list_datasets(basedir,
-                         nrecent=10,
+                         nrecent=25,
                          require_ispublic=True):
     '''
     This just lists all the datasets available.
@@ -714,9 +715,9 @@ def sqlite_list_datasets(basedir,
              "lcc_datasets where status = 'complete' {public_cond} "
              "order by last_updated desc limit {nrecent}")
 
-    # make sure we never get more than 25 recent datasets
-    if nrecent > 25:
-        nrecent = 25
+    # make sure we never get more than 250 recent datasets
+    if nrecent > 250:
+        nrecent = 250
 
 
     if require_ispublic:
@@ -789,9 +790,15 @@ def sqlite_list_datasets(basedir,
 
 
 
-def sqlite_get_dataset(basedir, setid, returnjson=False):
-    '''
-    This gets the dataset as a dictionary and optionally as JSON.
+def sqlite_get_dataset(basedir,
+                       setid,
+                       returnjson=False,
+                       generatecsv=True):
+    '''This gets the dataset as a dictionary and optionally as JSON.
+
+    If generatecsv is True, we'll generate a CSV for the dataset table and write
+    it to the products directory (or retrieve it from cache if it exists
+    already).
 
     Returns a dict generated from the dataset pickle.
 
@@ -863,9 +870,22 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
                                       'columnspec':dataset['columnspec'][coll],
                                       'collid':dataset['collid'][coll]}
 
+    # make the CSV if told to do so
+    if generatecsv:
+
+        csv = generate_dataset_csv(
+            basedir,
+            returndict,
+        )
+        returndict['dataset_csv'] = csv
+    else:
+        returndict['dataset_csv'] = None
+
+
+
     if returnjson:
 
-        retjson = json.dump(returndict)
+        retjson = json.dumps(returndict)
         retjson = retjson.replace('nan','null')
 
         return retjson
@@ -873,6 +893,116 @@ def sqlite_get_dataset(basedir, setid, returnjson=False):
     else:
 
         return returndict
+
+
+
+def generate_dataset_csv(
+        basedir,
+        in_dataset,
+        force=False,
+        separator='|',
+        comment='#',
+):
+    '''
+    This generates a CSV for the dataset's data table.
+
+    Requires the output from sqlite_get_dataset or postgres_get_dataset.
+
+    '''
+
+    dataset = in_dataset.copy()
+    productdir = os.path.abspath(os.path.join(basedir,
+                                              'datasets'))
+    setid = dataset['setid']
+    dataset_csv = os.path.join(productdir,'dataset-%s.csv' % setid)
+
+    if os.path.exists(dataset_csv) and not force:
+
+        return dataset_csv
+
+    else:
+
+        setcols = dataset['columns']
+
+        # FIXME: we need to get columnspec per collection
+        # FIXME: this should be the same for each collection
+        # FIXME: but this might break later
+        firstcoll = dataset['collections'][0]
+        colspec = dataset['result'][firstcoll]['columnspec']
+
+        # generate the header JSON now
+        header = {
+            'setid':setid,
+            'created':'%sZ' % dataset['created_on'],
+            'updated':'%sZ' % dataset['last_updated'],
+            'public':dataset['ispublic'],
+            'searchtype':dataset['searchtype'],
+            'searchargs':dataset['searchargs'],
+            'collections':dataset['collections'],
+            'columns':setcols[::],
+            'nobjects':dataset['nobjects'],
+            'coldesc':{}
+        }
+
+        # generate the format string from here
+        formstr = []
+
+        # go through each column and get its info from colspec
+        # also build up the format string for the CSV
+        for col in setcols:
+
+            header['coldesc'][col] = {
+                'desc': colspec[col]['description'],
+                'dtype': colspec[col]['dtype']
+            }
+            formstr.append(colspec[col]['format'])
+
+        # there's an extra collection column needed for the CSV
+        formstr.append('%s')
+        header['columns'].append('collection')
+        header['coldesc']['collection'] = {
+            'desc':'LCC collection of this object',
+            'dtype':'U60'
+        }
+
+        # generate the JSON header for the CSV
+        csvheader = json.dumps(header, indent=2)
+        csvheader = indent(csvheader, '%s ' % comment)
+
+        # finalize the formstr
+        formstr = separator.join(formstr)
+
+        # write to the output file now
+        with open(dataset_csv,'wb') as outfd:
+
+            # write the header first
+            outfd.write(('%s\n' % csvheader).encode())
+
+            # we'll go by collection_id first, then by entry
+            for collid in dataset['collections']:
+
+                for entry in dataset['result'][collid]['data']:
+
+                    # censor the light curve filename
+                    if 'db_lcfname' in entry:
+                        entry['db_lcfname'] = entry['db_lcfname'].replace(
+                            os.path.abspath(basedir),
+                            '/l'
+                        )
+                    if 'lcfname' in entry:
+                        entry['lcfname'] = entry['db_lcfname'].replace(
+                            os.path.abspath(basedir),
+                            '/l'
+                        )
+
+                    row = [entry[col] for col in setcols]
+                    row.append(collid)
+                    rowstr = formstr % tuple(row)
+
+                    outfd.write(('%s\n' % rowstr).encode())
+
+        LOGINFO('wrote CSV: %s for dataset: %s' % (dataset_csv, setid))
+        return dataset_csv
 
 
 
