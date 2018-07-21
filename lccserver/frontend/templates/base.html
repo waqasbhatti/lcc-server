@@ -32,12 +32,18 @@
     </div>
     {% end %}
 
-    <!-- utility scripts -->
+    <!-- bootstrap scripts -->
     <script src="{{ static_url('js/jquery.min.js') }}"></script>
     <script src="{{ static_url('js/popper.min.js') }}"></script>
     <script src="{{ static_url('js/bootstrap.min.js') }}"></script>
+
+    <!-- time and streaming JSON -->
     <script src="{{ static_url('js/moment.min.js') }}"></script>
     <script src="{{ static_url('js/oboe-browser.min.js') }}"></script>
+
+    <!-- table sorting scripts -->
+    <script src="{{ static_url('js/tablesort.min.js') }}"></script>
+    <script src="{{ static_url('js/sorts/tablesort.number.min.js') }}"></script>
 
     {% block pagejs_modules %}
 

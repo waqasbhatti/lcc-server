@@ -105,6 +105,7 @@ import sqlite3
 import re
 import pickle
 import json
+from tornado.escape import squeeze
 
 import numpy as np
 
@@ -940,7 +941,8 @@ def sqlite_kdtree_conesearch(basedir,
                                        'in_decl',
                                        'db_ra',
                                        'db_decl',
-                                       'db_lcfname']
+                                       'db_lcfname',
+                                       'dist_arcsec']
 
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
@@ -957,7 +959,8 @@ def sqlite_kdtree_conesearch(basedir,
                       'in_decl',
                       'db_ra',
                       'db_decl',
-                      'db_lcfname']
+                      'db_lcfname',
+                      'dist_arcsec']
 
 
     # this is the query that will be used to query the database only
@@ -996,26 +999,36 @@ def sqlite_kdtree_conesearch(basedir,
         lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
         # update the lcc_columnspec with the extra columns we always return
-        lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['in_oid'] = lcc_columnspec['objectid'].copy()
         lcc_columnspec['in_oid']['title'] = 'input object ID'
 
-        lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+        lcc_columnspec['db_oid'] = lcc_columnspec['objectid'].copy()
         lcc_columnspec['db_oid']['title'] = 'database object ID'
 
-        lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['in_ra'] = lcc_columnspec['ra'].copy()
         lcc_columnspec['in_ra']['title'] = 'input &alpha;'
 
-        lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['in_decl'] = lcc_columnspec['decl'].copy()
         lcc_columnspec['in_decl']['title'] = 'input &delta;'
 
-        lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+        lcc_columnspec['db_ra'] = lcc_columnspec['ra'].copy()
         lcc_columnspec['db_ra']['title'] = 'database &alpha;'
 
-        lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+        lcc_columnspec['db_decl'] = lcc_columnspec['decl'].copy()
         lcc_columnspec['db_decl']['title'] = 'database &delta;'
 
-        lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
-        lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
+        lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname'].copy()
+        lcc_columnspec['db_lcfname']['title'] = 'database LC file name'
+
+        # this is the extra spec for dist_arcsec
+        lcc_columnspec['dist_arcsec'] = {
+            'title': 'distance [arcsec]',
+            'format': '%.3f',
+            'description':'distance from search center in arcsec',
+            'dtype':'<f8',
+            'index':True,
+            'ftsindex':False,
+        }
 
         # if we can't find the kdtree, we can't do anything. skip this LCC
         if not os.path.exists(kdtree_fpath):
@@ -1179,9 +1192,6 @@ def sqlite_kdtree_conesearch(basedir,
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
-
-        # FIXME: WE NEED TO ADD THE SEARCH CENTER DISTANCE TO OUTPUT COLUMNS
-        # FIXME: this will probably involve generating a colspec and adding it
 
 
         except Exception as e:
@@ -1361,14 +1371,20 @@ def sqlite_xmatch_search(basedir,
             LOGWARNING('match radius %.3f > max possible, setting to %.3f'
                        % (xmatch_dist_arcsec, max_matchradius_arcsec))
 
+        # add the dist_arcsec column to rescolumns
+        rescolumns.append('dist_arcsec')
+
     # or if we're doing an xmatch by table column...
     elif ((inputdata['colra'] is None or inputdata['coldec'] is None) and
           (inputmatchcol is not None and dbmatchcol is not None)):
 
         xmatch_type = 'column'
         xmatch_col = (
-            inputmatchcol.replace(' ','_').replace('-','_').replace('.','_')
+            squeeze(
+                inputmatchcol
+            ).replace(' ','_').replace('-','_').replace('.','_')
         )
+
 
     # or if we're doing something completely nonsensical
     else:
@@ -1485,26 +1501,36 @@ def sqlite_xmatch_search(basedir,
             lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
             # update the lcc_columnspec with the extra columns we always return
-            lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['in_oid'] = lcc_columnspec['objectid'].copy()
             lcc_columnspec['in_oid']['title'] = 'input object ID'
 
-            lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['db_oid'] = lcc_columnspec['objectid'].copy()
             lcc_columnspec['db_oid']['title'] = 'database object ID'
 
-            lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['in_ra'] = lcc_columnspec['ra'].copy()
             lcc_columnspec['in_ra']['title'] = 'input &alpha;'
 
-            lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['in_decl'] = lcc_columnspec['decl'].copy()
             lcc_columnspec['in_decl']['title'] = 'input &delta;'
 
-            lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['db_ra'] = lcc_columnspec['ra'].copy()
             lcc_columnspec['db_ra']['title'] = 'database &alpha;'
 
-            lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['db_decl'] = lcc_columnspec['decl'].copy()
             lcc_columnspec['db_decl']['title'] = 'database &delta;'
 
-            lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
+            lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname'].copy()
             lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
+
+            # this is the extra spec for dist_arcsec
+            lcc_columnspec['dist_arcsec'] = {
+                'title': 'distance [arcsec]',
+                'format': '%.3f',
+                'description':'distance from search center in arcsec',
+                'dtype':'<f8',
+                'index':True,
+                'ftsindex':False,
+            }
 
             # if we can't find the kdtree, we can't do anything. skip this LCC
             if not os.path.exists(kdtree_fpath):
@@ -1693,25 +1719,25 @@ def sqlite_xmatch_search(basedir,
             lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
             # update the lcc_columnspec with the extra columns we always return
-            lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['in_oid'] = lcc_columnspec['objectid'].copy()
             lcc_columnspec['in_oid']['title'] = 'input object ID'
 
-            lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
+            lcc_columnspec['db_oid'] = lcc_columnspec['objectid'].copy()
             lcc_columnspec['db_oid']['title'] = 'database object ID'
 
-            lcc_columnspec['in_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['in_ra'] = lcc_columnspec['ra'].copy()
             lcc_columnspec['in_ra']['title'] = 'input &alpha;'
 
-            lcc_columnspec['in_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['in_decl'] = lcc_columnspec['decl'].copy()
             lcc_columnspec['in_decl']['title'] = 'input &delta;'
 
-            lcc_columnspec['db_ra'] = lcc_columnspec['ra']
+            lcc_columnspec['db_ra'] = lcc_columnspec['ra'].copy()
             lcc_columnspec['db_ra']['title'] = 'database &alpha;'
 
-            lcc_columnspec['db_decl'] = lcc_columnspec['decl']
+            lcc_columnspec['db_decl'] = lcc_columnspec['decl'].copy()
             lcc_columnspec['db_decl']['title'] = 'database &delta;'
 
-            lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
+            lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname'].copy()
             lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
 
             # execute the xmatch statement

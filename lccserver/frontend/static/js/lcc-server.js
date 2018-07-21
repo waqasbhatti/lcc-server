@@ -63,6 +63,9 @@ var lcc_ui = {
 
         });
 
+        // bind the table sorter controls for data tables
+        new Tablesort(document.getElementById('lcc-datatable'));
+
     },
 
     get_recent_datasets: function(nrecent) {

@@ -403,7 +403,9 @@ def csvlc_convert_worker(task):
         LOGINFO('converted %s -> %s ok' % (lcfile, csvlc))
         return csvlc
     except Exception as e:
-        LOGEXCEPTION('failed to convert %s' % lcfile)
+        LOGWARNING('failed to convert original LC %s '
+                   '(found on filesystem: %s)' %
+                   (lcfile, os.path.exists(lcfile)))
         return '%s conversion to CSVLC failed' % lcfile
 
 
