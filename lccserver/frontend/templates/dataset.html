@@ -269,8 +269,10 @@
             {% for ci, cell in enumerate(row) %}
             {% set col = header['columns'][ci] %}
             <td>
-              {% if (col == 'lcfname' or col == 'db_lcfname') %}
+              {% if ((col == 'lcfname' or col == 'db_lcfname') and cell is not None) %}
               <a href="{{ cell }}">download light curve file</a>
+              {% elif ((col == 'lcfname' or col == 'db_lcfname') and cell is None) %}
+              <span class="text-danger">LC missing or inaccessible</span>
               {% else %}
               {{ header['coldesc'][col]['format'] % cell }}
               {% end %}

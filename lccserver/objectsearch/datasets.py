@@ -474,8 +474,16 @@ def sqlite_make_dataset_lczip(basedir,
                 for olc, nlc, dsrow in zip(collection_lclist,
                                            results,
                                            dataset['result'][collection]):
+
+                    # make sure we don't include broken or missing LCs
                     if os.path.exists(nlc):
                         dsrow['db_lcfname'] = nlc
+                        if 'lcfname' in dsrow:
+                            dsrow['db_lcfname'] = nlc
+                    else:
+                        dsrow['db_lcfname'] = None
+                        if 'lcfname' in dsrow:
+                            dsrow['db_lcfname'] = None
 
 
                 # update the global LC list
@@ -535,6 +543,7 @@ def sqlite_make_dataset_lczip(basedir,
                                                os.path.basename(x)) for x in
                                   dataset_lclist]
 
+                # we need to override all the light curves
                 for dsrow in dataset['result'][collection]:
 
                     dsrow['db_lcfname'] = os.path.join(
@@ -997,17 +1006,33 @@ def generate_dataset_csv(
 
                 for entry in dataset['result'][collid]['data']:
 
-                    # censor the light curve filename
+                    # censor the light curve filenames
+                    # also make sure the actual files exist, otherwise,
+                    # return nothing for those entries
                     if 'db_lcfname' in entry:
-                        entry['db_lcfname'] = entry['db_lcfname'].replace(
-                            os.path.abspath(basedir),
-                            '/l'
-                        )
+
+                        if (entry['db_lcfname'] is not None and
+                            os.path.exists(entry['db_lcfname'])):
+
+                            entry['db_lcfname'] = entry['db_lcfname'].replace(
+                                os.path.abspath(basedir),
+                                '/l'
+                            )
+                        else:
+                            entry['db_lcfname'] = 'missing'
+
                     if 'lcfname' in entry:
-                        entry['lcfname'] = entry['db_lcfname'].replace(
-                            os.path.abspath(basedir),
-                            '/l'
-                        )
+
+                        if (entry['lcfname'] is not None and
+                            os.path.exists(entry['lcfname'])):
+
+                            entry['lcfname'] = entry['lcfname'].replace(
+                                os.path.abspath(basedir),
+                                '/l'
+                            )
+                        else:
+                            entry['lcfname'] = 'missing'
+
 
                     row = [entry[col] for col in setcols]
                     row.append(collid)
@@ -1081,17 +1106,32 @@ def generate_dataset_tablerows(
     for collid in dataset['collections']:
         for entry in dataset['result'][collid]['data']:
 
-            # censor the light curve filename
+            # censor the light curve filenames
+            # also make sure the actual files exist, otherwise,
+            # return nothing for those entries
             if 'db_lcfname' in entry:
-                entry['db_lcfname'] = entry['db_lcfname'].replace(
-                    os.path.abspath(basedir),
-                    '/l'
-                )
+
+                if (entry['db_lcfname'] is not None and
+                    os.path.exists(entry['db_lcfname'])):
+
+                    entry['db_lcfname'] = entry['db_lcfname'].replace(
+                        os.path.abspath(basedir),
+                        '/l'
+                    )
+                else:
+                    entry['db_lcfname'] = None
+
             if 'lcfname' in entry:
-                entry['lcfname'] = entry['db_lcfname'].replace(
-                    os.path.abspath(basedir),
-                    '/l'
-                )
+
+                if (entry['lcfname'] is not None and
+                    os.path.exists(entry['lcfname'])):
+
+                    entry['lcfname'] = entry['lcfname'].replace(
+                        os.path.abspath(basedir),
+                        '/l'
+                    )
+                else:
+                    entry['lcfname'] = None
 
             row = [entry[col] for col in setcols]
             row.append(collid)

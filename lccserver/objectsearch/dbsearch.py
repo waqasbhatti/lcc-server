@@ -862,6 +862,7 @@ def sqlite_kdtree_conesearch(basedir,
                              center_ra,
                              center_decl,
                              radius_arcmin,
+                             maxradius_arcmin=60.0,
                              getcolumns=None,
                              extraconditions=None,
                              lcclist=None,
@@ -1041,7 +1042,12 @@ def sqlite_kdtree_conesearch(basedir,
 
         kdt = kdtreedict['kdtree']
 
+        # make sure never to exceed maxradius_arcmin
+        if radius_arcmin > maxradius_arcmin:
+            radius_arcmin = maxradius_arcmin
+
         searchradiusdeg = radius_arcmin/60.0
+
 
         # do the conesearch and get the appropriate kdtree indices
         kdtinds = conesearch_kdtree(kdt,
@@ -1173,6 +1179,9 @@ def sqlite_kdtree_conesearch(basedir,
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
+
+        # FIXME: WE NEED TO ADD THE SEARCH CENTER DISTANCE TO OUTPUT COLUMNS
+        # FIXME: this will probably involve generating a colspec and adding it
 
 
         except Exception as e:

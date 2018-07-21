@@ -225,26 +225,42 @@ class DatasetHandler(tornado.web.RequestHandler):
                 ds['cpzip'] = None
 
 
-            # replace the LC paths with the correct URLs
-            for coll in ds['collections']:
-
-                for entry in ds['result'][coll]['data']:
-
-                    if 'db_lcfname' in entry:
-                        entry['db_lcfname'] = (
-                            entry['db_lcfname'].replace(self.basedir, '/l')
-                        )
-                    if 'lcfname' in entry:
-                        entry['lcfname'] = (
-                            entry['lcfname'].replace(self.basedir, '/l')
-                        )
-
-            #
-            # we're all done with reforming
-            #
-
-            # if we're returning JSON, dump and then return
+            # if we're returning JSON, censor LC filenames and then return
             if returnjson:
+
+                # replace the LC paths with the correct URLs
+                for coll in ds['collections']:
+
+                    for entry in ds['result'][coll]['data']:
+
+                        # censor the light curve filenames
+                        # also make sure the actual files exist, otherwise,
+                        # return nothing for those entries
+                        if 'db_lcfname' in entry:
+
+                            if (entry['db_lcfname'] is not None and
+                                os.path.exists(entry['db_lcfname'])):
+
+                                entry['db_lcfname'] = (
+                                    entry['db_lcfname'].replace(
+                                        os.path.abspath(self.basedir),
+                                        '/l'
+                                    )
+                                )
+                            else:
+                                entry['db_lcfname'] = None
+
+                        if 'lcfname' in entry:
+
+                            if (entry['lcfname'] is not None and
+                                os.path.exists(entry['lcfname'])):
+
+                                entry['lcfname'] = entry['lcfname'].replace(
+                                    os.path.abspath(self.basedir),
+                                    '/l'
+                                )
+                            else:
+                                entry['lcfname'] = None
 
                 dsjson = json.dumps(ds)
                 dsjson = dsjson.replace('nan','null')
@@ -252,9 +268,11 @@ class DatasetHandler(tornado.web.RequestHandler):
                 self.write(ds)
                 self.finish()
 
+
             # otherwise, we're going to render the dataset to a template
             else:
 
+                # this automatically does the censoring LCs bit
                 header, datarows = yield self.executor.submit(
                     datasets.generate_dataset_tablerows,
                     self.basedir, ds

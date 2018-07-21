@@ -17,7 +17,7 @@ import os.path
 import logging
 import numpy as np
 from datetime import datetime
-
+import re
 
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
@@ -66,7 +66,7 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 
-from tornado.escape import xhtml_escape, xhtml_unescape, url_unescape
+from tornado.escape import xhtml_escape, squeeze
 from tornado import gen
 
 
@@ -78,6 +78,186 @@ from ..objectsearch import dbsearch
 dbsearch.set_logger_parent(__name__)
 from ..objectsearch import datasets
 datasets.set_logger_parent(__name__)
+
+from astrobase.coordutils import hms_to_decimal, dms_to_decimal, \
+    hms_str_to_tuple, dms_str_to_tuple
+
+
+
+###########################
+## SOME USEFUL CONSTANTS ##
+###########################
+
+# single object coordinate search
+# ra dec radius
+COORD_DEGSEARCH_REGEX = re.compile(
+    r'^(\d{1,3}\.{0,1}\d*) (\-?\d{1,2}\.{0,1}\d*) ?(\d{1,2}\.{0,1}\d*)?'
+)
+COORD_HMSSEARCH_REGEX = re.compile(
+    r'^(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) '
+    '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) ?'
+    '(\d{1,2}\.{0,1}\d*)?'
+)
+
+# multiple object search
+# objectid ra dec, objectid ra dec, objectid ra dec, etc.
+COORD_DEGMULTI_REGEX = re.compile(
+    r'^(\S+) (\d{1,3}\.{0,1}\d*) (\-?\d{1,2}\.{0,1}\d*)$'
+)
+COORD_HMSMULTI_REGEX = re.compile(
+    r'^(\S+) (\d{1,2}:\d{2}:\d{2}\.{0,1}\d*) '
+    '([+\-]?\d{1,2}:\d{2}:\d{2}\.{0,1}\d*)$'
+)
+
+
+
+#############################
+## SEARCH HELPER FUNCTIONS ##
+#############################
+
+def parse_coordstring(coordstring):
+    '''
+    This function parses a coordstring of the form:
+
+    <ra> <dec> <radiusarcmin>
+
+    '''
+    searchstr = squeeze(coordstring).strip()
+
+    # try all the regexes and see if one of them works
+    degcoordtry = COORD_DEGSEARCH_REGEX.match(searchstr)
+    hmscoordtry = COORD_HMSSEARCH_REGEX.match(searchstr)
+
+    if degcoordtry:
+
+        ra, dec, radius = degcoordtry.groups()
+
+        try:
+            ra, dec = float(ra), float(dec)
+            if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
+                if ra < 0:
+                    ra = 360.0 + ra
+                paramsok = True
+                searchrad = float(radius)/60.0 if radius else 5.0/60.0
+                radeg, decldeg, radiusdeg = ra, dec, searchrad
+
+            else:
+                paramsok = False
+                radeg, decldeg, radiusdeg = None, None, None
+
+        except Exception as e:
+
+            LOGGER.error('could not parse search string: %s' % coordstring)
+            paramsok = False
+            radeg, decldeg, radiusdeg = None, None, None
+
+
+    elif hmscoordtry:
+
+        ra, dec, radius = hmscoordtry.groups()
+        ra_tuple, dec_tuple = hms_str_to_tuple(ra), dms_str_to_tuple(dec)
+
+        ra_hr, ra_min, ra_sec = ra_tuple
+        dec_sign, dec_deg, dec_min, dec_sec = dec_tuple
+
+        # make sure the coordinates are all legit
+        if ((0 <= ra_hr < 24) and
+            (0 <= ra_min < 60) and
+            (0 <= ra_sec < 60) and
+            (0 <= dec_deg < 90) and
+            (0 <= dec_min < 60) and
+            (0 <= dec_sec < 60)):
+
+            ra_decimal = hms_to_decimal(ra_hr, ra_min, ra_sec)
+            dec_decimal = dms_to_decimal(dec_sign, dec_deg, dec_min, dec_sec)
+
+            paramsok = True
+            searchrad = float(radius)/60.0 if radius else 5.0/60.0
+            radeg, decldeg, radiusdeg = ra_decimal, dec_decimal, searchrad
+
+        else:
+
+            paramsok = False
+            radeg, decldeg, radiusdeg = None, None, None
+
+    else:
+
+        paramsok = False
+        radeg, decldeg, radiusdeg = None, None, None
+
+    return paramsok, radeg, decldeg, radiusdeg
+
+
+
+def parse_objectlist_item(objectline):
+    '''This function parses a objectlist line that is of the following form:
+
+    <objectid> <ra> <decl>
+
+    '''
+
+    searchstr = squeeze(objectline).strip()
+
+    # try all the regexes and see if one of them works
+    degcoordtry = COORD_DEGMULTI_REGEX.match(searchstr)
+    hmscoordtry = COORD_HMSMULTI_REGEX.match(searchstr)
+
+    if degcoordtry:
+
+        objectid, ra, dec = degcoordtry.groups()
+
+        try:
+            ra, dec = float(ra), float(dec)
+            if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
+                if ra < 0:
+                    ra = 360.0 + ra
+                paramsok = True
+                objid, radeg, decldeg = objectid, ra, dec
+
+            else:
+                paramsok = False
+                objid, radeg, decldeg = None, None, None
+
+        except Exception as e:
+
+            LOGGER.error('could not parse object line: %s' % objectline)
+            paramsok = False
+            objid, radeg, decldeg = None, None, None
+
+    elif hmscoordtry:
+
+        objectid, ra, dec = hmscoordtry.groups()
+        ra_tuple, dec_tuple = hms_str_to_tuple(ra), dms_str_to_tuple(dec)
+
+        ra_hr, ra_min, ra_sec = ra_tuple
+        dec_sign, dec_deg, dec_min, dec_sec = dec_tuple
+
+        # make sure the coordinates are all legit
+        if ((0 <= ra_hr < 24) and
+            (0 <= ra_min < 60) and
+            (0 <= ra_sec < 60) and
+            (0 <= dec_deg < 90) and
+            (0 <= dec_min < 60) and
+            (0 <= dec_sec < 60)):
+
+            ra_decimal = hms_to_decimal(ra_hr, ra_min, ra_sec)
+            dec_decimal = dms_to_decimal(dec_sign, dec_deg, dec_min, dec_sec)
+
+            paramsok = True
+            objid, radeg, decldeg = objectid, ra_decimal, dec_decimal
+
+        else:
+
+            paramsok = False
+            objid, radeg, decldeg = None, None, None
+
+    else:
+
+        paramsok = False
+        objid, radeg, decldeg = None, None, None
+
+    return paramsok, objid, radeg, decldeg
+
 
 
 ###########################
@@ -191,26 +371,56 @@ class ConeSearchHandler(tornado.web.RequestHandler):
     def get(self):
         '''This runs the query.
 
+        URL: /api/conesearch?<params>
+
+        required params
+        ---------------
+
+        coords: the coord string containing <ra> <dec> <searchradius>
+                in either sexagesimal or decimal format
+
+        result_ispublic: either 1 or 0
+
+        optional params
+        ---------------
+
+        stream: either 1 or 0
+
         '''
 
-        # FIXME: this is temporary
-        # add error and escaping handling here
-        # we'll need parsing for different kinds of RA/DEC
-        # - sexagesimal
-        # - decimal
-        # - ':' vs ' ' as separators in
-        # use the regex from previously
+        try:
 
+            coordstr = xhtml_escape(self.get_argument('coords'))
 
-        center_ra = float(self.get_argument('center_ra'))
-        center_decl = float(self.get_argument('center_decl'))
-        radius_arcmin = float(self.get_argument('radius_arcmin'))
-        result_ispublic = (
-            True if int(self.get_argument('result_ispublic')) else False
-        )
+            LOGGER.info(coordstr)
 
-        # optional stream argument
-        stream = self.get_argument('stream', default=0)
+            coordok, center_ra, center_decl, radius_deg = parse_coordstring(
+                coordstr
+            )
+            radius_arcmin = radius_deg*60.0
+
+            result_ispublic = (
+                True if int(self.get_argument('result_ispublic')) else False
+            )
+
+            # optional stream argument
+            stream = self.get_argument('stream', default=None)
+            if stream is None:
+                stream = False
+            else:
+                stream = True if int(stream) else False
+
+        except:
+
+            LOGGER.exception('one or more of the required args are missing')
+            retdict = {"status":"failed",
+                       "result":None,
+                       "message":"one or more of the required args are missing"}
+            self.write(retdict)
+
+            # we call this to end the request here (since self.finish() doesn't
+            # actually stop executing statements)
+            raise tornado.web.Finish()
 
 
         #
