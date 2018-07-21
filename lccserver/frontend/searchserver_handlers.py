@@ -443,10 +443,16 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
         setid, creationdt = setinfo
 
+        # save this setid in case we need to come back to it a self.on_finish()
+        # function
+        self.query_setid = setid
+
         # A1. we have a setid, send this back to the client
         retdict = {
-            "message":"received a setid: %s" % setid,
-            "status":"streaming",
+            "message":(
+                "query in run-queue. executing with set ID: %s..." % setid
+            ),
+            "status":"queued",
             "result":{"setid":setid},  # add submit datetime, args, etc.
             "time":'%sZ' % datetime.utcnow().isoformat()
         }
@@ -468,11 +474,14 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         # A2. we have the query result, send back a query completed message
         if query_result is not None:
 
-            nrows = 42
+            collections = query_result['databases']
+            nrows = sum(query_result[x]['nmatches'] for x in collections)
 
             retdict = {
-                "message":"query complete, objects matched: %s" % nrows,
-                "status":"streaming",
+                "message":("query finished OK. "
+                           "objects matched: %s, "
+                           "building dataset..." % nrows),
+                "status":"running",
                 "result":{
                     "setid":setid,
                     "nrows":nrows
@@ -496,9 +505,10 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             # A3. we have the dataset pickle generated, send back an update
             dataset_pickle = "/d/dataset-%s.pkl.gz" % dspkl_setid
             retdict = {
-                "message":("dataset pickle generation complete: %s" %
+                "message":("dataset pickle generation complete: %s. "
+                           "collecting light curves into ZIP file..." %
                            dataset_pickle),
-                "status":"streaming",
+                "status":"running",
                 "result":{
                     "setid":dspkl_setid,
                     "dataset_pickle":dataset_pickle
@@ -524,8 +534,9 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             # A4. we're done with collecting light curves
             lczip_url = '/p/%s' % os.path.basename(lczip)
             retdict = {
-                "message":("dataset LC ZIP complete: %s" % lczip_url),
-                "status":"streaming",
+                "message":("dataset LC ZIP complete: %s. finishing up..." %
+                           lczip_url),
+                "status":"running",
                 "result":{
                     "setid":dspkl_setid,
                     "dataset_lczip":lczip_url
