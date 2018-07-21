@@ -878,9 +878,23 @@ def sqlite_get_dataset(basedir,
             returndict,
         )
         returndict['dataset_csv'] = csv
+
+        # get the SHASUM of the CSV
+        try:
+            p = subprocess.run('sha256sum %s' % csv,
+                               shell=True, timeout=60.0, capture_output=True)
+            shasum = p.stdout.decode().split()[0]
+            returndict['csv_shasum'] = shasum
+
+        except Exception as e:
+
+            LOGWARNING('could not calculate SHA256 sum for %s' % csv)
+            shasum = 'warning-no-sha256sum-available'
+            returndict['csv_shasum'] = shasum
+
     else:
         returndict['dataset_csv'] = None
-
+        returndict['csv_shasum'] = None
 
 
     if returnjson:
@@ -961,7 +975,7 @@ def generate_dataset_csv(
         formstr.append('%s')
         header['columns'].append('collection')
         header['coldesc']['collection'] = {
-            'desc':'LCC collection of this object',
+            'desc':'LC collection of this object',
             'dtype':'U60'
         }
 
@@ -1003,6 +1017,87 @@ def generate_dataset_csv(
 
         LOGINFO('wrote CSV: %s for dataset: %s' % (dataset_csv, setid))
         return dataset_csv
+
+
+
+def generate_dataset_tablerows(
+        basedir,
+        in_dataset,
+):
+    '''
+    This generates row elements useful direct insert into an HTML template.
+
+    Requires the output from sqlite_get_dataset or postgres_get_dataset.
+
+    '''
+
+    dataset = in_dataset.copy()
+    setid = dataset['setid']
+    setcols = dataset['columns']
+
+    # FIXME: we need to get columnspec per collection
+    # FIXME: this should be the same for each collection
+    # FIXME: but this might break later
+    firstcoll = dataset['collections'][0]
+    colspec = dataset['result'][firstcoll]['columnspec']
+
+    # generate the header JSON now
+    header = {
+        'setid':setid,
+        'created':'%sZ' % dataset['created_on'],
+        'updated':'%sZ' % dataset['last_updated'],
+        'public':dataset['ispublic'],
+        'searchtype':dataset['searchtype'],
+        'searchargs':dataset['searchargs'],
+        'collections':dataset['collections'],
+        'columns':setcols[::],
+        'nobjects':dataset['nobjects'],
+        'coldesc':{}
+    }
+
+    # go through each column and get its info from colspec
+    # also build up the format string for the CSV
+    for col in setcols:
+
+        header['coldesc'][col] = {
+            'title': colspec[col]['title'],
+            'desc': colspec[col]['description'],
+            'dtype': colspec[col]['dtype'],
+            'format': colspec[col]['format'],
+        }
+
+    # there's an extra collection column needed for the CSV
+    header['columns'].append('collection')
+    header['coldesc']['collection'] = {
+        'title':'LC collection',
+        'desc':'LC collection of this object',
+        'dtype':'U60',
+        'format':'%s',
+    }
+
+    table_rows = []
+
+    # we'll go by collection_id first, then by entry
+    for collid in dataset['collections']:
+        for entry in dataset['result'][collid]['data']:
+
+            # censor the light curve filename
+            if 'db_lcfname' in entry:
+                entry['db_lcfname'] = entry['db_lcfname'].replace(
+                    os.path.abspath(basedir),
+                    '/l'
+                )
+            if 'lcfname' in entry:
+                entry['lcfname'] = entry['db_lcfname'].replace(
+                    os.path.abspath(basedir),
+                    '/l'
+                )
+
+            row = [entry[col] for col in setcols]
+            row.append(collid)
+            table_rows.append(row)
+
+    return header, table_rows
 
 
 

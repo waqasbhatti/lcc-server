@@ -58,9 +58,230 @@
 
 <div class="container">
 
-  <div class="row mt-4">
+  <div class="row top-margin-row">
     <div class="col-12">
 
+      <div class="accordion" id="accordionExample">
+
+        <div class="card">
+          <div class="card-header" id="headingOne">
+            <h3 class="mb-0">
+              <button class="btn btn-link"
+                      type="button" data-toggle="collapse"
+                      data-target="#collapseOne"
+                      aria-expanded="true" aria-controls="collapseOne">
+                Dataset metadata
+              </button>
+            </h3>
+          </div>
+
+          <div id="collapseOne" class="collapse show"
+               aria-labelledby="headingOne" data-parent="#accordionExample">
+            <div class="card-body">
+
+              <table class="table table-borderless table-sm">
+
+                <tr>
+                  <th width="200">dataset ID</th>
+                  <td>{{ header['setid'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="200">created on</th>
+                  <td><span class="moment-format">{{ header['created'] }}</span></td>
+                </tr>
+
+                <tr>
+                  <th width="200">last updated</th>
+                  <td><span class="moment-format">{{ header['updated'] }}</span></td>
+                </tr>
+
+                <tr>
+                  <th width="200">dataset is public</th>
+                  <td>{{ header['public'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="200">search query type</th>
+                  <td><code>{{ header['searchtype'] }}</code></td>
+                </tr>
+
+                <tr>
+                  <th width="200">search query parameters</th>
+                  <td><code>{{ header['searchargs'] }}</code></td>
+                </tr>
+
+                <tr>
+                  <th width="200">total objects found</th>
+                  <td><code>{{ header['nobjects'] }}</code></td>
+                </tr>
+
+                <tr>
+                  <th width="200">objects found in collections</th>
+                  <td><code>{{ ', '.join(header['collections']) }}</code></td>
+                </tr>
+
+              </table>
+
+            </div>
+          </div>
+        </div>
+
+
+        <div class="card">
+          <div class="card-header" id="headingTwo">
+            <h3 class="mb-0">
+              <button class="btn btn-link collapsed"
+                      type="button" data-toggle="collapse"
+                      data-target="#collapseTwo"
+                      aria-expanded="false" aria-controls="collapseTwo">
+                Download data products
+              </button>
+            </h3>
+          </div>
+          <div id="collapseTwo" class="collapse"
+               aria-labelledby="headingTwo" data-parent="#accordionExample">
+            <div class="card-body">
+
+              <table class="table table-borderless table-sm">
+
+                <tr>
+                  <th width="200">dataset pickle</th>
+                  <td>SHA256: <code>{{ setpickle_shasum }}</code></td>
+                  <td><a href="{{ setpickle }}">download file</a></td>
+                </tr>
+
+                <tr>
+                  <th width="200">dataset table CSV</th>
+                  <td>SHA256: <code>{{ setcsv_shasum }}</code></td>
+                  <td><a href="{{ setcsv }}">download file</a></td>
+                </tr>
+
+                <tr>
+                  <th width="200">light curves ZIP</th>
+                  <td>SHA256: <code>{{ lczip_shasum }}</code></td>
+                  <td><a href="{{ lczip }}">download file</a></td>
+                </tr>
+
+                {% if cpzip is not None %}
+                <tr>
+                  <th width="200">checkplot pickles ZIP</th>
+                  <td>SHA256: <code>{{ cpzip_shasum }}</code></td>
+                  <td><a href="{{ cpzip }}">download file</a></td>
+                </tr>
+                {% end %}
+
+                {% if pfzip is not None %}
+                <tr>
+                  <th width="200">period-finding results ZIP</th>
+                  <td>SHA256: <code>{{ pfzip_shasum }}</code></td>
+                  <td><a href="{{ pfzip }}">download file</a></td>
+                </tr>
+                {% end %}
+
+              </table>
+
+            </div>
+          </div>
+        </div>
+
+
+        <div class="card">
+          <div class="card-header" id="headingThree">
+            <h3 class="mb-0">
+              <button class="btn btn-link collapsed"
+                      type="button" data-toggle="collapse"
+                      data-target="#collapseThree"
+                      aria-expanded="false" aria-controls="collapseThree">
+                Data table column descriptions
+              </button>
+            </h3>
+          </div>
+          <div id="collapseThree" class="collapse"
+               aria-labelledby="headingThree" data-parent="#accordionExample">
+            <div class="card-body">
+
+              <table class="table table-striped table-sm">
+
+                <thead class="bg-light">
+                  <tr id="table-columndesc">
+                    <th width="100">column key</th>
+                    <th width="150">title</th>
+                    <th width="350">description</th>
+                    <th width="100">numpy dtype</th>
+                  </tr>
+                </thead>
+
+                <tbody id="table-datarows">
+                  {% for col in header['columns'] %}
+                  <tr>
+                    <td width="100">
+                      <code>{{ col }}</code>
+                    </td>
+                    <td width="150">
+                      {% raw header['coldesc'][col]['title'] %}
+                    </td>
+                    <td width="350">
+                      {% raw header['coldesc'][col]['desc'] %}
+                    </td>
+                    <td width="100">
+                      <code>{{ header['coldesc'][col]['dtype'] }}</code>
+                    </td>
+                  </tr>
+                  {% end %}
+
+                </tbody>
+
+              </table>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+
+<!-- the full table -->
+<div class="container-fluid">
+
+  <div class="row mt-4 datatable-container">
+    <div class="col-12">
+
+      <table class="table table-striped table-sm dataset-table">
+
+        <thead class="bg-light">
+          <tr id="table-columndesc">
+            {% for col in header['columns'] %}
+            <th>{% raw header['coldesc'][col]['title'] %}</th>
+            {% end %}
+          </tr>
+        </thead>
+
+        <tbody id="table-datarows">
+
+          {% for row in datarows %}
+          <tr>
+            {% for ci, cell in enumerate(row) %}
+            {% set col = header['columns'][ci] %}
+            <td>
+              {% if (col == 'lcfname' or col == 'db_lcfname') %}
+              <a href="{{ cell }}">download light curve file</a>
+              {% else %}
+              {{ header['coldesc'][col]['format'] % cell }}
+              {% end %}
+            </td>
+            {% end %}
+          </tr>
+          {% end %}
+
+        </tbody>
+
+      </table>
 
     </div>
   </div>

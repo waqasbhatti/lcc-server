@@ -120,3 +120,11 @@ span.pop-span {
 code {
     color: #636363;
 }
+
+.datatable-container {
+    overflow-x: auto;
+}
+
+.dataset-table {
+    width: 100%;
+}

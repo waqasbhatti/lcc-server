@@ -133,12 +133,12 @@ class DatasetHandler(tornado.web.RequestHandler):
                 self.write({'status':'failed',
                             'result':None,
                             'message':message})
-                self.finish()
+                raise tornado.web.Finish()
 
             else:
 
                 self.render('errorpage.html',
-                            message=message,
+                            error_message=message,
                             page_title='404 - no dataset by that name exists')
 
 
@@ -168,92 +168,113 @@ class DatasetHandler(tornado.web.RequestHandler):
                 self.write({'status':'failed',
                             'result':None,
                             'message':message})
-                self.finish()
+                raise tornado.web.Finish()
 
             else:
 
                 self.render('errorpage.html',
-                            message=message,
+                            error_message=message,
                             page_title='404 - no dataset by that name exists')
-
 
         #
         # if everything went as planned, retrieve the data in specified format
         #
-
-        # first, we'll censor some bits
-        dataset_pickle = '/d/dataset-%s.pkl.gz' % setid
-        ds['dataset_pickle'] = dataset_pickle
-
-        if os.path.exists(os.path.join(self.basedir,
-                                       'datasets',
-                                       'dataset-%s.csv' % setid)):
-            dataset_csv = '/d/dataset-%s.csv' % setid
-            ds['dataset_csv'] = dataset_csv
-        else:
-            ds['dataset_csv'] = None
-
-
-        if os.path.exists(ds['lczip']):
-            dataset_lczip = ds['lczip'].replace(os.path.join(self.basedir,
-                                                             'products'),
-                                                '/p')
-            ds['lczip'] = dataset_lczip
-        else:
-            ds['lczip'] = None
-
-
-        if os.path.exists(ds['pfzip']):
-            dataset_pfzip = ds['pfzip'].replace(os.path.join(self.basedir,
-                                                             'products'),
-                                                '/p')
-            ds['pfzip'] = dataset_pfzip
-        else:
-            ds['pfzip'] = None
-
-
-        if os.path.exists(ds['cpzip']):
-            dataset_cpzip = ds['cpzip'].replace(os.path.join(self.basedir,
-                                                             'products'),
-                                                '/p')
-            ds['cpzip'] = dataset_cpzip
-        else:
-            ds['cpzip'] = None
-
-
-        # replace the LC paths with the correct URLs
-        for coll in ds['collections']:
-
-            for entry in ds['result'][coll]['data']:
-
-                if 'db_lcfname' in entry:
-                    entry['db_lcfname'] = (
-                        entry['db_lcfname'].replace(self.basedir, '/l')
-                    )
-                if 'lcfname' in entry:
-                    entry['lcfname'] = (
-                        entry['lcfname'].replace(self.basedir, '/l')
-                    )
-
-        #
-        # we're all done with reforming
-        #
-
-        # if we're returning JSON, dump and then return
-        if returnjson:
-
-            dsjson = json.dumps(ds)
-            dsjson = dsjson.replace('nan','null')
-            self.set_header('Content-Type','application/json')
-            self.write(ds)
-            self.finish()
-
-        # otherwise, we're going to render the dataset to a template
         else:
 
-            self.render('dataset.html',
-                        page_title='LCC Dataset %s' % setid,
-                        setid=setid)
+            # first, we'll censor some bits
+            dataset_pickle = '/d/dataset-%s.pkl.gz' % setid
+            ds['dataset_pickle'] = dataset_pickle
+
+            if os.path.exists(os.path.join(self.basedir,
+                                           'datasets',
+                                           'dataset-%s.csv' % setid)):
+                dataset_csv = '/d/dataset-%s.csv' % setid
+                ds['dataset_csv'] = dataset_csv
+
+            else:
+                dataset_csv = None
+                ds['dataset_csv'] = None
+
+
+            if os.path.exists(ds['lczip']):
+                dataset_lczip = ds['lczip'].replace(os.path.join(self.basedir,
+                                                                 'products'),
+                                                    '/p')
+                ds['lczip'] = dataset_lczip
+            else:
+                ds['lczip'] = None
+
+
+            if os.path.exists(ds['pfzip']):
+                dataset_pfzip = ds['pfzip'].replace(os.path.join(self.basedir,
+                                                                 'products'),
+                                                    '/p')
+                ds['pfzip'] = dataset_pfzip
+            else:
+                dataset_pfzip = None
+                ds['pfzip'] = None
+
+
+            if os.path.exists(ds['cpzip']):
+                dataset_cpzip = ds['cpzip'].replace(os.path.join(self.basedir,
+                                                                 'products'),
+                                                    '/p')
+                ds['cpzip'] = dataset_cpzip
+            else:
+                dataset_cpzip = None
+                ds['cpzip'] = None
+
+
+            # replace the LC paths with the correct URLs
+            for coll in ds['collections']:
+
+                for entry in ds['result'][coll]['data']:
+
+                    if 'db_lcfname' in entry:
+                        entry['db_lcfname'] = (
+                            entry['db_lcfname'].replace(self.basedir, '/l')
+                        )
+                    if 'lcfname' in entry:
+                        entry['lcfname'] = (
+                            entry['lcfname'].replace(self.basedir, '/l')
+                        )
+
+            #
+            # we're all done with reforming
+            #
+
+            # if we're returning JSON, dump and then return
+            if returnjson:
+
+                dsjson = json.dumps(ds)
+                dsjson = dsjson.replace('nan','null')
+                self.set_header('Content-Type','application/json')
+                self.write(ds)
+                self.finish()
+
+            # otherwise, we're going to render the dataset to a template
+            else:
+
+                header, datarows = yield self.executor.submit(
+                    datasets.generate_dataset_tablerows,
+                    self.basedir, ds
+                )
+
+                self.render('dataset.html',
+                            page_title='LCC Dataset %s' % setid,
+                            setid=setid,
+                            header=header,
+                            setpickle=dataset_pickle,
+                            setpickle_shasum=ds['dataset_shasum'],
+                            setcsv=dataset_csv,
+                            setcsv_shasum=ds['csv_shasum'],
+                            lczip=dataset_lczip,
+                            lczip_shasum=ds['lczip_shasum'],
+                            pfzip=dataset_pfzip,
+                            pfzip_shasum=ds['pfzip_shasum'],
+                            cpzip=dataset_cpzip,
+                            cpzip_shasum=ds['cpzip_shasum'],
+                            datarows=datarows)
 
 
 

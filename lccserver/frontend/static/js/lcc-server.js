@@ -150,7 +150,7 @@ var lcc_ui = {
                     if (dataset_fpath != null) {
                         var dataset_download = '<a href="' + dataset_fpath +
                             '" title="download search results pickle">' +
-                            'search results' +
+                            'dataset pickle' +
                             '</a> <span data-toggle="tooltip" title="' +
                             dataset_shasum + '">' +
                             '[SHA256]</span>';
