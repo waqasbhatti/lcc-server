@@ -16,6 +16,7 @@ import os
 import os.path
 import logging
 import numpy as np
+from datetime import datetime
 
 
 ######################################
@@ -115,6 +116,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
 
         '''
 
+
         collections = yield self.executor.submit(
             dbsearch.sqlite_list_collections,
             self.basedir
@@ -191,43 +193,135 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
         '''
 
-        collections = yield self.executor.submit(
-            dbsearch.sqlite_list_collections,
-            self.basedir
+        # FIXME: this is temporary
+        # add error and escaping handling here
+        center_ra = float(self.get_argument('center_ra'))
+        center_decl = float(self.get_argument('center_decl'))
+        radius_arcmin = float(self.get_argument('radius_arcmin'))
+        result_ispublic = bool(self.get_argument('result_ispublic'))
+
+
+        #
+        # we'll use line-delimited JSON to respond
+        #
+
+
+        # Q1. prepare the dataset
+        setinfo = yield self.executor.submit(
+            datasets.sqlite_prepare_dataset,
+            self.basedir,
+            ispublic=result_ispublic
         )
 
-        collection_info = collections['info']
-        all_columns = collections['columns']
-        all_indexed_columns = collections['indexedcols']
-        all_fts_columns = collections['ftscols']
+        setid, creationdt = setinfo
 
-        # censor some bits
-        del collection_info['kdtree_pkl_path']
-        del collection_info['object_catalog_path']
+        # A1. we have a setid, send this back to the client
+        retdict = {"status":"streaming",
+                   "result":{"setid":setid},  # add submit datetime, args, etc.
+                   "message":"received a setid: %s" % setid,
+                   "time":'%sZ' % datetime.utcnow().isoformat()}
+        retdict = '%s\n' % json.dumps(retdict)
+        self.set_header('Content-Type','application/json')
+        self.write(retdict)
+        yield self.flush()
 
-        # we'll reform the lcformatdesc path so it can be downloaded directly
-        # from the LCC server
-        lcformatdesc = collection_info['lcformatdesc']
-        lcformatdesc = [
-            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
-        ]
-        collection_info['lcformatdesc'] = lcformatdesc
+        # Q2. execute the query
+        query_result = yield self.executor.submit(
+            dbsearch.sqlite_kdtree_conesearch,
+            self.basedir,
+            center_ra,
+            center_decl,
+            radius_arcmin,
+            # extra kwargs here later
+        )
 
-        returndict = {
-            'status':'ok',
-            'result':{'available_columns':all_columns,
-                      'available_indexed_columns':all_indexed_columns,
-                      'available_fts_columns':all_fts_columns,
-                      'collections':collection_info},
-            'message':(
-                'found %s collections in total' %
-                len(collection_info['collection_id'])
+        # A2. we have the query result, send back a query completed message
+        if query_result is not None:
+
+            nrows = 42
+
+            retdict = {
+                "status":"streaming",
+                "result":{
+                    "setid":setid,
+                    "nrows":nrows
+                },
+                "message":"query complete, objects matched: %s" % nrows,
+                "time":'%sZ' % datetime.utcnow().isoformat()
+            }
+            retdict = '%s\n' % json.dumps(retdict)
+            self.write(retdict)
+            yield self.flush()
+
+            # Q3. make the dataset pickle and close out dataset row in the DB
+            dspkl_setid = yield self.executor.submit(
+                datasets.sqlite_new_dataset,
+                self.basedir,
+                setid,
+                creationdt,
+                query_result,
+                ispublic=result_ispublic
             )
-        }
 
-        # return to sender
-        self.write(returndict)
-        self.finish()
+            # A3. we have the dataset pickle generated, send back an update
+            dataset_pickle = "/d/dataset-%s.pkl.gz" % dspkl_setid
+            retdict = {
+                "status":"streaming",
+                "result":{
+                    "setid":dspkl_setid,
+                    "dataset_pickle":dataset_pickle
+                },
+                "message":("dataset pickle generation complete: %s" %
+                           dataset_pickle),
+                "time":'%sZ' % datetime.utcnow().isoformat()
+            }
+            retdict = '%s\n' % json.dumps(retdict)
+            self.write(retdict)
+            yield self.flush()
+
+            # Q4. collect light curve ZIP file
+            lczip = yield self.executor.submit(
+                datasets.sqlite_make_dataset_lczip,
+                self.basedir,
+                dspkl_setid,
+                # FIXME: think about this (probably not required on actual LC
+                # server)
+                override_lcdir=os.path.join(self.basedir,
+                                            'hatnet-keplerfield',
+                                            'lightcurves')
+            )
+
+            # A4. we're done with collecting light curves
+            lczip_url = '/p/%s' % os.path.basename(lczip)
+            retdict = {
+                "status":"ok",
+                "result":{
+                    "setid":dspkl_setid,
+                    "dataset_lczip":lczip_url
+                },
+                "message":("dataset LC ZIP complete: %s" % lczip_url),
+                "time":'%sZ' % datetime.utcnow().isoformat()
+            }
+            retdict = '%s\n' % json.dumps(retdict)
+            self.write(retdict)
+            yield self.flush()
+
+            # A5. finish request
+            self.finish()
+
+        else:
+
+            retdict = {
+                "status":"failed",
+                "result":{
+                    "setid":setid,
+                    "nrows":0
+                },
+                "message":"query failed, no matching objects found"
+            }
+            self.write(retdict)
+            self.finish()
+
 
 
 
