@@ -170,11 +170,18 @@ class DocsHandler(tornado.web.RequestHandler):
 
             if os.path.exists(doc_md_file):
 
+                # we'll open in 'r' mode since we want unicode for markdown
                 with open(doc_md_file,'r') as infd:
                     doc_markdown = infd.read()
 
                 # render the markdown to HTML
-                doc_html = markdown.markdown(doc_markdown)
+                doc_html = markdown.markdown(
+                    doc_markdown,
+                    output_format='html5',
+                    extensions=['markdown.extensions.extra',
+                                'markdown.extensions.codehilite',
+                                'markdown.extensions.toc']
+                )
 
                 # get the docpage's title
                 page_title = self.docindex[docpage]

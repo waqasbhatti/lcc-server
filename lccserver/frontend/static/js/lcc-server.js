@@ -309,15 +309,15 @@ var lcc_ui = {
                 var indexed_columns = result.available_index_columns;
                 var fts_columns = result.available_fts_columns;
 
-                var rowind = 0;
+                var coll_idx = 0;
 
-                for (rowind; rowind < collection_ids.length; rowind++) {
+                for (coll_idx; coll_idx < collection_ids.length; coll_idx++) {
 
                     //
                     // name column
                     //
-                    var db_collid = collections.db_collection_id[rowind];
-                    var collname = collections.name[rowind];
+                    var db_collid = collections.db_collection_id[coll_idx];
+                    var collname = collections.name[coll_idx];
                     var table_column_name = '<td width="80">' +
                         collname + ' (<code>' + db_collid + '</code>)' +
                         '</td>';
@@ -325,8 +325,8 @@ var lcc_ui = {
                     //
                     // description column
                     //
-                    var desc = collections.description[rowind];
-                    var nobjects = collections.nobjects[rowind];
+                    var desc = collections.description[coll_idx];
+                    var nobjects = collections.nobjects[coll_idx];
                     var table_column_desc = '<td width="100">' +
                         desc + '<br><br>Number of objects: <code>' +
                         nobjects +
@@ -335,10 +335,10 @@ var lcc_ui = {
                     //
                     // extent column
                     //
-                    var minra = collections.minra[rowind];
-                    var maxra = collections.maxra[rowind];
-                    var mindecl = collections.mindecl[rowind];
-                    var maxdecl = collections.maxdecl[rowind];
+                    var minra = collections.minra[coll_idx];
+                    var maxra = collections.maxra[coll_idx];
+                    var mindecl = collections.mindecl[coll_idx];
+                    var maxdecl = collections.maxdecl[coll_idx];
 
                     var center_ra = math.format((minra + maxra)/2.0,5)
                     var center_decl = math.format((mindecl + maxdecl)/2.0,5);
@@ -364,17 +364,17 @@ var lcc_ui = {
                     // get the column list for this collection
                     // FIXME: prepend the db_collection_id for each colname?
                     var columns =
-                        collections.columnlist[rowind].split(',').sort();
+                        collections.columnlist[coll_idx].split(',').sort();
 
                     // get the indexed columns for the collection
                     // FIXME: prepend the db_collection_id for each colname?
                     var indexedcols =
-                        collections.indexedcols[rowind].split(',').sort();
+                        collections.indexedcols[coll_idx].split(',').sort();
 
                     // get the FTS columns for this collection
                     // FIXME: prepend the db_collection_id for each colname?
                     var ftscols =
-                        collections.ftsindexedcols[rowind].split(',').sort();
+                        collections.ftsindexedcols[coll_idx].split(',').sort();
 
                     var colind = 0;
 
@@ -389,9 +389,11 @@ var lcc_ui = {
                         var thiscol = columns[colind];
 
                         var thiscol_title =
-                            collections.columnjson[rowind][thiscol]['title'];
+                            collections.columnjson[coll_idx][thiscol]['title'];
                         var thiscol_desc =
-                            collections.columnjson[rowind][thiscol]['description'];
+                            collections.columnjson[coll_idx][thiscol][
+                                'description'
+                            ];
 
                         if (thiscol_title != null && thiscol_desc != null) {
 
@@ -403,12 +405,16 @@ var lcc_ui = {
                                 'data-html="true">' + thiscol + '</span>';
 
                             if (ftscols.indexOf(thiscol) != -1) {
-                                formatted_colspec.push('<span class="fts-col">' +
-                                                       col_popover + '</span>');
+                                formatted_colspec.push(
+                                    '<span class="fts-col">' +
+                                        col_popover + '</span>'
+                                );
                             }
                             else if (indexedcols.indexOf(thiscol) != -1) {
-                                formatted_colspec.push('<span class="kdtree-col">' +
-                                                       col_popover + '</span>');
+                                formatted_colspec.push(
+                                    '<span class="kdtree-col">' +
+                                        col_popover + '</span>'
+                                );
                             }
                             else {
                                 formatted_colspec.push(col_popover);
@@ -457,6 +463,7 @@ var lcc_ui = {
     }
 
 }
+
 
 
 var lcc_search = {

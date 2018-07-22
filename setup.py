@@ -52,6 +52,7 @@ INSTALL_REQUIRES = [
     'tqdm',
     'psycopg2-binary',
     'markdown',
+    'pygments',
 ]
 
 EXTRAS_REQUIRE = {
