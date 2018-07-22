@@ -156,6 +156,7 @@ class DatasetHandler(tornado.web.RequestHandler):
             self.basedir, setid,
         )
 
+        # if there's no dataset at all, then return an error
         if ds is None:
 
             message = (
@@ -174,12 +175,79 @@ class DatasetHandler(tornado.web.RequestHandler):
 
                 self.render('errorpage.html',
                             error_message=message,
-                            page_title='404 - no dataset by that name exists')
+                            page_title='404 - Dataset %s not found' % setid)
+
+
+        # next, if the dataset is returned but status is 'broken'
+        elif ds is not None and ds['status'] == 'broken':
+
+            message = (
+                "Provided dataset ID: %s doesn't exist." % setid
+            )
+
+            if returnjson:
+
+                self.write({'status':'failed',
+                            'result':None,
+                            'message':message})
+                raise tornado.web.Finish()
+
+            else:
+
+                self.render('errorpage.html',
+                            error_message=message,
+                            page_title=('404 - Dataset %s missing or broken' %
+                                        setid))
+
+        # next, if the dataset is returned but status is 'in progress'
+        elif ds is not None and ds['status'] == 'in progress':
+
+            # if we're returning JSON
+            if returnjson:
+
+                self.write({'status':'in progress',
+                            'result':ds,
+                            'message':message})
+                raise tornado.web.Finish()
+
+            # otherwise, we'll return the dataset rendered page
+            else:
+
+                header = {
+                    'setid':setid,
+                    'created':'%sZ' % ds['created_on'],
+                    'updated':'%sZ' % ds['last_updated'],
+                    'status':'in progress',
+                    'public':ds['ispublic'],
+                    'searchtype':'not available yet...',
+                    'searchargs':'not available yet...',
+                    'collections':[],
+                    'columns':[],
+                    'nobjects':0,
+                    'coldesc':None
+                }
+
+                self.render('dataset-async.html',
+                            page_title='LCC Dataset %s' % setid,
+                            setid=setid,
+                            header=header,
+                            setpickle=None,
+                            setpickle_shasum=None,
+                            setcsv=None,
+                            setcsv_shasum=None,
+                            lczip=None,
+                            lczip_shasum=None,
+                            pfzip=None,
+                            pfzip_shasum=None,
+                            cpzip=None,
+                            cpzip_shasum=None)
+
+                raise tornado.web.Finish()
 
         #
         # if everything went as planned, retrieve the data in specified format
         #
-        else:
+        elif ds is not None and ds['status'] == 'complete':
 
             # first, we'll censor some bits
             dataset_pickle = '/d/dataset-%s.pkl.gz' % setid
@@ -273,12 +341,13 @@ class DatasetHandler(tornado.web.RequestHandler):
             else:
 
                 # this automatically does the censoring LCs bit
-                header, datarows = yield self.executor.submit(
+                header = yield self.executor.submit(
                     datasets.generate_dataset_tablerows,
-                    self.basedir, ds
+                    self.basedir, ds,
+                    headeronly=True
                 )
 
-                self.render('dataset.html',
+                self.render('dataset-async.html',
                             page_title='LCC Dataset %s' % setid,
                             setid=setid,
                             header=header,
@@ -291,9 +360,27 @@ class DatasetHandler(tornado.web.RequestHandler):
                             pfzip=dataset_pfzip,
                             pfzip_shasum=ds['pfzip_shasum'],
                             cpzip=dataset_cpzip,
-                            cpzip_shasum=ds['cpzip_shasum'],
-                            datarows=datarows)
+                            cpzip_shasum=ds['cpzip_shasum'])
 
+        # if we somehow get here, everything is broken
+        else:
+
+            message = (
+                "No dataset ID was provided or that dataset ID doesn't exist."
+            )
+
+            if returnjson:
+
+                self.write({'status':'failed',
+                            'result':None,
+                            'message':message})
+                self.finish()
+
+            else:
+
+                self.render('errorpage.html',
+                            error_message=message,
+                            page_title='404 - no dataset by that name exists')
 
 
 
@@ -400,44 +487,9 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
     def get(self):
-        '''This runs the query.
+        '''This just lists all datasets.
 
         '''
 
-        collections = yield self.executor.submit(
-            dbsearch.sqlite_list_collections,
-            self.basedir
-        )
-
-        collection_info = collections['info']
-        all_columns = collections['columns']
-        all_indexed_columns = collections['indexedcols']
-        all_fts_columns = collections['ftscols']
-
-        # censor some bits
-        del collection_info['kdtree_pkl_path']
-        del collection_info['object_catalog_path']
-
-        # we'll reform the lcformatdesc path so it can be downloaded directly
-        # from the LCC server
-        lcformatdesc = collection_info['lcformatdesc']
-        lcformatdesc = [
-            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
-        ]
-        collection_info['lcformatdesc'] = lcformatdesc
-
-        returndict = {
-            'status':'ok',
-            'result':{'available_columns':all_columns,
-                      'available_indexed_columns':all_indexed_columns,
-                      'available_fts_columns':all_fts_columns,
-                      'collections':collection_info},
-            'message':(
-                'found %s collections in total' %
-                len(collection_info['collection_id'])
-            )
-        }
-
-        # return to sender
-        self.write(returndict)
-        self.finish()
+        self.render('dataset-list.html',
+                    page_title='All datasets')

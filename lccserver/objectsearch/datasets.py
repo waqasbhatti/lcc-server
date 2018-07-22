@@ -364,7 +364,7 @@ def sqlite_new_dataset(basedir,
         setdesc,
         datetime.utcnow().isoformat(),
         total_nmatches,
-        'complete',
+        'in progress',
         shasum,
         1 if ispublic else 0,
         ', '.join(collections),
@@ -522,7 +522,7 @@ def sqlite_make_dataset_lczip(basedir,
             cur = db.cursor()
 
             # generate the entry in the lcc-datasets.sqlite table and commit it
-            query = ("update lcc_datasets set "
+            query = ("update lcc_datasets "
                      "last_updated = ?, dataset_shasum = ? where setid = ?")
 
             params = (datetime.utcnow().isoformat(), shasum, setid)
@@ -584,10 +584,11 @@ def sqlite_make_dataset_lczip(basedir,
 
                 # generate the entry in the lcc-datasets.sqlite table and commit
                 # it
-                query = ("update lcc_datasets set "
+                query = ("update lcc_datasets "
                          "last_updated = ?, dataset_shasum = ? where setid = ?")
 
-                params = (datetime.utcnow().isoformat(), shasum, setid)
+                params = (datetime.utcnow().isoformat(),
+                          shasum, setid)
                 cur.execute(query, params)
                 db.commit()
                 db.close()
@@ -639,10 +640,11 @@ def sqlite_make_dataset_lczip(basedir,
         cur = db.cursor()
 
         # generate the entry in the lcc-datasets.sqlite table and commit it
-        query = ("update lcc_datasets set "
+        # once we get to this point, the dataset is finally considered complete
+        query = ("update lcc_datasets set status = ?, "
                  "last_updated = ?, lczip_shasum = ? where setid = ?")
 
-        params = (datetime.utcnow().isoformat(), shasum, setid)
+        params = ('complete', datetime.utcnow().isoformat(), shasum, setid)
         cur.execute(query, params)
         db.commit()
         db.close()
@@ -654,6 +656,7 @@ def sqlite_make_dataset_lczip(basedir,
 
         LOGERROR('setid: %s, dataset pickle expected at %s does not exist!' %
                  (setid, dataset_fpath))
+        db.close()
         return None
 
 
@@ -686,6 +689,7 @@ def sqlite_update_dataset(basedir, setid, updatedict):
 
 def sqlite_list_datasets(basedir,
                          nrecent=25,
+                         require_status='complete',
                          require_ispublic=True):
     '''
     This just lists all the datasets available.
@@ -704,6 +708,12 @@ def sqlite_list_datasets(basedir,
     description
     citation
 
+    possible statuses:
+
+    initialized
+    in progress
+    complete
+    broken
 
     '''
 
@@ -723,12 +733,12 @@ def sqlite_list_datasets(basedir,
              "dataset_shasum, lczip_shasum, cpzip_shasum, pfzip_shasum, "
              "name, description, citation, "
              "queried_collections, query_type, query_params from "
-             "lcc_datasets where status = 'complete' {public_cond} "
+             "lcc_datasets where status = ? {public_cond} "
              "order by last_updated desc limit {nrecent}")
 
-    # make sure we never get more than 250 recent datasets
-    if nrecent > 250:
-        nrecent = 250
+    # make sure we never get more than 1000 recent datasets
+    if nrecent > 1000:
+        nrecent = 1000
 
 
     if require_ispublic:
@@ -738,7 +748,7 @@ def sqlite_list_datasets(basedir,
         query = query.format(public_cond='',
                              nrecent=nrecent)
 
-    cur.execute(query)
+    cur.execute(query, (require_status,))
     rows = cur.fetchall()
 
     if rows and len(rows) > 0:
@@ -792,7 +802,7 @@ def sqlite_list_datasets(basedir,
 
         returndict = {
             'status':'failed',
-            'result':None,
+            'result': None,
             'message':'found no datasets matching query parameters'
         }
 
@@ -819,10 +829,81 @@ def sqlite_get_dataset(basedir,
     dataset_pickle = 'dataset-%s.pkl.gz' % setid
     dataset_fpath = os.path.join(datasetdir, dataset_pickle)
 
+    # get the lczip, cpzip, pfzip, dataset pkl shasums from the DB
+    # also get the created_on, last_updated, nobjects, status
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cur = db.cursor()
+
     if not os.path.exists(dataset_fpath):
-        LOGERROR('expected dataset pickle does not exist for setid: %s' %
-                 setid)
-        return None
+
+        LOGWARNING('expected dataset pickle does not exist for setid: %s' %
+                   setid)
+
+        # if the dataset pickle doesn't exist, check the DB for its status
+        query = ("select created_on, last_updated, is_public, status from "
+                 "lcc_datasets where setid = ?")
+        cur.execute(query, (setid,))
+        row = cur.fetchone()
+
+        if row and len(row) > 0:
+
+            # check the dataset's status
+
+            # this should only be initialized if the dataset pickle doesn't
+            # exist
+            if row[-1] == 'initialized':
+
+                dataset_status = 'in progress'
+
+            # if the status is anything else, the dataset is in an unknown
+            # state, and is probably broken
+            else:
+
+                dataset_status = 'broken'
+
+            returndict = {
+                'setid': setid,
+                'created_on':row[0],
+                'last_updated':row[1],
+                'nobjects':0,
+                'status': dataset_status,
+                'name':None,
+                'desc':None,
+                'ispublic': row[-2],
+                'columns':None,
+                'searchtype':None,
+                'searchargs':None,
+                'lczip':None,
+                'cpzip':None,
+                'pfzip':None,
+                'lczip_shasum':None,
+                'pfzip_shasum':None,
+                'cpzip_shasum':None,
+                'dataset_shasum':None,
+                'dataset_csv':None,
+                'csv_shasum':None,
+                'collections':None,
+                'result':None,
+            }
+
+            LOGWARNING("dataset: %s is in state: %s" % (setid, dataset_status))
+
+            db.close()
+            return returndict
+
+        # if no dataset entry in the DB, then this DS doesn't exist at all
+        else:
+
+            LOGERROR('requested dataset: %s does not exist' % setid)
+            return None
+
+    #
+    # otherwise, proceed as normal
+    #
 
     # read in the pickle
     with gzip.open(dataset_fpath,'rb') as infd:
@@ -840,15 +921,6 @@ def sqlite_get_dataset(basedir,
         'cpzip':dataset['cpzipfpath'],
         'pfzip':dataset['pfzipfpath'],
     }
-
-    # get the lczip, cpzip, pfzip, dataset pkl shasums from the DB
-    # also get the created_on, last_updated, nobjects, status
-    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
-    db = sqlite3.connect(
-        datasets_dbf,
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-    )
-    cur = db.cursor()
 
     query = ("select created_on, last_updated, nobjects, status, "
              "lczip_shasum, cpzip_shasum, pfzip_shasum, dataset_shasum "
@@ -1050,6 +1122,7 @@ def generate_dataset_csv(
 def generate_dataset_tablerows(
         basedir,
         in_dataset,
+        headeronly=False
 ):
     '''
     This generates row elements useful direct insert into an HTML template.
@@ -1071,6 +1144,7 @@ def generate_dataset_tablerows(
     # generate the header JSON now
     header = {
         'setid':setid,
+        'status':dataset['status'],
         'created':'%sZ' % dataset['created_on'],
         'updated':'%sZ' % dataset['last_updated'],
         'public':dataset['ispublic'],
@@ -1101,6 +1175,9 @@ def generate_dataset_tablerows(
         'dtype':'U60',
         'format':'%s',
     }
+
+    if headeronly:
+        return header
 
     table_rows = []
 

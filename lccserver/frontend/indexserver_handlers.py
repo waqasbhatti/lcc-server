@@ -295,7 +295,7 @@ class CollectionListHandler(tornado.web.RequestHandler):
 
 class DatasetListHandler(tornado.web.RequestHandler):
     '''
-    This handles the collections list API.
+    This handles the dataset list API.
 
     '''
 

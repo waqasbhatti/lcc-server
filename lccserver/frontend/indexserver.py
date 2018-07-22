@@ -365,15 +365,14 @@ def main():
           'basedir':BASEDIR}),
 
         # this just shows all datasets in a big table - disabled for now
-        # (r'/datasets',
-        #  dh.AllDatasetsHandler,
-        #  {'currentdir':CURRENTDIR,
-        #   'templatepath':TEMPLATEPATH,
-        #   'assetpath':ASSETPATH,
-        #   'docspath':DOCSPATH,
-        #   'executor':EXECUTOR,
-        #   'basedir':BASEDIR,
-        #  'uselcdir':USELCDIR}),
+        (r'/datasets',
+         dh.AllDatasetsHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR}),
 
     ]
 

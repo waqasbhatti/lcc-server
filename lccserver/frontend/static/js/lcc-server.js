@@ -469,3 +469,21 @@ var lcc_ui = {
 var lcc_search = {
 
 };
+
+
+
+var lcc_datasets = {
+
+    // this function gets the dataset from the backend and enters a refresh loop
+    // if the response indicates the dataset isn't available yet.  if the
+    // dataset becomes available, it will load the JSON and render the dataset's
+    // header and table rows
+    get_dataset: function (setid, refresh) {
+
+
+
+
+    }
+
+
+};
