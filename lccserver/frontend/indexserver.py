@@ -139,6 +139,15 @@ define('docspath',
        help=('Sets the documentation path for the lcc-server.'),
        type=str)
 
+# this overrides the light curve directories that the server uses to find
+# original format light curves.
+define('uselcdir',
+       default=None,
+       help=('This overrides the light curve directories '
+             'that the server uses to find original format '
+             'light curves when it is converting them to the '
+             'LCC CSV format'),
+       type=str)
 
 
 ############
@@ -170,6 +179,8 @@ def main():
     TEMPLATEPATH = os.path.abspath(options.templatepath)
     ASSETPATH = os.path.abspath(options.assetpath)
     DOCSPATH = os.path.abspath(options.docspath)
+
+    USELCDIR = options.uselcdir
 
     CURRENTDIR = os.path.abspath(os.getcwd())
 
@@ -292,7 +303,8 @@ def main():
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'uselcdir':USELCDIR}),
 
         # this is the cone search API endpoint
         (r'/api/conesearch',
@@ -302,7 +314,8 @@ def main():
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'uselcdir':USELCDIR}),
 
         # this is the FTS search API endpoint
         (r'/api/quicksearch',
@@ -312,7 +325,8 @@ def main():
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'uselcdir':USELCDIR}),
 
         # this is the xmatch search API endpoint
         (r'/api/xmatch',
@@ -322,7 +336,8 @@ def main():
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'uselcdir':USELCDIR}),
 
 
         ##############################################
@@ -357,7 +372,8 @@ def main():
         #   'assetpath':ASSETPATH,
         #   'docspath':DOCSPATH,
         #   'executor':EXECUTOR,
-        #   'basedir':BASEDIR}),
+        #   'basedir':BASEDIR,
+        #  'uselcdir':USELCDIR}),
 
     ]
 

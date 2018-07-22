@@ -276,7 +276,8 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   uselcdir):
         '''
         handles initial setup.
 
@@ -288,6 +289,8 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.uselcdir = uselcdir
+
 
 
     @gen.coroutine
@@ -353,7 +356,8 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   uselcdir):
         '''
         handles initial setup.
 
@@ -365,6 +369,8 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.uselcdir = uselcdir
+
 
 
     @gen.coroutine
@@ -524,11 +530,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                 datasets.sqlite_make_dataset_lczip,
                 self.basedir,
                 dspkl_setid,
-                # FIXME: think about this (probably not required on actual LC
-                # server)
-                override_lcdir=os.path.join(self.basedir,
-                                            'hatnet-keplerfield',
-                                            'lightcurves')
+                override_lcdir=self.uselcdir  # useful when testing LCC server
             )
 
             # A4. we're done with collecting light curves
@@ -596,7 +598,8 @@ class FTSearchHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   uselcdir):
         '''
         handles initial setup.
 
@@ -608,6 +611,8 @@ class FTSearchHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.uselcdir = uselcdir
+
 
 
     @gen.coroutine
@@ -672,7 +677,8 @@ class XMatchHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   uselcdir):
         '''
         handles initial setup.
 
@@ -684,6 +690,8 @@ class XMatchHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.uselcdir = uselcdir
+
 
 
     @gen.coroutine

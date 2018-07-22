@@ -38,10 +38,17 @@ var lcc_ui = {
 
             if ($('#qt').val() == 'conesearch') {
 
+                // update the placeholder
                 $('#q').attr(
                     'placeholder',
                     ('[RA] [Dec] '+
                      '[optional radius (arcmin)]')
+                );
+
+                // update the form target as well
+                $('#quicksearch-form').attr(
+                    'action',
+                    '/api/conesearch'
                 );
             }
 
@@ -49,6 +56,12 @@ var lcc_ui = {
                 $('#q').attr(
                     'placeholder',
                     'e.g. EPIC216858738 / HAT-579-0111255 etc.'
+                );
+
+                // update the form target as well
+                $('#quicksearch-form').attr(
+                    'action',
+                    '/api/quicksearch'
                 );
 
             }
@@ -59,12 +72,25 @@ var lcc_ui = {
                     'e.g. obj1 ra1 dec1, obj2 ra2 dec2, ...'
                 );
 
+                // update the form target as well
+                $('#quicksearch-form').attr(
+                    'action',
+                    '/api/xmatch'
+                );
+
             }
 
         });
 
-        // bind the table sorter controls for data tables
-        new Tablesort(document.getElementById('lcc-datatable'));
+        // bind the form submit
+        $('#quicksearch-form').on('submit', function (event) {
+
+            event.preventDefault();
+
+
+
+
+        });
 
     },
 

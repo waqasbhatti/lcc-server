@@ -256,8 +256,6 @@
 
 {% block pagejs_modules %}
 
-<!-- our own js modules -->
-<script src="{{ static_url('js/lcc-server.js') }}"></script>
 
 {% end %}
 
@@ -279,6 +277,8 @@ $(this).html($(this).text() + ' <strong>(' + mt + ')</strong>');
 
 });
 
+// bind the table sorter controls for data tables
+new Tablesort(document.getElementById('lcc-datatable'));
 
 
 });
