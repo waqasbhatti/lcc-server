@@ -195,6 +195,8 @@ def parse_objectlist_item(objectline):
 
     <objectid> <ra> <decl>
 
+    This is used for the xmatch function
+
     '''
 
     searchstr = squeeze(objectline).strip()
@@ -388,11 +390,6 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
         result_ispublic: either 1 or 0
 
-        optional params
-        ---------------
-
-        stream: either 1 or 0
-
         '''
 
         try:
@@ -409,13 +406,6 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             self.result_ispublic = (
                 True if int(self.get_argument('result_ispublic')) else False
             )
-
-            # optional stream argument
-            stream = self.get_argument('stream', default=None)
-            if stream is None:
-                stream = False
-            else:
-                stream = True if int(stream) else False
 
         except:
 
@@ -609,7 +599,6 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                         LOGGER.warning('query for setid: %s went to '
                                        'background while zipping light curves' %
                                        self.setid)
-
 
                         retdict = {
                             "message":(
