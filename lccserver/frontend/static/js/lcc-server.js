@@ -152,7 +152,7 @@ var lcc_ui = {
                     // Set ID column
                     //
                     var table_setid = '<td>' +
-                        '<a href="/set/' + setid + '">' +
+                        '<a rel="nofollow" href="/set/' + setid + '">' +
                         setid + '</a><br>' +
                         'collections used: <code>' +
                         queriedcolls + '</code>' +
@@ -177,7 +177,8 @@ var lcc_ui = {
                     // Products column
                     //
                     if (dataset_fpath != null) {
-                        var dataset_download = '<a href="' + dataset_fpath +
+                        var dataset_download = '<a rel="nofollow" ' +
+                            'href="' + dataset_fpath +
                             '" title="download search results pickle">' +
                             'dataset pickle' +
                             '</a> <span data-toggle="tooltip" title="' +
@@ -189,7 +190,8 @@ var lcc_ui = {
                     }
 
                     if (lczip_fpath != null) {
-                        var lczip_download = '<a href="' + lczip_fpath +
+                        var lczip_download = '<a rel="nofollow" ' +
+                            'href="' + lczip_fpath +
                             '" title="download light curves ZIP">' +
                             'light curve ZIP' +
                             '</a> <span data-toggle="tooltip" title="' +
@@ -201,7 +203,8 @@ var lcc_ui = {
                     }
 
                     if (pfzip_fpath != null) {
-                        var pfzip_download = '<a href="' + pfzip_fpath +
+                        var pfzip_download = '<a rel="nofollow" ' +
+                            'href="' + pfzip_fpath +
                             '" title="download period-finding results ZIP">' +
                             'period-finding result pickles ZIP' +
                             '</a> <span data-toggle="tooltip" title="' +
@@ -213,7 +216,8 @@ var lcc_ui = {
                     }
 
                     if (cpzip_fpath != null) {
-                        var cpzip_download = '<a href="' + cpzip_fpath +
+                        var cpzip_download = '<a rel="nofollow" '
+                        'href="' + cpzip_fpath +
                             '" title="download checkplot pickles ZIP">' +
                             'checkplot pickles ZIP' +
                             '</a> <span data-toggle="tooltip" title="' +

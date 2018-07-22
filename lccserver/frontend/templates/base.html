@@ -33,6 +33,12 @@
              src="{{ static_url('images/twotone-find_in_page-24px.svg') }}">
       </a>
 
+      <a class="nav-item nav-link"
+         title="Read the docs"
+         href="/docs">
+        Docs
+      </a>
+
       <button class="navbar-toggler"
               type="button"
               data-toggle="collapse"
@@ -45,10 +51,9 @@
 
       <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
         <div class="navbar-nav">
-          <a class="nav-item nav-link active" href="/">
-            {{ page_title }} <span class="sr-only">(current)</span>
+          <a class="nav-item nav-link active">
+            <strong>{{ page_title }}</strong> <span class="sr-only">(current)</span>
           </a>
-          <a class="nav-item nav-link" href="/docs">Docs</a>
         </div>
       </div>
 
