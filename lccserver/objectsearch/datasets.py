@@ -408,9 +408,6 @@ def csvlc_convert_worker(task):
 
     except Exception as e:
 
-        LOGEXCEPTION('failed to convert original LC %s '
-                     '(found on filesystem: %s)' %
-                     (lcfile, os.path.exists(lcfile)))
         return '%s conversion to CSVLC failed' % lcfile
 
 
