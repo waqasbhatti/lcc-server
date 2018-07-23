@@ -743,9 +743,40 @@ var lcc_search = {
 
                     // for now, we'll just write each status message to the
                     // status tab
-                    $('#lcc-status-stream').append(
-                        '<div class="card">' + '<div class="card-body">' +
-                            JSON.stringify(msgdata) + '</div></div>'
+                    if (msgdata.status == 'failed') {
+                        var status_color = 'class="table-danger"';
+                    }
+                    else if (msgdata.status == 'background') {
+                        var status_color = 'class="table-warning"';
+                    }
+                    else if (msgdata.status == 'queued') {
+                        var status_color = 'class="table-active"';
+                    }
+                    else if (msgdata.status == 'ok') {
+                        var status_color = 'class="table-primary"';
+                    }
+                    else {
+                        var status_color = '';
+                    }
+
+                    // format the time
+                    var msgtime = moment(msgdata.time).toString();
+
+                    // if there's a setid, use it
+                    if (msgdata.result != null && 'setid' in msgdata.result) {
+                        var msg_setid = msgdata.result.setid;
+                    }
+                    else {
+                        var msg_setid = 'unknown';
+                    }
+
+                    $('#query-status-stream').prepend(
+                        '<tr ' + status_color + '>' +
+                            '<td>' + msgtime + '</td>' +
+                            '<td>' + msg_setid + '</td>' +
+                            '<td>' + msgdata.status + '</td>' +
+                            '<td><code>' + msgdata.message + '</code></td>' +
+                            '</tr>'
                     );
 
                     // re-enable the submit button until we return

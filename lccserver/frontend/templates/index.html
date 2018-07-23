@@ -977,12 +977,22 @@
 
           <div class="row mt-2">
             <div class="col-12">
-              table for queries with cols: submitted_at, query_type,
-              query_params, status, message, setid
 
-              <div id="lcc-status-stream">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th width="200">time</th>
+                    <th width="100">query ID</th>
+                    <th width="80">status</th>
+                    <th width="300">message</th>
+                  </tr>
+                </thead>
 
-              </div>
+                <tbody id="query-status-stream">
+
+                </tbody>
+              </table>
+
 
             </div>
           </div>
