@@ -51,7 +51,7 @@
              role="tab"
              aria-controls="datasets"
              aria-selected="false">
-            <img class="icon-svg"
+            <img class="icon-svg" id="datasets-tab-icon"
                  src="{{ static_url('images/twotone-archive-24px.svg') }}"><br>
             Datasets
           </a>
@@ -125,7 +125,7 @@
               <img id="search-notification-icon"
                    class="icon-svg"
                    src="{{ static_url('images/twotone-sync-24px.svg') }}"><br>
-              <span id="search-notification-text">Query status</span>
+              Queries <span id="lcc-qstatus-run" data-nrun="0"></span> <span id="lcc-qstatus-back" data-nback="0"></span>
             </span>
           </a>
         </li>
@@ -251,7 +251,7 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -265,7 +265,7 @@
                           id="conesearch-column-select" multiple size="18">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
 
                 </div>
               </div>
@@ -434,7 +434,7 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -448,7 +448,7 @@
                           id="ftsquery-column-select" multiple size="18">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
 
                 </div>
               </div>
@@ -618,7 +618,7 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -632,7 +632,7 @@
                           id="columnsearch-column-select" multiple size="18">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
 
                 </div>
               </div>
@@ -798,7 +798,7 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -812,7 +812,7 @@
                           id="xmatchquery-column-select" multiple size="18">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
 
                 </div>
               </div>
@@ -979,6 +979,11 @@
             <div class="col-12">
               table for queries with cols: submitted_at, query_type,
               query_params, status, message, setid
+
+              <div id="lcc-status-stream">
+
+              </div>
+
             </div>
           </div>
 

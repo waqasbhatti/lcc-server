@@ -401,7 +401,10 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             coordok, center_ra, center_decl, radius_deg = parse_coordstring(
                 coordstr
             )
-            radius_arcmin = radius_deg*60.0
+            if radius_deg:
+                radius_arcmin = radius_deg*60.0
+            else:
+                radius_arcmin = 5.0
 
             self.result_ispublic = (
                 True if int(self.get_argument('result_ispublic')) else False
