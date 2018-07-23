@@ -522,8 +522,7 @@ COLUMN_INFO = {
         'title':'type flag',
         'dtype':'U20',
         'format':'%s',
-        'description':('<a href="http://simbad.u-strasbg.fr/guide/chF.htx">'
-                       'SIMBAD object type flag for this object</a>'),
+        'description':('SIMBAD object type flag for this object</a>'),
         'index':False,
         'ftsindex':True,
     },
