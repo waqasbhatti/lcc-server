@@ -396,6 +396,11 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
         try:
 
+            if 'X-Real-Host' in self.request.headers:
+                self.req_hostname = self.request.headers['X-Real-Host']
+            else:
+                self.req_hostname = self.request.host
+
             coordstr = xhtml_escape(self.get_argument('coords'))
 
             LOGGER.info(coordstr)
@@ -403,6 +408,9 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             coordok, center_ra, center_decl, radius_deg = parse_coordstring(
                 coordstr
             )
+
+            LOGGER.info('%s %s %s %s' %
+                        (coordok, center_ra, center_decl, radius_deg))
 
             if not coordok:
 
@@ -598,7 +606,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                         # A5. finish request by sending back the dataset URL
                         dataset_url = "%s://%s/set/%s" % (
                             self.request.protocol,
-                            self.request.host,
+                            self.req_hostname,
                             dspkl_setid
                         )
                         retdict = {
@@ -625,7 +633,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
                         dataset_url = "%s://%s/set/%s" % (
                             self.request.protocol,
-                            self.request.host,
+                            self.req_hostname,
                             self.setid
                         )
 
@@ -708,7 +716,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
             dataset_url = "%s://%s/set/%s" % (
                 self.request.protocol,
-                self.request.host,
+                self.req_hostname,
                 self.setid
             )
             retdict = {

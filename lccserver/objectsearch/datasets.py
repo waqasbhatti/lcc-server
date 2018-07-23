@@ -465,7 +465,7 @@ def sqlite_make_dataset_lczip(basedir,
 
                 # we'll use this to form CSV filenames
                 collection_objectidlist = [
-                    x['db_oid'] for x in dataset['result']['collection']
+                    x['db_oid'] for x in dataset['result'][collection]
                 ]
 
                 # handle the lcdir override if present
