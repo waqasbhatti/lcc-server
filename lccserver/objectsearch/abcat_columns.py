@@ -522,7 +522,7 @@ COLUMN_INFO = {
         'title':'type flag',
         'dtype':'U20',
         'format':'%s',
-        'description':('SIMBAD object type flag for this object</a>'),
+        'description':('SIMBAD object type flag for this object'),
         'index':False,
         'ftsindex':True,
     },
