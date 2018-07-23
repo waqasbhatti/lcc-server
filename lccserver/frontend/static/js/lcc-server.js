@@ -481,6 +481,22 @@ var lcc_datasets = {
     // header and table rows
     get_dataset: function (setid, refresh) {
 
+        // set the loading indicators
+        var load_indicator = $('#setload-indicator');
+        if (load_indicator.text() == '') {
+
+            $('#setload-indicator').html(
+                '<span class="text-warning">waiting for dataset... ' +
+                    '</span>'
+            )
+
+            $('#setload-icon').html(
+                '<img src="/static/images/twotone-sync-24px.svg' +
+                    '" class="animated flash infinite">'
+            );
+
+        }
+
         var geturl = '/set/' + setid;
         var getparams = {json: 1,
                          strformat: 1};
@@ -496,10 +512,6 @@ var lcc_datasets = {
                 //////////////////////////////
                 // fill in the header first //
                 //////////////////////////////
-
-                // 1. clear out the loading indicators
-                $('#setload-icon').empty();
-                $('#setload-indicator').empty()
 
                 // 2a. created
                 var created_on = data.created;
@@ -528,11 +540,6 @@ var lcc_datasets = {
                                                              null,
                                                              2) +
                                               '</pre>');
-
-                // 6. nobjects
-                $('#datasets-nobjects').html('<code>' +
-                                             data.nobjects +
-                                             '</code>');
 
                 // 7. collections
                 $('#dataset-collections').html('<code>' +
@@ -659,28 +666,20 @@ var lcc_datasets = {
 
                 }
 
+                // 6. nobjects
+                $('#dataset-nobjects').html('<code>' +
+                                            data.nobjects +
+                                            '</code>');
+
+                // clear out the loading indicators at the end
+                $('#setload-icon').empty();
+                $('#setload-indicator').empty();
+
             }
 
             // if status is not 'complete', we enter a loop based on the
             // specified refresh interval and hit the backend again
             else if (status == 'in progress') {
-
-                // 1. clear out the loading indicators
-                var load_indicator = $('#setload-indicator');
-
-                if (load_indicator.text() == '') {
-
-                    $('#setload-indicator').html(
-                        '<span class="text-warning">waiting for dataset... ' +
-                            '</span>'
-                    )
-
-                    $('#setload-icon').html(
-                        '<img src="/static/images/twotone-sync-24px.svg' +
-                            '" class="animated flash infinite">'
-                    );
-
-                }
 
                 // 2a. created
                 var created_on = data.created;
@@ -709,7 +708,7 @@ var lcc_datasets = {
                 );
 
                 // 6. nobjects
-                $('#datasets-nobjects').html('<code>' +
+                $('#dataset-nobjects').html('<code>' +
                                              data.nobjects +
                                              '</code>');
 
@@ -736,6 +735,10 @@ var lcc_datasets = {
 
                 lcc_ui.alert_box(message, 'danger');
 
+                // clear out the loading indicators at the end
+                $('#setload-icon').empty();
+                $('#setload-indicator').empty();
+
             }
 
 
@@ -745,6 +748,10 @@ var lcc_datasets = {
                 'from the LCC server backend';
 
             lcc_ui.alert_box(message, 'danger');
+
+            // clear out the loading indicators at the end
+            $('#setload-icon').empty();
+            $('#setload-indicator').empty();
 
         });
 

@@ -573,7 +573,11 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                         )
 
                         # A5. finish request by sending back the dataset URL
-                        dataset_url = "/set/%s" % dspkl_setid
+                        dataset_url = "%s://%s/set/%s" % (
+                            self.request.protocol,
+                            self.request.host,
+                            dspkl_setid
+                        )
                         retdict = {
                             "message":("dataset now ready: %s" % dataset_url),
                             "status":"ok",
@@ -596,6 +600,12 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
                     except gen.TimeoutError:
 
+                        dataset_url = "%s://%s/set/%s" % (
+                            self.request.protocol,
+                            self.request.host,
+                            self.setid
+                        )
+
                         LOGGER.warning('query for setid: %s went to '
                                        'background while zipping light curves' %
                                        self.setid)
@@ -606,13 +616,13 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                                 "query is complete, "
                                 "but light curves of matching objects "
                                 "are still being zipped. "
-                                "check /set/%s for results later" %
-                                self.setid
+                                "check %s for results later" %
+                                dataset_url
                             ),
                             "status":"background",
                             "result":{
                                 "setid":self.setid,
-                                "seturl":'/set/%s' % self.setid
+                                "seturl":dataset_url
                             },
                             "time":'%sZ' % datetime.utcnow().isoformat()
                         }
@@ -672,14 +682,20 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             LOGGER.warning('search for setid: %s took too long, '
                            'moving query to background' % self.setid)
 
+
+            dataset_url = "%s://%s/set/%s" % (
+                self.request.protocol,
+                self.request.host,
+                self.setid
+            )
             retdict = {
                 "message":("query sent to background after 5 seconds. "
                            "query is still running, "
-                           "check /set/%s for results later" % self.setid),
+                           "check %s for results later" % dataset_url),
                 "status":"background",
                 "result":{
                     "setid":self.setid,
-                    "seturl":'/set/%s' % self.setid
+                    "seturl":dataset_url
                 },
                 "time":'%sZ' % datetime.utcnow().isoformat()
             }
