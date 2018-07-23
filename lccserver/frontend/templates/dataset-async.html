@@ -2,9 +2,28 @@
 
 {% block pagecontent %}
 
+<!-- this is where all the alerts go -->
+<div class="container">
+  <div class="row">
+    <div class="col-12">
+      <div id="alert-box">
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row mt-2">
+    <div class="col-3 ml-auto">
+      <span id="setload-icon"></span> <span id="setload-indicator"></span>
+    </div>
+  </div>
+</div>
+
 <div class="container">
 
-  <div class="row top-margin-row">
+  <div class="row mt-2">
     <div class="col-12">
 
       <div class="accordion" id="accordionExample">
@@ -183,22 +202,6 @@
                 </thead>
 
                 <tbody id="table-datarows">
-                  {% for col in header['columns'] %}
-                  <tr>
-                    <td width="100">
-                      <code>{{ col }}</code>
-                    </td>
-                    <td width="150">
-                      {% raw header['coldesc'][col]['title'] %}
-                    </td>
-                    <td width="350">
-                      {% raw header['coldesc'][col]['desc'] %}
-                    </td>
-                    <td width="100">
-                      <code>{{ header['coldesc'][col]['dtype'] }}</code>
-                    </td>
-                  </tr>
-                  {% end %}
 
                 </tbody>
 
@@ -223,6 +226,15 @@
 
       <table id="lcc-datatable" class="table table-striped table-sm dataset-table">
 
+        <thead class="bg-light">
+          <tr id="lcc-datatable-header">
+
+          </tr>
+        </thead>
+
+        <tbody id="lcc-datatable-datarows">
+
+        </tbody>
 
       </table>
 

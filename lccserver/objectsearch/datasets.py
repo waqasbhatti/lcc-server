@@ -522,7 +522,7 @@ def sqlite_make_dataset_lczip(basedir,
             cur = db.cursor()
 
             # generate the entry in the lcc-datasets.sqlite table and commit it
-            query = ("update lcc_datasets "
+            query = ("update lcc_datasets set "
                      "last_updated = ?, dataset_shasum = ? where setid = ?")
 
             params = (datetime.utcnow().isoformat(), shasum, setid)
@@ -584,7 +584,7 @@ def sqlite_make_dataset_lczip(basedir,
 
                 # generate the entry in the lcc-datasets.sqlite table and commit
                 # it
-                query = ("update lcc_datasets "
+                query = ("update lcc_datasets set "
                          "last_updated = ?, dataset_shasum = ? where setid = ?")
 
                 params = (datetime.utcnow().isoformat(),
@@ -1122,7 +1122,8 @@ def generate_dataset_csv(
 def generate_dataset_tablerows(
         basedir,
         in_dataset,
-        headeronly=False
+        headeronly=False,
+        strformat=False,
 ):
     '''
     This generates row elements useful direct insert into an HTML template.
@@ -1212,7 +1213,26 @@ def generate_dataset_tablerows(
                 else:
                     entry['lcfname'] = None
 
-            row = [entry[col] for col in setcols]
+            if strformat:
+
+                row = []
+
+                for col in setcols:
+
+                    if col in ('lcfname', 'db_lcfname'):
+                        if entry[col] is not None:
+                            row.append('<a href="%s">download light curve</a>' %
+                                       entry[col])
+                        else:
+                            row.append('<span class="text-danger">'
+                                       'unavailable or missing</span>')
+                    else:
+                        row.append(header['coldesc'][col]['format'] %
+                                   entry[col])
+
+            else:
+                row = [entry[col] for col in setcols]
+
             row.append(collid)
             table_rows.append(row)
 

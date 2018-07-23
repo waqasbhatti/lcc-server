@@ -116,11 +116,23 @@ class DatasetHandler(tornado.web.RequestHandler):
         '''
         # get the returnjson argument
         try:
-            returnjson = self.get_argument('json',default='0')
+            returnjson = xhtml_escape(self.get_argument('json',default='0'))
             returnjson = True if returnjson == '1' else False
         except:
             returnjson = False
 
+        if returnjson:
+
+            # get the returnjson argument
+            try:
+                strformat = xhtml_escape(self.get_argument('strformat',
+                                                           default='0'))
+                strformat = True if strformat == '1' else False
+            except:
+                strformat = False
+
+        else:
+            strformat = False
 
         if setid is None or len(setid) == 0:
 
@@ -205,9 +217,37 @@ class DatasetHandler(tornado.web.RequestHandler):
             # if we're returning JSON
             if returnjson:
 
-                self.write({'status':'in progress',
-                            'result':ds,
-                            'message':message})
+                jsondict = {
+                    'setid':setid,
+                    'created':'%sZ' % ds['created_on'],
+                    'updated':'%sZ' % ds['last_updated'],
+                    'status':'in progress',
+                    'public':ds['ispublic'],
+                    'searchtype':'not available yet...',
+                    'searchargs':'not available yet...',
+                    'collections':[],
+                    'columns':[],
+                    'nobjects':0,
+                    'coldesc':None,
+                    'rows':[],
+                    'name':None,
+                    'desc':None,
+                    'dataset_pickle':None,
+                    'dataset_shasum':None,
+                    'dataset_csv':None,
+                    'csv_shasum':None,
+                    'lczip':None,
+                    'lczip_shasum':None,
+                    'cpzip':None,
+                    'cpzip_shasum':None,
+                    'pfzip':None,
+                    'pfzip_shasum':None
+                }
+
+                dsjson = json.dumps(jsondict)
+                dsjson = dsjson.replace('nan','null')
+                self.set_header('Content-Type','application/json')
+                self.write(dsjson)
                 raise tornado.web.Finish()
 
             # otherwise, we'll return the dataset rendered page
@@ -296,46 +336,36 @@ class DatasetHandler(tornado.web.RequestHandler):
             # if we're returning JSON, censor LC filenames and then return
             if returnjson:
 
-                # replace the LC paths with the correct URLs
-                for coll in ds['collections']:
+                # this automatically does the censoring LCs bit
+                jsondict, datarows = yield self.executor.submit(
+                    datasets.generate_dataset_tablerows,
+                    self.basedir, ds,
+                    strformat=strformat
+                )
 
-                    for entry in ds['result'][coll]['data']:
+                LOGGER.info('returning JSON for %s' % setid)
 
-                        # censor the light curve filenames
-                        # also make sure the actual files exist, otherwise,
-                        # return nothing for those entries
-                        if 'db_lcfname' in entry:
+                jsondict.update({
+                    'rows':datarows,
+                    'name':ds['name'],
+                    'desc':ds['desc'],
+                    'dataset_pickle':dataset_pickle,
+                    'dataset_shasum':ds['dataset_shasum'],
+                    'dataset_csv':dataset_csv,
+                    'csv_shasum':ds['csv_shasum'],
+                    'lczip':dataset_lczip,
+                    'lczip_shasum':ds['lczip_shasum'],
+                    'cpzip':ds['cpzip'],
+                    'cpzip_shasum':ds['cpzip_shasum'],
+                    'pfzip':ds['pfzip'],
+                    'pfzip_shasum':ds['pfzip_shasum']
+                })
 
-                            if (entry['db_lcfname'] is not None and
-                                os.path.exists(entry['db_lcfname'])):
-
-                                entry['db_lcfname'] = (
-                                    entry['db_lcfname'].replace(
-                                        os.path.abspath(self.basedir),
-                                        '/l'
-                                    )
-                                )
-                            else:
-                                entry['db_lcfname'] = None
-
-                        if 'lcfname' in entry:
-
-                            if (entry['lcfname'] is not None and
-                                os.path.exists(entry['lcfname'])):
-
-                                entry['lcfname'] = entry['lcfname'].replace(
-                                    os.path.abspath(self.basedir),
-                                    '/l'
-                                )
-                            else:
-                                entry['lcfname'] = None
-
-                dsjson = json.dumps(ds)
+                dsjson = json.dumps(jsondict)
                 dsjson = dsjson.replace('nan','null')
                 self.set_header('Content-Type','application/json')
-                self.write(ds)
+                self.write(dsjson)
                 self.finish()
-
 
             # otherwise, we're going to render the dataset to a template
             else:

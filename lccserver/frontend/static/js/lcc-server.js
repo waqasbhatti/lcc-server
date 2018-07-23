@@ -113,6 +113,7 @@ var lcc_ui = {
                 lcc_ui.alert_box(message, 'danger');
             }
 
+
             // otherwise, fill in the datasets table
             else {
 
@@ -480,7 +481,272 @@ var lcc_datasets = {
     // header and table rows
     get_dataset: function (setid, refresh) {
 
+        var geturl = '/set/' + setid;
+        var getparams = {json: 1,
+                         strformat: 1};
 
+        // here we do the retrieval
+        $.getJSON(geturl, getparams, function (data) {
+
+            var status = data.status;
+
+            // if status is 'complete', we'll load the data
+            if (status == 'complete') {
+
+                //////////////////////////////
+                // fill in the header first //
+                //////////////////////////////
+
+                // 1. clear out the loading indicators
+                $('#setload-icon').empty();
+                $('#setload-indicator').empty()
+
+                // 2a. created
+                var created_on = data.created;
+                created_on = created_on + ' <strong>(' +
+                    moment(created_on).fromNow() + ')<strong>';
+                $('#dataset-createdon').html(created_on);
+
+                // 2b. lastupdated
+                var last_updated = data.updated;
+                last_updated = last_updated + ' <strong>(' +
+                    moment(last_updated).fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
+                // 3. status
+                $('#dataset-status').html('<span class="text-success">' +
+                                          status +
+                                          '</span>');
+
+                // 4. searchtype
+                $('#dataset-searchtype').html('<code>' + data.searchtype +
+                                              '</code>');
+
+                // 5. searchargs
+                $('#dataset-searchargs').html('<pre>' +
+                                              JSON.stringify(data.searchargs,
+                                                             null,
+                                                             2) +
+                                              '</pre>');
+
+                // 6. nobjects
+                $('#datasets-nobjects').html('<code>' +
+                                             data.nobjects +
+                                             '</code>');
+
+                // 7. collections
+                $('#dataset-collections').html('<code>' +
+                                               data.collections.join(', ') +
+                                               '</code>');
+
+                // 8. setpickle
+                $('#dataset-setpickle')
+                    .html('<a ref="nofollow" href="' +
+                          data.dataset_pickle + '">download file</a>');
+                // 9. picklesha
+                $('#dataset-picklesha')
+                    .html('SHA256: <code>' + data.dataset_shasum + '</code>');
+
+                // 10. setcsv
+                $('#dataset-setcsv')
+                    .html('<a ref="nofollow" href="' +
+                          data.dataset_csv + '">download file</a>');
+                // 11. csvsha
+                $('#dataset-csvsha')
+                    .html('SHA256: <code>' + data.csv_shasum + '</code>');
+
+                // 12. lczip
+                $('#dataset-lczip')
+                    .html('<a ref="nofollow" href="' +
+                          data.lczip + '">download file</a>');
+                // 13. lcsha
+                $('#dataset-lcsha')
+                    .html('SHA256: <code>' + data.lczip_shasum + '</code>');
+
+                if (data.pfzip != null) {
+                    // 14. pfzip
+                    $('#dataset-pfzip')
+                        .html('<a ref="nofollow" href="' +
+                              data.pfzip + '">download file</a>');
+                    // 15. pfsha
+                    $('#dataset-pfsha')
+                        .html('SHA256: <code>' + data.pfzip_shasum + '</code>');
+                }
+                else {
+                    // 14. pfzip
+                    $('#dataset-pfzip')
+                        .html('not available');
+                    // 15. pfsha
+                    $('#dataset-pfsha')
+                        .empty();
+                }
+
+                if (data.cpzip != null) {
+                    // 16. cpzip
+                    $('#dataset-cpzip')
+                        .html('<a ref="nofollow" href="' +
+                              data.cpzip + '">download file</a>');
+                    // 17. cpsha
+                    $('#dataset-cpsha')
+                        .html('SHA256: <code>' + data.cpzip_shasum + '</code>');
+
+                }
+                else {
+                    // 18. cpzip
+                    $('#dataset-cpzip')
+                        .html('not available');
+                    // 19. cpsha
+                    $('#dataset-cpsha')
+                        .empty();
+                }
+
+                /////////////////////////////////////
+                // fill in the column descriptions //
+                /////////////////////////////////////
+
+                var colind = 0;
+                var columns = data.columns;
+                var collections = data.collections;
+                var coldesc = data.coldesc;
+
+                var coldef_rows = [];
+
+                for (colind; colind < columns.length; colind++) {
+
+                    var this_col = columns[colind];
+
+                    var this_title = coldesc[this_col]['title'];
+                    var this_desc = coldesc[this_col]['desc'];
+                    var this_dtype = coldesc[this_col]['dtype'];
+
+                    // add the columndef
+                    var this_row = '<tr>' +
+                        '<td width="100"><code>' + this_col + '</code></td>' +
+                        '<td width="150">' + this_title + '</td>' +
+                        '<td width="350">' + this_desc + '</td>' +
+                        '<td width="100"><code>' +
+                        this_dtype.replace('<','&lt;') +
+                        '</code>' +
+                        '</td>' +
+                        '</tr>'
+                    coldef_rows.push(this_row);
+
+                    // also add the column to the header of the datatable
+                    $('#lcc-datatable-header').append(
+                        '<th>' + this_col + '</th>'
+                    );
+                }
+
+                // finish up the column defs and write them to the table
+                coldef_rows = coldef_rows.join('');
+                $('#table-datarows').html(coldef_rows);
+
+                ////////////////////////////////////////
+                // finally, fill in the dataset table //
+                ////////////////////////////////////////
+
+                var rowind = 0;
+                var datarows_elem = $('#lcc-datatable-datarows');
+
+                // clear the table first
+                datarows_elem.empty();
+
+                for (rowind; rowind < data.nobjects; rowind++) {
+
+                    datarows_elem.append('<tr><td>' +
+                                         data.rows[rowind].join('</td><td>') +
+                                         '</td></tr>');
+
+                }
+
+            }
+
+            // if status is not 'complete', we enter a loop based on the
+            // specified refresh interval and hit the backend again
+            else if (status == 'in progress') {
+
+                // 1. clear out the loading indicators
+                var load_indicator = $('#setload-indicator');
+
+                if (load_indicator.text() == '') {
+
+                    $('#setload-indicator').html(
+                        '<span class="text-warning">waiting for dataset... ' +
+                            '</span>'
+                    )
+
+                    $('#setload-icon').html(
+                        '<img src="/static/images/twotone-sync-24px.svg' +
+                            '" class="animated flash infinite">'
+                    );
+
+                }
+
+                // 2a. created
+                var created_on = data.created;
+                created_on = created_on + ' <strong>(' +
+                    moment(created_on).fromNow() + ')<strong>';
+                $('#dataset-createdon').html(created_on);
+
+                // 2b. lastupdated
+                var last_updated = data.updated;
+                last_updated = last_updated + ' <strong>(' +
+                    moment(last_updated).fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
+                // 3. status
+                $('#dataset-status').html('<span class="text-warning">' +
+                                          status +
+                                          '</span>');
+
+                // 4. searchtype
+                $('#dataset-searchtype').html('<code>' + data.searchtype +
+                                              '</code>');
+
+                // 5. searchargs
+                $('#dataset-searchargs').html(
+                    '<code>not available yet...</code>'
+                );
+
+                // 6. nobjects
+                $('#datasets-nobjects').html('<code>' +
+                                             data.nobjects +
+                                             '</code>');
+
+                // 7. collections
+                $('#dataset-collections').html('<code>' +
+                                               data.collections.join(', ') +
+                                               '</code>');
+
+                // now wait for the next loop
+                window.setTimeout(function () {
+
+                    // call us again after the timeout expires
+                    lcc_datasets.get_dataset(setid, refresh);
+
+                }, refresh*1000.0);
+
+            }
+
+            // anything else is weird and broken
+            else {
+
+                var message = 'could not retrieve the dataset ' +
+                    'from the LCC server backend';
+
+                lcc_ui.alert_box(message, 'danger');
+
+            }
+
+
+        }).fail(function (xhr) {
+
+            var message = 'could not retrieve the dataset ' +
+                'from the LCC server backend';
+
+            lcc_ui.alert_box(message, 'danger');
+
+        });
 
 
     }
