@@ -92,6 +92,114 @@ var lcc_ui = {
 
         });
 
+        // bind the conesearch-filter-add button
+        $('.lcc-filter-add').on('click', function (evt) {
+
+            evt.preventDefault();
+
+            // this is the markup to use
+            //             <div class="card">
+            //   <div class="card-body">
+            //     This is some text within a card body.
+            //   </div>
+            // </div>
+
+            // get which search type this is and look up the appropriate select
+            // and value boxes
+            var target = $(this).attr('data-searchtype');
+            var filter_col_elem = $('#' + target + '-filtercolumn-select');
+            var filter_type_elem = $('#' + target + '-filtercondition-select');
+            var filter_val_elem = $('#' + target + '-filtertarget');
+
+            // look up what those controls say
+            var filter_col = filter_col_elem.val();
+            var filter_opstr = filter_type_elem.val();
+
+            if (filter_opstr == 'lt') {
+                var filter_op = '&lt;'
+            }
+            else if (filter_opstr == 'gt') {
+                var filter_op = '&gt;'
+            }
+            else if (filter_opstr == 'le') {
+                var filter_op = '&le;'
+            }
+            else if (filter_opstr == 'ge') {
+                var filter_op = '&gt;'
+            }
+            else if (filter_opstr == 'eq') {
+                var filter_op = '&equals;'
+            }
+            else if (filter_opstr == 'ne') {
+                var filter_op = '&ne;'
+            }
+            else if (filter_opstr == 'ct') {
+                var filter_op = 'contains';
+            }
+
+            var filter_val = filter_val_elem.val();
+
+            // look up the dtype of the column
+            var filter_dtype = lcc_search.coldefs[filter_col]['dtype']
+                .replace('<','');
+
+            // check if the filter bucket is empty
+            var filterbucket_elem = $('#' + target + '-filterbucket');
+            var filterbucket_nitems = filterbucket_elem.children().length;
+
+            if (filterbucket_nitems > 0) {
+
+                var filter_card_joiner =
+                    '<select class="mr-3 lcc-filterbucket-chainer">' +
+                    '<option value="and" selected>and</option>' +
+                    '<option value="or">or</option></select> ';
+            }
+            else {
+                var filter_card_joiner = '';
+            }
+
+            // generate the card for this filter
+            var filter_card = '<div class="card filterbucket-card mb-2" ' +
+                'data-target="' + target +
+                '" data-column="' + filter_col +
+                '" data-operator="' + filter_op +
+                '" data-filterval=""' + filter_val +
+                '" data-dtype=""' + filter_dtype +
+                '">' +
+                '<div class="card-body">' +
+                filter_card_joiner +
+                '<code>' +
+                filter_col + ' ' + filter_op + ' ' + filter_val + '</code>' +
+                '</div>' +
+                '<div class="card-footer text-right">' +
+                '<a href="#" ' +
+                'class="btn btn-outline-danger btn-sm lcc-filterbucket-remove">' +
+                'Remove filter</a></div>' +
+                '</div>';
+
+            filterbucket_elem.append(filter_card);
+
+        });
+
+        // bind the filter-delete button
+        $('.tab-pane').on('click', '.lcc-filterbucket-remove', function(e) {
+
+            e.preventDefault();
+
+            // find our parent
+            var thiscard = $(this).parents('.filterbucket-card');
+
+            // kill them
+            $(thiscard).remove();
+
+        });
+
+        // bind the lcc-datasets-open link
+        $('.lcc-datasets-tabopen').on('click', function (evt) {
+            evt.preventDefault();
+            $('#datasets-tab').click();
+        });
+
     },
 
     get_recent_datasets: function(nrecent) {
@@ -302,11 +410,21 @@ var lcc_ui = {
             else {
 
                 var collections = result.collections;
+
+                // store this so we can refer to it later
+                lcc_search.collections = collections;
+
                 var collection_ids = collections.collection_id;
+
+                // we'll also store the available columns and their definitions
+                lcc_search.columns = available_columns;
+                lcc_search.coldefs = collections['columnjson'][0];
+
 
                 //we use all available columns to figure out the common cols and
                 //also the per collection special cols
                 var available_columns = result.available_columns;
+
                 var indexed_columns = result.available_index_columns;
                 var fts_columns = result.available_fts_columns;
 
@@ -473,6 +591,23 @@ var lcc_ui = {
 
                 });
 
+                // update the filter column select boxes
+                var filter_selectboxes = $('.lcc-filtercolumn-select');
+
+                filter_selectboxes.each(function (e, i) {
+
+                    var thisbox = $(this);
+                    var column_ind = 0;
+                    for (column_ind; column_ind < columns.length; column_ind++) {
+                        thisbox.append('<option value="' +
+                                       columns[column_ind] +
+                                       '">' +
+                                       columns[column_ind] +
+                                       '</option>');
+                    }
+
+                });
+
 
                 // we'll update the lcc_search variables here too so we can
                 // build control panes on the fly
@@ -500,7 +635,9 @@ var lcc_ui = {
 
 
 var lcc_search = {
-
+    collections: null,
+    columns: null,
+    coldefs: null,
 };
 
 

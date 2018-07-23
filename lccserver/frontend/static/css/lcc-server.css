@@ -162,3 +162,12 @@ th[role=columnheader]:not(.no-sort):hover:after {
     visibility: visible;
     opacity: 1;
 }
+
+.lcc-filterbucket {
+    height: 25rem;
+    overflow-y: auto;
+}
+
+.filterbucket-card {
+    font-size: small;
+}
