@@ -335,7 +335,8 @@ def sqlite_new_dataset(basedir,
     # generate the SHA256 sum for the written file
     try:
         p = subprocess.run('sha256sum %s' % dataset_fpath,
-                           shell=True, timeout=60.0, capture_output=True)
+                           shell=True, timeout=60.0,
+                           stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         shasum = p.stdout.decode().split()[0]
 
     except Exception as e:
@@ -504,7 +505,8 @@ def sqlite_make_dataset_lczip(basedir,
                 p = subprocess.run('sha256sum %s' % dataset_fpath,
                                    shell=True,
                                    timeout=60.0,
-                                   capture_output=True)
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
                 shasum = p.stdout.decode().split()[0]
 
             except Exception as e:
@@ -563,7 +565,8 @@ def sqlite_make_dataset_lczip(basedir,
                     p = subprocess.run('sha256sum %s' % dataset_fpath,
                                        shell=True,
                                        timeout=60.0,
-                                       capture_output=True)
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE)
                     shasum = p.stdout.decode().split()[0]
 
                 except Exception as e:
@@ -623,7 +626,9 @@ def sqlite_make_dataset_lczip(basedir,
         try:
 
             p = subprocess.run('sha256sum %s' % lczip_fpath,
-                               shell=True, timeout=60.0, capture_output=True)
+                               shell=True, timeout=60.0,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
             shasum = p.stdout.decode().split()[0]
 
         except Exception as e:
@@ -965,7 +970,9 @@ def sqlite_get_dataset(basedir,
         # get the SHASUM of the CSV
         try:
             p = subprocess.run('sha256sum %s' % csv,
-                               shell=True, timeout=60.0, capture_output=True)
+                               shell=True, timeout=60.0,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
             shasum = p.stdout.decode().split()[0]
             returndict['csv_shasum'] = shasum
 
