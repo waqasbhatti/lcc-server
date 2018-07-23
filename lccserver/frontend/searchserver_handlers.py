@@ -92,7 +92,7 @@ from astrobase.coordutils import hms_to_decimal, dms_to_decimal, \
 # single object coordinate search
 # ra dec radius
 COORD_DEGSEARCH_REGEX = re.compile(
-    r'^(\d{1,3}\.{0,1}\d*) (\-?\d{1,2}\.{0,1}\d*) ?(\d{1,2}\.{0,1}\d*)?'
+    r'^(\d{1,3}\.{0,1}\d*) ([+\-]?\d{1,2}\.{0,1}\d*) ?(\d{1,2}\.{0,1}\d*)?'
 )
 COORD_HMSSEARCH_REGEX = re.compile(
     r'^(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) '
@@ -129,31 +129,9 @@ def parse_coordstring(coordstring):
     degcoordtry = COORD_DEGSEARCH_REGEX.match(searchstr)
     hmscoordtry = COORD_HMSSEARCH_REGEX.match(searchstr)
 
-    if degcoordtry:
-
-        ra, dec, radius = degcoordtry.groups()
-
-        try:
-            ra, dec = float(ra), float(dec)
-            if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
-                if ra < 0:
-                    ra = 360.0 + ra
-                paramsok = True
-                searchrad = float(radius)/60.0 if radius else 5.0/60.0
-                radeg, decldeg, radiusdeg = ra, dec, searchrad
-
-            else:
-                paramsok = False
-                radeg, decldeg, radiusdeg = None, None, None
-
-        except Exception as e:
-
-            LOGGER.error('could not parse search string: %s' % coordstring)
-            paramsok = False
-            radeg, decldeg, radiusdeg = None, None, None
-
-
-    elif hmscoordtry:
+    # try HHMMSS first because we get false positives on some HH MM SS items in
+    # degcoordtry
+    if hmscoordtry:
 
         ra, dec, radius = hmscoordtry.groups()
         ra_tuple, dec_tuple = hms_str_to_tuple(ra), dms_str_to_tuple(dec)
@@ -180,6 +158,30 @@ def parse_coordstring(coordstring):
 
             paramsok = False
             radeg, decldeg, radiusdeg = None, None, None
+
+    elif degcoordtry:
+
+        ra, dec, radius = degcoordtry.groups()
+
+        try:
+            ra, dec = float(ra), float(dec)
+            if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
+                if ra < 0:
+                    ra = 360.0 + ra
+                paramsok = True
+                searchrad = float(radius)/60.0 if radius else 5.0/60.0
+                radeg, decldeg, radiusdeg = ra, dec, searchrad
+
+            else:
+                paramsok = False
+                radeg, decldeg, radiusdeg = None, None, None
+
+        except Exception as e:
+
+            LOGGER.error('could not parse search string: %s' % coordstring)
+            paramsok = False
+            radeg, decldeg, radiusdeg = None, None, None
+
 
     else:
 
@@ -411,22 +413,35 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                 self.write(retdict)
                 raise tornado.web.Finish()
 
+            # get the other arguments for the server
             self.result_ispublic = (
-                True if int(self.get_argument('result_ispublic')) else False
+                True if int(xhtml_escape(self.get_argument('result_ispublic')))
+                else False
             )
 
         except:
 
-            LOGGER.exception('one or more of the required args are missing')
-            retdict = {"status":"failed",
-                       "result":None,
-                       "message":"one or more of the required args are missing"}
+            LOGGER.exception(
+                'one or more of the required args are missing or invalid'
+            )
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":("one or more of the "
+                           "required args are missing or invalid")
+            }
             self.write(retdict)
 
             # we call this to end the request here (since self.finish() doesn't
             # actually stop executing statements)
             raise tornado.web.Finish()
 
+        #
+        # now, we should have everything
+        #
+        radius_arcmin = radius_deg * 60.0
+        if radius_arcmin > 60.0:
+            radius_arcmin = 60.0
 
         #
         # we'll use line-delimited JSON to respond

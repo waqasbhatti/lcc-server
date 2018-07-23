@@ -307,7 +307,6 @@
                   <div class="form-group">
                     <label for="conesearch-filtertarget">Use this value</label>
                     <input type="text" class="form-control lcc-filtertarget" id="conesearch-filtertarget">
-                    </select>
                   </div>
                 </div>
 
@@ -354,7 +353,8 @@
                         <p>Use J2000 equatorial coordinates in either decimal or
                           sexagesimal format and an optional search radius in
                           decimal arcminutes. The maximum search radius is 60
-                          arcminutes = 1 degree.</p>
+                          arcminutes = 1 degree. If a search radius isn't
+                          specified, 5.0 arcminutes will be used by default.</p>
 
                         <dl>
                           <dt>Decimal coordinates</dt>
@@ -368,7 +368,7 @@
                               HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
                               HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
                               HH MM SS [+-]DD MM SS DD.dd...<br>
-                              example: 11:45:00 +00:30:00 15.0</code></dd>
+                              example: 19 25 27.9129 +42 47 03.693 15.0</code></dd>
                         </dl>
 
                       </div>
@@ -490,7 +490,6 @@
                   <div class="form-group">
                     <label for="ftsquery-filtertarget">Use this value</label>
                     <input type="text" class="form-control lcc-filtertarget" id="ftsquery-filtertarget">
-                    </select>
                   </div>
                 </div>
 
@@ -531,29 +530,18 @@
                       </div>
                     </div>
 
-                    <div class="row mt-4">
+                    <div class="row mt-2">
                       <div class="col-12">
 
-                        <p>Use J2000 equatorial coordinates in either decimal or
-                          sexagesimal formats and an optional search radius in
-                          decimal arcminutes. The maximum search radius is 60
-                          arcminutes = 1 degree. The default search radius is 5
-                          arcminutes if one is not specified.</p>
+                        <p>Type in the text you want to find in the
+                          full-text-search indexed columns of the database.
+                          This is especially useful for object names, variable
+                          type tags, object classification tags, and external
+                          object names (e.g. from SIMBAD if they're available).</p>
 
-                        <dl>
-                          <dt>Decimal coordinates</dt>
-
-                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
-                              example: 289.0 45.0 10.0</code></dd>
-
-                          <dt>Sexagesimal coordinates</dt>
-
-                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
-                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
-                              HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
-                              HH MM SS [+-]DD MM SS DD.dd...<br>
-                              example: 11:45:00 +00:30:00 15.0</code></dd>
-                        </dl>
+                          <p>Matching text may be found in any of these
+                          FTS-indexed columns:
+                          <small><code><span id="ftsquery-column-list"></span></code></small>.</p>
 
                       </div>
                     </div>
@@ -674,7 +662,6 @@
                   <div class="form-group">
                     <label for="columnsearch-filtertarget">Use this value</label>
                     <input type="text" class="form-control lcc-filtertarget" id="columnsearch-filtertarget">
-                    </select>
                   </div>
                 </div>
 
@@ -704,36 +691,19 @@
                   <form class="form" id="columnsearch-form"
                         action="/api/columnsearch" method="post">
                     {% module xsrf_form_html() %}
-                    <div class="row">
+
+                    <div class="row mt-2">
                       <div class="col-12">
 
-                        <input class="form-control" id="columnsearch-query"
-                               name="columnsearch-query"
-                               type="search"
-                               placeholder="[right ascension] [declination] [optional radius (arcmin)]"
-                               aria-label="Search">
-                      </div>
-                    </div>
+                        <p>This form lets you build a query based on the available
+                          columns in the database and the filters you choose.
+                          Filters may be chained together using AND/OR logic.
+                          Queries will be more efficient on indexed database columns.</p>
 
-                    <div class="row mt-4">
-                      <div class="col-12">
+                        <p>For the available light curve collections, the
+                          following columns have been indexed for fast look-up:
+                          <small><code><span id="columnsearch-indexed-columnlist"></span></code></small>.</p>
 
-                        <p>We won't restrict this because 400k rows is nothing</p>
-
-                        <dl>
-                          <dt>Decimal coordinates</dt>
-
-                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
-                              example: 289.0 45.0 10.0</code></dd>
-
-                          <dt>Sexagesimal coordinates</dt>
-
-                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
-                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
-                              HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
-                              HH MM SS [+-]DD MM SS DD.dd...<br>
-                              example: 11:45:00 +00:30:00 15.0</code></dd>
-                        </dl>
 
                       </div>
                     </div>
@@ -854,7 +824,6 @@
                   <div class="form-group">
                     <label for="xmatchquery-filtertarget">Use this value</label>
                     <input type="text" class="form-control lcc-filtertarget" id="xmatchquery-filtertarget">
-                    </select>
                   </div>
                 </div>
 
@@ -884,43 +853,67 @@
                   <form class="form" id="xmatchquery-form"
                         action="/api/xmatchquery" method="post">
                     {% module xsrf_form_html() %}
+
                     <div class="row">
                       <div class="col-12">
 
-                        <input class="form-control" id="xmatchquery-query"
-                               name="xmatchquery-query"
-                               type="search"
-                               placeholder="[right ascension] [declination] [optional radius (arcmin)]"
-                               aria-label="Search">
+                        <div class="custom-control custom-radio custom-control-inline">
+                          <input type="radio" id="xmatchquery-match-objects"
+                                 name="xmatchquery-matchtype" value="objectid"
+                                 class="custom-control-input lcc-xmatchquery-matchtype">
+                          <label class="custom-control-label"
+                                 for="xmatchquery-match-objects">Match on object ID</label>
+                        </div>
+                        <div class="custom-control custom-radio custom-control-inline">
+                          <input type="radio" id="xmatchquery-match-coords"
+                                 value="coords" name="xmatchquery-matchtype"
+                                 class="custom-control-input" checked>
+                          <label class="custom-control-label"
+                                 for="xmatchquery-match-coords">Match on object coordinates</label>
+                        </div>
+
                       </div>
                     </div>
 
-                    <div class="row mt-4">
+                    <div class="row mt-1">
                       <div class="col-12">
 
-                        <p>Use J2000 equatorial coordinates in either decimal or
-                          sexagesimal formats and an optional search radius in
-                          decimal arcminutes. The maximum search radius is 60
-                          arcminutes = 1 degree. The default search radius is 5
-                          arcminutes if one is not specified.</p>
-
-                        <dl>
-                          <dt>Decimal coordinates</dt>
-
-                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
-                              example: 289.0 45.0 10.0</code></dd>
-
-                          <dt>Sexagesimal coordinates</dt>
-
-                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
-                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
-                              HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
-                              HH MM SS [+-]DD MM SS DD.dd...<br>
-                              example: 11:45:00 +00:30:00 15.0</code></dd>
-                        </dl>
+                        <div class="form-group">
+                          <label for="xmatchquery-query">Enter <code>[objectID], [RA], [Dec]</code>
+                          rows separated by lines.</label>
+                          <textarea class="form-control" id="xmatchquery-query" rows="10"></textarea>
+                        </div>
 
                       </div>
                     </div>
+
+                    <div class="row">
+                      <div class="col-12">
+
+                        <div class="form-group form-inline">
+                          <label for="xmatchquery-matchradius">Match radius [arcsec]</label>
+                          <input type="text" id="xmatchquery-matchradius"
+                                 value="3.0" class="form-control mx-sm-3">
+                          <small id="xmatchquery-matchradius-helpline"
+                                 class="text-muted">
+                            Maximum 30 arcsec.
+                          </small>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    <div class="row mt-1">
+                      <div class="col-12">
+                        <p>The maximum number of object lines allowed is 1000.
+                          You can match on the object IDs themselves; this will
+                          run a full-text-query on the appropriate columns in
+                          the database. Alternatively, you can run spatial
+                          cross-matching with a given match radius.</p>
+
+                        </div>
+                    </div>
+
 
                     <div class="row mt-4">
                       <div class="col-12">

@@ -454,8 +454,11 @@ var lcc_ui = {
                 //also the per collection special cols
                 var available_columns = result.available_columns;
 
-                var indexed_columns = result.available_index_columns;
+                var indexed_columns = result.available_indexed_columns;
                 var fts_columns = result.available_fts_columns;
+
+                lcc_search.indexcols = indexed_columns;
+                lcc_search.ftscols = fts_columns;
 
                 var coll_idx = 0;
 
@@ -637,10 +640,13 @@ var lcc_ui = {
 
                 });
 
+                // update the FTS query FTS column list
+                $('#ftsquery-column-list')
+                    .html(fts_columns.sort().join(', '));
 
-                // we'll update the lcc_search variables here too so we can
-                // build control panes on the fly
-
+                // update the indexed column list
+                $('#columnsearch-indexed-columnlist')
+                    .html(indexed_columns.sort().join(', '));
             }
 
             // at the end, activate the tooltips and popovers
@@ -654,8 +660,6 @@ var lcc_ui = {
             lcc_ui.alert_box(message, 'danger');
 
         });
-
-
 
     }
 
@@ -673,6 +677,12 @@ var lcc_search = {
 
     // this holds the current column definitions
     coldefs: null,
+
+    // this holds the FTS index columns
+    ftscols: null,
+
+    // this holds the indexed columns
+    indexedcols: null,
 
     // this runs a cone search query
     do_conesearch: function() {
