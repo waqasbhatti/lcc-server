@@ -395,14 +395,37 @@ def csvlc_convert_worker(task):
 
     '''
 
-    lcfile, formatdict, convertopts = task
+    lcfile, formatdict, convertin_opts = task
+    convertopts = covertin_opts.copy()
+
+    if 'link_csvlc_files' in convertopts:
+        link_csv_lcfiles = covertopts['link_csvlc_files']
+        del convertopts['link_csvlc_files']
+    else:
+        link_csv_lcfiles = False
+
+    if 'basedir' in convertopts:
+        basedir = covertopts['basedir']
+        del convertopts['basedir']
+    else:
+        basedir = None
 
     try:
         csvlc = abcat.convert_to_csvlc(lcfile,
                                        formatdict,
                                        **convertopts)
         LOGINFO('converted %s -> %s ok' % (lcfile, csvlc))
+
+        if link_csv_lcfiles and basedir and os.path.exists(basedir):
+            out_path = os.path.join(basedir,
+                                    'lightcurves',
+                                    os.path.basename(csvlc))
+            os.symlink(csvlc, out_path)
+            LOGINFO('linked CSV in %s to %s in '
+                    'LCC server basedir/lightcurves' % (csvlc, out_path))
+
         return csvlc
+
     except Exception as e:
         LOGWARNING('failed to convert original LC %s '
                    '(found on filesystem: %s)' %
@@ -419,7 +442,8 @@ def sqlite_make_dataset_lczip(basedir,
                               converter_comment_char='#',
                               converter_column_separator=',',
                               converter_skip_converted=True,
-                              override_lcdir=None):
+                              override_lcdir=None,
+                              link_csvlc_files=True):
     '''
     This makes a zip file for the light curves in the dataset.
 
@@ -451,7 +475,9 @@ def sqlite_make_dataset_lczip(basedir,
                 convertopts = {'csvlc_version':converter_csvlc_version,
                                'comment_char':converter_comment_char,
                                'column_separator':converter_column_separator,
-                               'skip_converted':converter_skip_converted}
+                               'skip_converted':converter_skip_converted,
+                               'link_csvlc_files':link_csvlc_files,
+                               'basedir':os.path.abspath(basedir)}
 
                 collection_lclist = [
                     x['db_lcfname'] for x in dataset['result'][collection]
