@@ -578,9 +578,9 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         try:
 
             # here, we'll yield with_timeout
-            # give 5 seconds to the query
+            # give 15 seconds to the query
             self.query_result = yield gen.with_timeout(
-                timedelta(seconds=5.0),
+                timedelta(seconds=15.0),
                 self.query_result_future
             )
 
@@ -719,7 +719,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
                         retdict = {
                             "message":(
-                                "query sent to background after 15 seconds. "
+                                "query sent to background after 30 seconds. "
                                 "query is complete, "
                                 "but light curves of matching objects "
                                 "are still being zipped. "
