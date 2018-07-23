@@ -395,11 +395,12 @@ def csvlc_convert_worker(task):
 
     '''
 
-    lcfile, formatdict, convertin_opts = task
+    lcfile, objectid, formatdict, convertin_opts = task
     convertopts = convertin_opts.copy()
 
     try:
         csvlc = abcat.convert_to_csvlc(lcfile,
+                                       objectid,
                                        formatdict,
                                        **convertopts)
         LOGINFO('converted %s -> %s ok' % (lcfile, csvlc))
@@ -462,6 +463,11 @@ def sqlite_make_dataset_lczip(basedir,
                     x['db_lcfname'] for x in dataset['result'][collection]
                 ]
 
+                # we'll use this to form CSV filenames
+                collection_objectidlist = [
+                    x['db_oid'] for x in dataset['result']['collection']
+                ]
+
                 # handle the lcdir override if present
                 if override_lcdir and os.path.exists(override_lcdir):
                     collection_lclist = [
@@ -472,8 +478,8 @@ def sqlite_make_dataset_lczip(basedir,
 
                 # now, we'll convert these light curves in parallel
                 pool = Pool(converter_processes)
-                tasks = [(x, lcformatdict, convertopts) for x in
-                         collection_lclist]
+                tasks = [(x, y, lcformatdict, convertopts) for x,y in
+                         zip(collection_lclist, collection_objectidlist)]
                 results = pool.map(csvlc_convert_worker, tasks)
                 pool.close()
                 pool.join()
@@ -497,13 +503,24 @@ def sqlite_make_dataset_lczip(basedir,
                                     'not linking CSVLC: %s to %s because '
                                     ' it exists already' % (rlc, outpath)
                                 )
-                            else:
+                            elif os.path.exists(rlc):
+
                                 LOGINFO(
                                     'linking CSVLC: %s -> %s OK' %
                                     (rlc, outpath)
                                 )
                                 os.symlink(rlc, outpath)
 
+                            else:
+
+                                LOGWARNING(
+                                    'CSVLC: %s probably does not '
+                                    'exist, skipping linking...' % rlc
+                                )
+                                # the LC won't exist, but that's fine, we'll
+                                # catch it later down below
+
+                            # put the output path into the actual results list
                             results[rind] = outpath
 
 

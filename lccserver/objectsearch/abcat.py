@@ -1195,6 +1195,7 @@ def get_lcformat_description(descpath):
 
 
 def convert_to_csvlc(lcfile,
+                     objectid,
                      lcformat_dict,
                      csvlc_version=1,
                      comment_char='#',
@@ -1219,6 +1220,19 @@ def convert_to_csvlc(lcfile,
     lcformat-description.json file.
 
     '''
+
+    # the filename
+    outfile = '%s-csvlc.gz' % objectid
+
+    # we'll put the CSV LC in the same place as the original LC
+    outpath = os.path.join(os.path.dirname(lcfile), outfile)
+
+    # if we're supposed to skip an existing file, do so here
+    if skip_converted and os.path.exists(outpath):
+        LOGWARNING('%s exists already and skip_converted = True, skipping...' %
+                   outpath)
+        return outpath
+
     # use the lcformat_dict to read (and normalize) the lcdict
     readerfunc = lcformat_dict['readerfunc']
     normfunc = lcformat_dict['normfunc']
@@ -1245,18 +1259,6 @@ def convert_to_csvlc(lcfile,
             }
         except:
             pass
-
-    # the filename
-    outfile = '%s-csvlc.gz' % meta['objectid']['val']
-
-    # we'll put the CSV LC in the same place as the original LC
-    outpath = os.path.join(os.path.dirname(lcfile), outfile)
-
-    # if we're supposed to skip an existing file, do so here
-    if skip_converted and os.path.exists(outpath):
-        LOGWARNING('%s exists already and skip_converted = True, skipping...' %
-                   outpath)
-        return outpath
 
     # extract the column info
     columns = {}
