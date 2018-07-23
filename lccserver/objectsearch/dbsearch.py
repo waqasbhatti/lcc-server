@@ -25,9 +25,6 @@ FIXME:
   it and remove harmful stuff. This is likely not as safe as the actual SQL
   parameter substitution code in SQLite. How to get around this?
 
-FIXME: ADD IN THE COLUMNSPEC AND DBCOLLID FOR EACH COLLECTION RESULT
-FIXME: ADD IN THE EXTRA COLUMNSPEC DEFINITIONS FOR DB_OID, DB_RA, etc.
-
 
 '''
 
@@ -155,7 +152,12 @@ def sqlite_get_collections(basedir,
     # in the database
     if lcclist is not None:
 
-        query = query.format(lccspec='where collection_id in (?)')
+        # we need to do this because we're mapping from directory names on the
+        # filesystem that may contain hyphens (although they really shouldn't)
+        # and database names in the sqlite3 table which can't have hyphens
+        query = query.format(
+            lccspec="where replace(collection_id,'-','_') in (?)"
+        )
         db_lcclist = ','.join(lcclist)
 
         if require_ispublic:
@@ -287,12 +289,6 @@ SQLITE_ALLOWED_WORDS = ['and','between','in',
 SQLITE_ALLOWED_ORDERBY = ['asc','desc']
 
 SQLITE_ALLOWED_LIMIT = ['limit']
-
-# this is from Tornado's source (MIT License):
-# http://www.tornadoweb.org/en/stable/_modules/tornado/escape.html#squeeze
-def squeeze(value):
-    """Replace all sequences of whitespace chars with a single space."""
-    return re.sub(r"[\x00-\x20]+", " ", value).strip()
 
 
 
@@ -932,7 +928,7 @@ def sqlite_kdtree_conesearch(basedir,
         columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
                      'a.ra as in_ra, a.decl as in_decl, '
                      'b.ra as db_ra, b.decl as db_decl, '
-                     'a.lcfname as db_lcfname '
+                     'a.lcfname as db_lcfname, '
                      '%s' % columnstr)
 
         rescolumns = getcolumns[::] + ['in_oid',
