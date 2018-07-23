@@ -396,16 +396,16 @@ def csvlc_convert_worker(task):
     '''
 
     lcfile, formatdict, convertin_opts = task
-    convertopts = covertin_opts.copy()
+    convertopts = convertin_opts.copy()
 
     if 'link_csvlc_files' in convertopts:
-        link_csv_lcfiles = covertopts['link_csvlc_files']
+        link_csv_lcfiles = convertopts['link_csvlc_files']
         del convertopts['link_csvlc_files']
     else:
         link_csv_lcfiles = False
 
     if 'basedir' in convertopts:
-        basedir = covertopts['basedir']
+        basedir = convertopts['basedir']
         del convertopts['basedir']
     else:
         basedir = None
