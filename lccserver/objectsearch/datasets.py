@@ -85,6 +85,7 @@ import json
 import subprocess
 from multiprocessing import Pool
 from textwrap import indent
+from numpy import nan
 
 
 from . import dbsearch
@@ -1097,7 +1098,7 @@ def generate_dataset_csv(
         }
 
         # generate the format string from here
-        formstr = []
+        formspec = []
 
         # go through each column and get its info from colspec
         # also build up the format string for the CSV
@@ -1107,10 +1108,10 @@ def generate_dataset_csv(
                 'desc': colspec[col]['description'],
                 'dtype': colspec[col]['dtype']
             }
-            formstr.append(colspec[col]['format'])
+            formspec.append(colspec[col]['format'])
 
         # there's an extra collection column needed for the CSV
-        formstr.append('%s')
+        formspec.append('%s')
         header['columns'].append('collection')
         header['coldesc']['collection'] = {
             'desc':'LC collection of this object',
@@ -1121,8 +1122,8 @@ def generate_dataset_csv(
         csvheader = json.dumps(header, indent=2)
         csvheader = indent(csvheader, '%s ' % comment)
 
-        # finalize the formstr
-        formstr = separator.join(formstr)
+        # finalize the formspec
+        formstr = separator.join(formspec)
 
         # write to the output file now
         with open(dataset_csv,'wb') as outfd:
@@ -1162,11 +1163,23 @@ def generate_dataset_csv(
                         else:
                             entry['lcfname'] = 'missing'
 
+                    # do the formatting more carefully
+                    row = []
+                    for ic, col in enumerate(setcols):
 
-                    row = [entry[col] for col in setcols]
+                        if 'f' in formspec[ic] and entry[col] is None:
+                            row.append(nan)
+
+                        # at some point, numpy started complaining about nans
+                        # not being convertible to integers
+                        elif 'i' in formspec[ic] and entry[col] is None:
+                            row.append(-9999)
+
+                        else:
+                            row.append(entry[col])
+
                     row.append(collid)
                     rowstr = formstr % tuple(row)
-
                     outfd.write(('%s\n' % rowstr).encode())
 
         LOGINFO('wrote CSV: %s for dataset: %s' % (dataset_csv, setid))
@@ -1281,9 +1294,17 @@ def generate_dataset_tablerows(
                         else:
                             row.append('<span class="text-danger">'
                                        'unavailable or missing</span>')
+
+                    # take care with nans, Nones, and missing integers
                     else:
-                        row.append(header['coldesc'][col]['format'] %
-                                   entry[col])
+
+                        colform = header['coldesc'][col]['format']
+                        if 'f' in colform and entry[col] is None:
+                            row.append('nan')
+                        elif 'i' in colform and entry[col] is None:
+                            row.append('-9999')
+                        else:
+                            row.append(colform % entry[col])
 
             else:
                 row = [entry[col] for col in setcols]

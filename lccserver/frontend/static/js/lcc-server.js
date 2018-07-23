@@ -722,9 +722,16 @@ var lcc_search = {
 
         // FIXME: add in the columns, filters, and collections here later
         var getparams = {coords: coords,
-                         result_ispublic: ispublic};
+                         result_ispublic: ispublic,
+                         collections: collections,
+                         columns: columns,
+                         filters: filters};
 
+
+        console.log(getparams);
         getparams = $.param(getparams);
+        console.log(getparams);
+
         geturl = geturl + '?' + getparams;
 
         if (proceed) {

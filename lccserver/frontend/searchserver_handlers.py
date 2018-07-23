@@ -393,6 +393,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         result_ispublic: either 1 or 0
 
         '''
+        LOGGER.info('request arguments: %r' % self.request.arguments)
 
         try:
 
@@ -401,16 +402,12 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             else:
                 self.req_hostname = self.request.host
 
+
+            # REQUIRED: coords
             coordstr = xhtml_escape(self.get_argument('coords'))
-
-            LOGGER.info(coordstr)
-
             coordok, center_ra, center_decl, radius_deg = parse_coordstring(
                 coordstr
             )
-
-            LOGGER.info('%s %s %s %s' %
-                        (coordok, center_ra, center_decl, radius_deg))
 
             if not coordok:
 
@@ -422,11 +419,49 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                 raise tornado.web.Finish()
 
             # get the other arguments for the server
+
+            # OPTIONAL: result_ispublic
             self.result_ispublic = (
                 True if int(xhtml_escape(self.get_argument('result_ispublic')))
                 else False
             )
 
+            # OPTIONAL: columns
+            getcolumns = self.get_arguments('columns[]')
+
+            if getcolumns is not None:
+                getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
+            else:
+                getcolumns = None
+
+
+            # OPTIONAL: collections
+            lcclist = self.get_arguments('collections[]')
+
+            if lcclist is not None:
+
+                lcclist = list(set([xhtml_escape(x) for x in lcclist]))
+                if 'all' in lcclist:
+                    lcclist.remove('all')
+                if len(lcclist) == 0:
+                    lcclist = None
+
+            else:
+                lcclist = None
+
+
+            # OPTIONAL: extraconditions
+            # FIXME: in a bit
+            extraconditions = self.get_arguments('filters[]')
+
+            extraconditions = None
+
+            #
+            # now we've collected all the parameters for
+            # sqlite_kdtree_conesearch
+            #
+
+        # if something goes wrong parsing the args, bail out immediately
         except:
 
             LOGGER.exception(
@@ -445,11 +480,18 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             raise tornado.web.Finish()
 
         #
-        # now, we should have everything
+        # reform the radius_deg returned by parse_coordstring to radius_arcmin
         #
         radius_arcmin = radius_deg * 60.0
         if radius_arcmin > 60.0:
             radius_arcmin = 60.0
+
+        LOGGER.info('********* PARSED ARGS *********')
+        LOGGER.info('center_ra = %s, center_decl = %s, radius_arcmin = %s'
+                    % (center_ra, center_decl, radius_arcmin))
+        LOGGER.info('getcolumns = %s' % getcolumns)
+        LOGGER.info('lcclist = %s' % lcclist)
+        LOGGER.info('extraconditions = %s' % extraconditions)
 
         #
         # we'll use line-delimited JSON to respond
@@ -463,7 +505,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         setinfo = yield self.executor.submit(
             datasets.sqlite_prepare_dataset,
             self.basedir,
-            ispublic=self.result_ispublic
+            ispublic=self.result_ispublic,
         )
 
         self.setid, self.creationdt = setinfo
@@ -496,7 +538,9 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             center_ra,
             center_decl,
             radius_arcmin,
-            # extra kwargs here later
+            getcolumns=getcolumns,
+            lcclist=lcclist,
+            extraconditions=extraconditions
         )
 
         try:
