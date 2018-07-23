@@ -150,6 +150,8 @@
 
       <div class="tab-content" id="myTabContent">
 
+
+        <!-- COLLECTION DISPLAY PANEL -->
         <div class="tab-pane show active"
              id="collections" role="tabpanel" aria-labelledby="collections-tab">
 
@@ -185,6 +187,7 @@
 
         </div>
 
+        <!-- DATASET DISPLAY PANEL -->
         <div class="tab-pane"
              id="datasets" role="tabpanel" aria-labelledby="datasets-tab">
 
@@ -220,6 +223,8 @@
 
         </div>
 
+
+        <!-- CONE SEARCH QUERY PANEL -->
         <div class="tab-pane"
              id="conesearch" role="tabpanel" aria-labelledby="conesearch-tab">
 
@@ -230,60 +235,130 @@
           </div>
 
           <!-- main search controls -->
-          <div class="row mt-2">
+          <div class="row mt-4">
 
-            <div class="col-sm-8">
-              coordinates box centered on page
-            </div>
+            <div class="col-3">
 
-            <div class="col-sm-4">
-              button postfix to the coordinate box<br>
-              also a checkbox to set if the resulting dataset should be public
-            </div>
+              <div class="row">
+                <div class="col-12">
 
-            <ul>
-              <li>submit the query in stream mode</li>
-              <li>flash the query status tab when the query is successfully submitted and we receive a setid. we can do with addClass('animated flash') or similar. also remember to set a pill badge on the query notification text span so we know how many queries are running currently.</li>
-              <li>stream the status updates in a dedicated div on the status tab</li>
-              <li>when done, flash the query status tab again to indicate completion</li>
-              <li>hit /api/datasets again to update the list of datasets</li>
-              <li>the datasets tab and download links to each dataset should have rel=nofollow</li>
-              <li>the light curve download links should all have rel=nofollow as well</li>
-              <li>remember to set <code>proxy_buffering off;</code> in the nginx proxy location element</li>
-            </ul>
+                  <h4>Use these collections</h4>
 
-          </div>
+                  <select class="custom-select lcc-collection-select"
+                          id="conesearch-collection-select" multiple size="4">
 
-          <!-- advanced options -->
-          <div class="row mt-2">
+                    <option value="all" selected>All collections</option>
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Use LC collections</h4>
-              use collections (updated whenever we call /api/collections)
-            </div>
+                  </select>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Retrieve database columns</h4>
-              retrieve these columns (updated whenever we call /api/collections)
-            </div>
-
-            <div class="col-sm-12 col-md-4">
-              <h4>Apply extra filters</h4>
-              apply the following conditions to results (updated whenever we call /api/collections)
-            </div>
-
-          </div>
-
-          <!-- box for immediate feedback on status and problems -->
-          <div class="row mt-2">
-            <div class="col-sm-12">
-              <div id="conesearch-feedback-box">
+                </div>
               </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <h4>Retrieve these columns</h4>
+
+                  <select class="custom-select lcc-column-select"
+                          id="conesearch-column-select" multiple size="18">
+
+                  </select>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+
+                </div>
+              </div>
+
             </div>
+
+            <div class="col-4">
+              <h4>Apply extra filter conditions</h4>
+
+
+            </div>
+
+            <div class="col-5">
+
+              <div class="row">
+                <div class="col-12">
+
+                  <h4>Search parameters</h4>
+
+                  <form class="form" id="conesearch-form"
+                        action="/api/conesearch" method="post">
+                    {% module xsrf_form_html() %}
+                    <div class="row">
+                      <div class="col-12">
+
+                        <input class="form-control" id="conesearch-query"
+                               name="conesearch-query"
+                               type="search"
+                               placeholder="[right ascension] [declination] [search radius (arcmin)]"
+                               aria-label="Search">
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <p>Use J2000 equatorial coordinates in either decimal or
+                          sexagesimal format and an optional search radius in
+                          decimal arcminutes. The maximum search radius is 60
+                          arcminutes = 1 degree.</p>
+
+                        <dl>
+                          <dt>Decimal coordinates</dt>
+
+                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
+                              example: 289.0 45.0 10.0</code></dd>
+
+                          <dt>Sexagesimal coordinates</dt>
+
+                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
+                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
+                              HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
+                              HH MM SS [+-]DD MM SS DD.dd...<br>
+                              example: 11:45:00 +00:30:00 15.0</code></dd>
+                        </dl>
+
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <div class="form-group">
+                          <div class="form-check">
+                            <input class="form-check-input lcc-result-ispublic" type="checkbox" id="conesearch-ispublic">
+                            <label class="form-check-label" for="conesearch-ispublic">
+                              Make query result publicly visible
+                            </label>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-12">
+                        <button class="btn btn-primary" type="submit" class="lcc-query-submit" id="conesearch-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </form>
+
+                </div>
+              </div>
+
+            </div>
+
+            <!-- end of main search controls -->
           </div>
 
         </div>
 
+
+        <!-- FTS QUERY PANEL -->
         <div class="tab-pane"
              id="fts" role="tabpanel" aria-labelledby="fts-tab">
 
@@ -294,48 +369,131 @@
           </div>
 
           <!-- main search controls -->
-          <div class="row mt-2">
+          <div class="row mt-4">
 
-            <div class="col-sm-8">
-              coordinates box centered on page
-            </div>
+            <div class="col-3">
 
-            <div class="col-sm-4">
-              button postfix to the coordinate box
-            </div>
+              <div class="row">
+                <div class="col-12">
 
-          </div>
+                  <h4>Use these collections</h4>
 
-          <!-- advanced options -->
-          <div class="row mt-2">
+                  <select class="custom-select lcc-collection-select"
+                          id="ftsquery-collection-select" multiple size="4">
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Use LC collections</h4>
-              use collections
-            </div>
+                    <option value="all" selected>All collections</option>
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Retrieve database columns</h4>
-              retrieve these columns
-            </div>
+                  </select>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Apply extra filters</h4>
-              apply the following conditions to results
-            </div>
-
-          </div>
-
-          <!-- box for immediate feedback on status and problems -->
-          <div class="row mt-2">
-            <div class="col-sm-12">
-              <div id="ftsearch-feedback-box">
+                </div>
               </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <h4>Retrieve these columns</h4>
+
+                  <select class="custom-select lcc-column-select"
+                          id="ftsquery-column-select" multiple size="18">
+
+                  </select>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+
+                </div>
+              </div>
+
             </div>
+
+            <div class="col-4">
+              <h4>Apply extra filter conditions</h4>
+
+
+            </div>
+
+            <div class="col-5">
+
+              <div class="row">
+                <div class="col-12">
+
+                  <h4>Search parameters</h4>
+
+                  <form class="form" id="ftsquery-form"
+                        action="/api/ftsquery" method="post">
+                    {% module xsrf_form_html() %}
+                    <div class="row">
+                      <div class="col-12">
+
+                        <input class="form-control" id="ftsquery-query"
+                               name="ftsquery-query"
+                               type="search"
+                               placeholder="object name, comment text, tags, etc."
+                               aria-label="Search">
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <p>Use J2000 equatorial coordinates in either decimal or
+                          sexagesimal formats and an optional search radius in
+                          decimal arcminutes. The maximum search radius is 60
+                          arcminutes = 1 degree. The default search radius is 5
+                          arcminutes if one is not specified.</p>
+
+                        <dl>
+                          <dt>Decimal coordinates</dt>
+
+                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
+                              example: 289.0 45.0 10.0</code></dd>
+
+                          <dt>Sexagesimal coordinates</dt>
+
+                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
+                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
+                              HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
+                              HH MM SS [+-]DD MM SS DD.dd...<br>
+                              example: 11:45:00 +00:30:00 15.0</code></dd>
+                        </dl>
+
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <div class="form-group">
+                          <div class="form-check">
+                            <input class="form-check-input lcc-result-ispublic" type="checkbox" id="ftsquery-ispublic">
+                            <label class="form-check-label" for="ftsquery-ispublic">
+                              Make query result publicly visible
+                            </label>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-12">
+                        <button class="btn btn-primary" type="submit" class="lcc-query-submit" id="ftsquery-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </form>
+
+                </div>
+              </div>
+
+            </div>
+
+            <!-- end of main search controls -->
           </div>
 
         </div>
 
+
+        <!-- COLUMN SEARCH QUERY PANEL -->
         <div class="tab-pane"
              id="columns" role="tabpanel" aria-labelledby="columns-tab">
 
@@ -345,48 +503,132 @@
             </div>
           </div>
 
-          <!-- advanced options -->
-          <div class="row mt-2">
-
-            <div class="col-sm-12 col-md-4">
-              <h4>Use LC collections</h4>
-              use collections
-            </div>
-
-            <div class="col-sm-12 col-md-4">
-              <h4>Retrieve database columns</h4>
-              retrieve these columns
-            </div>
-
-            <div class="col-sm-12 col-md-4">
-              <h4>Apply extra filters</h4>
-              apply the following conditions to results
-            </div>
-
-          </div>
-
           <!-- main search controls -->
-          <div class="row mt-2">
+          <div class="row mt-4">
 
-            <div class="col-sm-8">
-            </div>
+            <div class="col-3">
 
-            <div class="col-sm-4">
-              search button right justified
-            </div>
+              <div class="row">
+                <div class="col-12">
 
-          </div>
+                  <h4>Use these collections</h4>
 
-          <!-- box for immediate feedback on status and problems -->
-          <div class="row mt-2">
-            <div class="col-sm-12">
-              <div id="columnsearch-feedback-box">
+                  <select class="custom-select lcc-collection-select"
+                          id="columnsearch-collection-select" multiple size="4">
+
+                    <option value="all" selected>All collections</option>
+
+                  </select>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
+
+                </div>
               </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <h4>Retrieve these columns</h4>
+
+                  <select class="custom-select lcc-column-select"
+                          id="columnsearch-column-select" multiple size="18">
+
+                  </select>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+
+                </div>
+              </div>
+
             </div>
+
+            <div class="col-4">
+              <h4>Apply extra filter conditions</h4>
+
+
+            </div>
+
+            <div class="col-5">
+
+              <div class="row">
+                <div class="col-12">
+
+                  <h4>Search parameters</h4>
+
+                  <form class="form" id="columnsearch-form"
+                        action="/api/columnsearch" method="post">
+                    {% module xsrf_form_html() %}
+                    <div class="row">
+                      <div class="col-12">
+
+                        <input class="form-control" id="columnsearch-query"
+                               name="columnsearch-query"
+                               type="search"
+                               placeholder="[right ascension] [declination] [optional radius (arcmin)]"
+                               aria-label="Search">
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <p>Use J2000 equatorial coordinates in either decimal or
+                          sexagesimal formats and an optional search radius in
+                          decimal arcminutes. The maximum search radius is 60
+                          arcminutes = 1 degree. The default search radius is 5
+                          arcminutes if one is not specified.</p>
+
+                        <dl>
+                          <dt>Decimal coordinates</dt>
+
+                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
+                              example: 289.0 45.0 10.0</code></dd>
+
+                          <dt>Sexagesimal coordinates</dt>
+
+                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
+                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
+                              HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
+                              HH MM SS [+-]DD MM SS DD.dd...<br>
+                              example: 11:45:00 +00:30:00 15.0</code></dd>
+                        </dl>
+
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <div class="form-group">
+                          <div class="form-check">
+                            <input class="form-check-input lcc-result-ispublic" type="checkbox" id="columnsearch-ispublic">
+                            <label class="form-check-label" for="columnsearch-ispublic">
+                              Make query result publicly visible
+                            </label>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-12">
+                        <button class="btn btn-primary" type="submit" class="lcc-query-submit" id="columnsearch-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </form>
+
+                </div>
+              </div>
+
+            </div>
+
+            <!-- end of main search controls -->
           </div>
 
         </div>
 
+
+        <!-- XMATCH QUERY PANEL -->
         <div class="tab-pane"
              id="xmatch" role="tabpanel" aria-labelledby="xmatch-tab">
 
@@ -397,44 +639,125 @@
           </div>
 
           <!-- main search controls -->
-          <div class="row mt-2">
+          <div class="row mt-4">
 
-            <div class="col-sm-6">
-              input box for objectid, ra, decl
-            </div>
+            <div class="col-3">
 
-            <div class="col-sm-6">
-              xmatch options box and submit button
-            </div>
+              <div class="row">
+                <div class="col-12">
 
-          </div>
+                  <h4>Use these collections</h4>
 
-          <!-- advanced options -->
-          <div class="row mt-2">
+                  <select class="custom-select lcc-collection-select"
+                          id="xmatchquery-collection-select" multiple size="4">
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Use LC collections</h4>
-              use collections
-            </div>
+                    <option value="all" selected>All collections</option>
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Retrieve database columns</h4>
-              retrieve these columns
-            </div>
+                  </select>
+                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Shift</kbd> key when clicking.</small>
 
-            <div class="col-sm-12 col-md-4">
-              <h4>Apply extra filters</h4>
-              apply the following conditions to results
-            </div>
-
-          </div>
-
-          <!-- box for immediate feedback on status and problems -->
-          <div class="row mt-2">
-            <div class="col-sm-12">
-              <div id="ftsearch-feedback-box">
+                </div>
               </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <h4>Retrieve these columns</h4>
+
+                  <select class="custom-select lcc-column-select"
+                          id="xmatchquery-column-select" multiple size="18">
+
+                  </select>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Shift</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+
+                </div>
+              </div>
+
             </div>
+
+            <div class="col-4">
+              <h4>Apply extra filter conditions</h4>
+
+
+            </div>
+
+            <div class="col-5">
+
+              <div class="row">
+                <div class="col-12">
+
+                  <h4>Search parameters</h4>
+
+                  <form class="form" id="xmatchquery-form"
+                        action="/api/xmatchquery" method="post">
+                    {% module xsrf_form_html() %}
+                    <div class="row">
+                      <div class="col-12">
+
+                        <input class="form-control" id="xmatchquery-query"
+                               name="xmatchquery-query"
+                               type="search"
+                               placeholder="[right ascension] [declination] [optional radius (arcmin)]"
+                               aria-label="Search">
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <p>Use J2000 equatorial coordinates in either decimal or
+                          sexagesimal formats and an optional search radius in
+                          decimal arcminutes. The maximum search radius is 60
+                          arcminutes = 1 degree. The default search radius is 5
+                          arcminutes if one is not specified.</p>
+
+                        <dl>
+                          <dt>Decimal coordinates</dt>
+
+                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
+                              example: 289.0 45.0 10.0</code></dd>
+
+                          <dt>Sexagesimal coordinates</dt>
+
+                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
+                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
+                              HH:MM:SS [+-]DD:MM:SS DD.dd...<br>
+                              HH MM SS [+-]DD MM SS DD.dd...<br>
+                              example: 11:45:00 +00:30:00 15.0</code></dd>
+                        </dl>
+
+                      </div>
+                    </div>
+
+                    <div class="row mt-4">
+                      <div class="col-12">
+
+                        <div class="form-group">
+                          <div class="form-check">
+                            <input class="form-check-input lcc-result-ispublic" type="checkbox" id="xmatchquery-ispublic">
+                            <label class="form-check-label" for="xmatchquery-ispublic">
+                              Make query result publicly visible
+                            </label>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-12">
+                        <button class="btn btn-primary" type="submit" class="lcc-query-submit" id="xmatchquery-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </form>
+
+                </div>
+              </div>
+
+            </div>
+
+            <!-- end of main search controls -->
           </div>
 
         </div>

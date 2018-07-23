@@ -441,6 +441,38 @@ var lcc_ui = {
 
                 }
 
+                // update the collection select boxes
+                var collection_selectboxes = $('.lcc-collection-select');
+
+                collection_selectboxes.each(function (e, i) {
+
+                    var thisbox = $(this);
+
+                    thisbox.append('<option value="' +
+                                   db_collid +
+                                   '">' +
+                                   collname +
+                                   '</option>');
+
+                });
+
+                // update the column select boxes
+                var column_selectboxes = $('.lcc-column-select');
+
+                column_selectboxes.each(function (e, i) {
+
+                    var thisbox = $(this);
+                    var column_ind = 0;
+                    for (column_ind; column_ind < columns.length; column_ind++) {
+                        thisbox.append('<option value="' +
+                                       columns[column_ind] +
+                                       '">' +
+                                       columns[column_ind] +
+                                       '</option>');
+                    }
+
+                });
+
 
                 // we'll update the lcc_search variables here too so we can
                 // build control panes on the fly
