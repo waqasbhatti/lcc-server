@@ -357,7 +357,8 @@ def validate_sqlite_filters(filterstring,
 
         # check if validatecheck contains an elem with % in it
         LOGWARNING("provided SQL filter string '%s' "
-                   "contains non-allowed keywords" % filterstring)
+                   "contains non-allowed keywords: %s" % (filterstring,
+                                                          validatecheck))
         return None
 
     else:
@@ -432,8 +433,13 @@ def sqlite_fulltext_search(basedir,
 
         # get the requested columns together
         columnstr = ', '.join('a.%s' % c for c in getcolumns)
-        columnstr = ('%s, a.objectid as db_oid, a.ra as db_ra, '
-                     'a.decl as db_decl, a.lcfname as db_lcfname' % columnstr)
+
+        columnstr = ', '.join(
+            [columnstr,
+             ('a.objectid as db_oid, a.ra as db_ra, '
+              'a.decl as db_decl, a.lcfname as db_lcfname')]
+        )
+        columnstr = columnstr.lstrip(',').strip()
 
         rescolumns = getcolumns[::] + ['in_oid',
                                        'db_oid',
@@ -640,8 +646,12 @@ def sqlite_column_search(basedir,
 
         # get the requested columns together
         columnstr = ', '.join('a.%s' % c for c in getcolumns)
-        columnstr = ('%s, a.objectid as db_oid, a.ra as db_ra, '
-                     'a.decl as db_decl, a.lcfname as db_lcfname' % columnstr)
+        columnstr = ', '.join(
+            [columnstr,
+             ('a.objectid as db_oid, a.ra as db_ra, '
+              'a.decl as db_decl, a.lcfname as db_lcfname')]
+        )
+        columnstr = columnstr.lstrip(',').strip()
 
         rescolumns = getcolumns[::] + ['in_oid',
                                        'db_oid',
@@ -925,11 +935,14 @@ def sqlite_kdtree_conesearch(basedir,
 
         # we add some columns that will always be present to use in sorting and
         # filtering
-        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
-                     'a.ra as in_ra, a.decl as in_decl, '
-                     'b.ra as db_ra, b.decl as db_decl, '
-                     'a.lcfname as db_lcfname, '
-                     '%s' % columnstr)
+        columnstr = ', '.join(
+            [columnstr,
+             ('a.objectid as in_oid, b.objectid as db_oid, '
+              'a.ra as in_ra, a.decl as in_decl, '
+              'b.ra as db_ra, b.decl as db_decl, '
+              'a.lcfname as db_lcfname')]
+        )
+        columnstr = columnstr.lstrip(',').strip()
 
         rescolumns = getcolumns[::] + ['in_oid',
                                        'db_oid',
@@ -1133,6 +1146,7 @@ def sqlite_kdtree_conesearch(basedir,
                                  matching_decls)])
 
             # now run our query
+            LOGINFO('query = %s' % thisq)
             cur.execute(thisq)
 
             # get the results
@@ -1307,11 +1321,13 @@ def sqlite_xmatch_search(basedir,
 
         columnstr = ', '.join('b.%s' % c for c in getcolumns)
 
-        # we add some columns that will always be present to use in sorting and
-        # filtering
-        columnstr = ('b.objectid as db_oid, '
-                     'b.ra as db_ra, b.decl as db_decl, '
-                     'b.lcfname as db_lcfname, %s' % columnstr)
+        columnstr = ', '.join(
+            [columnstr,
+             ('b.objectid as db_oid, '
+              'b.ra as db_ra, b.decl as db_decl, '
+              'b.lcfname as db_lcfname')]
+        )
+        columnstr = columnstr.lstrip(',').strip()
 
         rescolumns = getcolumns[::] + ['in_oid',
                                        'db_oid',

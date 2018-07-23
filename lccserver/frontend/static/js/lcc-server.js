@@ -146,47 +146,101 @@ var lcc_ui = {
                 var filter_op = 'contains';
             }
 
-            var filter_val = filter_val_elem.val();
-
             // look up the dtype of the column
             var filter_dtype = lcc_search.coldefs[filter_col]['dtype']
                 .replace('<','');
 
-            // check if the filter bucket is empty
-            var filterbucket_elem = $('#' + target + '-filterbucket');
-            var filterbucket_nitems = filterbucket_elem.children().length;
+            var filter_val = filter_val_elem.val();
+            var filter_check = false;
 
-            if (filterbucket_nitems > 0) {
+            // check if the filter val and operator matches the expected dtype
 
-                var filter_card_joiner =
-                    '<select class="mr-3 lcc-filterbucket-chainer">' +
-                    '<option value="and" selected>and</option>' +
-                    '<option value="or">or</option></select> ';
+            // float
+            if (filter_dtype.indexOf('f') != -1) {
+
+                filter_check = (
+                    !(isNaN(parseFloat(filter_val.trim()))) &&
+                        filter_opstr != 'ct'
+                );
+
             }
+
+            // integer
+            else if (filter_dtype.indexOf('i') != -1) {
+
+                filter_check = (
+                    !(isNaN(parseInt(filter_val.trim()))) &&
+                        filter_opstr != 'ct'
+                );
+
+            }
+
+            // string
+            else if (filter_val.trim().length > 0 &&
+                     ((filter_opstr == 'eq') ||
+                      (filter_opstr == 'ne') ||
+                      (filter_opstr == 'ct')) ) {
+
+                filter_check = true;
+
+            }
+
+            if (filter_check) {
+
+                // check if the filter bucket is empty
+                var filterbucket_elem = $('#' + target + '-filterbucket');
+                var filterbucket_nitems = filterbucket_elem.children().length;
+
+                if (filterbucket_nitems > 0) {
+
+                    var filter_card_joiner =
+                        '<select class="mr-3 lcc-filterbucket-chainer">' +
+                        '<option value="and" selected>and</option>' +
+                        '<option value="or">or</option></select> ';
+                }
+                else {
+                    var filter_card_joiner = '';
+                }
+
+                // generate the card for this filter
+                var filter_card = '<div class="card filterbucket-card mb-2" ' +
+                    'data-target="' +
+                    target.replace('"','').replace("'",'').trim() +
+                    '" data-column="' +
+                    filter_col.replace('"','').replace("'",'').trim() +
+                    '" data-operator="' +
+                    filter_opstr.replace('"','').replace("'",'').trim() +
+                    '" data-filterval="' +
+                    filter_val.replace('"','').replace("'",'').trim() +
+                    '" data-dtype="' +
+                    filter_dtype.replace('"','').replace("'",'').trim() +
+                    '">' +
+                    '<div class="card-body">' +
+                    filter_card_joiner +
+                    '<code>' +
+                    filter_col + ' ' + filter_op + ' ' + filter_val + '</code>' +
+                    '</div>' +
+                    '<div class="card-footer text-right">' +
+                    '<a href="#" ' +
+                    'class="btn btn-outline-danger btn-sm lcc-filterbucket-remove">' +
+                    'Remove filter</a></div>' +
+                    '</div>';
+
+                filterbucket_elem.append(filter_card);
+
+            }
+
             else {
-                var filter_card_joiner = '';
+                var msg = target + ', ' +
+                    'column: ' +
+                    filter_col + ' requires dtype: ' +
+                    filter_dtype + ' for its value. ' +
+                    ' (current value is: <strong>' +
+                    filter_val + '</strong>, current filter op is: ' +
+                    '<strong>' + filter_op + '</strong>)';
+
+                lcc_ui.alert_box(msg, 'danger');
             }
-
-            // generate the card for this filter
-            var filter_card = '<div class="card filterbucket-card mb-2" ' +
-                'data-target="' + target +
-                '" data-column="' + filter_col +
-                '" data-operator="' + filter_op +
-                '" data-filterval=""' + filter_val +
-                '" data-dtype=""' + filter_dtype +
-                '">' +
-                '<div class="card-body">' +
-                filter_card_joiner +
-                '<code>' +
-                filter_col + ' ' + filter_op + ' ' + filter_val + '</code>' +
-                '</div>' +
-                '<div class="card-footer text-right">' +
-                '<a href="#" ' +
-                'class="btn btn-outline-danger btn-sm lcc-filterbucket-remove">' +
-                'Remove filter</a></div>' +
-                '</div>';
-
-            filterbucket_elem.append(filter_card);
 
         });
 
@@ -210,6 +264,50 @@ var lcc_ui = {
         });
 
     },
+
+    // this parses the filter control results for any searchtype it is pointed
+    // to. returns an SQL string that can be validated by the backend
+    parse_column_filters: function(target) {
+
+        var filterbucket_elem = $('#' + target + '-filterbucket');
+        var filterbucket_items = filterbucket_elem.children();
+        var filterbucket_nitems = filterbucket_items.length;
+
+        var filters = [];
+
+        filterbucket_items.each( function (i, e) {
+
+            // get this card's vals
+            var col = $(this).attr('data-column');
+            var oper = $(this).attr('data-operator');
+            var fval = $(this).attr('data-filterval');
+            var dtype = $(this).attr('data-dtype');
+
+            if (dtype.indexOf('U') != -1) {
+                fval = "'" + fval + "'";
+            }
+
+            // check if this card has a chainer operator
+            var chain_op = $(this)
+                .children('div.card-body')
+                .children('select').val();
+
+            if (chain_op != undefined && i > 0) {
+                var thisfilter = chain_op + ' (' + col +
+                    ' ' + oper + ' ' + fval + ')';
+            }
+            else {
+                var thisfilter = '(' + col + ' ' + oper + ' ' + fval + ')';
+            }
+
+            filters.push(thisfilter);
+
+        });
+
+        return filters.join(' ');
+
+    },
+
 
     get_recent_datasets: function(nrecent, highlight) {
 
@@ -716,7 +814,10 @@ var lcc_search = {
         }
 
         // parse the extra filters
-        var filters = [];
+        var filters = lcc_ui.parse_column_filters('conesearch');
+        if (filters.length == 0) {
+            filters = null;
+        }
 
         var geturl = '/api/conesearch';
 

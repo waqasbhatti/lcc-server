@@ -452,9 +452,41 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
             # OPTIONAL: extraconditions
             # FIXME: in a bit
-            extraconditions = self.get_arguments('filters[]')
+            extraconditions = self.get_argument('filters', default=None)
+            if extraconditions is not None:
 
-            extraconditions = None
+                extraconditions = xhtml_escape(squeeze(extraconditions))
+
+                # return the "'" character that got escaped
+                extraconditions = extraconditions.replace('&#39;',"'")
+
+                # replace the operators with their SQL equivalents
+                farr = extraconditions.split(' ')
+                farr = ['>' if x == 'gt' else x for x in farr]
+                farr = ['<' if x == 'lt' else x for x in farr]
+                farr = ['>=' if x == 'ge' else x for x in farr]
+                farr = ['<=' if x == 'le' else x for x in farr]
+                farr = ['=' if x == 'eq' else x for x in farr]
+                farr = ['!=' if x == 'ne' else x for x in farr]
+                farr = ['like' if x == 'ct' else x for x in farr]
+
+                LOGGER.info(farr)
+
+                # deal with like operator
+                # FIXME: this is ugly :(
+                for i, x in enumerate(farr):
+                    if x == 'like':
+                        LOGGER.info(farr[i+1])
+                        farrnext = farr[i+1]
+                        farrnext_left = farrnext.index("'")
+                        farrnext_right = farrnext.rindex("'")
+                        farrnext = [a for a in farrnext]
+                        farrnext.insert(farrnext_left+1,'%')
+                        farrnext.insert(farrnext_right+1,'%')
+                        farr[i+1] = ''.join(farrnext)
+
+                extraconditions = ' '.join(farr)
+                LOGGER.info('extraconditions = %s' % extraconditions)
 
             #
             # now we've collected all the parameters for
