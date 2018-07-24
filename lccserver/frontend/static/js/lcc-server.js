@@ -150,7 +150,7 @@ var lcc_ui = {
                 }
 
                 // generate the card for this filter
-                var filter_card = '<div class="card filterbucket-card mb-2" ' +
+                var filter_card = '<div class="card filterbucket-card mt-1 mx-1" ' +
                     'data-target="' +
                     target.replace('"','').replace("'",'').trim() +
                     '" data-column="' +

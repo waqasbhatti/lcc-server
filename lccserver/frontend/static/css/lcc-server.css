@@ -164,7 +164,7 @@ th[role=columnheader]:not(.no-sort):hover:after {
 }
 
 .lcc-filterbucket {
-    height: 25rem;
+    height: 23rem;
     overflow-y: auto;
 }
 
