@@ -53,6 +53,7 @@ INSTALL_REQUIRES = [
     'psycopg2-binary',
     'markdown',
     'pygments',
+    'psutil',
 ]
 
 EXTRAS_REQUIRE = {
