@@ -1,3 +1,13 @@
+/*global $, jQuery, math, moment, oboe */
+
+/*
+lcc-server.js - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jun 2018
+License: MIT. See the LICENSE file for details.
+
+This contains JS to drive the LCC server interface.
+
+*/
+
 var lcc_ui = {
 
     // this holds intervals for lazy background checking
@@ -250,17 +260,15 @@ var lcc_ui = {
                 fval = "'" + fval + "'";
             }
 
+            var thisfilter = '(' + col + ' ' + oper + ' ' + fval + ')';
             // check if this card has a chainer operator
             var chain_op = $(this)
                 .children('div.card-body')
                 .children('select').val();
 
             if (chain_op != undefined && i > 0) {
-                var thisfilter = chain_op + ' (' + col +
+                thisfilter = chain_op + ' (' + col +
                     ' ' + oper + ' ' + fval + ')';
-            }
-            else {
-                var thisfilter = '(' + col + ' ' + oper + ' ' + fval + ')';
             }
 
             filters.push(thisfilter);
@@ -760,7 +768,7 @@ var lcc_ui = {
 
     }
 
-}
+};
 
 
 // this contains functions to drive the search controls and send the requests to
@@ -1181,33 +1189,30 @@ var lcc_search = {
             oboe(geturl)
                 .node('{message}', function (msgdata) {
 
+                    var status_color = '';
+
                     // for now, we'll just write each status message to the
                     // status tab
                     if (msgdata.status == 'failed') {
-                        var status_color = 'class="table-danger"';
+                        status_color = 'class="table-danger"';
                     }
                     else if (msgdata.status == 'background') {
-                        var status_color = 'class="table-warning"';
+                        status_color = 'class="table-warning"';
                     }
                     else if (msgdata.status == 'queued') {
-                        var status_color = 'class="table-active"';
+                        status_color = 'class="table-active"';
                     }
                     else if (msgdata.status == 'ok') {
-                        var status_color = 'class="table-primary"';
-                    }
-                    else {
-                        var status_color = '';
+                        status_color = 'class="table-primary"';
                     }
 
                     // format the time
                     var msgtime = moment(msgdata.time).toString();
+                    var msg_setid = 'unknown';
 
                     // if there's a setid, use it
                     if (msgdata.result != null && 'setid' in msgdata.result) {
-                        var msg_setid = msgdata.result.setid;
-                    }
-                    else {
-                        var msg_setid = 'unknown';
+                        msg_setid = msgdata.result.setid;
                     }
 
                     $('#query-status-stream').prepend(
@@ -1276,7 +1281,7 @@ var lcc_search = {
                     else if (msgdata.status == 'background') {
 
                         // check how many queries are running
-                        var nrun =
+                        nrun =
                             parseInt($('#lcc-qstatus-run')
                                      .attr('data-nrun'));
                         nrun = nrun - 1;
@@ -1369,11 +1374,11 @@ var lcc_search = {
                     else if (msgdata.status == 'failed') {
 
                         // notify the user that the query is in the background
-                        var alertmsg = msgdata.message;
+                        alertmsg = msgdata.message;
                         lcc_ui.alert_box(alertmsg, 'danger');
 
                         // check how many queries are running
-                        var nrun =
+                        nrun =
                             parseInt($('#lcc-qstatus-run')
                                      .attr('data-nrun'));
                         nrun = nrun - 1;
@@ -1509,33 +1514,30 @@ var lcc_search = {
             oboe(geturl)
                 .node('{message}', function (msgdata) {
 
+                    var status_color = '';
+
                     // for now, we'll just write each status message to the
                     // status tab
                     if (msgdata.status == 'failed') {
-                        var status_color = 'class="table-danger"';
+                        status_color = 'class="table-danger"';
                     }
                     else if (msgdata.status == 'background') {
-                        var status_color = 'class="table-warning"';
+                        status_color = 'class="table-warning"';
                     }
                     else if (msgdata.status == 'queued') {
-                        var status_color = 'class="table-active"';
+                        status_color = 'class="table-active"';
                     }
                     else if (msgdata.status == 'ok') {
-                        var status_color = 'class="table-primary"';
-                    }
-                    else {
-                        var status_color = '';
+                        status_color = 'class="table-primary"';
                     }
 
                     // format the time
                     var msgtime = moment(msgdata.time).toString();
+                    var msg_setid = 'unknown';
 
                     // if there's a setid, use it
                     if (msgdata.result != null && 'setid' in msgdata.result) {
-                        var msg_setid = msgdata.result.setid;
-                    }
-                    else {
-                        var msg_setid = 'unknown';
+                        msg_setid = msgdata.result.setid;
                     }
 
                     $('#query-status-stream').prepend(
@@ -1604,7 +1606,7 @@ var lcc_search = {
                     else if (msgdata.status == 'background') {
 
                         // check how many queries are running
-                        var nrun =
+                        nrun =
                             parseInt($('#lcc-qstatus-run')
                                      .attr('data-nrun'));
                         nrun = nrun - 1;
@@ -1697,11 +1699,11 @@ var lcc_search = {
                     else if (msgdata.status == 'failed') {
 
                         // notify the user that the query is in the background
-                        var alertmsg = msgdata.message;
+                        alertmsg = msgdata.message;
                         lcc_ui.alert_box(alertmsg, 'danger');
 
                         // check how many queries are running
-                        var nrun =
+                        nrun =
                             parseInt($('#lcc-qstatus-run')
                                      .attr('data-nrun'));
                         nrun = nrun - 1;
@@ -1783,7 +1785,7 @@ var lcc_datasets = {
             $('#setload-indicator').html(
                 '<span class="text-warning">waiting for dataset... ' +
                     '</span>'
-            )
+            );
 
             $('#setload-icon').html(
                 '<img src="/static/images/twotone-sync-24px.svg' +
@@ -1939,7 +1941,7 @@ var lcc_datasets = {
                         this_dtype.replace('<','&lt;') +
                         '</code>' +
                         '</td>' +
-                        '</tr>'
+                        '</tr>';
                     coldef_rows.push(this_row);
 
                     // also add the column to the header of the datatable
@@ -1964,13 +1966,14 @@ var lcc_datasets = {
 
                 // check if there are too many rows
                 // if so, only draw the first 3000
-                if (data.nobjects > 3000) {
-                    var max_rows = 3000;
+                var max_rows = 3000;
+
+                if (data.nobjects > max_rows) {
                     $('#dataset-nobjects').html(data.nobjects +
                                                 ' (showing only top 3000)');
                 }
                 else {
-                    var max_rows = data.nobjects;
+                    max_rows = data.nobjects;
                     $('#dataset-nobjects').html(data.nobjects);
                 }
 
@@ -1998,13 +2001,13 @@ var lcc_datasets = {
             else if (status == 'in progress') {
 
                 // 2a. created
-                var created_on = data.created;
+                created_on = data.created;
                 created_on = created_on + ' <strong>(' +
                     moment(created_on).fromNow() + ')<strong>';
                 $('#dataset-createdon').html(created_on);
 
                 // 2b. lastupdated
-                var last_updated = data.updated;
+                last_updated = data.updated;
                 last_updated = last_updated + ' <strong>(' +
                     moment(last_updated).fromNow() + ')<strong>';
                 $('#dataset-lastupdated').html(last_updated);
@@ -2025,7 +2028,7 @@ var lcc_datasets = {
 
                 // 6. nobjects
                 // get the row status if there is one
-                var rowstatus = data.rowstatus || ' ';
+                rowstatus = data.rowstatus || ' ';
                 $('#dataset-nobjects').html('<code>' +
                                              data.nobjects +
                                              '</code> '+ rowstatus);
