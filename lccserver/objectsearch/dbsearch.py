@@ -966,7 +966,7 @@ def sqlite_kdtree_conesearch(basedir,
          "{extraconditions} order by b.objectid asc")
 
     # handle the extra conditions
-    if extraconditions is not None:
+    if extraconditions is not None and len(extraconditions) > 0:
 
         # validate this string
         extraconditions = validate_sqlite_filters(extraconditions,
@@ -1101,7 +1101,7 @@ def sqlite_kdtree_conesearch(basedir,
         try:
 
             # if we have extra filters, apply them
-            if extraconditions is not None:
+            if extraconditions is not None and len(extraconditions) > 0:
 
                 extraconditionstr = 'where (%s)' % extraconditions
 
@@ -1471,7 +1471,7 @@ def sqlite_xmatch_search(basedir,
     ###########################################
 
     # handle the extra conditions
-    if extraconditions is not None:
+    if extraconditions is not None and len(extraconditions) > 0:
 
         # validate this string
         extraconditions = validate_sqlite_filters(extraconditions,
@@ -1591,7 +1591,7 @@ def sqlite_xmatch_search(basedir,
             this_lcc_results = []
 
             # if we have extra filters, apply them
-            if extraconditions is not None:
+            if extraconditions is not None and len(extraconditions) > 0:
 
                 extraconditionstr = 'and (%s)' % extraconditions
 
@@ -1691,7 +1691,7 @@ def sqlite_xmatch_search(basedir,
         results = {}
 
         # if we have extra filters, apply them
-        if extraconditions is not None:
+        if extraconditions is not None and len(extraconditions) > 0:
 
             extraconditionstr = 'where (%s)' % extraconditions
 
