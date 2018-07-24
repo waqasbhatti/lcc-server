@@ -996,7 +996,8 @@ var lcc_search = {
                             'a background queue ' +
                             ' after 15 seconds. ' +
                             'Results will appear at ' +
-                            '<a target="_blank" href="/set/' +
+                            '<a rel="noopener noreferrer"' +
+                            'target="_blank" href="/set/' +
                             msgdata.result.setid + '">its dataset page.</a>';
 
                         lcc_ui.alert_box(alertmsg, 'warning');
@@ -1322,7 +1323,8 @@ var lcc_search = {
                             'a background queue ' +
                             ' after 15 seconds. ' +
                             'Results will appear at ' +
-                            '<a target="_blank" href="/set/' +
+                            '<a rel="noopener noreferrer"' +
+                            'target="_blank" href="/set/' +
                             msgdata.result.setid + '">its dataset page.</a>';
 
                         lcc_ui.alert_box(alertmsg, 'warning');
@@ -1649,7 +1651,8 @@ var lcc_search = {
                             'a background queue ' +
                             ' after 15 seconds. ' +
                             'Results will appear at ' +
-                            '<a target="_blank" href="/set/' +
+                            '<a rel="noopener noreferrer"' +
+                            'target="_blank" href="/set/' +
                             msgdata.result.setid + '">its dataset page.</a>';
 
                         lcc_ui.alert_box(alertmsg, 'warning');
