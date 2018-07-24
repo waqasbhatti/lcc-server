@@ -207,29 +207,7 @@ def parse_objectlist_item(objectline):
     degcoordtry = COORD_DEGMULTI_REGEX.match(searchstr)
     hmscoordtry = COORD_HMSMULTI_REGEX.match(searchstr)
 
-    if degcoordtry:
-
-        objectid, ra, dec = degcoordtry.groups()
-
-        try:
-            ra, dec = float(ra), float(dec)
-            if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
-                if ra < 0:
-                    ra = 360.0 + ra
-                paramsok = True
-                objid, radeg, decldeg = objectid, ra, dec
-
-            else:
-                paramsok = False
-                objid, radeg, decldeg = None, None, None
-
-        except Exception as e:
-
-            LOGGER.error('could not parse object line: %s' % objectline)
-            paramsok = False
-            objid, radeg, decldeg = None, None, None
-
-    elif hmscoordtry:
+    if hmscoordtry:
 
         objectid, ra, dec = hmscoordtry.groups()
         ra_tuple, dec_tuple = hms_str_to_tuple(ra), dms_str_to_tuple(dec)
@@ -256,12 +234,73 @@ def parse_objectlist_item(objectline):
             paramsok = False
             objid, radeg, decldeg = None, None, None
 
+    elif degcoordtry:
+
+        objectid, ra, dec = degcoordtry.groups()
+
+        try:
+            ra, dec = float(ra), float(dec)
+            if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
+                if ra < 0:
+                    ra = 360.0 + ra
+                paramsok = True
+                objid, radeg, decldeg = objectid, ra, dec
+
+            else:
+                paramsok = False
+                objid, radeg, decldeg = None, None, None
+
+        except Exception as e:
+
+            LOGGER.error('could not parse object line: %s' % objectline)
+            paramsok = False
+            objid, radeg, decldeg = None, None, None
+
+
+
     else:
 
         paramsok = False
         objid, radeg, decldeg = None, None, None
 
     return paramsok, objid, radeg, decldeg
+
+
+
+def parse_xmatch_input(inputtext):
+    '''
+    This tries to parse xmatch input.
+
+    '''
+
+    itext = squeeze(xhtml_escape(inputtext))
+    itextlines = itext.split('\n')
+
+    oklines = [parse_objectlist_item(x) for x in itextlines]
+
+    if 0 < len(oklines) < 1001:
+
+        objectid = [x[1] for x in oklines]
+        ra = [x[2] for x in oklines]
+        decl = [x[3] for x in oklines]
+
+        xmatchdict = {
+            'data':{'objectid':objectid,
+                    'ra':ra,
+                    'decl':decl},
+            'columns':['objectid','ra','decl'],
+            'types':['str','float','float'],
+            'colobjectid':'objectid',
+            'colra':'ra',
+            'coldec':'decl'
+        }
+
+        return xmatchdict
+
+    else:
+
+        LOGGER.error('could not parse input xmatch spec')
+        return None
 
 
 
