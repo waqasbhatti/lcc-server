@@ -70,27 +70,28 @@ var lcc_ui = {
             // look up what those controls say
             var filter_col = filter_col_elem.val();
             var filter_opstr = filter_type_elem.val();
+            var filter_op = null;
 
             if (filter_opstr == 'lt') {
-                var filter_op = '&lt;'
+                filter_op = '&lt;';
             }
             else if (filter_opstr == 'gt') {
-                var filter_op = '&gt;'
+                filter_op = '&gt;';
             }
             else if (filter_opstr == 'le') {
-                var filter_op = '&le;'
+                filter_op = '&le;';
             }
             else if (filter_opstr == 'ge') {
-                var filter_op = '&gt;'
+                filter_op = '&gt;';
             }
             else if (filter_opstr == 'eq') {
-                var filter_op = '&equals;'
+                filter_op = '&equals;';
             }
             else if (filter_opstr == 'ne') {
-                var filter_op = '&ne;'
+                filter_op = '&ne;';
             }
             else if (filter_opstr == 'ct') {
-                var filter_op = 'contains';
+                filter_op = 'contains';
             }
 
             // look up the dtype of the column
@@ -137,16 +138,17 @@ var lcc_ui = {
                 // check if the filter bucket is empty
                 var filterbucket_elem = $('#' + target + '-filterbucket');
                 var filterbucket_nitems = filterbucket_elem.children().length;
+                var filter_card_joiner = null;
 
                 if (filterbucket_nitems > 0) {
 
-                    var filter_card_joiner =
+                    filter_card_joiner =
                         '<select class="mr-3 lcc-filterbucket-chainer">' +
                         '<option value="and" selected>and</option>' +
                         '<option value="or">or</option></select> ';
                 }
                 else {
-                    var filter_card_joiner = '';
+                    filter_card_joiner = '';
                 }
 
                 // generate the card for this filter
@@ -341,8 +343,13 @@ var lcc_ui = {
                     //
                     // Products column
                     //
+                    var dataset_download = '';
+                    var lczip_download = '';
+                    var pfzip_download = '';
+                    var cpzip_download = '';
+
                     if (dataset_fpath != null) {
-                        var dataset_download = '<a rel="nofollow" ' +
+                        dataset_download = '<a rel="nofollow" ' +
                             'href="' + dataset_fpath +
                             '" title="download search results pickle">' +
                             'dataset pickle' +
@@ -350,12 +357,9 @@ var lcc_ui = {
                             dataset_shasum + '">' +
                             '[SHA256]</span>';
                     }
-                    else {
-                        var dataset_download = '';
-                    }
 
                     if (lczip_fpath != null) {
-                        var lczip_download = '<a rel="nofollow" ' +
+                        lczip_download = '<a rel="nofollow" ' +
                             'href="' + lczip_fpath +
                             '" title="download light curves ZIP">' +
                             'light curve ZIP' +
@@ -363,12 +367,9 @@ var lcc_ui = {
                             lczip_shasum + '">' +
                             '[SHA256]</span>';
                     }
-                    else {
-                        var lczip_download = '';
-                    }
 
                     if (pfzip_fpath != null) {
-                        var pfzip_download = '<a rel="nofollow" ' +
+                        pfzip_download = '<a rel="nofollow" ' +
                             'href="' + pfzip_fpath +
                             '" title="download period-finding results ZIP">' +
                             'period-finding result pickles ZIP' +
@@ -376,21 +377,15 @@ var lcc_ui = {
                             pfzip_shasum + '">' +
                             '[SHA256]</span>';
                     }
-                    else {
-                        var pfzip_download = '';
-                    }
 
                     if (cpzip_fpath != null) {
-                        var cpzip_download = '<a rel="nofollow" '
+                        cpzip_download = '<a rel="nofollow" ' +
                         'href="' + cpzip_fpath +
                             '" title="download checkplot pickles ZIP">' +
                             'checkplot pickles ZIP' +
                             '</a> <span data-toggle="tooltip" title="' +
                             cpzip_shasum + '">' +
                             '[SHA256]</span>';
-                    }
-                    else {
-                        var cpzip_download = '';
                     }
 
                     // format the column
@@ -418,24 +413,19 @@ var lcc_ui = {
                     //
                     // finally, add this row
                     //
+                    var setrow = '<tr>' +
+                        table_setid +
+                        table_nobjects +
+                        table_query +
+                        table_downloadlinks +
+                        table_lastupdated +
+                        '</tr>';
 
                     if (highlight != undefined &&
                         highlight != null &&
                         highlight == setid) {
 
-                        var setrow = '<tr class="table-primary">' +
-                            table_setid +
-                            table_nobjects +
-                            table_query +
-                            table_downloadlinks +
-                            table_lastupdated +
-                            '</tr>';
-
-                    }
-
-                    else {
-
-                        var setrow = '<tr>' +
+                        setrow = '<tr class="table-primary">' +
                             table_setid +
                             table_nobjects +
                             table_query +
@@ -539,7 +529,7 @@ var lcc_ui = {
                     var mindecl = collections.mindecl[coll_idx];
                     var maxdecl = collections.maxdecl[coll_idx];
 
-                    var center_ra = math.format((minra + maxra)/2.0,5)
+                    var center_ra = math.format((minra + maxra)/2.0,5);
                     var center_decl = math.format((mindecl + maxdecl)/2.0,5);
                     minra = math.format(minra,5);
                     maxra = math.format(maxra,5);
@@ -855,33 +845,30 @@ var lcc_search = {
             oboe(geturl)
                 .node('{message}', function (msgdata) {
 
+                    var status_color = '';
+
                     // for now, we'll just write each status message to the
                     // status tab
                     if (msgdata.status == 'failed') {
-                        var status_color = 'class="table-danger"';
+                        status_color = 'class="table-danger"';
                     }
                     else if (msgdata.status == 'background') {
-                        var status_color = 'class="table-warning"';
+                        status_color = 'class="table-warning"';
                     }
                     else if (msgdata.status == 'queued') {
-                        var status_color = 'class="table-active"';
+                        status_color = 'class="table-active"';
                     }
                     else if (msgdata.status == 'ok') {
-                        var status_color = 'class="table-primary"';
-                    }
-                    else {
-                        var status_color = '';
+                        status_color = 'class="table-primary"';
                     }
 
                     // format the time
                     var msgtime = moment(msgdata.time).toString();
+                    var msg_setid = 'unknown';
 
                     // if there's a setid, use it
                     if (msgdata.result != null && 'setid' in msgdata.result) {
-                        var msg_setid = msgdata.result.setid;
-                    }
-                    else {
-                        var msg_setid = 'unknown';
+                        msg_setid = msgdata.result.setid;
                     }
 
                     $('#query-status-stream').prepend(
@@ -950,9 +937,8 @@ var lcc_search = {
                     else if (msgdata.status == 'background') {
 
                         // check how many queries are running
-                        var nrun =
-                            parseInt($('#lcc-qstatus-run')
-                                     .attr('data-nrun'));
+                        nrun = parseInt($('#lcc-qstatus-run')
+                                        .attr('data-nrun'));
                         nrun = nrun - 1;
                         $('#lcc-qstatus-run')
                             .attr('data-nrun',nrun);
@@ -1042,13 +1028,12 @@ var lcc_search = {
                     else if (msgdata.status == 'failed') {
 
                         // notify the user that the query is in the background
-                        var alertmsg = msgdata.message;
+                        alertmsg = msgdata.message;
                         lcc_ui.alert_box(alertmsg, 'danger');
 
                         // check how many queries are running
-                        var nrun =
-                            parseInt($('#lcc-qstatus-run')
-                                     .attr('data-nrun'));
+                        nrun = parseInt($('#lcc-qstatus-run')
+                                        .attr('data-nrun'));
                         nrun = nrun - 1;
                         $('#lcc-qstatus-run')
                             .attr('data-nrun',nrun);
