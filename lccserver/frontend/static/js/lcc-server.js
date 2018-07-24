@@ -19,29 +19,8 @@ var lcc_ui = {
 
     },
 
-    // this function generates a spinner
-    make_spinner: function (message, target) {
 
-        var spinner = '<div class="spinner">' +
-            '<div class="rect1"></div>' +
-            '<div class="rect2"></div>' +
-            '<div class="rect3"></div>' +
-            '<div class="rect4"></div>' +
-            '<div class="rect5"></div>' +
-            '</div>' + message;
-
-        $(target).html(spinner);
-
-    },
-
-    // this function generates a status card for the query status tab
-    make_query_statuscard: function (statusdata, target) {
-
-
-
-
-    },
-
+    // this wires up all the controls
     action_setup: function () {
 
         // bind the quicksearch type select
@@ -105,13 +84,6 @@ var lcc_ui = {
         $('.lcc-filter-add').on('click', function (evt) {
 
             evt.preventDefault();
-
-            // this is the markup to use
-            //             <div class="card">
-            //   <div class="card-body">
-            //     This is some text within a card body.
-            //   </div>
-            // </div>
 
             // get which search type this is and look up the appropriate select
             // and value boxes
@@ -265,6 +237,7 @@ var lcc_ui = {
 
     },
 
+
     // this parses the filter control results for any searchtype it is pointed
     // to. returns an SQL string that can be validated by the backend
     parse_column_filters: function(target) {
@@ -368,7 +341,7 @@ var lcc_ui = {
                     // Set ID column
                     //
                     var table_setid = '<td>' +
-                        '<a target="_blank" rel="nofollow" href="/set/' +
+                        '<a rel="nofollow" href="/set/' +
                         setid + '">' +
                         setid + '</a><br>' +
                         'collections used: <code>' +
@@ -515,6 +488,8 @@ var lcc_ui = {
 
     },
 
+
+    // this gets the latest LC collections
     get_lc_collections: function() {
 
         var geturl = '/api/collections';
@@ -611,17 +586,14 @@ var lcc_ui = {
                     //
 
                     // get the column list for this collection
-                    // FIXME: prepend the db_collection_id for each colname?
                     var columns =
                         collections.columnlist[coll_idx].split(',').sort();
 
                     // get the indexed columns for the collection
-                    // FIXME: prepend the db_collection_id for each colname?
                     var indexedcols =
                         collections.indexedcols[coll_idx].split(',').sort();
 
                     // get the FTS columns for this collection
-                    // FIXME: prepend the db_collection_id for each colname?
                     var ftscols =
                         collections.ftsindexedcols[coll_idx].split(',').sort();
 
@@ -738,6 +710,24 @@ var lcc_ui = {
 
                 });
 
+                // update the filter column select boxes
+                var filter_sortboxes = $('.lcc-sortcolumn-select');
+
+                filter_sortboxes.each(function (e, i) {
+
+                    var thisbox = $(this);
+                    var column_ind = 0;
+                    for (column_ind; column_ind < columns.length; column_ind++) {
+                        thisbox.append('<option value="' +
+                                       columns[column_ind] +
+                                       '">' +
+                                       columns[column_ind] +
+                                       '</option>');
+                    }
+
+                });
+
+
                 // update the FTS query FTS column list
                 $('#ftsquery-column-list')
                     .html(fts_columns.sort().join(', '));
@@ -764,7 +754,8 @@ var lcc_ui = {
 }
 
 
-
+// this contains functions to drive the search controls and send the requests to
+// the backend
 var lcc_search = {
 
     // this holds the current collections
@@ -820,8 +811,6 @@ var lcc_search = {
         }
 
         var geturl = '/api/conesearch';
-
-        // FIXME: add in the columns, filters, and collections here later
         var getparams = {coords: coords,
                          result_ispublic: ispublic,
                          collections: collections,
@@ -831,8 +820,6 @@ var lcc_search = {
 
         console.log(getparams);
         getparams = $.param(getparams);
-        console.log(getparams);
-
         geturl = geturl + '?' + getparams;
 
         if (proceed) {
@@ -1097,13 +1084,10 @@ var lcc_search = {
 
     },
 
-
-
-
 };
 
 
-
+// this contains functions to deal with rendering datasets
 var lcc_datasets = {
 
     // this function gets the dataset from the backend and enters a refresh loop
@@ -1386,8 +1370,6 @@ var lcc_datasets = {
 
         });
 
-
     }
-
 
 };

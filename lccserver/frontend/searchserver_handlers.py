@@ -451,7 +451,6 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
 
             # OPTIONAL: extraconditions
-            # FIXME: in a bit
             extraconditions = self.get_argument('filters', default=None)
             if extraconditions is not None:
 
