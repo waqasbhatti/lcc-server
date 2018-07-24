@@ -318,7 +318,7 @@ def main():
           'uselcdir':USELCDIR}),
 
         # this is the FTS search API endpoint
-        (r'/api/quicksearch',
+        (r'/api/ftsquery',
          sh.FTSearchHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,

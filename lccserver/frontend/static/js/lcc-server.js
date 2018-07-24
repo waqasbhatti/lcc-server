@@ -23,60 +23,35 @@ var lcc_ui = {
     // this wires up all the controls
     action_setup: function () {
 
-        // bind the quicksearch type select
-        $('#qt').on('change', function(event) {
-
-            if ($('#qt').val() == 'conesearch') {
-
-                // update the placeholder
-                $('#q').attr(
-                    'placeholder',
-                    ('[RA] [Dec] '+
-                     '[optional radius (arcmin)]')
-                );
-
-                // update the form target as well
-                $('#quicksearch-form').attr(
-                    'action',
-                    '/api/conesearch'
-                );
-            }
-
-            else if ($('#qt').val() == 'objectidsearch') {
-                $('#q').attr(
-                    'placeholder',
-                    'e.g. EPIC216858738 / HAT-579-0111255 etc.'
-                );
-
-                // update the form target as well
-                $('#quicksearch-form').attr(
-                    'action',
-                    '/api/quicksearch'
-                );
-
-            }
-
-            else if ($('#qt').val() == 'xmatchsearch') {
-                $('#q').attr(
-                    'placeholder',
-                    'e.g. obj1 ra1 dec1, obj2 ra2 dec2, ...'
-                );
-
-                // update the form target as well
-                $('#quicksearch-form').attr(
-                    'action',
-                    '/api/xmatch'
-                );
-
-            }
-
-        });
-
         // bind the form submit for the cone search
         $('#conesearch-form').on('submit', function (event) {
 
             event.preventDefault();
             lcc_search.do_conesearch();
+
+        });
+
+        // bind the form submit for the cone search
+        $('#ftsquery-form').on('submit', function (event) {
+
+            event.preventDefault();
+            lcc_search.do_ftsquery();
+
+        });
+
+        // bind the form submit for the cone search
+        $('#columnsearch-form').on('submit', function (event) {
+
+            event.preventDefault();
+            lcc_search.do_columnsearch();
+
+        });
+
+        // bind the form submit for the cone search
+        $('#xmatch-form').on('submit', function (event) {
+
+            event.preventDefault();
+            lcc_search.do_xmatch();
 
         });
 
@@ -717,12 +692,43 @@ var lcc_ui = {
 
                     var thisbox = $(this);
                     var column_ind = 0;
+                    var done_with_selected = false;
+
                     for (column_ind; column_ind < columns.length; column_ind++) {
-                        thisbox.append('<option value="' +
-                                       columns[column_ind] +
-                                       '">' +
-                                       columns[column_ind] +
-                                       '</option>');
+
+                        // special: we'll sort by sdssr by default if it's there
+                        // if it's not, we'll sort by objectid
+
+                        if ((columns[column_ind] == 'sdssr') &&
+                            !done_with_selected) {
+
+                            thisbox.append('<option value="' +
+                                           columns[column_ind] +
+                                           '" selected>' +
+                                           columns[column_ind] +
+                                           '</option>');
+                            done_with_selected = true;
+
+                        }
+                        else if ((columns[column_ind] == 'sdssr') &&
+                                 !done_with_selected) {
+
+                            thisbox.append('<option value="' +
+                                           columns[column_ind] +
+                                           '" selected>' +
+                                           columns[column_ind] +
+                                           '</option>');
+                            done_with_selected = true;
+
+                        }
+                        else {
+                            thisbox.append('<option value="' +
+                                           columns[column_ind] +
+                                           '">' +
+                                           columns[column_ind] +
+                                           '</option>');
+
+                        }
                     }
 
                 });
@@ -772,6 +778,663 @@ var lcc_search = {
 
     // this holds the indexed columns
     indexedcols: null,
+
+    // this runs an FTS query
+    do_columnsearch: function () {
+
+        var proceed = false;
+
+        // get the collections to use
+        var collections = $('#columnsearch-collection-select').val();
+
+        if (collections.length == 0) {
+            collections = null;
+        }
+
+        // get the columns to retrieve
+        var columns = $('#columnsearch-column-select').val();
+
+        // get the ispublic parameter
+        var ispublic = $('#columnsearch-ispublic').prop('checked');
+
+        if (ispublic) {
+            ispublic = 1;
+        }
+        else {
+            ispublic = 0;
+        }
+
+        // parse the extra filters
+        var filters = lcc_ui.parse_column_filters('columnsearch');
+
+        // if there are no filters, we won't be fetching the entire catalog
+        if (filters.length == 0) {
+            filters = null;
+        }
+        else {
+            proceed = true;
+        }
+
+        // get the sort column and order
+        var sortcol = $('#columnsearch-sortcolumn-select').val();
+        var sortorder = $('#columnsearch-sortorder-select').val();
+
+        var geturl = '/api/columnsearch';
+        var getparams = {result_ispublic: ispublic,
+                         collections: collections,
+                         columns: columns,
+                         filters: filters,
+                         sortcol: sortcol,
+                         sortorder: sortorder};
+
+        console.log(getparams);
+        getparams = $.param(getparams);
+        geturl = geturl + '?' + getparams;
+
+        if (proceed) {
+
+            // disable the submit button until we return
+            // FIXME: may need to turn off handler as well
+            $('#columnsearch-submit').attr('disabled',true);
+
+            // flash the query status icon
+            $('#search-notification-icon').addClass('animated flash infinite');
+
+            // add a badge with number of currently running queries to the query
+            // status tab
+            var nrun = parseInt($('#lcc-qstatus-run').attr('data-nrun'));
+            nrun = nrun + 1;
+            $('#lcc-qstatus-run').attr('data-nrun',nrun);
+            $('#lcc-qstatus-run').html('<span class="badge badge-primary">' +
+                                           nrun +
+                                           '</span>');
+
+
+            // we'll use oboe to fire the query and listen on events that fire
+            // when we detect a 'message' key in the JSON
+            oboe(geturl)
+                .node('{message}', function (msgdata) {
+
+                    // for now, we'll just write each status message to the
+                    // status tab
+                    if (msgdata.status == 'failed') {
+                        var status_color = 'class="table-danger"';
+                    }
+                    else if (msgdata.status == 'background') {
+                        var status_color = 'class="table-warning"';
+                    }
+                    else if (msgdata.status == 'queued') {
+                        var status_color = 'class="table-active"';
+                    }
+                    else if (msgdata.status == 'ok') {
+                        var status_color = 'class="table-primary"';
+                    }
+                    else {
+                        var status_color = '';
+                    }
+
+                    // format the time
+                    var msgtime = moment(msgdata.time).toString();
+
+                    // if there's a setid, use it
+                    if (msgdata.result != null && 'setid' in msgdata.result) {
+                        var msg_setid = msgdata.result.setid;
+                    }
+                    else {
+                        var msg_setid = 'unknown';
+                    }
+
+                    $('#query-status-stream').prepend(
+                        '<tr ' + status_color + '>' +
+                            '<td>' + msgtime + '</td>' +
+                            '<td>' + msg_setid + '</td>' +
+                            '<td>' + msgdata.status + '</td>' +
+                            '<td><code>' + msgdata.message + '</code></td>' +
+                            '</tr>'
+                    );
+
+                    // re-enable the submit button until we return
+                    // FIXME: may need to turn on handler as well
+                    $('#columnsearch-submit').attr('disabled',false);
+
+                    // when we finish, handle the UI teardown
+                    if (msgdata.status == 'ok') {
+
+                        // check how many queries are running
+                        var nrun =
+                            parseInt($('#lcc-qstatus-run')
+                                     .attr('data-nrun'));
+                        nrun = nrun - 1;
+                        $('#lcc-qstatus-run')
+                            .attr('data-nrun',nrun);
+
+                        // turn off the flashing if no queries are currently
+                        // running
+                        if (nrun == 0 || nrun < 0) {
+
+                            $('#search-notification-icon')
+                                .removeClass('animated flash infinite');
+                            $('#lcc-qstatus-run').empty();
+
+                        }
+
+                        // otherwise, just subtract one from the status
+                        else {
+                            $('#lcc-qstatus-run').html(
+                                '<span class="badge badge-primary">' +
+                                    nrun +
+                                    '</span>'
+                            );
+                        }
+
+                        // if the query is public, flash the dataset tab
+                        if (ispublic) {
+
+                            // hit the /api/datasets URL to update the datasets
+                            // also highlight the row with our query result in it
+                            lcc_ui.get_recent_datasets(25, msgdata.result.setid);
+
+                            // bounce the recent datasets tab if the dataset is done
+                            $('#datasets-tab-icon').addClass('animated bounce');
+                            window.setTimeout(function () {
+                                $('#datasets-tab-icon').removeClass('animated bounce');
+                            }, 3000);
+
+                        }
+
+                    }
+
+                    // if this query moved from running to background, then
+                    // handle the UI change
+                    // we'll dim the status card for this
+                    else if (msgdata.status == 'background') {
+
+                        // check how many queries are running
+                        var nrun =
+                            parseInt($('#lcc-qstatus-run')
+                                     .attr('data-nrun'));
+                        nrun = nrun - 1;
+                        $('#lcc-qstatus-run')
+                            .attr('data-nrun',nrun);
+
+                        // turn off the flashing if no queries are currently
+                        // running
+                        if (nrun == 0 || nrun < 0) {
+
+                            $('#search-notification-icon')
+                                .removeClass('animated flash infinite');
+                            $('#lcc-qstatus-run').empty();
+
+                        }
+
+                        // otherwise, just subtract one from the status
+                        else {
+                            $('#lcc-qstatus-run').html(
+                                '<span class="badge badge-primary">' +
+                                    nrun +
+                                    '</span>'
+                            );
+                        }
+
+                        // update number of queries in background
+                        var nback =
+                            parseInt($('#lcc-qstatus-back')
+                                     .attr('data-nback'));
+                        nback = nback + 1;
+                        $('#lcc-qstatus-back')
+                            .attr('data-nback',nback);
+
+                        $('#lcc-qstatus-back').html(
+                            '<span class="badge badge-warning">' +
+                                nback +
+                                '</span>'
+                        );
+
+                        // notify the user that the query is in the background
+                        var alertmsg = 'Query ' +
+                            msgdata.result.setid +
+                            ' was moved to ' +
+                            'a background queue ' +
+                            ' after 15 seconds. ' +
+                            'Results will appear at ' +
+                            '<a target="_blank" href="/set/' +
+                            msgdata.result.setid + '">its dataset page.</a>';
+
+                        lcc_ui.alert_box(alertmsg, 'warning');
+
+                        // remove the background icon from the queue status
+                        // after 5 seconds of displaying the alert
+                        window.setTimeout(function () {
+
+                            // check how many queries are background
+                            var nback =
+                                parseInt($('#lcc-qstatus-back')
+                                         .attr('data-nback'));
+                            nback = nback - 1;
+                            $('#lcc-qstatus-back')
+                                .attr('data-nback',nback);
+
+                            // turn off the flashing if no queries are currently
+                            // backning
+                            if (nback == 0 || nback < 0) {
+
+                                $('#search-notification-icon')
+                                    .removeClass('animated flash infinite');
+                                $('#lcc-qstatus-back').empty();
+
+                            }
+
+                            // otherwise, just subtract one from the status
+                            else {
+                                $('#lcc-qstatus-back').html(
+                                    '<span class="badge badge-warning">' +
+                                        nback +
+                                        '</span>'
+                                );
+                            }
+
+                        }, 7500);
+
+                    }
+
+                    // if this query failed, then handle the UI change
+                    // we'll make  the status card red for this
+                    else if (msgdata.status == 'failed') {
+
+                        // notify the user that the query is in the background
+                        var alertmsg = msgdata.message;
+                        lcc_ui.alert_box(alertmsg, 'danger');
+
+                        // check how many queries are running
+                        var nrun =
+                            parseInt($('#lcc-qstatus-run')
+                                     .attr('data-nrun'));
+                        nrun = nrun - 1;
+                        $('#lcc-qstatus-run')
+                            .attr('data-nrun',nrun);
+
+                        // turn off the flashing if no queries are currently
+                        // running
+                        if (nrun == 0 || nrun < 0) {
+
+                            $('#search-notification-icon')
+                                .removeClass('animated flash infinite');
+                            $('#lcc-qstatus-run').empty();
+
+                        }
+
+                        // otherwise, just subtract one from the status
+                        else {
+                            $('#lcc-qstatus-run').html(
+                                '<span class="badge badge-primary">' +
+                                    nrun +
+                                    '</span>'
+                            );
+                        }
+
+                    }
+
+                })
+                .fail(function (err) {
+
+                    // err has thrown, statusCode, body, jsonBody
+                    console.log(err.statusCode);
+                    console.log(err.body);
+
+                    // stop the blinky!
+                    $('#search-notification-icon')
+                        .removeClass('animated flash infinite');
+
+                    $('#lcc-qstatus-back').empty();
+                    $('#lcc-qstatus-run').empty();
+
+                    // alert the user that the query failed
+                    lcc_ui.alert_box(
+                        'Query failed because the search backend ' +
+                            'crashed with an error code: <code>' +
+                            err.statusCode +
+                            '</code>! See the console for ' +
+                            'more details...', 'danger'
+                    );
+
+
+                });
+
+        }
+        else {
+            var error_message =
+                "No valid column filters were found for the column search query.";
+            lcc_ui.alert_box(error_message, 'danger');
+        }
+
+    },
+
+    // this runs an FTS query
+    do_ftsquery: function () {
+
+        var proceed = false;
+
+        // get the collections to use
+        var collections = $('#ftsquery-collection-select').val();
+
+        if (collections.length == 0) {
+            collections = null;
+        }
+
+        // get the columns to retrieve
+        var columns = $('#ftsquery-column-select').val();
+
+        // get the coord parameter
+        var ftstext = $('#ftsquery-query').val().trim();
+        if (ftstext.length > 0) {
+            proceed = true;
+        }
+
+        // get the ispublic parameter
+        var ispublic = $('#ftsquery-ispublic').prop('checked');
+
+        if (ispublic) {
+            ispublic = 1;
+        }
+        else {
+            ispublic = 0;
+        }
+
+        // parse the extra filters
+        var filters = lcc_ui.parse_column_filters('ftsquery');
+        if (filters.length == 0) {
+            filters = null;
+        }
+
+        var geturl = '/api/ftsquery';
+        var getparams = {ftstext: ftstext,
+                         result_ispublic: ispublic,
+                         collections: collections,
+                         columns: columns,
+                         filters: filters};
+
+
+        console.log(getparams);
+        getparams = $.param(getparams);
+        geturl = geturl + '?' + getparams;
+
+        if (proceed) {
+
+            // disable the submit button until we return
+            // FIXME: may need to turn off handler as well
+            $('#ftsquery-submit').attr('disabled',true);
+
+            // flash the query status icon
+            $('#search-notification-icon').addClass('animated flash infinite');
+
+            // add a badge with number of currently running queries to the query
+            // status tab
+            var nrun = parseInt($('#lcc-qstatus-run').attr('data-nrun'));
+            nrun = nrun + 1;
+            $('#lcc-qstatus-run').attr('data-nrun',nrun);
+            $('#lcc-qstatus-run').html('<span class="badge badge-primary">' +
+                                           nrun +
+                                           '</span>');
+
+
+            // we'll use oboe to fire the query and listen on events that fire
+            // when we detect a 'message' key in the JSON
+            oboe(geturl)
+                .node('{message}', function (msgdata) {
+
+                    // for now, we'll just write each status message to the
+                    // status tab
+                    if (msgdata.status == 'failed') {
+                        var status_color = 'class="table-danger"';
+                    }
+                    else if (msgdata.status == 'background') {
+                        var status_color = 'class="table-warning"';
+                    }
+                    else if (msgdata.status == 'queued') {
+                        var status_color = 'class="table-active"';
+                    }
+                    else if (msgdata.status == 'ok') {
+                        var status_color = 'class="table-primary"';
+                    }
+                    else {
+                        var status_color = '';
+                    }
+
+                    // format the time
+                    var msgtime = moment(msgdata.time).toString();
+
+                    // if there's a setid, use it
+                    if (msgdata.result != null && 'setid' in msgdata.result) {
+                        var msg_setid = msgdata.result.setid;
+                    }
+                    else {
+                        var msg_setid = 'unknown';
+                    }
+
+                    $('#query-status-stream').prepend(
+                        '<tr ' + status_color + '>' +
+                            '<td>' + msgtime + '</td>' +
+                            '<td>' + msg_setid + '</td>' +
+                            '<td>' + msgdata.status + '</td>' +
+                            '<td><code>' + msgdata.message + '</code></td>' +
+                            '</tr>'
+                    );
+
+                    // re-enable the submit button until we return
+                    // FIXME: may need to turn on handler as well
+                    $('#ftsquery-submit').attr('disabled',false);
+
+                    // when we finish, handle the UI teardown
+                    if (msgdata.status == 'ok') {
+
+                        // check how many queries are running
+                        var nrun =
+                            parseInt($('#lcc-qstatus-run')
+                                     .attr('data-nrun'));
+                        nrun = nrun - 1;
+                        $('#lcc-qstatus-run')
+                            .attr('data-nrun',nrun);
+
+                        // turn off the flashing if no queries are currently
+                        // running
+                        if (nrun == 0 || nrun < 0) {
+
+                            $('#search-notification-icon')
+                                .removeClass('animated flash infinite');
+                            $('#lcc-qstatus-run').empty();
+
+                        }
+
+                        // otherwise, just subtract one from the status
+                        else {
+                            $('#lcc-qstatus-run').html(
+                                '<span class="badge badge-primary">' +
+                                    nrun +
+                                    '</span>'
+                            );
+                        }
+
+                        // if the query is public, flash the dataset tab
+                        if (ispublic) {
+
+                            // hit the /api/datasets URL to update the datasets
+                            // also highlight the row with our query result in it
+                            lcc_ui.get_recent_datasets(25, msgdata.result.setid);
+
+                            // bounce the recent datasets tab if the dataset is done
+                            $('#datasets-tab-icon').addClass('animated bounce');
+                            window.setTimeout(function () {
+                                $('#datasets-tab-icon').removeClass('animated bounce');
+                            }, 3000);
+
+                        }
+
+                    }
+
+                    // if this query moved from running to background, then
+                    // handle the UI change
+                    // we'll dim the status card for this
+                    else if (msgdata.status == 'background') {
+
+                        // check how many queries are running
+                        var nrun =
+                            parseInt($('#lcc-qstatus-run')
+                                     .attr('data-nrun'));
+                        nrun = nrun - 1;
+                        $('#lcc-qstatus-run')
+                            .attr('data-nrun',nrun);
+
+                        // turn off the flashing if no queries are currently
+                        // running
+                        if (nrun == 0 || nrun < 0) {
+
+                            $('#search-notification-icon')
+                                .removeClass('animated flash infinite');
+                            $('#lcc-qstatus-run').empty();
+
+                        }
+
+                        // otherwise, just subtract one from the status
+                        else {
+                            $('#lcc-qstatus-run').html(
+                                '<span class="badge badge-primary">' +
+                                    nrun +
+                                    '</span>'
+                            );
+                        }
+
+                        // update number of queries in background
+                        var nback =
+                            parseInt($('#lcc-qstatus-back')
+                                     .attr('data-nback'));
+                        nback = nback + 1;
+                        $('#lcc-qstatus-back')
+                            .attr('data-nback',nback);
+
+                        $('#lcc-qstatus-back').html(
+                            '<span class="badge badge-warning">' +
+                                nback +
+                                '</span>'
+                        );
+
+                        // notify the user that the query is in the background
+                        var alertmsg = 'Query ' +
+                            msgdata.result.setid +
+                            ' was moved to ' +
+                            'a background queue ' +
+                            ' after 15 seconds. ' +
+                            'Results will appear at ' +
+                            '<a target="_blank" href="/set/' +
+                            msgdata.result.setid + '">its dataset page.</a>';
+
+                        lcc_ui.alert_box(alertmsg, 'warning');
+
+                        // remove the background icon from the queue status
+                        // after 5 seconds of displaying the alert
+                        window.setTimeout(function () {
+
+                            // check how many queries are background
+                            var nback =
+                                parseInt($('#lcc-qstatus-back')
+                                         .attr('data-nback'));
+                            nback = nback - 1;
+                            $('#lcc-qstatus-back')
+                                .attr('data-nback',nback);
+
+                            // turn off the flashing if no queries are currently
+                            // backning
+                            if (nback == 0 || nback < 0) {
+
+                                $('#search-notification-icon')
+                                    .removeClass('animated flash infinite');
+                                $('#lcc-qstatus-back').empty();
+
+                            }
+
+                            // otherwise, just subtract one from the status
+                            else {
+                                $('#lcc-qstatus-back').html(
+                                    '<span class="badge badge-warning">' +
+                                        nback +
+                                        '</span>'
+                                );
+                            }
+
+                        }, 7500);
+
+                    }
+
+                    // if this query failed, then handle the UI change
+                    // we'll make  the status card red for this
+                    else if (msgdata.status == 'failed') {
+
+                        // notify the user that the query is in the background
+                        var alertmsg = msgdata.message;
+                        lcc_ui.alert_box(alertmsg, 'danger');
+
+                        // check how many queries are running
+                        var nrun =
+                            parseInt($('#lcc-qstatus-run')
+                                     .attr('data-nrun'));
+                        nrun = nrun - 1;
+                        $('#lcc-qstatus-run')
+                            .attr('data-nrun',nrun);
+
+                        // turn off the flashing if no queries are currently
+                        // running
+                        if (nrun == 0 || nrun < 0) {
+
+                            $('#search-notification-icon')
+                                .removeClass('animated flash infinite');
+                            $('#lcc-qstatus-run').empty();
+
+                        }
+
+                        // otherwise, just subtract one from the status
+                        else {
+                            $('#lcc-qstatus-run').html(
+                                '<span class="badge badge-primary">' +
+                                    nrun +
+                                    '</span>'
+                            );
+                        }
+
+                    }
+
+                })
+                .fail(function (err) {
+
+                    // err has thrown, statusCode, body, jsonBody
+                    console.log(err.statusCode);
+                    console.log(err.body);
+
+                    // stop the blinky!
+                    $('#search-notification-icon')
+                        .removeClass('animated flash infinite');
+
+                    $('#lcc-qstatus-back').empty();
+                    $('#lcc-qstatus-run').empty();
+
+                    // alert the user that the query failed
+                    lcc_ui.alert_box(
+                        'Query failed because the search backend ' +
+                            'crashed with an error code: <code>' +
+                            err.statusCode +
+                            '</code>! See the console for ' +
+                            'more details...', 'danger'
+                    );
+
+
+                });
+
+        }
+        else {
+            var error_message =
+                "No query text found in the FTS query text box.";
+            lcc_ui.alert_box(error_message, 'danger');
+        }
+
+    },
 
     // this runs a cone search query
     do_conesearch: function() {
@@ -1072,6 +1735,22 @@ var lcc_search = {
                     console.log(err.statusCode);
                     console.log(err.body);
 
+                    // stop the blinky!
+                    $('#search-notification-icon')
+                        .removeClass('animated flash infinite');
+
+                    $('#lcc-qstatus-back').empty();
+                    $('#lcc-qstatus-run').empty();
+
+                    // alert the user that the query failed
+                    lcc_ui.alert_box(
+                        'Query failed because the search backend ' +
+                            'crashed with an error code: <code>' +
+                            err.statusCode +
+                            '</code>! See the console for ' +
+                            'more details...', 'danger'
+                    );
+
                 });
 
         }
@@ -1082,7 +1761,7 @@ var lcc_search = {
             lcc_ui.alert_box(error_message, 'danger');
         }
 
-    },
+    }
 
 };
 
@@ -1128,6 +1807,7 @@ var lcc_datasets = {
                 // fill in the header first //
                 //////////////////////////////
 
+
                 // 2a. created
                 var created_on = data.created;
                 created_on = created_on + ' <strong>(' +
@@ -1155,6 +1835,13 @@ var lcc_datasets = {
                                                              null,
                                                              2) +
                                               '</pre>');
+
+                // get the row status if there is one
+                var rowstatus = data.rowstatus || ' ';
+                // 6. nobjects
+                $('#dataset-nobjects').html('<code>' +
+                                             data.nobjects +
+                                             '</code> '+ rowstatus);
 
                 // 7. collections
                 $('#dataset-collections').html('<code>' +
@@ -1222,6 +1909,7 @@ var lcc_datasets = {
                         .empty();
                 }
 
+
                 /////////////////////////////////////
                 // fill in the column descriptions //
                 /////////////////////////////////////
@@ -1273,7 +1961,19 @@ var lcc_datasets = {
                 // clear the table first
                 datarows_elem.empty();
 
-                for (rowind; rowind < data.nobjects; rowind++) {
+                // check if there are too many rows
+                // if so, only draw the first 3000
+                if (data.nobjects > 3000) {
+                    var max_rows = 3000;
+                    $('#dataset-nobjects').html(data.nobjects +
+                                                ' (showing only top 3000)');
+                }
+                else {
+                    var max_rows = data.nobjects;
+                    $('#dataset-nobjects').html(data.nobjects);
+                }
+
+                for (rowind; rowind < max_rows; rowind++) {
 
                     datarows_elem.append('<tr><td>' +
                                          data.rows[rowind].join('</td><td>') +
@@ -1323,9 +2023,12 @@ var lcc_datasets = {
                 );
 
                 // 6. nobjects
+                // get the row status if there is one
+                var rowstatus = data.rowstatus || ' ';
                 $('#dataset-nobjects').html('<code>' +
                                              data.nobjects +
-                                             '</code>');
+                                             '</code> '+ rowstatus);
+
 
                 // 7. collections
                 $('#dataset-collections').html('<code>' +

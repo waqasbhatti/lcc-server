@@ -333,64 +333,134 @@ class DatasetHandler(tornado.web.RequestHandler):
                 ds['cpzip'] = None
 
 
-            # if we're returning JSON, censor LC filenames and then return
-            if returnjson:
+            # check if there are too many rows in the dataset and don't return
+            # data if there more than 5000 rows
+            if ds['nobjects'] > 3000:
 
-                # this automatically does the censoring LCs bit
-                jsondict, datarows = yield self.executor.submit(
-                    datasets.generate_dataset_tablerows,
-                    self.basedir, ds,
-                    strformat=strformat
-                )
+                LOGGER.warning('more than 3000 objects '
+                               'in dataset. Not making rows')
 
-                LOGGER.info('returning JSON for %s' % setid)
+                if returnjson:
 
-                jsondict.update({
-                    'rows':datarows,
-                    'name':ds['name'],
-                    'desc':ds['desc'],
-                    'dataset_pickle':dataset_pickle,
-                    'dataset_shasum':ds['dataset_shasum'],
-                    'dataset_csv':dataset_csv,
-                    'csv_shasum':ds['csv_shasum'],
-                    'lczip':dataset_lczip,
-                    'lczip_shasum':ds['lczip_shasum'],
-                    'cpzip':ds['cpzip'],
-                    'cpzip_shasum':ds['cpzip_shasum'],
-                    'pfzip':ds['pfzip'],
-                    'pfzip_shasum':ds['pfzip_shasum']
-                })
+                    # this automatically does the censoring LCs bit
+                    jsondict, datarows = yield self.executor.submit(
+                        datasets.generate_dataset_tablerows,
+                        self.basedir, ds,
+                        strformat=strformat
+                    )
 
-                dsjson = json.dumps(jsondict)
-                dsjson = dsjson.replace('nan','null')
-                self.set_header('Content-Type','application/json')
-                self.write(dsjson)
-                self.finish()
+                    LOGGER.info('returning JSON for %s' % setid)
 
-            # otherwise, we're going to render the dataset to a template
+                    jsondict.update({
+                        'rows':datarows[:3000],
+                        'name':ds['name'],
+                        'desc':ds['desc'],
+                        'dataset_pickle':dataset_pickle,
+                        'dataset_shasum':ds['dataset_shasum'],
+                        'dataset_csv':dataset_csv,
+                        'csv_shasum':ds['csv_shasum'],
+                        'lczip':ds['lczip'],
+                        'lczip_shasum':ds['lczip_shasum'],
+                        'cpzip':ds['cpzip'],
+                        'cpzip_shasum':ds['cpzip_shasum'],
+                        'pfzip':ds['pfzip'],
+                        'pfzip_shasum':ds['pfzip_shasum'],
+                        'rowstatus':'showing only the top 3000 rows'
+                    })
+
+                    dsjson = json.dumps(jsondict)
+                    dsjson = dsjson.replace('nan','null')
+                    self.set_header('Content-Type','application/json')
+                    self.write(dsjson)
+                    self.finish()
+
+                else:
+
+                    # this automatically does the censoring LCs bit
+                    header = yield self.executor.submit(
+                        datasets.generate_dataset_tablerows,
+                        self.basedir, ds,
+                        headeronly=True
+                    )
+
+                    self.render('dataset-async.html',
+                                page_title='LCC Dataset %s' % setid,
+                                setid=setid,
+                                header=header,
+                                setpickle=dataset_pickle,
+                                setpickle_shasum=ds['dataset_shasum'],
+                                setcsv=dataset_csv,
+                                setcsv_shasum=ds['csv_shasum'],
+                                lczip=ds['lczip'],
+                                lczip_shasum=ds['lczip_shasum'],
+                                pfzip=dataset_pfzip,
+                                pfzip_shasum=ds['pfzip_shasum'],
+                                cpzip=dataset_cpzip,
+                                cpzip_shasum=ds['cpzip_shasum'])
+
+
+            # if there are less than 3000 objects, show all of them
             else:
 
-                # this automatically does the censoring LCs bit
-                header = yield self.executor.submit(
-                    datasets.generate_dataset_tablerows,
-                    self.basedir, ds,
-                    headeronly=True
-                )
+                # if we're returning JSON, censor LC filenames and then return
+                if returnjson:
 
-                self.render('dataset-async.html',
-                            page_title='LCC Dataset %s' % setid,
-                            setid=setid,
-                            header=header,
-                            setpickle=dataset_pickle,
-                            setpickle_shasum=ds['dataset_shasum'],
-                            setcsv=dataset_csv,
-                            setcsv_shasum=ds['csv_shasum'],
-                            lczip=dataset_lczip,
-                            lczip_shasum=ds['lczip_shasum'],
-                            pfzip=dataset_pfzip,
-                            pfzip_shasum=ds['pfzip_shasum'],
-                            cpzip=dataset_cpzip,
-                            cpzip_shasum=ds['cpzip_shasum'])
+                    # this automatically does the censoring LCs bit
+                    jsondict, datarows = yield self.executor.submit(
+                        datasets.generate_dataset_tablerows,
+                        self.basedir, ds,
+                        strformat=strformat
+                    )
+
+                    LOGGER.info('returning JSON for %s' % setid)
+
+                    jsondict.update({
+                        'rows':datarows,
+                        'name':ds['name'],
+                        'desc':ds['desc'],
+                        'dataset_pickle':dataset_pickle,
+                        'dataset_shasum':ds['dataset_shasum'],
+                        'dataset_csv':dataset_csv,
+                        'csv_shasum':ds['csv_shasum'],
+                        'lczip':ds['lczip'],
+                        'lczip_shasum':ds['lczip_shasum'],
+                        'cpzip':ds['cpzip'],
+                        'cpzip_shasum':ds['cpzip_shasum'],
+                        'pfzip':ds['pfzip'],
+                        'pfzip_shasum':ds['pfzip_shasum'],
+                        'rowstatus':'showing all rows',
+                    })
+
+                    dsjson = json.dumps(jsondict)
+                    dsjson = dsjson.replace('nan','null')
+                    self.set_header('Content-Type','application/json')
+                    self.write(dsjson)
+                    self.finish()
+
+                # otherwise, we're going to render the dataset to a template
+                else:
+
+                    # this automatically does the censoring LCs bit
+                    header = yield self.executor.submit(
+                        datasets.generate_dataset_tablerows,
+                        self.basedir, ds,
+                        headeronly=True
+                    )
+
+                    self.render('dataset-async.html',
+                                page_title='LCC Dataset %s' % setid,
+                                setid=setid,
+                                header=header,
+                                setpickle=dataset_pickle,
+                                setpickle_shasum=ds['dataset_shasum'],
+                                setcsv=dataset_csv,
+                                setcsv_shasum=ds['csv_shasum'],
+                                lczip=ds['lczip'],
+                                lczip_shasum=ds['lczip_shasum'],
+                                pfzip=dataset_pfzip,
+                                pfzip_shasum=ds['pfzip_shasum'],
+                                cpzip=dataset_cpzip,
+                                cpzip_shasum=ds['cpzip_shasum'])
 
         # if we somehow get here, everything is broken
         else:

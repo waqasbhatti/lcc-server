@@ -868,12 +868,17 @@ def sqlite_list_datasets(basedir,
 def sqlite_get_dataset(basedir,
                        setid,
                        returnjson=False,
-                       generatecsv=True):
+                       generatecsv=True,
+                       forcecomplete=False):
     '''This gets the dataset as a dictionary and optionally as JSON.
 
     If generatecsv is True, we'll generate a CSV for the dataset table and write
     it to the products directory (or retrieve it from cache if it exists
     already).
+
+    if forcecomplete, we'll force-set the dataset status to complete. this can
+    be useful when there's too many LCs to zip and we don't want to wait around
+    for this.
 
     Returns a dict generated from the dataset pickle.
 
@@ -1035,6 +1040,47 @@ def sqlite_get_dataset(basedir,
         returndict['dataset_csv'] = None
         returndict['csv_shasum'] = None
 
+    # if we're told to force complete the dataset, do so here
+    if forcecomplete and returndict['status'] != 'complete':
+
+        datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+        db = sqlite3.connect(
+            datasets_dbf,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        cur = db.cursor()
+        query = ("update lcc_datasets set last_updated = ?, "
+                 "nobjects = ?, status = ? where setid = ?")
+        params = (datetime.utcnow().isoformat(),
+                  sum(dataset['nmatches'][x] for x in dataset['collections']),
+                  'complete',
+                  dataset['setid'])
+        cur.execute(query, params)
+        db.commit()
+        db.close()
+
+        if not os.path.exists(returndict['lczip']):
+            returndict['lczip'] = None
+        if not os.path.exists(returndict['cpzip']):
+            returndict['cpzip'] = None
+        if not os.path.exists(returndict['pfzip']):
+            returndict['pfzip'] = None
+
+        # blank out the original LCs
+        for collection in returndict['collections']:
+            for row in returndict['result'][collection]['data']:
+                if 'db_lcfname' in row:
+                    row['db_lcfname'] = None
+                if 'lcfname' in row:
+                    row['lcfname'] = None
+
+        LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
+                   (returndict['status'], returndict['setid']))
+
+    elif forcecomplete and returndict['status'] == 'complete':
+        LOGERROR('not going to force completion '
+                 'for an already complete dataset: %s'
+                 % returndict['setid'])
 
     if returnjson:
 

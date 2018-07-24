@@ -463,11 +463,11 @@ def sqlite_fulltext_search(basedir,
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
          "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
-         "catalog_fts match ? {extraconditions} "
+         "catalog_fts MATCH ?{extraconditions} "
          "order by bm25(catalog_fts)")
 
     # handle the extra conditions
-    if extraconditions is not None:
+    if extraconditions is not None and len(extraconditions) > 0:
 
         # validate this string
         extraconditions = validate_sqlite_filters(extraconditions,
@@ -517,9 +517,9 @@ def sqlite_fulltext_search(basedir,
         try:
 
             # if we have extra filters, apply them
-            if extraconditions is not None:
+            if extraconditions is not None and len(extraconditions) > 0:
 
-                extraconditionstr = 'and (%s)' % extraconditions
+                extraconditionstr = ' and (%s)' % extraconditions
 
             else:
 
@@ -527,17 +527,28 @@ def sqlite_fulltext_search(basedir,
 
 
             # format the query
+            # FIXME: this isn't using sqlite safe param substitution
+            # does it matter?
             thisq = q.format(columnstr=columnstr,
                              collection_id=lcc,
-                             ftsquerystr=ftsquerystr,
                              extraconditions=extraconditionstr)
 
             # execute the query
             LOGINFO('query = %s' % thisq)
+
             cur.execute(thisq, (ftsquerystr,))
+            rows = cur.fetchall()
+
+            if rows and len(rows) > 0:
+
+                rows = [dict(x) for x in rows]
+
+            else:
+
+                rows = []
 
             # put the results into the right place
-            results[lcc] = {'result':cur.fetchall(),
+            results[lcc] = {'result':rows,
                             'query':thisq.replace('?',"'%s'" % ftsquerystr),
                             'success':True}
             results[lcc]['nmatches'] = len(results[lcc]['result'])
@@ -766,10 +777,17 @@ def sqlite_column_search(basedir,
 
         try:
 
+            LOGINFO('query = %s' % thisq)
             cur.execute(thisq)
+            rows = cur.fetchall()
+
+            if rows and len(rows) > 0:
+                rows = [dict(x) for x in rows]
+            else:
+                rows = []
 
             # put the results into the right place
-            results[lcc] = {'result':cur.fetchall(),
+            results[lcc] = {'result':rows,
                             'query':thisq,
                             'success':True}
             results[lcc]['nmatches'] = len(results[lcc]['result'])
