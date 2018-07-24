@@ -55,6 +55,19 @@ var lcc_ui = {
 
         });
 
+        // bind the lcc-filtertarget so an Enter clicks the add-filter button
+        $('.lcc-filtertarget').on('keyup', function (evt) {
+
+            if (evt.key == 'Enter') {
+
+                // get the searchtype and click the appropriate add button
+                var searchtype = $(this).attr('data-searchtype');
+                $('#' + searchtype + '-filter-add').click();
+
+            }
+
+        });
+
         // bind the conesearch-filter-add button
         $('.lcc-filter-add').on('click', function (evt) {
 
