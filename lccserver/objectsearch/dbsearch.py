@@ -428,11 +428,13 @@ def sqlite_fulltext_search(basedir,
         uselcc = available_lcc
 
     # we have some default columns that we'll always get
-    # if we have some columns to get, get them and append default cols
+
+    # if we have some columns that the user provided, get them and append
+    # default cols
     if getcolumns is not None:
 
         # get the requested columns together
-        columnstr = ', '.join('a.%s' % c for c in getcolumns)
+        columnstr = ', '.join('a.%s' % (c,) for c in getcolumns)
 
         columnstr = ', '.join(
             [columnstr,
@@ -441,10 +443,7 @@ def sqlite_fulltext_search(basedir,
         )
         columnstr = columnstr.lstrip(',').strip()
 
-        rescolumns = getcolumns[::] + ['in_oid',
-                                       'db_oid',
-                                       'in_ra',
-                                       'in_decl',
+        rescolumns = getcolumns[::] + ['db_oid',
                                        'db_ra',
                                        'db_decl',
                                        'db_lcfname']
@@ -456,10 +455,7 @@ def sqlite_fulltext_search(basedir,
         columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
                      'a.decl as db_decl, a.lcfname as db_lcfname')
 
-        rescolumns = ['in_oid',
-                      'db_oid',
-                      'in_ra',
-                      'in_decl',
+        rescolumns = ['db_oid',
                       'db_ra',
                       'db_decl',
                       'db_lcfname']
@@ -491,17 +487,8 @@ def sqlite_fulltext_search(basedir,
         lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
         # update the lcc_columnspec with the extra columns we always return
-        lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
-        lcc_columnspec['in_oid']['title'] = 'input object ID'
-
         lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
         lcc_columnspec['db_oid']['title'] = 'database object ID'
-
-        lcc_columnspec['in_ra'] = lcc_columnspec['ra']
-        lcc_columnspec['in_ra']['title'] = 'input &alpha;'
-
-        lcc_columnspec['in_decl'] = lcc_columnspec['decl']
-        lcc_columnspec['in_decl']['title'] = 'input &delta;'
 
         lcc_columnspec['db_ra'] = lcc_columnspec['ra']
         lcc_columnspec['db_ra']['title'] = 'database &alpha;'
@@ -511,6 +498,21 @@ def sqlite_fulltext_search(basedir,
 
         lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
         lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
+
+        # we should return all FTS indexed columns regardless of whether the
+        # user selected them or not
+        collection_ftscols = (
+            dbinfo['info']['ftsindexedcols'][dbindex].split(',')
+        )
+
+        # add these to the default columns we return
+        rescolumns.extend(collection_ftscols)
+
+        # add them to the SQL column statement too
+        columnstr = (
+            columnstr + ', ' +
+            ', '.join(['a.%s' % x for x in collection_ftscols])
+        )
 
         try:
 
@@ -531,6 +533,7 @@ def sqlite_fulltext_search(basedir,
                              extraconditions=extraconditionstr)
 
             # execute the query
+            LOGINFO('query = %s' % thisq)
             cur.execute(thisq, (ftsquerystr,))
 
             # put the results into the right place
@@ -653,10 +656,7 @@ def sqlite_column_search(basedir,
         )
         columnstr = columnstr.lstrip(',').strip()
 
-        rescolumns = getcolumns[::] + ['in_oid',
-                                       'db_oid',
-                                       'in_ra',
-                                       'in_decl',
+        rescolumns = getcolumns[::] + ['db_oid',
                                        'db_ra',
                                        'db_decl',
                                        'db_lcfname']
@@ -667,10 +667,7 @@ def sqlite_column_search(basedir,
         columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
                      'a.decl as db_decl, a.lcfname as db_lcfname')
 
-        rescolumns = ['in_oid',
-                      'db_oid',
-                      'in_ra',
-                      'in_decl',
+        rescolumns = ['db_oid',
                       'db_ra',
                       'db_decl',
                       'db_lcfname']
@@ -748,17 +745,8 @@ def sqlite_column_search(basedir,
         lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
         # update the lcc_columnspec with the extra columns we always return
-        lcc_columnspec['in_oid'] = lcc_columnspec['objectid']
-        lcc_columnspec['in_oid']['title'] = 'input object ID'
-
         lcc_columnspec['db_oid'] = lcc_columnspec['objectid']
         lcc_columnspec['db_oid']['title'] = 'database object ID'
-
-        lcc_columnspec['in_ra'] = lcc_columnspec['ra']
-        lcc_columnspec['in_ra']['title'] = 'input &alpha;'
-
-        lcc_columnspec['in_decl'] = lcc_columnspec['decl']
-        lcc_columnspec['in_decl']['title'] = 'input &delta;'
 
         lcc_columnspec['db_ra'] = lcc_columnspec['ra']
         lcc_columnspec['db_ra']['title'] = 'database &alpha;'
@@ -937,19 +925,19 @@ def sqlite_kdtree_conesearch(basedir,
         # filtering
         columnstr = ', '.join(
             [columnstr,
-             ('a.objectid as in_oid, b.objectid as db_oid, '
-              'a.ra as in_ra, a.decl as in_decl, '
-              'b.ra as db_ra, b.decl as db_decl, '
+             ('a.objectid as db_oid, b.objectid as kdtree_oid, '
+              'a.ra as db_ra, a.decl as db_decl, '
+              'b.ra as kdtree_ra, b.decl as kdtree_decl, '
               'a.lcfname as db_lcfname')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
-        rescolumns = getcolumns[::] + ['in_oid',
-                                       'db_oid',
-                                       'in_ra',
-                                       'in_decl',
+        rescolumns = getcolumns[::] + ['db_oid',
+                                       'kdtree_oid',
                                        'db_ra',
                                        'db_decl',
+                                       'kdtree_ra',
+                                       'kdtree_decl',
                                        'db_lcfname',
                                        'dist_arcsec']
 
@@ -957,17 +945,17 @@ def sqlite_kdtree_conesearch(basedir,
     # 'check' cone-search query
     else:
 
-        columnstr = ('a.objectid as in_oid, b.objectid as db_oid, '
-                     'a.ra as in_ra, a.decl as in_decl, '
-                     'b.ra as db_ra, b.decl as db_decl, '
+        columnstr = ('a.objectid as db_oid, b.objectid as kdtree_oid, '
+                     'a.ra as db_ra, a.decl as db_decl, '
+                     'b.ra as kdtree_ra, b.decl as kdtree_decl, '
                      'a.lcfname as db_lcfname')
 
-        rescolumns = ['in_oid',
-                      'db_oid',
-                      'in_ra',
-                      'in_decl',
+        rescolumns = ['db_oid',
+                      'kdtree_oid',
                       'db_ra',
                       'db_decl',
+                      'kdtree_ra',
+                      'kdtree_decl',
                       'db_lcfname',
                       'dist_arcsec']
 
@@ -1008,17 +996,13 @@ def sqlite_kdtree_conesearch(basedir,
         lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
         # update the lcc_columnspec with the extra columns we always return
-        lcc_columnspec['in_oid'] = lcc_columnspec['objectid'].copy()
-        lcc_columnspec['in_oid']['title'] = 'input object ID'
-
         lcc_columnspec['db_oid'] = lcc_columnspec['objectid'].copy()
         lcc_columnspec['db_oid']['title'] = 'database object ID'
 
-        lcc_columnspec['in_ra'] = lcc_columnspec['ra'].copy()
-        lcc_columnspec['in_ra']['title'] = 'input &alpha;'
-
-        lcc_columnspec['in_decl'] = lcc_columnspec['decl'].copy()
-        lcc_columnspec['in_decl']['title'] = 'input &delta;'
+        lcc_columnspec['kdtree_oid'] = lcc_columnspec['objectid'].copy()
+        lcc_columnspec['kdtree_oid']['title'] = (
+            'object ID in kd-tree for spatial queries'
+        )
 
         lcc_columnspec['db_ra'] = lcc_columnspec['ra'].copy()
         lcc_columnspec['db_ra']['title'] = 'database &alpha;'
@@ -1026,8 +1010,14 @@ def sqlite_kdtree_conesearch(basedir,
         lcc_columnspec['db_decl'] = lcc_columnspec['decl'].copy()
         lcc_columnspec['db_decl']['title'] = 'database &delta;'
 
+        lcc_columnspec['kdtree_ra'] = lcc_columnspec['ra'].copy()
+        lcc_columnspec['kdtree_ra']['title'] = 'kd-tree &alpha;'
+
+        lcc_columnspec['kdtree_decl'] = lcc_columnspec['decl'].copy()
+        lcc_columnspec['kdtree_decl']['title'] = 'kd-tree &delta;'
+
         lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname'].copy()
-        lcc_columnspec['db_lcfname']['title'] = 'database LC file name'
+        lcc_columnspec['db_lcfname']['title'] = 'database LC file path'
 
         # this is the extra spec for dist_arcsec
         lcc_columnspec['dist_arcsec'] = {
@@ -1162,9 +1152,9 @@ def sqlite_kdtree_conesearch(basedir,
             # the distance from the center of the cone search
             for row in rows:
 
-                obj = row['in_oid']
-                ra = row['in_ra']
-                decl = row['in_decl']
+                obj = row['db_oid']
+                ra = row['db_ra']
+                decl = row['db_decl']
 
                 # figure out the distances from the search center
                 searchcenter_distarcsec = great_circle_dist(
