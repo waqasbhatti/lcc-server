@@ -54,6 +54,8 @@ INSTALL_REQUIRES = [
     'markdown',
     'pygments',
     'psutil',
+    'itsdangerous',
+    'passlib',
 ]
 
 EXTRAS_REQUIRE = {

@@ -761,7 +761,9 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
                             "setid":self.setid,
                             "nobjects":0
                         },
-                        "message":"query failed, no matching objects found",
+                        "message":("Query <code>%s</code> failed. "
+                                   "No matching objects were found" %
+                                   self.setid),
                         "time":'%sZ' % datetime.utcnow().isoformat()
                     }
                     self.write(retdict)
@@ -770,7 +772,9 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
             else:
 
                 retdict = {
-                    "message":"query failed, no matching objects found",
+                    "message":("Query <code>%s</code> failed. "
+                               "No matching objects were found" %
+                               self.setid),
                     "status":"failed",
                     "result":{
                         "setid":self.setid,
@@ -1332,7 +1336,9 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                             "setid":self.setid,
                             "nobjects":0
                         },
-                        "message":"query failed, no matching objects found",
+                        "message":("Query <code>%s</code> failed. "
+                                   "No matching objects were found" %
+                                   self.setid),
                         "time":'%sZ' % datetime.utcnow().isoformat()
                     }
                     self.write(retdict)
@@ -1341,7 +1347,9 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             else:
 
                 retdict = {
-                    "message":"query failed, no matching objects found",
+                    "message":("Query <code>%s</code> failed. "
+                               "No matching objects were found" %
+                               self.setid),
                     "status":"failed",
                     "result":{
                         "setid":self.setid,
@@ -1884,7 +1892,9 @@ class FTSearchHandler(tornado.web.RequestHandler):
                             "setid":self.setid,
                             "nobjects":0
                         },
-                        "message":"query failed, no matching objects found",
+                        "message":("Query <code>%s</code> failed. "
+                                   "No matching objects were found" %
+                                   self.setid),
                         "time":'%sZ' % datetime.utcnow().isoformat()
                     }
                     self.write(retdict)
@@ -1893,7 +1903,9 @@ class FTSearchHandler(tornado.web.RequestHandler):
             else:
 
                 retdict = {
-                    "message":"query failed, no matching objects found",
+                    "message":("Query <code>%s</code> failed. "
+                               "No matching objects were found" %
+                               self.setid),
                     "status":"failed",
                     "result":{
                         "setid":self.setid,
@@ -2017,9 +2029,24 @@ class XMatchHandler(tornado.web.RequestHandler):
         self.uselcdir = uselcdir
 
 
-
     @gen.coroutine
     def get(self):
+        '''This doesn't actually run the query.
+
+        It is used to generate a token to be used in place of an XSRF token for
+        the POST function below. This is mostly useful for direct API request
+        since we will not enable POST with XSRF. So for an API:
+
+        - /api/xmatchquery GET to receive a token
+        - /api/xmatchquery POST with header Authorization: Bearer <token>
+
+        '''
+
+
+
+    @gen.coroutine
+    def post(self):
+
         '''This runs the query.
 
         '''
