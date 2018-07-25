@@ -75,9 +75,9 @@ import itsdangerous
 ## LOCAL IMPORTS ##
 ###################
 
-from ..objectsearch import dbsearch
+from ..backend import dbsearch
 dbsearch.set_logger_parent(__name__)
-from ..objectsearch import datasets
+from ..backend import datasets
 datasets.set_logger_parent(__name__)
 
 
