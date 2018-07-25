@@ -174,17 +174,49 @@ class APIAuthHandler(tornado.web.RequestHandler):
 
             key = xhtml_escape(self.get_argument('key'))
             uns = self.signer.loads(key, max_age=86400.0)
-            LOGGER.warning('successful API key auth: %r' % uns)
 
-            retdict = {
-                'status':'ok',
-                'message':('API key verified successfully. Expires: %s' %
-                           uns['expiry']),
-                'result':{'expiry':uns['expiry']},
-            }
+            # match the remote IP and API version
+            keyok = ((self.request.remote_ip == uns['ip']) and
+                     (self.apiversion == uns['ver']))
 
-            self.write(retdict)
-            self.finish()
+            if not keyok:
+
+                if 'X-Real-Host' in self.request.headers:
+                    self.req_hostname = self.request.headers['X-Real-Host']
+                else:
+                    self.req_hostname = self.request.host
+
+                newkey_url = "%s://%s/api/key" % (
+                    self.request.protocol,
+                    self.req_hostname,
+                )
+
+                LOGGER.error('API key is valid, but IP or API version mismatch')
+
+                retdict = {
+                    'status':'failed',
+                    'message':('API key invalid for current LCC API '
+                               'version: %s or your IP address has changed. '
+                               'Get an up-to-date key from %s' %
+                               (self.apiversion, newkey_url)),
+                    'result':None
+                }
+                self.write(retdict)
+                self.finish()
+
+            else:
+
+                LOGGER.warning('successful API key auth: %r' % uns)
+
+                retdict = {
+                    'status':'ok',
+                    'message':('API key verified successfully. Expires: %s' %
+                               uns['expiry']),
+                    'result':{'expiry':uns['expiry']},
+                }
+
+                self.write(retdict)
+                self.finish()
 
         except itsdangerous.SignatureExpired:
 
@@ -196,10 +228,10 @@ class APIAuthHandler(tornado.web.RequestHandler):
             else:
                 self.req_hostname = self.request.host
 
-                newkey_url = "%s://%s/api/key" % (
-                    self.request.protocol,
-                    self.req_hostname,
-                )
+            newkey_url = "%s://%s/api/key" % (
+                self.request.protocol,
+                self.req_hostname,
+            )
 
             retdict = {
                 'status':'failed',
