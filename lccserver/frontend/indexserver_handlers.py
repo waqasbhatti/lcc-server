@@ -180,7 +180,7 @@ class APIAuthHandler(tornado.web.RequestHandler):
                 'status':'ok',
                 'message':('API key verified successfully. Expires: %s' %
                            uns['expiry']),
-                'result':None
+                'result':{'expiry':uns['expiry']},
             }
 
             self.write(retdict)
