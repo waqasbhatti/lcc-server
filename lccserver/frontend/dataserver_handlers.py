@@ -93,6 +93,7 @@ class DatasetHandler(tornado.web.RequestHandler):
 
     def initialize(self,
                    currentdir,
+                   apiversion,
                    templatepath,
                    assetpath,
                    docspath,
@@ -105,6 +106,7 @@ class DatasetHandler(tornado.web.RequestHandler):
         '''
 
         self.currentdir = currentdir
+        self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
         self.docspath = docspath
@@ -497,6 +499,7 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
 
     def initialize(self,
                    currentdir,
+                   apiversion,
                    templatepath,
                    assetpath,
                    docspath,
@@ -509,6 +512,7 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
         '''
 
         self.currentdir = currentdir
+        self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
         self.docspath = docspath

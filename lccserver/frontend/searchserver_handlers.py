@@ -62,12 +62,14 @@ LOGGER = logging.getLogger(__name__)
 ## TORNADO IMPORTS ##
 #####################
 
+import hmac
+
 import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 import tornado.ioloop
 
-from tornado.escape import xhtml_escape, squeeze
+from tornado.escape import xhtml_escape, squeeze, utf8
 from tornado import gen
 
 # for signing/verifying tokens
@@ -319,6 +321,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
 
     def initialize(self,
                    currentdir,
+                   apiversion,
                    templatepath,
                    assetpath,
                    docspath,
@@ -332,6 +335,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
         '''
 
         self.currentdir = currentdir
+        self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
         self.docspath = docspath
@@ -882,6 +886,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
     def initialize(self,
                    currentdir,
+                   apiversion,
                    templatepath,
                    assetpath,
                    docspath,
@@ -895,6 +900,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         '''
 
         self.currentdir = currentdir
+        self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
         self.docspath = docspath
@@ -1459,6 +1465,7 @@ class FTSearchHandler(tornado.web.RequestHandler):
 
     def initialize(self,
                    currentdir,
+                   apiversion,
                    templatepath,
                    assetpath,
                    docspath,
@@ -1472,6 +1479,7 @@ class FTSearchHandler(tornado.web.RequestHandler):
         '''
 
         self.currentdir = currentdir
+        self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
         self.docspath = docspath
@@ -2009,12 +2017,30 @@ class FTSearchHandler(tornado.web.RequestHandler):
 ## XMATCH SEARCH HANDLER ##
 ###########################
 
+if hasattr(hmac, 'compare_digest'):  # python 3.3
+    _time_independent_equals = hmac.compare_digest
+else:
+    def _time_independent_equals(a, b):
+        if len(a) != len(b):
+            return False
+        result = 0
+        if isinstance(a[0], int):  # python3 byte strings
+            for x, y in zip(a, b):
+                result |= x ^ y
+        else:  # python2
+            for x, y in zip(a, b):
+                result |= ord(x) ^ ord(y)
+        return result == 0
+
+
+
 class XMatchHandler(tornado.web.RequestHandler):
     '''
     This handles the xmatch search API.
 
     '''
     def initialize(self,
+                   apiversion,
                    currentdir,
                    templatepath,
                    assetpath,
@@ -2029,6 +2055,7 @@ class XMatchHandler(tornado.web.RequestHandler):
         '''
 
         self.currentdir = currentdir
+        self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
         self.docspath = docspath
@@ -2036,6 +2063,204 @@ class XMatchHandler(tornado.web.RequestHandler):
         self.basedir = basedir
         self.uselcdir = uselcdir
         self.signer = signer
+
+
+    def check_apikey(self):
+        '''
+        This checks the API key.
+
+        '''
+        try:
+
+            authorization = self.request.headers.get('Authorization')
+
+            if authorization:
+
+                key = authorization.split()[1].strip()
+                uns = self.signer.loads(key, max_age=86400.0)
+
+                # match the remote IP and API version
+                keyok = ((self.request.remote_ip == uns['ip']) and
+                         (self.apiversion == uns['ver']))
+
+            else:
+
+                LOGGER.error('no Authorization header key found')
+                retdict = {
+                    'status':'failed',
+                    'message':('No credentials provided or '
+                               'they could not be parsed safely'),
+                    'result':None
+                }
+
+                self.set_status(403)
+                return retdict
+
+
+            if not keyok:
+
+                if 'X-Real-Host' in self.request.headers:
+                    self.req_hostname = self.request.headers['X-Real-Host']
+                else:
+                    self.req_hostname = self.request.host
+
+                newkey_url = "%s://%s/api/key" % (
+                    self.request.protocol,
+                    self.req_hostname,
+                )
+
+                LOGGER.error('API key is valid, but IP or API version mismatch')
+                retdict = {
+                    'status':'failed',
+                    'message':('API key invalid for current LCC API '
+                               'version: %s or your IP address has changed. '
+                               'Get an up-to-date key from %s' %
+                               (self.apiversion, newkey_url)),
+                    'result':None
+                }
+
+                self.set_status(403)
+                return retdict
+
+            # SUCCESS HERE ONLY
+            else:
+
+                LOGGER.warning('successful API key auth: %r' % uns)
+
+                retdict = {
+                    'status':'ok',
+                    'message':('API key verified successfully. Expires: %s' %
+                               uns['expiry']),
+                    'result':{'expiry':uns['expiry']},
+                }
+
+                return retdict
+
+        except itsdangerous.SignatureExpired:
+
+            LOGGER.error('API key "%s" from %s has expired' %
+                         (key, self.request.remote_ip))
+
+            if 'X-Real-Host' in self.request.headers:
+                self.req_hostname = self.request.headers['X-Real-Host']
+            else:
+                self.req_hostname = self.request.host
+
+            newkey_url = "%s://%s/api/key" % (
+                self.request.protocol,
+                self.req_hostname,
+            )
+
+            retdict = {
+                'status':'failed',
+                'message':('API key has expired. '
+                           'Get a new one from %s' % newkey_url),
+                'result':None
+            }
+
+            self.set_status(403)
+            return retdict
+
+        except itsdangerous.BadSignature:
+
+            LOGGER.error('API key "%s" from %s did not pass verification' %
+                         (key, self.request.remote_ip))
+
+            retdict = {
+                'status':'failed',
+                'message':'API key could not be verified or has expired.',
+                'result':None
+            }
+
+            self.set_status(403)
+            return retdict
+
+        except Exception as e:
+
+            LOGGER.exception('API key "%s" from %s did not pass verification' %
+                             (key, self.request.remote_ip))
+
+            retdict = {
+                'status':'failed',
+                'message':('API key was not provided, '
+                           'could not be verified, '
+                           'or has expired.'),
+                'result':None
+            }
+
+            self.set_status(403)
+            return retdict
+
+
+
+    def tornado_check_xsrf_cookie(self):
+        '''
+        This is the original tornado xsrf token checker
+
+        '''
+
+        token = (self.get_argument("_xsrf", None) or
+                 self.request.headers.get("X-Xsrftoken") or
+                 self.request.headers.get("X-Csrftoken"))
+
+        if not token:
+
+            retdict = {
+                'status':'failed',
+                'message':("'_xsrf' argument missing from POST'"),
+                'result':None
+            }
+
+            self.set_status(403)
+            return retdict
+
+        _, token, _ = self._decode_xsrf_token(token)
+        _, expected_token, _ = self._get_raw_xsrf_token()
+
+        if not token:
+
+            retdict = {
+                'status':'failed',
+                'message':("'_xsrf' argument missing from POST"),
+                'result':None
+            }
+
+            self.set_status(403)
+            return retdict
+
+
+        if not _time_independent_equals(utf8(token),
+                                        utf8(expected_token)):
+
+            retdict = {
+                'status':'failed',
+                'message':("XSRF cookie does not match POST argument"),
+                'result':None
+            }
+
+            self.set_status(403)
+            return retdict
+
+
+
+    def check_xsrf_cookie(self):
+        '''This overrides the usual Tornado XSRF checker.
+
+        We use this because we want the same endpoint to support POSTs from an
+        API or from the browser.
+
+        '''
+
+        xsrf_auth = (self.get_argument("_xsrf", None) or
+                     self.request.headers.get("X-Xsrftoken") or
+                     self.request.headers.get("X-Csrftoken"))
+
+        if xsrf_auth:
+            LOGGER.info('using tornado XSRF auth...')
+            self.keycheck = self.tornado_check_xsrf_cookie()
+        else:
+            LOGGER.info('using API header auth...')
+            self.keycheck = self.check_apikey()
 
 
 
@@ -2046,45 +2271,515 @@ class XMatchHandler(tornado.web.RequestHandler):
 
         '''
 
-        # first thing we'll do is to get the API key back and check if the token
-        # is valid
+        # at this point, we should have checked the API token or XSRF header and
+        # can proceed to dealing with the request itself
+
+        # if we get here and the status is set to 403, the request is bad
+        if self.get_status() == 403:
+            self.write(self.keycheck)
+            raise tornado.web.Finish()
+
+        # debugging
+        LOGGER.info('request arguments: %r' % self.request.arguments)
+        raise tornado.web.Finish()
+
+
+        try:
+
+            if 'X-Real-Host' in self.request.headers:
+                self.req_hostname = self.request.headers['X-Real-Host']
+            else:
+                self.req_hostname = self.request.host
+
+
+            # REQUIRED: conditions
+            conditions = self.get_argument('filters', default=None)
+            if conditions is not None:
+
+                conditions = xhtml_escape(squeeze(conditions))
+
+                # return the "'" character that got escaped
+                conditions = conditions.replace('&#39;',"'")
+
+                # replace the operators with their SQL equivalents
+                farr = conditions.split(' ')
+                farr = ['>' if x == 'gt' else x for x in farr]
+                farr = ['<' if x == 'lt' else x for x in farr]
+                farr = ['>=' if x == 'ge' else x for x in farr]
+                farr = ['<=' if x == 'le' else x for x in farr]
+                farr = ['=' if x == 'eq' else x for x in farr]
+                farr = ['!=' if x == 'ne' else x for x in farr]
+                farr = ['like' if x == 'ct' else x for x in farr]
+
+                LOGGER.info(farr)
+
+                # deal with like operator
+                # FIXME: this is ugly :(
+                for i, x in enumerate(farr):
+                    if x == 'like':
+                        LOGGER.info(farr[i+1])
+                        farrnext = farr[i+1]
+                        farrnext_left = farrnext.index("'")
+                        farrnext_right = farrnext.rindex("'")
+                        farrnext = [a for a in farrnext]
+                        farrnext.insert(farrnext_left+1,'%')
+                        farrnext.insert(farrnext_right+1,'%')
+                        farr[i+1] = ''.join(farrnext)
+
+                conditions = ' '.join(farr)
+                LOGGER.info('conditions = %s' % conditions)
+
+            # get the other arguments for the server
+
+            # REQUIRED: sort column
+            sortcol = xhtml_escape(
+                self.get_argument('sortcol',
+                                  default='sdssr')
+            ).strip()
+            sortorder = xhtml_escape(self.get_argument('sortorder')).strip()
+
+            if sortorder not in ('asc','desc'):
+                sortorder = 'asc'
+
+            # OPTIONAL: result_ispublic
+            self.result_ispublic = (
+                True if int(xhtml_escape(self.get_argument('result_ispublic')))
+                else False
+            )
+
+            # OPTIONAL: columns
+            getcolumns = self.get_arguments('columns[]')
+
+            if getcolumns is not None:
+                getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
+            else:
+                getcolumns = None
+
+
+            # OPTIONAL: collections
+            lcclist = self.get_arguments('collections[]')
+
+            if lcclist is not None:
+
+                lcclist = list(set([xhtml_escape(x) for x in lcclist]))
+                if 'all' in lcclist:
+                    lcclist.remove('all')
+                if len(lcclist) == 0:
+                    lcclist = None
+
+            else:
+                lcclist = None
 
 
 
-        collections = yield self.executor.submit(
-            dbsearch.sqlite_list_collections,
-            self.basedir
+            #
+            # now we've collected all the parameters for
+            # sqlite_column_search
+            #
+
+        # if something goes wrong parsing the args, bail out immediately
+        except:
+
+            LOGGER.exception(
+                'one or more of the required args are missing or invalid'
+            )
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":("one or more of the "
+                           "required args are missing or invalid")
+            }
+            self.write(retdict)
+
+            # we call this to end the request here (since self.finish() doesn't
+            # actually stop executing statements)
+            raise tornado.web.Finish()
+
+        LOGGER.info('********* PARSED ARGS *********')
+        LOGGER.info('conditions = %s' % conditions)
+        LOGGER.info('sortcol = %s' % sortcol)
+        LOGGER.info('sortorder = %s' % sortorder)
+        LOGGER.info('getcolumns = %s' % getcolumns)
+        LOGGER.info('lcclist = %s' % lcclist)
+
+        #
+        # we'll use line-delimited JSON to respond
+        #
+
+        # Q1. prepare the dataset
+        setinfo = yield self.executor.submit(
+            datasets.sqlite_prepare_dataset,
+            self.basedir,
+            ispublic=self.result_ispublic,
         )
 
-        collection_info = collections['info']
-        all_columns = collections['columns']
-        all_indexed_columns = collections['indexedcols']
-        all_fts_columns = collections['ftscols']
+        self.setid, self.creationdt = setinfo
 
-        # censor some bits
-        del collection_info['kdtree_pkl_path']
-        del collection_info['object_catalog_path']
-
-        # we'll reform the lcformatdesc path so it can be downloaded directly
-        # from the LCC server
-        lcformatdesc = collection_info['lcformatdesc']
-        lcformatdesc = [
-            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
-        ]
-        collection_info['lcformatdesc'] = lcformatdesc
-
-        returndict = {
-            'status':'ok',
-            'result':{'available_columns':all_columns,
-                      'available_indexed_columns':all_indexed_columns,
-                      'available_fts_columns':all_fts_columns,
-                      'collections':collection_info},
-            'message':(
-                'found %s collections in total' %
-                len(collection_info['collection_id'])
-            )
+        # A1. we have a setid, send this back to the client
+        retdict = {
+            "message":(
+                "query in run-queue. executing with set ID: %s..." % self.setid
+            ),
+            "status":"queued",
+            "result":{
+                "setid": self.setid,
+                "api_service":"conesearch",
+                "api_args":{
+                    "conditions":conditions,
+                    "sortcol":sortcol,
+                    "sortorder":sortorder,
+                    "result_ispublic":self.result_ispublic,
+                    "collections":lcclist,
+                    "getcolumns":getcolumns,
+                },
+            },  # add submit datetime, args, etc.
+            "time":'%sZ' % datetime.utcnow().isoformat()
         }
+        retdict = '%s\n' % json.dumps(retdict)
+        self.set_header('Content-Type','application/json')
+        self.write(retdict)
+        yield self.flush()
 
-        # return to sender
-        self.write(returndict)
-        self.finish()
+        # Q2. execute the query and get back a future
+        self.query_result_future = self.executor.submit(
+            dbsearch.sqlite_column_search,
+            self.basedir,
+            conditions=conditions,
+            sortby="%s %s" % (sortcol, sortorder),
+            getcolumns=getcolumns,
+            lcclist=lcclist,
+        )
+
+        try:
+
+            # here, we'll yield with_timeout
+            # give 15 seconds to the query
+            self.query_result = yield gen.with_timeout(
+                timedelta(seconds=15.0),
+                self.query_result_future
+            )
+
+            # A2. we have the query result, send back a query completed message
+            if self.query_result is not None:
+
+                collections = self.query_result['databases']
+                nrows = sum(self.query_result[x]['nmatches']
+                            for x in collections)
+
+                if nrows > 0:
+
+                    retdict = {
+                        "message":("query finished OK. "
+                                   "objects matched: %s, "
+                                   "building dataset..." % nrows),
+                        "status":"running",
+                        "result":{
+                            "setid":self.setid,
+                            "nobjects":nrows
+                        },
+                        "time":'%sZ' % datetime.utcnow().isoformat()
+                    }
+                    retdict = '%s\n' % json.dumps(retdict)
+                    self.write(retdict)
+                    yield self.flush()
+
+                    # Q3. make the dataset pickle and finish dataset row in the
+                    # DB
+                    dspkl_setid = yield self.executor.submit(
+                        datasets.sqlite_new_dataset,
+                        self.basedir,
+                        self.setid,
+                        self.creationdt,
+                        self.query_result,
+                        ispublic=self.result_ispublic
+                    )
+
+                    # only collect the LCs into a pickle if the user requested
+                    # less than 20000 light curves. generating bigger ones is
+                    # something we'll handle later
+                    if nrows > 20000:
+
+                        # early-collect the dataset to generate its CSV
+                        setdict = yield self.executor.submit(
+                            datasets.sqlite_get_dataset,
+                            self.basedir,
+                            dspkl_setid,
+                            forcecomplete=True
+                        )
+
+                        dataset_url = "%s://%s/set/%s" % (
+                            self.request.protocol,
+                            self.req_hostname,
+                            dspkl_setid
+                        )
+
+                        retdict = {
+                            "message":(
+                                "Dataset pickle generation complete. "
+                                "There are more than 20,000 light curves "
+                                "to collect so we won't generate a ZIP file. "
+                                "See %s for dataset object lists and a "
+                                "CSV when the query completes."
+                            ) % dataset_url,
+                            "status":"background",
+                            "result":{
+                                "setid":dspkl_setid,
+                                "seturl":dataset_url,
+                            },
+                            "time":'%sZ' % datetime.utcnow().isoformat()
+                        }
+                        retdict = '%s\n' % json.dumps(retdict)
+                        self.write(retdict)
+
+                        yield self.flush()
+                        raise tornado.web.Finish()
+
+                    #
+                    # otherwise, we're continuing...
+                    #
+
+                    # A3. we have the dataset pickle generated, send back an
+                    # update
+                    retdict = {
+                        "message":("dataset pickle generation complete. "
+                                   "collecting light curves into ZIP file..."),
+                        "status":"running",
+                        "result":{
+                            "setid":dspkl_setid,
+                        },
+                        "time":'%sZ' % datetime.utcnow().isoformat()
+                    }
+                    retdict = '%s\n' % json.dumps(retdict)
+                    self.write(retdict)
+                    yield self.flush()
+
+                    #
+                    # here, we'll once again do a yield with_timeout because LC
+                    # zipping can take some time
+                    #
+
+                    self.lczip_future = self.executor.submit(
+                        datasets.sqlite_make_dataset_lczip,
+                        self.basedir,
+                        dspkl_setid,
+                        override_lcdir=self.uselcdir  # useful when testing LCC
+                                                      # server
+                    )
+
+                    try:
+
+                        # we'll give zipping 15 seconds
+                        lczip = yield gen.with_timeout(
+                            timedelta(seconds=15.0),
+                            self.lczip_future,
+                        )
+
+                        # A4. we're done with collecting light curves
+                        retdict = {
+                            "message":("dataset LC ZIP complete. "
+                                       "generating dataset CSV..."),
+                            "status":"running",
+                            "result":{
+                                "setid":dspkl_setid,
+                                "lczip":'/p%s' % os.path.basename(lczip)
+                            },
+                            "time":'%sZ' % datetime.utcnow().isoformat()
+                        }
+                        retdict = '%s\n' % json.dumps(retdict)
+                        self.write(retdict)
+                        yield self.flush()
+
+
+                        # Q5. load the dataset to make sure it looks OK and
+                        # automatically generate the CSV for it
+                        setdict = yield self.executor.submit(
+                            datasets.sqlite_get_dataset,
+                            self.basedir,
+                            dspkl_setid,
+                        )
+
+                        # A5. finish request by sending back the dataset URL
+                        dataset_url = "%s://%s/set/%s" % (
+                            self.request.protocol,
+                            self.req_hostname,
+                            dspkl_setid
+                        )
+                        retdict = {
+                            "message":("dataset now ready: %s" % dataset_url),
+                            "status":"ok",
+                            "result":{
+                                "setid":dspkl_setid,
+                                "seturl":dataset_url,
+                                "created":setdict['created_on'],
+                                "updated":setdict['last_updated'],
+                                "backend_function":setdict['searchtype'],
+                                "backend_parsedargs":setdict['searchargs'],
+                                "nobjects":setdict['nobjects']
+                            },
+                            "time":'%sZ' % datetime.utcnow().isoformat()
+                        }
+                        retdict = '%s\n' % json.dumps(retdict)
+                        self.write(retdict)
+                        yield self.flush()
+
+                        self.finish()
+
+                    except gen.TimeoutError:
+
+                        dataset_url = "%s://%s/set/%s" % (
+                            self.request.protocol,
+                            self.req_hostname,
+                            self.setid
+                        )
+
+                        LOGGER.warning('query for setid: %s went to '
+                                       'background while zipping light curves' %
+                                       self.setid)
+
+                        retdict = {
+                            "message":(
+                                "query sent to background after 30 seconds. "
+                                "query is complete, "
+                                "but light curves of matching objects "
+                                "are still being zipped. "
+                                "check %s for results later" %
+                                dataset_url
+                            ),
+                            "status":"background",
+                            "result":{
+                                "setid":self.setid,
+                                "seturl":dataset_url
+                            },
+                            "time":'%sZ' % datetime.utcnow().isoformat()
+                        }
+                        self.write(retdict)
+                        self.finish()
+
+                        # here, we'll yield to the uncancelled lczip_future
+                        lczip = yield self.lczip_future
+
+                        # finalize the dataset
+                        setdict = yield self.executor.submit(
+                            datasets.sqlite_get_dataset,
+                            self.basedir,
+                            dspkl_setid,
+                        )
+
+                        LOGGER.info('background LC zip for setid: %s finished' %
+                                    self.setid)
+
+                        #
+                        # this is the end
+                        #
+
+                # if we didn't find anything, return immediately
+                else:
+
+                    retdict = {
+                        "status":"failed",
+                        "result":{
+                            "setid":self.setid,
+                            "nobjects":0
+                        },
+                        "message":("Query <code>%s</code> failed. "
+                                   "No matching objects were found" %
+                                   self.setid),
+                        "time":'%sZ' % datetime.utcnow().isoformat()
+                    }
+                    self.write(retdict)
+                    self.finish()
+
+            else:
+
+                retdict = {
+                    "message":("Query <code>%s</code> failed. "
+                               "No matching objects were found" %
+                               self.setid),
+                    "status":"failed",
+                    "result":{
+                        "setid":self.setid,
+                        "nobjects":0
+                    },
+                    "time":'%sZ' % datetime.utcnow().isoformat()
+                }
+                self.write(retdict)
+                self.finish()
+
+
+        # if we timeout, then initiate background processing
+        except gen.TimeoutError as e:
+
+            LOGGER.warning('search for setid: %s took too long, '
+                           'moving query to background' % self.setid)
+
+
+            dataset_url = "%s://%s/set/%s" % (
+                self.request.protocol,
+                self.req_hostname,
+                self.setid
+            )
+            retdict = {
+                "message":("query sent to background after 15 seconds. "
+                           "query is still running, "
+                           "check %s for results later" % dataset_url),
+                "status":"background",
+                "result":{
+                    "setid":self.setid,
+                    "seturl":dataset_url
+                },
+                "time":'%sZ' % datetime.utcnow().isoformat()
+            }
+            self.write(retdict)
+            self.finish()
+
+
+            # here, we'll yield to the uncancelled query_result_future
+            self.query_result = yield self.query_result_future
+
+            # everything else proceeds as planned
+
+            if self.query_result is not None:
+
+                # Q3. make the dataset pickle and finish dataset row in the
+                # DB
+                dspkl_setid = yield self.executor.submit(
+                    datasets.sqlite_new_dataset,
+                    self.basedir,
+                    self.setid,
+                    self.creationdt,
+                    self.query_result,
+                    ispublic=self.result_ispublic
+                )
+
+                # Q4. collect light curve ZIP files
+                lczip = yield self.executor.submit(
+                    datasets.sqlite_make_dataset_lczip,
+                    self.basedir,
+                    dspkl_setid,
+                    override_lcdir=self.uselcdir  # useful when testing LCC
+                    # server
+                )
+
+                # Q5. load the dataset to make sure it looks OK and
+                # automatically generate the CSV for it
+                setdict = yield self.executor.submit(
+                    datasets.sqlite_get_dataset,
+                    self.basedir,
+                    dspkl_setid,
+                )
+
+                collections = self.query_result['databases']
+                nrows = sum(self.query_result[x]['nmatches']
+                            for x in collections)
+                LOGGER.info('background query for setid: %s finished, '
+                            'objects found: %s ' % (self.setid, nrows))
+
+            else:
+
+                LOGGER.warning('background query for setid: %s finished, '
+                               'no objects were found')
+
+
+            #
+            # now, we're actually done
+            #
