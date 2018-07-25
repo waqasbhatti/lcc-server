@@ -226,8 +226,8 @@ var lcc_ui = {
                     '<div class="mr-auto">' +
                     filter_card_joiner +
                     '</div>' +
-                    '<div class="mx-auto"><code>' +
-                    filter_col + ' ' + filter_op + ' <strong>' +
+                    '<div class="mx-auto"><code><span class="text-primary">' +
+                    filter_col + '</span> ' + filter_op + ' <strong>' +
                     filter_val + '</strong></code>' +
                     '</div>' +
                     '<div class="ml-auto">' +
