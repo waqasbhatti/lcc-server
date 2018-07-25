@@ -677,13 +677,14 @@ def sqlite_make_dataset_lczip(basedir,
         LOGINFO('done, zip written successfully.')
 
         # check the size of the output file
-        # if it's more than 500 MB, skip the sha256
+        # if it's more than 250 MB, skip the sha256
         zipf_size = os.stat(lczip_fpath).st_size/(1024*1024)
         if zipf_size > 250.0:
             LOGWARNING('LC ZIP: %s (%s) is too '
                        'large for SHA256 sum, skipping...' %
                        (lczip_fpath, zipf_size))
-            shasum = 'warning-too-large-for-reasonable-sha256sum-time'
+            shasum = ('warning-size-%iMB-sha256sum-would-take-too-long' %
+                      zipf_size)
 
         else:
 
