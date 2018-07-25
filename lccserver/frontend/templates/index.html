@@ -245,7 +245,8 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections
+                    by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -256,10 +257,12 @@
                   <h4>Retrieve these columns</h4>
 
                   <select class="custom-select lcc-column-select"
-                          id="conesearch-column-select" multiple size="10">
+                          id="conesearch-column-select" multiple size="11">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned.</small>
+                  <small class="form-text text-muted">Select multiple columns by holding the
+                    <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>,
+                    <code>decl</code>, <code>lcfname</code> are always returned.</small>
 
                 </div>
               </div>
@@ -267,16 +270,18 @@
               <div class="row mt-4">
                 <div class="col-12">
 
-                  <h4>Fetch object information</h4>
+                  <!-- <h4>Fetch object information</h4>
 
-                  <select class="custom-select lcc-objectinfo-select"
-                          id="conesearch-objectinfo-select" multiple size="4">
-                    <option value="unphasedlc" selected>plot object light curve</option>
-                    <option value="dss" selected>DSS2 RED finder chart</option>
-                    <option value="phasedlc" >plot best period phased LC</option>
-                    <option value="neighbors" >closest neighbors in collection</option>
-                  </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                       <select class="custom-select lcc-objectinfo-select"
+                       id="conesearch-objectinfo-select" multiple size="4">
+                       <option value="objectlc" selected>object light curve plot</option>
+                       <option value="dss" selected>DSS2 RED finder chart</option>
+                       <option value="phasedlc" >best period phased LC plot</option>
+                       <option value="neighbors" >closest neighbors in collection</option>
+                       <option value="varfeatures" >variability features</option>
+                       </select>
+                       <small class="form-text text-muted">Select multiple columns by holding the
+                       <kbd>Ctrl/Cmd</kbd> key when clicking.</small> -->
 
                 </div>
               </div>
@@ -418,16 +423,10 @@
         <div class="tab-pane"
              id="fts" role="tabpanel" aria-labelledby="fts-tab">
 
-          <div class="row mt-2">
-            <div class="col-12">
-              <h3>Search for object names, descriptions, or tags</h3>
-            </div>
-          </div>
-
           <!-- main search controls -->
           <div class="row mt-2">
 
-            <div class="col-3">
+            <div class="col">
 
               <div class="row">
                 <div class="col-12">
@@ -440,7 +439,8 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections
+                    by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -451,72 +451,85 @@
                   <h4>Retrieve these columns</h4>
 
                   <select class="custom-select lcc-column-select"
-                          id="ftsquery-column-select" multiple size="18">
+                          id="ftsquery-column-select" multiple size="11">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by
+                    holding the <kbd>Ctrl/Cmd</kbd> key when clicking.
+                    <code>objectid</code>, <code>ra</code>, <code>decl</code>,
+                    <code>lcfname</code> are always returned.</small>
 
                 </div>
               </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <!-- <h4>Fetch object information</h4>
+
+                       <select class="custom-select lcc-objectinfo-select"
+                       id="ftsquery-objectinfo-select" multiple size="4">
+                       <option value="objectlc" selected>object light curve plot</option>
+                       <option value="dss" selected>DSS2 RED finder chart</option>
+                       <option value="phasedlc" >best period phased LC plot</option>
+                       <option value="neighbors" >closest neighbors in collection</option>
+                       <option value="varfeatures" >variability features</option>
+                       </select>
+                       <small class="form-text text-muted">Select multiple columns by holding the
+                       <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                  -->
+                </div>
+              </div>
+
 
             </div>
 
+
             <div class="col-4">
-              <h4>Apply extra filter conditions</h4>
+              <h4>Add column filters</h4>
 
-              <div class="row">
+              <div class="form-inline">
+
+                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                        id="ftsquery-filtercolumn-select">
+                </select>
+
+                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                        id="ftsquery-filtercondition-select">
+                  <option value="lt" selected>&lt;</option>
+                  <option value="gt">&gt;</option>
+                  <option value="le">&le;</option>
+                  <option value="ge">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="ne">&ne;</option>
+                  <option value="ct">has</option>
+                </select>
+
+                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                       data-searchtype="ftsquery" placeholder="value"
+                       id="ftsquery-filtertarget">
+
+                <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
+                        type="button"
+                        data-searchtype="ftsquery"
+                        id="ftsquery-filter-add">
+                  <img class="icon-svg"
+                       alt="add this column filter"
+                       src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
+                </button>
+
+              </div>
+
+              <div class="row mt-2">
                 <div class="col-12">
 
-                  <div class="form-group">
-                    <label for="ftsquery-filtercolumn-select">Column to filter on</label>
-                    <select class="custom-select lcc-filtercolumn-select" id="ftsquery-filtercolumn-select">
-                    </select>
+                  <div class="card px-2 py-2" >
+                    <h6 class="text-muted">Active column filters</h6>
+                    <div class="lcc-filterbucket" id="ftsquery-filterbucket">
+
+                    </div>
                   </div>
 
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-7">
-                  <div class="form-group">
-                    <label for="ftsquery-filtercondition-select">Condition to apply</label>
-                    <select class="custom-select lcc-filtercondition-select"
-                            id="ftsquery-filtercondition-select">
-                      <option value="lt" selected>less than</option>
-                      <option value="gt">greater than</option>
-                      <option value="le">less than or equal to</option>
-                      <option value="ge">greater than or equal to</option>
-                      <option value="eq">equal to</option>
-                      <option value="ne">not equal to</option>
-                      <option value="ct">contains text</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="col-5">
-                  <div class="form-group">
-                    <label for="ftsquery-filtertarget">Use this value</label>
-                    <input type="text" class="form-control lcc-filtertarget"
-                           data-searchtype="ftsquery" id="ftsquery-filtertarget">
-                  </div>
-                </div>
-
-              </div>
-
-              <div class="row">
-                <div class="col-12">
-                  <button class="btn btn-secondary lcc-filter-add" type="submit"
-                          data-searchtype="ftsquery"
-                          id="ftsquery-filter-add">Add this filter</button>
-                </div>
-              </div>
-
-              <div class="row mt-3">
-                <div class="col-12 card pb-2">
-                  <h6 class="mt-3 text-muted">Active column filters</h6>
-                  <div class="lcc-filterbucket" id="ftsquery-filterbucket">
-
-                  </div>
                 </div>
               </div>
 
@@ -527,7 +540,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search parameters</h4>
+                  <h4>Search for object names and descriptions</h4>
 
                   <form class="form" id="ftsquery-form"
                         action="/api/ftsquery" method="post">
@@ -551,8 +564,7 @@
                           and external object names (e.g. from SIMBAD if they're
                           available). Matching text may be found in any of the
                           FTS-indexed columns below. They will always be
-                          returned with query results. The FTS query syntax used
-                          is the
+                          returned with query results. Queries use the
                           <a href="https://www.sqlite.org/fts5.html#full_text_query_syntax">SQLite FTS5 query syntax</a>.</p>
 
                         <p><small><code><span id="ftsquery-column-list"></span></code></small></p>
@@ -561,7 +573,8 @@
                           <dt>Examples:</dt>
                           <dd>
                             objects in ASAS and NSVS: <code>ASAS AND NSVS</code><br>
-                            RR Lyrae that are also suspected EBs:<br><code>simbad_best_objtype:EB AND color_classes:RR*</code><br>
+                            RR Lyrae that are also suspected EBs:<br>
+                            <code>simbad_best_objtype:EB AND color_classes:RR*</code><br>
                           </dd>
                         </dl>
 
@@ -607,16 +620,10 @@
         <div class="tab-pane"
              id="columns" role="tabpanel" aria-labelledby="columns-tab">
 
-          <div class="row mt-2">
-            <div class="col-12">
-              <h3>Build a query using database columns and filter conditions</h3>
-            </div>
-          </div>
-
           <!-- main search controls -->
           <div class="row mt-2">
 
-            <div class="col-3">
+            <div class="col">
 
               <div class="row">
                 <div class="col-12">
@@ -629,7 +636,8 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections
+                    by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -640,20 +648,87 @@
                   <h4>Retrieve these columns</h4>
 
                   <select class="custom-select lcc-column-select"
-                          id="columnsearch-column-select" multiple size="18">
+                          id="columnsearch-column-select" multiple size="11">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by
+                    holding the <kbd>Ctrl/Cmd</kbd> key when clicking.
+                    <code>objectid</code>, <code>ra</code>, <code>decl</code>,
+                    <code>lcfname</code> are always returned.</small>
 
+                </div>
+              </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <!-- <h4>Fetch object information</h4>
+
+                       <select class="custom-select lcc-objectinfo-select"
+                       id="columnsearch-objectinfo-select" multiple size="4">
+                       <option value="objectlc" selected>object light curve plot</option>
+                       <option value="dss" selected>DSS2 RED finder chart</option>
+                       <option value="phasedlc" >best period phased LC plot</option>
+                       <option value="neighbors" >closest neighbors in collection</option>
+                       <option value="varfeatures" >variability features</option>
+                       </select>
+                       <small class="form-text text-muted">Select multiple columns by holding the
+                       <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                  -->
                 </div>
               </div>
 
             </div>
 
             <div class="col-4">
-              <h4>Apply conditions on columns</h4>
+              <h4>Add column filters</h4>
 
-              <div class="row">
+              <div class="form-inline">
+
+                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                        id="columnsearch-filtercolumn-select">
+                </select>
+
+                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                        id="columnsearch-filtercondition-select">
+                  <option value="lt" selected>&lt;</option>
+                  <option value="gt">&gt;</option>
+                  <option value="le">&le;</option>
+                  <option value="ge">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="ne">&ne;</option>
+                  <option value="ct">has</option>
+                </select>
+
+                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                       data-searchtype="columnsearch" placeholder="value"
+                       id="columnsearch-filtertarget">
+
+                <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
+                        type="button"
+                        data-searchtype="columnsearch"
+                        id="columnsearch-filter-add">
+                  <img class="icon-svg"
+                       alt="add this column filter"
+                       src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
+                </button>
+
+              </div>
+
+              <div class="row mt-2">
+                <div class="col-12">
+
+                  <div class="card px-2 py-2" >
+                    <h6 class="text-muted">Active column filters</h6>
+                    <div class="lcc-filterbucket" id="columnsearch-filterbucket">
+
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="row mt-2">
 
                 <div class="col-7">
                   <div class="form-group">
@@ -677,63 +752,6 @@
 
               </div>
 
-              <div class="row mt-3">
-                <div class="col-12">
-
-                  <div class="form-group">
-                    <label for="columnsearch-filtercolumn-select">Add a column to filter on</label>
-                    <select class="custom-select lcc-filtercolumn-select"
-                            id="columnsearch-filtercolumn-select">
-                    </select>
-                  </div>
-
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-7">
-                  <div class="form-group">
-                    <label for="columnsearch-filtercondition-select">Condition to apply</label>
-                    <select class="custom-select lcc-filtercondition-select"
-                            id="columnsearch-filtercondition-select">
-                      <option value="lt" selected>less than</option>
-                      <option value="gt">greater than</option>
-                      <option value="le">less than or equal to</option>
-                      <option value="ge">greater than or equal to</option>
-                      <option value="eq">equal to</option>
-                      <option value="ne">not equal to</option>
-                      <option value="ct">contains text</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="col-5">
-                  <div class="form-group">
-                    <label for="columnsearch-filtertarget">Use this value</label>
-                    <input type="text" class="form-control lcc-filtertarget"
-                           data-searchtype="columnsearch" id="columnsearch-filtertarget">
-                  </div>
-                </div>
-
-              </div>
-
-              <div class="row">
-                <div class="col-12">
-                  <button class="btn btn-secondary lcc-filter-add" type="submit"
-                          data-searchtype="columnsearch"
-                          id="columnsearch-filter-add">Add this filter</button>
-                </div>
-              </div>
-
-              <div class="row mt-3">
-                <div class="col-12 card pb-2">
-                  <h6 class="mt-3 text-muted">Active column filters</h6>
-                  <div class="lcc-filterbucket" id="columnsearch-filterbucket">
-
-                  </div>
-                </div>
-              </div>
-
             </div>
 
             <div class="col-5">
@@ -741,7 +759,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search parameters</h4>
+                  <h4>Run a database column query</h4>
 
                   <div class="row mt-2">
                     <div class="col-12">
@@ -798,16 +816,10 @@
         <div class="tab-pane"
              id="xmatch" role="tabpanel" aria-labelledby="xmatch-tab">
 
-          <div class="row mt-2">
-            <div class="col-12">
-              <h3>Upload and cross-match catalogs against LC collections</h3>
-            </div>
-          </div>
-
           <!-- main search controls -->
           <div class="row mt-2">
 
-            <div class="col-3">
+            <div class="col">
 
               <div class="row">
                 <div class="col-12">
@@ -820,7 +832,8 @@
                     <option value="all" selected>All collections</option>
 
                   </select>
-                  <small class="form-text text-muted">Select multiple collections by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                  <small class="form-text text-muted">Select multiple collections by holding
+                    the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -831,73 +844,83 @@
                   <h4>Retrieve these columns</h4>
 
                   <select class="custom-select lcc-column-select"
-                          id="xmatch-column-select" multiple size="18">
+                          id="xmatch-column-select" multiple size="11">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by holding
+                    the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>,
+                    <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned
+                    even if not selected.</small>
 
+                </div>
+              </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <!-- <h4>Fetch object information</h4>
+
+                       <select class="custom-select lcc-objectinfo-select"
+                       id="conesearch-objectinfo-select" multiple size="4">
+                       <option value="objectlc" selected>object light curve plot</option>
+                       <option value="dss" selected>DSS2 RED finder chart</option>
+                       <option value="phasedlc" >best period phased LC plot</option>
+                       <option value="neighbors" >closest neighbors in collection</option>
+                       <option value="varfeatures" >variability features</option>
+                       </select>
+                       <small class="form-text text-muted">Select multiple columns by holding the
+                       <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
+                  -->
                 </div>
               </div>
 
             </div>
 
             <div class="col-4">
-              <h4>Apply extra filter conditions</h4>
+              <h4>Add column filters</h4>
 
-              <div class="row">
+              <div class="form-inline">
+
+                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                        id="xmatch-filtercolumn-select">
+                </select>
+
+                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                        id="xmatch-filtercondition-select">
+                  <option value="lt" selected>&lt;</option>
+                  <option value="gt">&gt;</option>
+                  <option value="le">&le;</option>
+                  <option value="ge">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="ne">&ne;</option>
+                  <option value="ct">has</option>
+                </select>
+
+                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                       data-searchtype="xmatch" placeholder="value"
+                       id="xmatch-filtertarget">
+
+                <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
+                        type="button"
+                        data-searchtype="xmatch"
+                        id="xmatch-filter-add">
+                  <img class="icon-svg"
+                       alt="add this column filter"
+                       src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
+                </button>
+
+              </div>
+
+              <div class="row mt-2">
                 <div class="col-12">
 
-                  <div class="form-group">
-                    <label for="xmatch-filtercolumn-select">Column to filter on</label>
-                    <select class="custom-select lcc-filtercolumn-select"
-                            id="xmatch-filtercolumn-select">
-                    </select>
+                  <div class="card px-2 py-2" >
+                    <h6 class="text-muted">Active column filters</h6>
+                    <div class="lcc-filterbucket" id="xmatch-filterbucket">
+
+                    </div>
                   </div>
 
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-7">
-                  <div class="form-group">
-                    <label for="xmatch-filtercondition-select">Condition to apply</label>
-                    <select class="custom-select lcc-filtercondition-select"
-                            id="xmatch-filtercondition-select">
-                      <option value="lt" selected>less than</option>
-                      <option value="gt">greater than</option>
-                      <option value="le">less than or equal to</option>
-                      <option value="ge">greater than or equal to</option>
-                      <option value="eq">equal to</option>
-                      <option value="ne">not equal to</option>
-                      <option value="ct">contains text</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="col-5">
-                  <div class="form-group">
-                    <label for="xmatch-filtertarget">Use this value</label>
-                    <input type="text" class="form-control lcc-filtertarget"
-                           data-searchtype="xmatch" id="xmatch-filtertarget">
-                  </div>
-                </div>
-
-              </div>
-
-              <div class="row">
-                <div class="col-12">
-                  <button class="btn btn-secondary lcc-filter-add" type="submit"
-                          data-searchtype="xmatch"
-                          id="xmatch-filter-add">Add this filter</button>
-                </div>
-              </div>
-
-              <div class="row mt-3">
-                <div class="col-12 card pb-2">
-                  <h6 class="mt-3 text-muted">Active column filters</h6>
-                  <div class="lcc-filterbucket" id="xmatch-filterbucket">
-
-                  </div>
                 </div>
               </div>
 
@@ -908,7 +931,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search parameters</h4>
+                  <h4>Cross-match lists of object coordinates</h4>
 
                   <form class="form" id="xmatch-form"
                         action="/api/xmatch" method="post">
@@ -920,9 +943,10 @@
                         <div class="form-group">
                           <label for="xmatch-query"><code>[Name] [RA] [Dec]</code>
                             rows separated by lines
-                            (<a href="#" id="xmatch-example" >see example</a>).</label>
+                            (<a href="#" id="xmatch-example" >see an example</a>).
+                            The maximum number of object lines allowed is 5000.</label>
                           <textarea class="form-control" id="xmatch-query"
-                                    name="xmq" rows="16"></textarea>
+                                    name="xmq" rows="15"></textarea>
                         </div>
 
                       </div>
@@ -933,8 +957,8 @@
 
                         <div class="form-group form-inline">
                           <label for="xmatch-matchradius">Match radius [arcsec]</label>
-                          <input type="text" id="xmatch-matchradius"
-                                 value="3.0" class="form-control mx-sm-3">
+                          <input type="text" id="xmatch-matchradius" value="3.0"
+                                 class="w-25 form-control mx-sm-3">
                           <small id="xmatch-matchradius-helpline"
                                  class="text-muted">
                             Maximum 30 arcsec.
@@ -943,14 +967,6 @@
 
                       </div>
                     </div>
-
-                    <div class="row mt-1">
-                      <div class="col-12">
-                        <p>The maximum number of object lines allowed is 5000.</p>
-
-                      </div>
-                    </div>
-
 
                     <div class="row mt-2">
                       <div class="col-12">

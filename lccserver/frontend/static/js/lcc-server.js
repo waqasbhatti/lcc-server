@@ -317,10 +317,12 @@ var lcc_ui = {
             }
 
             var thisfilter = '(' + col + ' ' + oper + ' ' + fval + ')';
+
             // check if this card has a chainer operator
             var chain_op = $(this)
-                .children('div.card-body')
-                .children('select').val();
+                .children('div')
+                .children('div.mr-auto')
+                .children('select').val() || '';
 
             if (chain_op != undefined && i > 0) {
                 thisfilter = chain_op + ' (' + col +
