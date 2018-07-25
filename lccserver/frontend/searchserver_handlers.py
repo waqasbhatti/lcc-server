@@ -2194,8 +2194,14 @@ class XMatchHandler(tornado.web.RequestHandler):
 
 
     def tornado_check_xsrf_cookie(self):
-        '''
-        This is the original tornado xsrf token checker
+        '''This is the original Tornado XSRF token checker.
+
+        From: http://www.tornadoweb.org
+              /en/stable/_modules/tornado/web.html
+              #RequestHandler.check_xsrf_cookie
+
+        Modified a bit to not immediately raise 403s since we want to return
+        JSON all the time.
 
         '''
 
@@ -2281,6 +2287,17 @@ class XMatchHandler(tornado.web.RequestHandler):
 
         # debugging
         LOGGER.info('request arguments: %r' % self.request.arguments)
+        retdict = {
+            "message":("debugging"),
+            "status":"ok",
+            "result":{
+                "setid":"lol",
+                "seturl":"test",
+                "args":self.request.arguments
+            },
+            "time":'%sZ' % datetime.utcnow().isoformat()
+        }
+        self.write(retdict)
         raise tornado.web.Finish()
 
 

@@ -268,6 +268,19 @@ var lcc_ui = {
             $('#datasets-tab').click();
         });
 
+        // handle the example coordlist link
+        $('#xmatchquery-example').on('click', function (evt) {
+
+            evt.preventDefault();
+
+            $('#xmatchquery-query').val(lcc_search.coordlist_placeholder)
+                .focus()
+                .blur();
+
+        });
+
+
+
     },
 
 
@@ -823,7 +836,34 @@ var lcc_search = {
     // this holds the indexed columns
     indexedcols: null,
 
-    // this runs an FTS query
+    // this is used for the coordlist to show example formats
+    coordlist_placeholder: "# example object and coordinate list\n" +
+        "# objectid ra dec\n" +
+        "aaa 289.99698 44.99839\n" +
+        "bbb 293.358 -23.206\n" +
+        "ccc 294.197 +23.181\n" +
+        "ddd 19 25 27.9129 +42 47 03.693\n" +
+        "eee 19:25:27 -42:47:03.21\n" +
+        "# .\n" +
+        "# .\n" +
+        "# .\n" +
+        "# etc. lines starting with '#' will be ignored\n" +
+        "# (max 1000 objects)",
+
+    // this variable contains the coordinate list after the file upload is
+    // parsed and validated. will be passed to the backend via POST
+    uploaded_coordlist: [],
+
+    // this holds the input from the xmatchquery-xmatch textarea
+    coordlist_contents: "",
+
+    // regexes to match lines of the uploaded xmatch objects
+    decimal_regex: /^(\w*)\s(\d{1,3}\.{0,1}\d*)\s([+\-]{0,1}\d{1,2}\.{0,1}\d*)$/,
+
+    sexagesimal_regex: /^(\w*)\s(\d{1,2}[ :]\d{2}[ :]\d{2}\.{0,1}\d*)\s([+\-]{0,1}\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$/g,
+
+
+    // this runs a full column search
     do_columnsearch: function () {
 
         var proceed = false;
