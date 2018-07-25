@@ -16,6 +16,7 @@ import os
 import os.path
 import logging
 import numpy as np
+from datetime import datetime, timedelta
 
 
 ######################################
@@ -65,10 +66,12 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 
-from tornado.escape import xhtml_escape, xhtml_unescape, url_unescape
+from tornado.escape import xhtml_escape
 from tornado import gen
 
 import markdown
+import secrets
+import itsdangerous
 
 ###################
 ## LOCAL IMPORTS ##
@@ -82,6 +85,162 @@ from ..objectsearch import dbsearch
 #####################
 ## HANDLER CLASSES ##
 #####################
+
+class APIKeyHandler(tornado.web.RequestHandler):
+    '''This handles API key generation
+
+    '''
+
+    def initialize(self, apiversion, signer):
+        '''
+        handles initial setup.
+
+        '''
+        self.apiversion = apiversion
+        self.signer = signer
+
+
+
+    @gen.coroutine
+    def get(self):
+        '''This doesn't actually run the query.
+
+        It is used to generate a token to be used in place of an XSRF token for
+        the POST functions (or possibly other API enabled functions later). This
+        is mostly useful for direct API request since we will not enable POST
+        with XSRF. So for an API enabled service, the workflow on first hit is:
+
+        - /api/key GET to receive a token
+
+        Then one can run any /api/<method> with the following in the header:
+
+        Authorization: Bearer <token>
+
+        keys expire in 1 day and contain:
+
+        ip: the remote IP address
+        ver: the version of the API
+        token: a random hex
+        expiry: the ISO format date of expiry
+
+        '''
+
+        # using the signer, generate a key
+        expires = '%sZ' % (datetime.utcnow() +
+                           timedelta(seconds=86400.0)).isoformat()
+        key = {'ip':self.request.remote_ip,
+               'ver':self.apiversion,
+               'token':secrets.token_urlsafe(10),
+               'expiry':expires}
+        signed = self.signer.dumps(key)
+        LOGGER.warning('new API key generated for %s, '
+                       'expires on: %s, typeof: %s' % (key['ip'],
+                                                       expires,
+                                                       type(signed)))
+
+        retdict = {
+            'status':'ok',
+            'message':'key expires: %s' % key['expiry'],
+            'result':{'key': signed}
+        }
+
+        self.write(retdict)
+        self.finish()
+
+
+
+class APIAuthHandler(tornado.web.RequestHandler):
+    '''This handles API key authentication
+
+    '''
+
+    def initialize(self, apiversion, signer):
+        '''
+        handles initial setup.
+
+        '''
+        self.apiversion = apiversion
+        self.signer = signer
+
+
+
+    @gen.coroutine
+    def get(self):
+        '''This is used to check if an API key is valid.
+
+        '''
+
+        try:
+
+            key = xhtml_escape(self.get_argument('key'))
+            uns = self.signer.loads(key, max_age=86400.0)
+            LOGGER.warning('successful API key auth: %r' % uns)
+
+            retdict = {
+                'status':'ok',
+                'message':('API key verified successfully. Expires: %s' %
+                           uns['expiry']),
+                'result':None
+            }
+
+            self.write(retdict)
+            self.finish()
+
+        except itsdangerous.SignatureExpired:
+
+            LOGGER.error('API key "%s" from %s has expired' %
+                         (key, self.request.remote_ip))
+
+            if 'X-Real-Host' in self.request.headers:
+                self.req_hostname = self.request.headers['X-Real-Host']
+            else:
+                self.req_hostname = self.request.host
+
+                newkey_url = "%s://%s/api/key" % (
+                    self.request.protocol,
+                    self.req_hostname,
+                )
+
+            retdict = {
+                'status':'failed',
+                'message':('API key has expired. '
+                           'Get a new one from %s' % newkey_url),
+                'result':None
+            }
+
+            self.write(retdict)
+            self.finish()
+
+        except itsdangerous.BadSignature:
+
+            LOGGER.error('API key "%s" from %s did not pass verification' %
+                         (key, self.request.remote_ip))
+
+            retdict = {
+                'status':'failed',
+                'message':'API key could not be verified or has expired.',
+                'result':None
+            }
+
+            self.write(retdict)
+            self.finish()
+
+        except Exception as e:
+
+            LOGGER.exception('API key "%s" from %s did not pass verification' %
+                             (key, self.request.remote_ip))
+
+            retdict = {
+                'status':'failed',
+                'message':('API key was not provided, '
+                           'could not be verified, '
+                           'or has expired.'),
+                'result':None
+            }
+
+            self.write(retdict)
+            self.finish()
+
 
 
 class IndexHandler(tornado.web.RequestHandler):
@@ -233,7 +392,8 @@ class CollectionListHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   signer):
         '''
         handles initial setup.
 
@@ -245,6 +405,8 @@ class CollectionListHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.signer = signer
+
 
 
     @gen.coroutine
@@ -305,7 +467,8 @@ class DatasetListHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   signer):
         '''
         handles initial setup.
 
@@ -317,6 +480,7 @@ class DatasetListHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.signer = signer
 
 
 

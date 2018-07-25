@@ -59,6 +59,14 @@ import tornado.options
 from tornado.options import define, options
 
 
+########################
+## OTHER USEFUL STUFF ##
+########################
+
+# for signing our API tokens
+from itsdangerous import URLSafeTimedSerializer
+
+
 ###########################
 ## DEFINING URL HANDLERS ##
 ###########################
@@ -168,6 +176,11 @@ def main():
     else:
         LOGGER.setLevel(logging.INFO)
 
+    ################################
+    ## SET THE GLOBAL API VERSION ##
+    ################################
+
+    APIVERSION = 1
 
     ###################
     ## SET UP CONFIG ##
@@ -198,6 +211,10 @@ def main():
         with open(options.secretfile,'w') as outfd:
             outfd.write(SESSIONSECRET)
         os.chmod(options.secretfile, 0o100600)
+
+    # using the SESSIONSECRET, start the signer
+    SIGNER = URLSafeTimedSerializer(SESSIONSECRET,
+                                    salt='lcc-server-api')
 
 
     ####################################
@@ -242,30 +259,6 @@ def main():
          {'path':os.path.join(BASEDIR, 'docs', 'static')}),
 
 
-        ######################
-        ## FIRST LEVEL APIS ##
-        ######################
-
-        # this returns a JSON list of the currently available LC collections
-        (r'/api/collections',
-         ih.CollectionListHandler,
-         {'currentdir':CURRENTDIR,
-          'templatepath':TEMPLATEPATH,
-          'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
-          'executor':EXECUTOR,
-          'basedir':BASEDIR}),
-
-        # this returns a JSON list of the currently available datasets
-        (r'/api/datasets',
-         ih.DatasetListHandler,
-         {'currentdir':CURRENTDIR,
-          'templatepath':TEMPLATEPATH,
-          'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
-          'executor':EXECUTOR,
-          'basedir':BASEDIR}),
-
         ###################################
         ## STATIC FILE DOWNLOAD HANDLERS ##
         ###################################
@@ -291,6 +284,45 @@ def main():
          {'path':BASEDIR}),
 
 
+        ######################
+        ## FIRST LEVEL APIS ##
+        ######################
+
+        # this returns an API key
+        (r'/api/key',
+         ih.APIKeyHandler,
+         {'apiversion':APIVERSION,
+          'signer':SIGNER}),
+
+        # this checks the API key to see if it's still valid
+        (r'/api/auth',
+         ih.APIAuthHandler,
+         {'apiversion':APIVERSION,
+          'signer':SIGNER}),
+
+        # this returns a JSON list of the currently available LC collections
+        (r'/api/collections',
+         ih.CollectionListHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'signer':SIGNER}),
+
+        # this returns a JSON list of the currently available datasets
+        (r'/api/datasets',
+         ih.DatasetListHandler,
+         {'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'signer':SIGNER}),
+
+
         ##################################
         ## SEARCH API ENDPOINT HANDLERS ##
         ##################################
@@ -304,7 +336,8 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'uselcdir':USELCDIR}),
+          'uselcdir':USELCDIR,
+          'signer':SIGNER}),
 
         # this is the cone search API endpoint
         (r'/api/conesearch',
@@ -315,7 +348,8 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'uselcdir':USELCDIR}),
+          'uselcdir':USELCDIR,
+          'signer':SIGNER}),
 
         # this is the FTS search API endpoint
         (r'/api/ftsquery',
@@ -326,7 +360,8 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'uselcdir':USELCDIR}),
+          'uselcdir':USELCDIR,
+          'signer':SIGNER}),
 
         # this is the xmatch search API endpoint
         (r'/api/xmatch',
@@ -337,7 +372,8 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'uselcdir':USELCDIR}),
+          'uselcdir':USELCDIR,
+          'signer':SIGNER}),
 
 
         ##############################################
@@ -352,19 +388,22 @@ def main():
           'assetpath':ASSETPATH,
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'signer':SIGNER}),
 
         # this is the associated set data AJAX endpoint
-        (r'/set-data/(.*)',
-         dh.DatasetAJAXHandler,
-         {'currentdir':CURRENTDIR,
-          'templatepath':TEMPLATEPATH,
-          'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
-          'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+        # unused at the moment
+        # (r'/set-data/(.*)',
+        #  dh.DatasetAJAXHandler,
+        #  {'currentdir':CURRENTDIR,
+        #   'templatepath':TEMPLATEPATH,
+        #   'assetpath':ASSETPATH,
+        #   'docspath':DOCSPATH,
+        #   'executor':EXECUTOR,
+        #   'basedir':BASEDIR,
+        #   'signer':SIGNER}),
 
-        # this just shows all datasets in a big table - disabled for now
+        # this just shows all datasets in a big table
         (r'/datasets',
          dh.AllDatasetsHandler,
          {'currentdir':CURRENTDIR,

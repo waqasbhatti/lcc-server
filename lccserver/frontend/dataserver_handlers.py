@@ -68,6 +68,8 @@ import tornado.web
 from tornado.escape import xhtml_escape, xhtml_unescape, url_unescape
 from tornado import gen
 
+import itsdangerous
+
 
 ###################
 ## LOCAL IMPORTS ##
@@ -85,7 +87,7 @@ datasets.set_logger_parent(__name__)
 
 class DatasetHandler(tornado.web.RequestHandler):
     '''
-    This handles the column search API.
+    This handles loading a dataset.
 
     '''
 
@@ -95,7 +97,8 @@ class DatasetHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   signer):
         '''
         handles initial setup.
 
@@ -107,6 +110,8 @@ class DatasetHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.signer = signer
+
 
 
     @gen.coroutine
@@ -486,7 +491,7 @@ class DatasetHandler(tornado.web.RequestHandler):
 
 class DatasetAJAXHandler(tornado.web.RequestHandler):
     '''
-    This handles the column search API.
+    This handles the AJAX for /set/ urls.
 
     '''
 
@@ -496,7 +501,8 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
                    assetpath,
                    docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   signer):
         '''
         handles initial setup.
 
@@ -508,6 +514,7 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
         self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
+        self.signer = signer
 
 
 

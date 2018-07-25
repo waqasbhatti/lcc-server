@@ -70,6 +70,8 @@ import tornado.ioloop
 from tornado.escape import xhtml_escape, squeeze
 from tornado import gen
 
+# for signing/verifying tokens
+import itsdangerous
 
 ###################
 ## LOCAL IMPORTS ##
@@ -322,7 +324,8 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   uselcdir):
+                   uselcdir,
+                   signer):
         '''
         handles initial setup.
 
@@ -335,6 +338,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
+        self.signer = signer
 
 
 
@@ -883,7 +887,8 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   uselcdir):
+                   uselcdir,
+                   signer):
         '''
         handles initial setup.
 
@@ -896,6 +901,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
+        self.signer = signer
 
 
 
@@ -1458,7 +1464,8 @@ class FTSearchHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   uselcdir):
+                   uselcdir,
+                   signer):
         '''
         handles initial setup.
 
@@ -1471,6 +1478,7 @@ class FTSearchHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
+        self.signer = signer
 
 
 
@@ -2006,7 +2014,6 @@ class XMatchHandler(tornado.web.RequestHandler):
     This handles the xmatch search API.
 
     '''
-
     def initialize(self,
                    currentdir,
                    templatepath,
@@ -2014,7 +2021,8 @@ class XMatchHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   uselcdir):
+                   uselcdir,
+                   signer):
         '''
         handles initial setup.
 
@@ -2027,20 +2035,7 @@ class XMatchHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
-
-
-    @gen.coroutine
-    def get(self):
-        '''This doesn't actually run the query.
-
-        It is used to generate a token to be used in place of an XSRF token for
-        the POST function below. This is mostly useful for direct API request
-        since we will not enable POST with XSRF. So for an API:
-
-        - /api/xmatchquery GET to receive a token
-        - /api/xmatchquery POST with header Authorization: Bearer <token>
-
-        '''
+        self.signer = signer
 
 
 
@@ -2050,6 +2045,11 @@ class XMatchHandler(tornado.web.RequestHandler):
         '''This runs the query.
 
         '''
+
+        # first thing we'll do is to get the API key back and check if the token
+        # is valid
+
+
 
         collections = yield self.executor.submit(
             dbsearch.sqlite_list_collections,
