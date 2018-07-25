@@ -11,7 +11,7 @@
 {% block pagecontent %}
 
 <!-- this is where all the alerts go -->
-<div class="container">
+<div class="container-fluid">
   <div class="row mt-2">
     <div class="col-12">
       <div id="alert-box">
@@ -229,16 +229,10 @@
         <div class="tab-pane show active"
              id="conesearch" role="tabpanel" aria-labelledby="conesearch-tab">
 
-          <div class="row mt-2">
-            <div class="col-12">
-              <h3>Run a cone-search query</h3>
-            </div>
-          </div>
-
           <!-- main search controls -->
           <div class="row mt-2">
 
-            <div class="col-3">
+            <div class="col">
 
               <div class="row">
                 <div class="col-12">
@@ -262,10 +256,27 @@
                   <h4>Retrieve these columns</h4>
 
                   <select class="custom-select lcc-column-select"
-                          id="conesearch-column-select" multiple size="18">
+                          id="conesearch-column-select" multiple size="10">
 
                   </select>
-                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned even if not selected.</small>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking. <code>objectid</code>, <code>ra</code>, <code>decl</code>, <code>lcfname</code> are always returned.</small>
+
+                </div>
+              </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <h4>Fetch object information</h4>
+
+                  <select class="custom-select lcc-objectinfo-select"
+                          id="conesearch-objectinfo-select" multiple size="4">
+                    <option value="unphasedlc" selected>plot object light curve</option>
+                    <option value="dss" selected>DSS2 RED finder chart</option>
+                    <option value="phasedlc" >plot best period phased LC</option>
+                    <option value="neighbors" >closest neighbors in collection</option>
+                  </select>
+                  <small class="form-text text-muted">Select multiple columns by holding the <kbd>Ctrl/Cmd</kbd> key when clicking.</small>
 
                 </div>
               </div>
@@ -273,59 +284,50 @@
             </div>
 
             <div class="col-4">
-              <h4>Apply extra filter conditions</h4>
+              <h4>Apply filter conditions</h4>
 
-              <div class="row">
+              <div class="form-inline">
+
+                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                        id="conesearch-filtercolumn-select">
+                </select>
+
+                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                        id="conesearch-filtercondition-select">
+                  <option value="lt" selected>&lt;</option>
+                  <option value="gt">&gt;</option>
+                  <option value="le">&le;</option>
+                  <option value="ge">&ge;</option>
+                  <option value="eq">=</option>
+                  <option value="ne">&ne;</option>
+                  <option value="ct">has</option>
+                </select>
+
+                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                       data-searchtype="conesearch" placeholder="value"
+                       id="conesearch-filtertarget">
+
+                <button class="btn btn-light lcc-filter-add flex-shrink-1 ml-2 p-0"
+                        type="button"
+                        data-searchtype="conesearch"
+                        id="conesearch-filter-add">
+                  <img class="icon-svg"
+                       alt="add this column filter"
+                       src="{{ static_url('images/twotone-add-24px.svg') }}">
+                </button>
+
+              </div>
+
+              <div class="row mt-2">
                 <div class="col-12">
 
-                  <div class="form-group">
-                    <label for="conesearch-filtercolumn-select">Column to filter on</label>
-                    <select class="custom-select lcc-filtercolumn-select" id="conesearch-filtercolumn-select">
-                    </select>
+                  <div class="card px-2 py-2" >
+                    <h6 class="text-muted">Active column filters</h6>
+                    <div class="lcc-filterbucket" id="conesearch-filterbucket">
+
+                    </div>
                   </div>
 
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-7">
-                  <div class="form-group">
-                    <label for="conesearch-filtercondition-select">Condition to apply</label>
-                    <select class="custom-select lcc-filtercondition-select" id="conesearch-filtercondition-select">
-                      <option value="lt" selected>less than</option>
-                      <option value="gt">greater than</option>
-                      <option value="le">less than or equal to</option>
-                      <option value="ge">greater than or equal to</option>
-                      <option value="eq">equal to</option>
-                      <option value="ne">not equal to</option>
-                      <option value="ct">contains text</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="col-5">
-                  <div class="form-group">
-                    <label for="conesearch-filtertarget">Use this value</label>
-                    <input type="text" class="form-control lcc-filtertarget"
-                           data-searchtype="conesearch" id="conesearch-filtertarget">
-                  </div>
-                </div>
-
-              </div>
-
-              <div class="row">
-                <div class="col-12">
-                  <button class="btn btn-secondary lcc-filter-add" type="submit" data-searchtype="conesearch"
-                          id="conesearch-filter-add">Add this filter</button>
-                </div>
-              </div>
-
-              <div class="row mt-3">
-                <div class="col-12 card">
-                  <h6 class="mt-3 text-muted">Active column filters</h6>
-                  <div class="lcc-filterbucket" id="conesearch-filterbucket">
-
-                  </div>
                 </div>
               </div>
 
@@ -336,7 +338,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search parameters</h4>
+                  <h4>Run a cone-search query</h4>
 
                   <form class="form" id="conesearch-form"
                         action="/api/conesearch" method="post">
@@ -345,8 +347,8 @@
                       <div class="col-12">
 
                         <input class="form-control" id="conesearch-query"
-                               name="conesearch-query"
-                               type="search"
+                               name="conesearch-query" autocomplete="on"
+                               type="search" autofocus=""
                                placeholder="[right ascension] [declination] [search radius (arcmin)]"
                                aria-label="Search">
                       </div>
@@ -478,7 +480,8 @@
                 <div class="col-7">
                   <div class="form-group">
                     <label for="ftsquery-filtercondition-select">Condition to apply</label>
-                    <select class="custom-select lcc-filtercondition-select" id="ftsquery-filtercondition-select">
+                    <select class="custom-select lcc-filtercondition-select"
+                            id="ftsquery-filtercondition-select">
                       <option value="lt" selected>less than</option>
                       <option value="gt">greater than</option>
                       <option value="le">less than or equal to</option>
@@ -502,13 +505,14 @@
 
               <div class="row">
                 <div class="col-12">
-                  <button class="btn btn-secondary lcc-filter-add" type="submit" data-searchtype="ftsquery"
+                  <button class="btn btn-secondary lcc-filter-add" type="submit"
+                          data-searchtype="ftsquery"
                           id="ftsquery-filter-add">Add this filter</button>
                 </div>
               </div>
 
               <div class="row mt-3">
-                <div class="col-12 card">
+                <div class="col-12 card pb-2">
                   <h6 class="mt-3 text-muted">Active column filters</h6>
                   <div class="lcc-filterbucket" id="ftsquery-filterbucket">
 
@@ -532,7 +536,7 @@
                       <div class="col-12">
 
                         <input class="form-control" id="ftsquery-query"
-                               name="ftsquery-query"
+                               name="ftsquery-query" autocomplete="on"
                                type="search"
                                placeholder="object name, comment text, tags, etc."
                                aria-label="Search">
@@ -654,7 +658,8 @@
                 <div class="col-7">
                   <div class="form-group">
                     <label for="columnsearch-filtercolumn-select">Column to sort results by</label>
-                    <select class="custom-select lcc-sortcolumn-select" id="columnsearch-sortcolumn-select">
+                    <select class="custom-select lcc-sortcolumn-select"
+                            id="columnsearch-sortcolumn-select">
                     </select>
                   </div>
                 </div>
@@ -662,7 +667,8 @@
                 <div class="col-5">
                   <div class="form-group">
                     <label for="columnsearch-filtercolumn-select">Use sort order</label>
-                    <select class="custom-select lcc-sortorder-select" id="columnsearch-sortorder-select">
+                    <select class="custom-select lcc-sortorder-select"
+                            id="columnsearch-sortorder-select">
                       <option value="asc">ascending</option>
                       <option value="desc">descending</option>
                     </select>
@@ -676,7 +682,8 @@
 
                   <div class="form-group">
                     <label for="columnsearch-filtercolumn-select">Add a column to filter on</label>
-                    <select class="custom-select lcc-filtercolumn-select" id="columnsearch-filtercolumn-select">
+                    <select class="custom-select lcc-filtercolumn-select"
+                            id="columnsearch-filtercolumn-select">
                     </select>
                   </div>
 
@@ -687,7 +694,8 @@
                 <div class="col-7">
                   <div class="form-group">
                     <label for="columnsearch-filtercondition-select">Condition to apply</label>
-                    <select class="custom-select lcc-filtercondition-select" id="columnsearch-filtercondition-select">
+                    <select class="custom-select lcc-filtercondition-select"
+                            id="columnsearch-filtercondition-select">
                       <option value="lt" selected>less than</option>
                       <option value="gt">greater than</option>
                       <option value="le">less than or equal to</option>
@@ -711,13 +719,14 @@
 
               <div class="row">
                 <div class="col-12">
-                  <button class="btn btn-secondary lcc-filter-add" type="submit" data-searchtype="columnsearch"
+                  <button class="btn btn-secondary lcc-filter-add" type="submit"
+                          data-searchtype="columnsearch"
                           id="columnsearch-filter-add">Add this filter</button>
                 </div>
               </div>
 
               <div class="row mt-3">
-                <div class="col-12 card">
+                <div class="col-12 card pb-2">
                   <h6 class="mt-3 text-muted">Active column filters</h6>
                   <div class="lcc-filterbucket" id="columnsearch-filterbucket">
 
@@ -840,7 +849,8 @@
 
                   <div class="form-group">
                     <label for="xmatch-filtercolumn-select">Column to filter on</label>
-                    <select class="custom-select lcc-filtercolumn-select" id="xmatch-filtercolumn-select">
+                    <select class="custom-select lcc-filtercolumn-select"
+                            id="xmatch-filtercolumn-select">
                     </select>
                   </div>
 
@@ -851,7 +861,8 @@
                 <div class="col-7">
                   <div class="form-group">
                     <label for="xmatch-filtercondition-select">Condition to apply</label>
-                    <select class="custom-select lcc-filtercondition-select" id="xmatch-filtercondition-select">
+                    <select class="custom-select lcc-filtercondition-select"
+                            id="xmatch-filtercondition-select">
                       <option value="lt" selected>less than</option>
                       <option value="gt">greater than</option>
                       <option value="le">less than or equal to</option>
@@ -875,13 +886,14 @@
 
               <div class="row">
                 <div class="col-12">
-                  <button class="btn btn-secondary lcc-filter-add" type="submit" data-searchtype="xmatch"
+                  <button class="btn btn-secondary lcc-filter-add" type="submit"
+                          data-searchtype="xmatch"
                           id="xmatch-filter-add">Add this filter</button>
                 </div>
               </div>
 
               <div class="row mt-3">
-                <div class="col-12 card">
+                <div class="col-12 card pb-2">
                   <h6 class="mt-3 text-muted">Active column filters</h6>
                   <div class="lcc-filterbucket" id="xmatch-filterbucket">
 
@@ -907,8 +919,10 @@
 
                         <div class="form-group">
                           <label for="xmatch-query"><code>[Name] [RA] [Dec]</code>
-                            rows separated by lines (<a href="#" id="xmatch-example" >see example</a>).</label>
-                          <textarea class="form-control" id="xmatch-query" name="xmq" rows="20"></textarea>
+                            rows separated by lines
+                            (<a href="#" id="xmatch-example" >see example</a>).</label>
+                          <textarea class="form-control" id="xmatch-query"
+                                    name="xmq" rows="16"></textarea>
                         </div>
 
                       </div>
