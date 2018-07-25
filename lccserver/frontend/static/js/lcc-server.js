@@ -199,7 +199,8 @@ var lcc_ui = {
                 if (filterbucket_nitems > 0) {
 
                     filter_card_joiner =
-                        '<select class="mr-3 lcc-filterbucket-chainer">' +
+                        '<select class="custom-select ' +
+                        'lcc-filterbucket-chainer">' +
                         '<option value="and" selected>and</option>' +
                         '<option value="or">or</option></select> ';
                 }
@@ -208,7 +209,8 @@ var lcc_ui = {
                 }
 
                 // generate the card for this filter
-                var filter_card = '<div class="card filterbucket-card mt-1 mx-1" ' +
+                var filter_card = '<div class="card filterbucket-card ' +
+                    'mt-1 mx-1 p-1" ' +
                     'data-target="' +
                     target.replace('"','').replace("'",'').trim() +
                     '" data-column="' +
@@ -220,15 +222,21 @@ var lcc_ui = {
                     '" data-dtype="' +
                     filter_dtype.replace('"','').replace("'",'').trim() +
                     '">' +
-                    '<div class="card-body">' +
+                    '<div class="card-body d-flex align-items-center p-2">' +
+                    '<div class="mr-auto">' +
                     filter_card_joiner +
-                    '<code>' +
-                    filter_col + ' ' + filter_op + ' ' + filter_val + '</code>' +
                     '</div>' +
-                    '<div class="card-footer text-right">' +
-                    '<a href="#" ' +
-                    'class="btn btn-outline-danger btn-sm lcc-filterbucket-remove">' +
-                    'Remove filter</a></div>' +
+                    '<div class="mx-auto"><code>' +
+                    filter_col + ' ' + filter_op + ' <strong>' +
+                    filter_val + '</strong></code>' +
+                    '</div>' +
+                    '<div class="ml-auto">' +
+                    '<a href="#" title="remove this filter" ' +
+                    'class="btn btn-outline-danger btn-sm p-1 ' +
+                    'ml-auto lcc-filterbucket-remove">' +
+                    '<img src="/static/images/twotone-clear-24px.svg"></a>' +
+                    '</div>' +
+                    '</div>' +
                     '</div>';
 
                 filterbucket_elem.append(filter_card);
