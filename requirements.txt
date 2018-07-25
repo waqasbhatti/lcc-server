@@ -6,9 +6,9 @@ tornado
 matplotlib
 requests
 tqdm
-psycopg2-binary
 markdown
 pygments
 psutil
 itsdangerous
 passlib
+bleach

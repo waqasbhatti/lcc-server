@@ -50,12 +50,12 @@ INSTALL_REQUIRES = [
     'matplotlib',
     'requests',
     'tqdm',
-    'psycopg2-binary',
     'markdown',
     'pygments',
     'psutil',
     'itsdangerous',
     'passlib',
+    'bleach',
 ]
 
 EXTRAS_REQUIRE = {
