@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   id="svg10"
+   xml:space="preserve"
+   enable-background="new 0 0 24 24"
+   viewBox="0 0 24 24"
+   height="24px"
+   width="24px"
+   y="0px"
+   x="0px"
+   version="1.1"><metadata
+     id="metadata16"><rdf:RDF><cc:Work
+         rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title></dc:title></cc:Work></rdf:RDF></metadata><defs
+     id="defs14" /><g
+     id="Bounding_Boxes"><g
+       display="none"
+       id="ui_x5F_spec_x5F_header_copy_3" /><path
+       id="path3"
+       d="M0,0h24v24H0V0z"
+       fill="none" /></g><g
+     style="fill:#f2f2f2"
+     id="Duotone"><g
+       style="fill:#f2f2f2"
+       display="none"
+       id="ui_x5F_spec_x5F_header_copy_2" /><path
+       style="fill:#f2f2f2"
+       id="path7"
+       d="M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6V13z" /></g></svg>
