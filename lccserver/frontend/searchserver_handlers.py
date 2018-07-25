@@ -275,6 +275,7 @@ def parse_xmatch_input(inputtext):
 
     itext = squeeze(xhtml_escape(inputtext))
     itextlines = itext.split('\n')
+    itextlines = [x for x in itextlines if not x.startswith('#')]
 
     oklines = [parse_objectlist_item(x) for x in itextlines]
 

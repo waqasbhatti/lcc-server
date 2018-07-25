@@ -17,9 +17,42 @@ var lcc_ui = {
     //              'info', 'light', 'dark'
     alert_box: function(message, alert_type) {
 
-        var alert = '<div class="mt-2 alert alert-' + alert_type +
+        // get the current time in a nice format
+        var now = moment().format('h:mm:ss A');
+
+        // figure out the icon to display based on the type of alert
+
+        // this is the default icon
+        var icon = '/static/images/twotone-announcement-24px.svg';
+
+        // this is the danger icon - used whenever something breaks
+        if (alert_type == 'danger') {
+            icon = '/static/images/twotone-error-24px.svg';
+        }
+        // this is the info icon
+        else if (alert_type == 'info') {
+            icon = '/static/images/twotone-info-24px.svg';
+        }
+        // this is the secondary icon - we use this to ask a question about
+        // missing inputs
+        else if (alert_type == 'secondary') {
+            icon = '/static/images/twotone-help-24px.svg';
+        }
+        // this is the warning icon - we use this for background queries
+        else if (alert_type == 'warning') {
+            icon = '/static/images/twotone-watch_later-24px.svg';
+        }
+        // this is the success icon - we use this for completed queries
+        else if (alert_type == 'primary') {
+            icon = '/static/images/twotone-check_circle-24px.svg';
+        }
+
+        var alert = '<div class="mt-1 alert alert-' + alert_type +
             ' alert-dismissible fade show"' +
-            ' role="alert">' + message +
+            ' role="alert">' +
+            '<img class="mr-2 icon-svg" src="' + icon + '">' +
+            '<strong class="mr-2">' +
+            now + '</strong><span class="mr-2">' + message +
             '<button type="button" class="close" data-dismiss="alert" ' +
             'aria-label="Close"><span aria-hidden="true">&times;</span>' +
             '</button></div>';
@@ -211,7 +244,7 @@ var lcc_ui = {
                     filter_val + '</strong>, current filter op is: ' +
                     '<strong>' + filter_op + '</strong>)';
 
-                lcc_ui.alert_box(msg, 'danger');
+                lcc_ui.alert_box(msg, 'secondary');
             }
 
         });
@@ -950,6 +983,19 @@ var lcc_search = {
 
                         }
 
+                        // inform the user their query finished
+                        var alertmsg = 'Query <code>' + msg_setid +
+                            '</code> finished successfully. <strong>' +
+                            + msgdata.result.nobjects +
+                            '</strong> matched objects found. ' +
+                            '<a target="_blank" ' +
+                            'rel="noreferrer noopener" href="' +
+                            msgdata.result.seturl +
+                            '">Result dataset is ready to view.</a>';
+
+                        // set the alert
+                        lcc_ui.alert_box(alertmsg, 'primary');
+
                     }
 
                     // if this query moved from running to background, then
@@ -998,15 +1044,14 @@ var lcc_search = {
                         );
 
                         // notify the user that the query is in the background
-                        var alertmsg = 'Query ' +
+                        alertmsg = 'Query <code>' +
                             msgdata.result.setid +
-                            ' was moved to ' +
-                            'a background queue ' +
-                            ' after 15 seconds. ' +
+                            '</code> now in background queue. ' +
                             'Results will appear at ' +
                             '<a rel="noopener noreferrer"' +
                             'target="_blank" href="/set/' +
-                            msgdata.result.setid + '">its dataset page.</a>';
+                            msgdata.result.setid + '">its dataset page</a> ' +
+                            'when done.';
 
                         lcc_ui.alert_box(alertmsg, 'warning');
 
@@ -1050,6 +1095,7 @@ var lcc_search = {
                     else if (msgdata.status == 'failed') {
 
                         // notify the user that the query is in the background
+                        // but failed!
                         alertmsg = msgdata.message;
                         lcc_ui.alert_box(alertmsg, 'danger');
 
@@ -1111,7 +1157,7 @@ var lcc_search = {
         else {
             var error_message =
                 "No valid column filters were found for the column search query.";
-            lcc_ui.alert_box(error_message, 'danger');
+            lcc_ui.alert_box(error_message, 'secondary');
         }
 
     },
@@ -1273,6 +1319,19 @@ var lcc_search = {
 
                         }
 
+                        // inform the user their query finished
+                        var alertmsg = 'Query <code>' + msg_setid +
+                            '</code> finished successfully. <strong>' +
+                            + msgdata.result.nobjects +
+                            '</strong> matched objects found. ' +
+                            '<a target="_blank" ' +
+                            'rel="noreferrer noopener" href="' +
+                            msgdata.result.seturl +
+                            '">Result dataset is ready to view.</a>';
+
+                        // set the alert
+                        lcc_ui.alert_box(alertmsg, 'primary');
+
                     }
 
                     // if this query moved from running to background, then
@@ -1281,9 +1340,8 @@ var lcc_search = {
                     else if (msgdata.status == 'background') {
 
                         // check how many queries are running
-                        nrun =
-                            parseInt($('#lcc-qstatus-run')
-                                     .attr('data-nrun'));
+                        nrun = parseInt($('#lcc-qstatus-run')
+                                        .attr('data-nrun'));
                         nrun = nrun - 1;
                         $('#lcc-qstatus-run')
                             .attr('data-nrun',nrun);
@@ -1322,15 +1380,14 @@ var lcc_search = {
                         );
 
                         // notify the user that the query is in the background
-                        var alertmsg = 'Query ' +
+                        alertmsg = 'Query <code>' +
                             msgdata.result.setid +
-                            ' was moved to ' +
-                            'a background queue ' +
-                            ' after 15 seconds. ' +
+                            '</code> now in background queue. ' +
                             'Results will appear at ' +
                             '<a rel="noopener noreferrer"' +
                             'target="_blank" href="/set/' +
-                            msgdata.result.setid + '">its dataset page.</a>';
+                            msgdata.result.setid + '">its dataset page</a> ' +
+                            'when done.';
 
                         lcc_ui.alert_box(alertmsg, 'warning');
 
@@ -1374,6 +1431,7 @@ var lcc_search = {
                     else if (msgdata.status == 'failed') {
 
                         // notify the user that the query is in the background
+                        // but failed
                         alertmsg = msgdata.message;
                         lcc_ui.alert_box(alertmsg, 'danger');
 
@@ -1436,7 +1494,7 @@ var lcc_search = {
         else {
             var error_message =
                 "No query text found in the FTS query text box.";
-            lcc_ui.alert_box(error_message, 'danger');
+            lcc_ui.alert_box(error_message, 'secondary');
         }
 
     },
@@ -1598,6 +1656,19 @@ var lcc_search = {
 
                         }
 
+                        // inform the user their query finished
+                        var alertmsg = 'Query <code>' + msg_setid +
+                            '</code> finished successfully. <strong>' +
+                            + msgdata.result.nobjects +
+                            '</strong> matched objects found. ' +
+                            '<a target="_blank" ' +
+                            'rel="noreferrer noopener" href="' +
+                            msgdata.result.seturl +
+                            '">Result dataset is ready to view.</a>';
+
+                        // set the alert
+                        lcc_ui.alert_box(alertmsg, 'primary');
+
                     }
 
                     // if this query moved from running to background, then
@@ -1606,9 +1677,8 @@ var lcc_search = {
                     else if (msgdata.status == 'background') {
 
                         // check how many queries are running
-                        nrun =
-                            parseInt($('#lcc-qstatus-run')
-                                     .attr('data-nrun'));
+                        nrun = parseInt($('#lcc-qstatus-run')
+                                        .attr('data-nrun'));
                         nrun = nrun - 1;
                         $('#lcc-qstatus-run')
                             .attr('data-nrun',nrun);
@@ -1647,15 +1717,14 @@ var lcc_search = {
                         );
 
                         // notify the user that the query is in the background
-                        var alertmsg = 'Query ' +
+                        alertmsg = 'Query <code>' +
                             msgdata.result.setid +
-                            ' was moved to ' +
-                            'a background queue ' +
-                            ' after 15 seconds. ' +
+                            '</code> now in background queue. ' +
                             'Results will appear at ' +
                             '<a rel="noopener noreferrer"' +
                             'target="_blank" href="/set/' +
-                            msgdata.result.setid + '">its dataset page.</a>';
+                            msgdata.result.setid + '">its dataset page</a> ' +
+                            'when done.';
 
                         lcc_ui.alert_box(alertmsg, 'warning');
 
@@ -1699,6 +1768,7 @@ var lcc_search = {
                     else if (msgdata.status == 'failed') {
 
                         // notify the user that the query is in the background
+                        // but failed
                         alertmsg = msgdata.message;
                         lcc_ui.alert_box(alertmsg, 'danger');
 
@@ -1760,8 +1830,8 @@ var lcc_search = {
         else {
             var error_message =
                 "Some of the arguments for cone search " +
-                "are missing or incorrect!";
-            lcc_ui.alert_box(error_message, 'danger');
+                "are missing or incorrect.";
+            lcc_ui.alert_box(error_message, 'secondary');
         }
 
     }
