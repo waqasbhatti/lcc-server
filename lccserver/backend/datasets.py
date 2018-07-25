@@ -676,18 +676,30 @@ def sqlite_make_dataset_lczip(basedir,
 
         LOGINFO('done, zip written successfully.')
 
-        try:
+        # check the size of the output file
+        # if it's more than 500 MB, skip the sha256
+        zipf_size = os.stat(lczip_fpath).st_size/(1024*1024)
+        if zipf_size > 250.0:
+            LOGWARNING('LC ZIP: %s (%s) is too '
+                       'large for SHA256 sum, skipping...' %
+                       (lczip_fpath, zipf_size))
+            shasum = 'warning-too-large-for-reasonable-sha256sum-time'
 
-            p = subprocess.run('sha256sum %s' % lczip_fpath,
-                               shell=True, timeout=60.0,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-            shasum = p.stdout.decode().split()[0]
+        else:
 
-        except Exception as e:
+            try:
 
-            LOGWARNING('could not calculate SHA256 sum for %s' % lczip_fpath)
-            shasum = 'warning-no-sha256sum-available'
+                p = subprocess.run('sha256sum %s' % lczip_fpath,
+                                   shell=True, timeout=60.0,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+                shasum = p.stdout.decode().split()[0]
+
+            except Exception as e:
+
+                LOGWARNING('could not calculate SHA256 sum for %s' %
+                           lczip_fpath)
+                shasum = 'warning-sha256sum-failed-or-timed-out'
 
         # open the datasets database
         datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
