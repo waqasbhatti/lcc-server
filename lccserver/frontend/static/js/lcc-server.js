@@ -842,7 +842,7 @@ var lcc_search = {
     coordlist_placeholder: "# example object and coordinate list\n" +
         "# objectid ra dec\n" +
         "aaa 289.99698 44.99839\n" +
-        "bbb 293.358 -co23.206\n" +
+        "bbb 293.358 -23.206\n" +
         "ccc 294.197 +23.181\n" +
         "ddd 19 25 27.9129 +42 47 03.693\n" +
         "eee 19:25:27 -42:47:03.21\n" +
@@ -850,7 +850,7 @@ var lcc_search = {
         "# .\n" +
         "# .\n" +
         "# etc. lines starting with '#' will be ignored\n" +
-        "# (max 1000 objects)",
+        "# (max 5000 objects)",
 
     // this variable contains the coordinate list after the file upload is
     // parsed and validated. will be passed to the backend via POST
