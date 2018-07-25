@@ -905,31 +905,10 @@
                     <div class="row">
                       <div class="col-12">
 
-                        <div class="custom-control custom-radio custom-control-inline">
-                          <input type="radio" id="xmatchquery-match-objects"
-                                 name="xmatchquery-matchtype" value="objectid"
-                                 class="custom-control-input lcc-xmatchquery-matchtype">
-                          <label class="custom-control-label"
-                                 for="xmatchquery-match-objects">Match object names</label>
-                        </div>
-                        <div class="custom-control custom-radio custom-control-inline">
-                          <input type="radio" id="xmatchquery-match-coords"
-                                 value="coords" name="xmatchquery-matchtype"
-                                 class="custom-control-input" checked>
-                          <label class="custom-control-label"
-                                 for="xmatchquery-match-coords">Match object coordinates</label>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    <div class="row mt-1">
-                      <div class="col-12">
-
                         <div class="form-group">
-                          <label for="xmatchquery-query">Enter <code>name RA Dec</code>
+                          <label for="xmatchquery-query">Enter <code>Name RA Dec</code>
                             rows separated by lines (<a href="#" id="xmatchquery-example" >see example</a>).</label>
-                          <textarea class="form-control" id="xmatchquery-query" rows="13"></textarea>
+                          <textarea class="form-control" id="xmatchquery-query" name="xmq" rows="20"></textarea>
                         </div>
 
                       </div>
@@ -953,11 +932,7 @@
 
                     <div class="row mt-1">
                       <div class="col-12">
-                        <p>The maximum number of object lines allowed is 1000.
-                          You can match on the object IDs themselves; this will
-                          run a full-text-query on the appropriate columns in
-                          the database. Alternatively, you can run spatial
-                          cross-matching with a given match radius.</p>
+                        <p>The maximum number of object lines allowed is 5000.</p>
 
                       </div>
                     </div>

@@ -840,7 +840,7 @@ var lcc_search = {
     coordlist_placeholder: "# example object and coordinate list\n" +
         "# objectid ra dec\n" +
         "aaa 289.99698 44.99839\n" +
-        "bbb 293.358 -23.206\n" +
+        "bbb 293.358 -co23.206\n" +
         "ccc 294.197 +23.181\n" +
         "ddd 19 25 27.9129 +42 47 03.693\n" +
         "eee 19:25:27 -42:47:03.21\n" +
@@ -858,9 +858,9 @@ var lcc_search = {
     coordlist_contents: "",
 
     // regexes to match lines of the uploaded xmatch objects
-    decimal_regex: /^(\w*)\s(\d{1,3}\.{0,1}\d*)\s([+\-]{0,1}\d{1,2}\.{0,1}\d*)$/,
+    decimal_regex: /^(\w+)\s(\d{1,3}\.{0,1}\d*)\s([+-]{0,1}\d{1,2}\.{0,1}\d*)$/,
 
-    sexagesimal_regex: /^(\w*)\s(\d{1,2}[ :]\d{2}[ :]\d{2}\.{0,1}\d*)\s([+\-]{0,1}\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$/g,
+    sexagesimal_regex: /^(\w+)\s(\d{1,2}[ :]\d{2}[ :]\d{2}\.{0,1}\d*)\s([+-]{0,1}\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$/g,
 
 
     // this runs a full column search

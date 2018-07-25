@@ -107,10 +107,10 @@ COORD_HMSSEARCH_REGEX = re.compile(
 # multiple object search
 # objectid ra dec, objectid ra dec, objectid ra dec, etc.
 COORD_DEGMULTI_REGEX = re.compile(
-    r'^(\S+) (\d{1,3}\.{0,1}\d*) (\-?\d{1,2}\.{0,1}\d*)$'
+    r'^(\w+)\s(\d{1,3}\.{0,1}\d*)\s([+\-]?\d{1,2}\.{0,1}\d*)$'
 )
 COORD_HMSMULTI_REGEX = re.compile(
-    r'^(\S+) (\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) '
+    r'^(\w+)\s(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)\s'
     '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$'
 )
 
@@ -213,36 +213,59 @@ def parse_objectlist_item(objectline):
 
     if hmscoordtry:
 
-        objectid, ra, dec = hmscoordtry.groups()
-        ra_tuple, dec_tuple = hms_str_to_tuple(ra), dms_str_to_tuple(dec)
+        try:
 
-        ra_hr, ra_min, ra_sec = ra_tuple
-        dec_sign, dec_deg, dec_min, dec_sec = dec_tuple
+            objectid, ra, dec = hmscoordtry.groups()
+            objectid, ra, dec = (
+                xhtml_escape(objectid), xhtml_escape(ra), xhtml_escape(dec)
+            )
+            ra_tuple, dec_tuple = hms_str_to_tuple(ra), dms_str_to_tuple(dec)
 
-        # make sure the coordinates are all legit
-        if ((0 <= ra_hr < 24) and
-            (0 <= ra_min < 60) and
-            (0 <= ra_sec < 60) and
-            (0 <= dec_deg < 90) and
-            (0 <= dec_min < 60) and
-            (0 <= dec_sec < 60)):
+            # get rid of quotes and semicolons in objectid
+            objectid = objectid.replace('&','').replace(';','')
+            objectid = objectid.replace('#','').replace("'",'')
+            objectid = objectid.replace('&#39;','')
 
-            ra_decimal = hms_to_decimal(ra_hr, ra_min, ra_sec)
-            dec_decimal = dms_to_decimal(dec_sign, dec_deg, dec_min, dec_sec)
+            ra_hr, ra_min, ra_sec = ra_tuple
+            dec_sign, dec_deg, dec_min, dec_sec = dec_tuple
 
-            paramsok = True
-            objid, radeg, decldeg = objectid, ra_decimal, dec_decimal
+            # make sure the coordinates are all legit
+            if ((0 <= ra_hr < 24) and
+                (0 <= ra_min < 60) and
+                (0 <= ra_sec < 60) and
+                (0 <= dec_deg < 90) and
+                (0 <= dec_min < 60) and
+                (0 <= dec_sec < 60)):
 
-        else:
+                ra_decimal = hms_to_decimal(ra_hr, ra_min, ra_sec)
+                dec_decimal = dms_to_decimal(dec_sign,
+                                             dec_deg,
+                                             dec_min,
+                                             dec_sec)
 
+                paramsok = True
+                objid, radeg, decldeg = objectid, ra_decimal, dec_decimal
+
+            else:
+
+                paramsok = False
+                objid, radeg, decldeg = None, None, None
+
+        except:
+            LOGGER.error('could not parse object line: %s' % objectline)
             paramsok = False
             objid, radeg, decldeg = None, None, None
 
+
     elif degcoordtry:
 
-        objectid, ra, dec = degcoordtry.groups()
-
         try:
+
+            objectid, ra, dec = degcoordtry.groups()
+            objectid, ra, dec = (
+                xhtml_escape(objectid), xhtml_escape(ra), xhtml_escape(dec)
+            )
+
             ra, dec = float(ra), float(dec)
             if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
                 if ra < 0:
@@ -260,8 +283,6 @@ def parse_objectlist_item(objectline):
             paramsok = False
             objid, radeg, decldeg = None, None, None
 
-
-
     else:
 
         paramsok = False
@@ -271,19 +292,40 @@ def parse_objectlist_item(objectline):
 
 
 
-def parse_xmatch_input(inputtext):
+def parse_xmatch_input(inputtext, matchradtext,
+                       maxradius=30.0,
+                       maxlines=5001):
     '''
     This tries to parse xmatch input.
 
     '''
 
-    itext = squeeze(xhtml_escape(inputtext))
-    itextlines = itext.split('\n')
+    itext = inputtext
+
+    # parse the xmatchradius text
+    try:
+        matchrad = float(xhtml_escape(matchradtext))
+        if 0 < matchrad < maxradius:
+            xmatch_distarcsec = matchrad
+        else:
+            xmatch_distarcsec = 3.0
+    except:
+        xmatch_distarcsec = 3.0
+
+    # FIXME: does this look OK? there seems to be extra backslashes in req args
+    # for some reason. seems to work though
+    itextlines = itext.split('\\n')
+
+    if len(itextlines) > maxlines:
+
+        LOGGER.error('too many lines to parse')
+        return None
+
     itextlines = [x for x in itextlines if not x.startswith('#')]
+    parsed_lines = [parse_objectlist_item(x) for x in itextlines]
+    oklines = [x for x in parsed_lines if all(x)]
 
-    oklines = [parse_objectlist_item(x) for x in itextlines]
-
-    if 0 < len(oklines) < 1001:
+    if 0 < len(oklines) < maxlines:
 
         objectid = [x[1] for x in oklines]
         ra = [x[2] for x in oklines]
@@ -300,12 +342,12 @@ def parse_xmatch_input(inputtext):
             'coldec':'decl'
         }
 
-        return xmatchdict
+        return xmatchdict, xmatch_distarcsec
 
     else:
 
         LOGGER.error('could not parse input xmatch spec')
-        return None
+        return None, None
 
 
 
@@ -1579,8 +1621,6 @@ class FTSearchHandler(tornado.web.RequestHandler):
                 farr = ['!=' if x == 'ne' else x for x in farr]
                 farr = ['like' if x == 'ct' else x for x in farr]
 
-                LOGGER.info(farr)
-
                 # deal with like operator
                 # FIXME: this is ugly :(
                 for i, x in enumerate(farr):
@@ -2287,19 +2327,6 @@ class XMatchHandler(tornado.web.RequestHandler):
 
         # debugging
         LOGGER.info('request arguments: %r' % self.request.arguments)
-        retdict = {
-            "message":("debugging"),
-            "status":"ok",
-            "result":{
-                "setid":"lol",
-                "seturl":"test",
-                "args":self.request.arguments
-            },
-            "time":'%sZ' % datetime.utcnow().isoformat()
-        }
-        self.write(retdict)
-        raise tornado.web.Finish()
-
 
         try:
 
@@ -2308,18 +2335,22 @@ class XMatchHandler(tornado.web.RequestHandler):
             else:
                 self.req_hostname = self.request.host
 
+            # REQUIRED: xmatch specifications and xmatch distance
+            xmq = self.get_argument('xmq')
+            xmd = self.get_argument('xmdistarc',default='3.0')
+            parsed_xmq, parsed_xmd = parse_xmatch_input(xmq, xmd)
 
-            # REQUIRED: conditions
-            conditions = self.get_argument('filters', default=None)
-            if conditions is not None:
+            # REQUIRED: extraconditions
+            extraconditions = self.get_argument('filters', default=None)
+            if extraconditions is not None:
 
-                conditions = xhtml_escape(squeeze(conditions))
+                extraconditions = xhtml_escape(squeeze(extraconditions))
 
                 # return the "'" character that got escaped
-                conditions = conditions.replace('&#39;',"'")
+                extraconditions = extraconditions.replace('&#39;',"'")
 
                 # replace the operators with their SQL equivalents
-                farr = conditions.split(' ')
+                farr = extraconditions.split(' ')
                 farr = ['>' if x == 'gt' else x for x in farr]
                 farr = ['<' if x == 'lt' else x for x in farr]
                 farr = ['>=' if x == 'ge' else x for x in farr]
@@ -2328,10 +2359,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                 farr = ['!=' if x == 'ne' else x for x in farr]
                 farr = ['like' if x == 'ct' else x for x in farr]
 
-                LOGGER.info(farr)
-
                 # deal with like operator
-                # FIXME: this is ugly :(
                 for i, x in enumerate(farr):
                     if x == 'like':
                         LOGGER.info(farr[i+1])
@@ -2343,20 +2371,10 @@ class XMatchHandler(tornado.web.RequestHandler):
                         farrnext.insert(farrnext_right+1,'%')
                         farr[i+1] = ''.join(farrnext)
 
-                conditions = ' '.join(farr)
-                LOGGER.info('conditions = %s' % conditions)
+                extraconditions = ' '.join(farr)
+                LOGGER.info('extraconditions = %s' % extraconditions)
 
             # get the other arguments for the server
-
-            # REQUIRED: sort column
-            sortcol = xhtml_escape(
-                self.get_argument('sortcol',
-                                  default='sdssr')
-            ).strip()
-            sortorder = xhtml_escape(self.get_argument('sortorder')).strip()
-
-            if sortorder not in ('asc','desc'):
-                sortorder = 'asc'
 
             # OPTIONAL: result_ispublic
             self.result_ispublic = (
@@ -2371,7 +2389,6 @@ class XMatchHandler(tornado.web.RequestHandler):
                 getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
             else:
                 getcolumns = None
-
 
             # OPTIONAL: collections
             lcclist = self.get_arguments('collections[]')
@@ -2388,10 +2405,9 @@ class XMatchHandler(tornado.web.RequestHandler):
                 lcclist = None
 
 
-
             #
             # now we've collected all the parameters for
-            # sqlite_column_search
+            # sqlite_xmatch_search
             #
 
         # if something goes wrong parsing the args, bail out immediately
@@ -2413,11 +2429,11 @@ class XMatchHandler(tornado.web.RequestHandler):
             raise tornado.web.Finish()
 
         LOGGER.info('********* PARSED ARGS *********')
-        LOGGER.info('conditions = %s' % conditions)
-        LOGGER.info('sortcol = %s' % sortcol)
-        LOGGER.info('sortorder = %s' % sortorder)
+        LOGGER.info('conditions = %s' % extraconditions)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
+        LOGGER.info('xmq = %s' % parsed_xmq)
+        LOGGER.info('xmd = %s' % parsed_xmd)
 
         #
         # we'll use line-delimited JSON to respond
@@ -2442,9 +2458,9 @@ class XMatchHandler(tornado.web.RequestHandler):
                 "setid": self.setid,
                 "api_service":"conesearch",
                 "api_args":{
-                    "conditions":conditions,
-                    "sortcol":sortcol,
-                    "sortorder":sortorder,
+                    "xmq":xmq,
+                    "xmd":xmd,
+                    "extraconditions":extraconditions,
                     "result_ispublic":self.result_ispublic,
                     "collections":lcclist,
                     "getcolumns":getcolumns,
@@ -2459,10 +2475,12 @@ class XMatchHandler(tornado.web.RequestHandler):
 
         # Q2. execute the query and get back a future
         self.query_result_future = self.executor.submit(
-            dbsearch.sqlite_column_search,
+            dbsearch.sqlite_xmatch_search,
             self.basedir,
-            conditions=conditions,
-            sortby="%s %s" % (sortcol, sortorder),
+            parsed_xmq,
+            xmatch_dist_arcsec=parsed_xmd,
+            xmatch_closest_only=False,
+            extraconditions=extraconditions,
             getcolumns=getcolumns,
             lcclist=lcclist,
         )

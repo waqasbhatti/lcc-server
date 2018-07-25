@@ -244,7 +244,6 @@ def sqlite_new_dataset(basedir,
 
     # get some stuff out of the search result
     collections = searchresult['databases']
-    columns = searchresult['args']['getcolumns']
 
     # the result should be a dict with key:val = collection:result
     result = {x:searchresult[x]['result'] for x in collections}
@@ -265,6 +264,11 @@ def sqlite_new_dataset(basedir,
     # so we can return the column names and descriptions as well
     columnspec = {x:searchresult[x]['columnspec'] for x in collections}
     collid = {x:searchresult[x]['collid'] for x in collections}
+
+    # these are the common columns across all collections. I know there's a
+    # better way of flattening lists, but it's 4 AM
+    columns = ','.join([','.join(list(searchresult[x]['result'][0].keys()))
+                        for x in collections]).split(',')
 
     # total number of objects found
     nmatches = {x:searchresult[x]['nmatches'] for x in collections}

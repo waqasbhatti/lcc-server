@@ -1337,10 +1337,7 @@ def sqlite_xmatch_search(basedir,
         )
         columnstr = columnstr.lstrip(',').strip()
 
-        rescolumns = getcolumns[::] + ['in_oid',
-                                       'db_oid',
-                                       'in_ra',
-                                       'in_decl',
+        rescolumns = getcolumns[::] + ['db_oid',
                                        'db_ra',
                                        'db_decl',
                                        'db_lcfname']
@@ -1352,10 +1349,7 @@ def sqlite_xmatch_search(basedir,
                      'b.ra as db_ra, b.decl as db_decl, '
                      'b.lcfname as db_lcfname')
 
-        rescolumns = ['in_oid',
-                      'db_oid',
-                      'in_ra',
-                      'in_decl',
+        rescolumns = ['db_oid',
                       'db_ra',
                       'db_decl',
                       'db_lcfname']
@@ -1521,6 +1515,9 @@ def sqlite_xmatch_search(basedir,
             lcc_collid = dbinfo['info']['collection_id'][dbindex]
 
             # update the lcc_columnspec with the extra columns we always return
+            lcc_columnspec['in_objectid'] = lcc_columnspec['objectid'].copy()
+            lcc_columnspec['in_objectid']['title'] = 'input object ID'
+
             lcc_columnspec['in_oid'] = lcc_columnspec['objectid'].copy()
             lcc_columnspec['in_oid']['title'] = 'input object ID'
 
@@ -1584,13 +1581,13 @@ def sqlite_xmatch_search(basedir,
             xmatch_dist_deg = xmatch_dist_arcsec/3600.0
 
             # generate a kdtree for the inputdata coordinates
-            kdt = make_kdtree(xmatch_ra, xmatch_decl)
+            input_coords_kdt = make_kdtree(xmatch_ra, xmatch_decl)
 
             # run the xmatch. NOTE: here, the extra, extdecl are the LCC ra,
             # decl because we want to get potentially multiple matches in the
             # LCC to each input coordinate
             kdt_matchinds, lcc_matchinds = xmatch_kdtree(
-                kdt,
+                input_coords_kdt,
                 lcc_ra, lcc_decl,
                 xmatch_dist_deg,
                 closestonly=xmatch_closest_only
@@ -1617,12 +1614,15 @@ def sqlite_xmatch_search(basedir,
 
                 extraconditionstr = ''
 
-            for kdti in kdt_matchinds:
+            # for each object ind in the input list that has a possible match,
+            # look at the list of matched object inds in the LC collection
+            for input_objind, matched_lcc_objind in zip(kdt_matchinds,
+                                                        lcc_matchinds):
 
-                # get the LCC objectids corresponding to this input objectid
-                lcc_objectid_ind = np.atleast_1d(lcc_matchinds[kdti])
-                matching_lcc_objectids = lcc_objectids[lcc_objectid_ind]
+                matching_lcc_objectids = lcc_objectids[matched_lcc_objind]
 
+                # get the appropriate column info for all of these matched
+                # objects from the database
                 placeholders = ','.join(['?']*matching_lcc_objectids.size)
                 thisq = q.format(columnstr=columnstr,
                                  collection_id=lcc,
@@ -1634,10 +1634,11 @@ def sqlite_xmatch_search(basedir,
                 rows = [dict(x) for x in cur.fetchall()]
 
                 # add in the information from the input data
-                inputdata_row = datatable[kdti]
+                inputdata_row = datatable[input_objind]
                 inputdata_dict = {}
 
                 for icol, item in zip(col_names, inputdata_row):
+
                     ircol = 'in_%s' % icol
                     inputdata_dict[ircol] = item
 
@@ -1686,7 +1687,8 @@ def sqlite_xmatch_search(basedir,
         results['databases'] = available_lcc
         results['columns'] = available_columns
 
-        results['args'] = {'xmatch_dist_arcsec':xmatch_dist_arcsec,
+        results['args'] = {'inputdata':inputdata,
+                           'xmatch_dist_arcsec':xmatch_dist_arcsec,
                            'xmatch_closest_only':xmatch_closest_only,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
@@ -1816,7 +1818,8 @@ def sqlite_xmatch_search(basedir,
         results['databases'] = available_lcc
         results['columns'] = available_columns
 
-        results['args'] = {'xmatch_dist_arcsec':xmatch_dist_arcsec,
+        results['args'] = {'inputdata':inputdata,
+                           'xmatch_dist_arcsec':xmatch_dist_arcsec,
                            'xmatch_closest_only':xmatch_closest_only,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
