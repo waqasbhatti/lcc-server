@@ -314,7 +314,7 @@ def parse_xmatch_input(inputtext, matchradtext,
 
     # FIXME: does this look OK? there seems to be extra backslashes in req args
     # for some reason. seems to work though
-    itextlines = itext.split('\\n')
+    itextlines = itext.split('\n')
 
     if len(itextlines) > maxlines:
 
@@ -2339,6 +2339,9 @@ class XMatchHandler(tornado.web.RequestHandler):
             xmq = self.get_argument('xmq')
             xmd = self.get_argument('xmdistarc',default='3.0')
             parsed_xmq, parsed_xmd = parse_xmatch_input(xmq, xmd)
+
+            if not parsed_xmq or not parsed_xmd:
+                raise Exception('could not parse the xmatch input data')
 
             # REQUIRED: extraconditions
             extraconditions = self.get_argument('filters', default=None)
