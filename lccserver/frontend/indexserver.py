@@ -49,6 +49,7 @@ try:
     import asyncio
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    print('indexserver is using the uvloop IOLoop')
 except:
     pass
 
