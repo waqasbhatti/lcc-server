@@ -2134,7 +2134,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                     'result':None
                 }
 
-                self.set_status(403)
+                self.set_status(401)
                 return retdict
 
 
@@ -2160,7 +2160,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                     'result':None
                 }
 
-                self.set_status(403)
+                self.set_status(401)
                 return retdict
 
             # SUCCESS HERE ONLY
@@ -2199,7 +2199,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                 'result':None
             }
 
-            self.set_status(403)
+            self.set_status(401)
             return retdict
 
         except itsdangerous.BadSignature:
@@ -2213,7 +2213,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                 'result':None
             }
 
-            self.set_status(403)
+            self.set_status(401)
             return retdict
 
         except Exception as e:
@@ -2229,7 +2229,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                 'result':None
             }
 
-            self.set_status(403)
+            self.set_status(401)
             return retdict
 
 
@@ -2258,7 +2258,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                 'result':None
             }
 
-            self.set_status(403)
+            self.set_status(401)
             return retdict
 
         _, token, _ = self._decode_xsrf_token(token)
@@ -2272,7 +2272,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                 'result':None
             }
 
-            self.set_status(403)
+            self.set_status(401)
             return retdict
 
 
@@ -2285,7 +2285,7 @@ class XMatchHandler(tornado.web.RequestHandler):
                 'result':None
             }
 
-            self.set_status(403)
+            self.set_status(401)
             return retdict
 
 
@@ -2321,8 +2321,8 @@ class XMatchHandler(tornado.web.RequestHandler):
         # at this point, we should have checked the API token or XSRF header and
         # can proceed to dealing with the request itself
 
-        # if we get here and the status is set to 403, the request is bad
-        if self.get_status() == 403:
+        # if we get here and the status is set to 401/403, the request is bad
+        if self.get_status() == 401 or self.get_status() == 403:
             self.write(self.keycheck)
             raise tornado.web.Finish()
 
