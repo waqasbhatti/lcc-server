@@ -519,6 +519,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
                 "message":("one or more of the "
                            "required args are missing or invalid")
             }
+            self.set_status(400)
             self.write(retdict)
 
             # we call this to end the request here (since self.finish() doesn't
