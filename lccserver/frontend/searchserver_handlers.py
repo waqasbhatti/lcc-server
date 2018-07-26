@@ -2306,7 +2306,7 @@ class XMatchHandler(tornado.web.RequestHandler):
             LOGGER.info('using tornado XSRF auth...')
             self.keycheck = self.tornado_check_xsrf_cookie()
         else:
-            LOGGER.info('using API header auth...')
+            LOGGER.info('using API Authorization header auth...')
             self.keycheck = self.check_apikey()
 
 
@@ -2426,11 +2426,13 @@ class XMatchHandler(tornado.web.RequestHandler):
                 "message":("one or more of the "
                            "required args are missing or invalid")
             }
+            self.set_status(400)
             self.write(retdict)
 
             # we call this to end the request here (since self.finish() doesn't
             # actually stop executing statements)
             raise tornado.web.Finish()
+
 
         LOGGER.info('********* PARSED ARGS *********')
         LOGGER.info('conditions = %s' % extraconditions)
