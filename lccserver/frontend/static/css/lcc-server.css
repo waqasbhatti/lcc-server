@@ -46,6 +46,12 @@ thead.center-head {
     height: auto;
 }
 
+.icon-logo {
+    width: 48px;
+    height: auto;
+}
+
+
 .top-margin-row {
     margin-top: 3rem;
 }
