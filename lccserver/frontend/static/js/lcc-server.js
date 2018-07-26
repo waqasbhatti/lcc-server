@@ -578,6 +578,7 @@ var lcc_ui = {
                 lcc_search.ftscols = fts_columns;
 
                 var coll_idx = 0;
+                var collection_selectboxes = $('.lcc-collection-select');
 
                 for (coll_idx; coll_idx < collection_ids.length; coll_idx++) {
 
@@ -589,6 +590,19 @@ var lcc_ui = {
                     var table_column_name = '<td width="80">' +
                         collname + ' (<code>' + db_collid + '</code>)' +
                         '</td>';
+
+                    // update the collection select boxes
+                    collection_selectboxes.each(function (e, i) {
+
+                        var thisbox = $(this);
+
+                        thisbox.append('<option value="' +
+                                       db_collid +
+                                       '">' +
+                                       collname +
+                                       '</option>');
+
+                    });
 
                     //
                     // description column
@@ -707,21 +721,6 @@ var lcc_ui = {
                     $('#lcc-collection-tablerows').append(table_row);
 
                 }
-
-                // update the collection select boxes
-                var collection_selectboxes = $('.lcc-collection-select');
-
-                collection_selectboxes.each(function (e, i) {
-
-                    var thisbox = $(this);
-
-                    thisbox.append('<option value="' +
-                                   db_collid +
-                                   '">' +
-                                   collname +
-                                   '</option>');
-
-                });
 
                 // update the column select boxes
                 var column_selectboxes = $('.lcc-column-select');

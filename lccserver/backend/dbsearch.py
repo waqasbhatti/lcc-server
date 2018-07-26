@@ -181,7 +181,7 @@ def sqlite_get_collections(basedir,
     # if we got the databases, then proceed
     if results and len(results) > 0:
 
-        results = zip(list(*results))
+        results = list(zip(*list(results)))
 
         (collection_id, object_catalog_path,
          kdtree_pkl_path, columnlist,
