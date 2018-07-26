@@ -370,7 +370,8 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
                    executor,
                    basedir,
                    uselcdir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -385,7 +386,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
         self.basedir = basedir
         self.uselcdir = uselcdir
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine
@@ -936,7 +937,8 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                    executor,
                    basedir,
                    uselcdir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -951,7 +953,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         self.basedir = basedir
         self.uselcdir = uselcdir
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine
@@ -1515,7 +1517,8 @@ class FTSearchHandler(tornado.web.RequestHandler):
                    executor,
                    basedir,
                    uselcdir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -1530,7 +1533,7 @@ class FTSearchHandler(tornado.web.RequestHandler):
         self.basedir = basedir
         self.uselcdir = uselcdir
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine
@@ -2089,7 +2092,8 @@ class XMatchHandler(tornado.web.RequestHandler):
                    executor,
                    basedir,
                    uselcdir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -2104,6 +2108,8 @@ class XMatchHandler(tornado.web.RequestHandler):
         self.basedir = basedir
         self.uselcdir = uselcdir
         self.signer = signer
+        self.fernet = fernet
+
 
 
     def check_apikey(self):

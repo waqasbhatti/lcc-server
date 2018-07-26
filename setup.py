@@ -56,6 +56,7 @@ INSTALL_REQUIRES = [
     'itsdangerous',
     'passlib',
     'bleach',
+    'cryptography',
 ]
 
 EXTRAS_REQUIRE = {

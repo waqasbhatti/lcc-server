@@ -12,3 +12,4 @@ psutil
 itsdangerous
 passlib
 bleach
+cryptography

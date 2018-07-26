@@ -97,7 +97,8 @@ class DatasetHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -111,7 +112,7 @@ class DatasetHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine
@@ -503,7 +504,8 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -517,7 +519,7 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine

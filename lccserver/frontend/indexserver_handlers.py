@@ -91,13 +91,14 @@ class APIKeyHandler(tornado.web.RequestHandler):
 
     '''
 
-    def initialize(self, apiversion, signer):
+    def initialize(self, apiversion, signer, fernet):
         '''
         handles initial setup.
 
         '''
         self.apiversion = apiversion
         self.signer = signer
+        self.fernet = fernet
 
 
 
@@ -154,14 +155,14 @@ class APIAuthHandler(tornado.web.RequestHandler):
 
     '''
 
-    def initialize(self, apiversion, signer):
+    def initialize(self, apiversion, signer, fernet):
         '''
         handles initial setup.
 
         '''
         self.apiversion = apiversion
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine
@@ -455,7 +456,8 @@ class CollectionListHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -469,7 +471,7 @@ class CollectionListHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine
@@ -532,7 +534,8 @@ class DatasetListHandler(tornado.web.RequestHandler):
                    docspath,
                    executor,
                    basedir,
-                   signer):
+                   signer,
+                   fernet):
         '''
         handles initial setup.
 
@@ -546,7 +549,7 @@ class DatasetListHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
-
+        self.fernet = fernet
 
 
     @gen.coroutine
