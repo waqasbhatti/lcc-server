@@ -1,4 +1,4 @@
-/*global $, jQuery, math, moment, oboe */
+/*global $, jQuery, moment, oboe */
 
 /*
 lcc-server.js - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jun 2018
@@ -322,7 +322,7 @@ var lcc_ui = {
             var chain_op = $(this)
                 .children('div')
                 .children('div.mr-auto')
-                .children('select').val() || '';
+                .children('select').val();
 
             if (chain_op != undefined && i > 0) {
                 thisfilter = chain_op + ' (' + col +
@@ -608,12 +608,15 @@ var lcc_ui = {
                     var mindecl = collections.mindecl[coll_idx];
                     var maxdecl = collections.maxdecl[coll_idx];
 
-                    var center_ra = math.format((minra + maxra)/2.0,5);
-                    var center_decl = math.format((mindecl + maxdecl)/2.0,5);
-                    minra = math.format(minra,5);
-                    maxra = math.format(maxra,5);
-                    mindecl = math.format(mindecl,5);
-                    maxdecl = math.format(maxdecl,5);
+                    var center_ra = (minra + maxra)/2.0;
+                    var center_decl = (mindecl + maxdecl)/2.0;
+                    center_ra = center_ra.toFixed(2);
+                    center_decl = center_decl.toFixed(2);
+
+                    minra = minra.toFixed(2);
+                    maxra = maxra.toFixed(2);
+                    mindecl = mindecl.toFixed(2);
+                    maxdecl = maxdecl.toFixed(2);
 
                     var table_column_coords = '<td width="100">' +
                         'center: <code>(' +
