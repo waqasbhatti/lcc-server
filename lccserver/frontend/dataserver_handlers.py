@@ -65,10 +65,8 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 
-from tornado.escape import xhtml_escape, xhtml_unescape, url_unescape
+from tornado.escape import xhtml_escape
 from tornado import gen
-
-import itsdangerous
 
 
 ###################

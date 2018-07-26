@@ -99,7 +99,6 @@ def LOGEXCEPTION(message):
 import os
 import os.path
 import sqlite3
-import re
 import pickle
 import json
 from tornado.escape import squeeze
@@ -148,9 +147,18 @@ def sqlite_get_collections(basedir,
              "from lcc_index "
              "{lccspec}")
 
-    # handle the case where lcclist is not provided, we'll use any LCC available
-    # in the database
+    # handle the case where lcclist is provided
     if lcclist is not None:
+
+        sanitized_lcclist = []
+
+        # scan through and get rid of some troubling stuff
+        for lcc in lcclist:
+            if lcc is not None:
+                thislcc = squeeze(lcc).strip().replace(' ','')
+                if len(thislcc) > 0 and thislcc != 'all':
+                    sanitized_lcclist.append(thislcc)
+
 
         # we need to do this because we're mapping from directory names on the
         # filesystem that may contain hyphens (although they really shouldn't)
@@ -165,7 +173,8 @@ def sqlite_get_collections(basedir,
 
         cur.execute(query, (db_lcclist,))
 
-    # otherwise, we'll provide a list of LCCs
+    # otherwise, we'll provide a list of LCCs, we'll use any LCC available
+    # in the database
     else:
 
         query = query.format(lccspec='')
@@ -193,12 +202,17 @@ def sqlite_get_collections(basedir,
 
         dbnames = [x.replace('-','_') for x in collection_id]
 
+        # this is the intersection of all columns available across all
+        # collections.  effectively defines the cross-collection columns
+        # available for use in queries
         columns_available = ','.join(columnlist)
         columns_available = list(set(columns_available.split(',')))
 
+        # the same, but for columns that have indexes on them
         indexed_cols_available = ','.join(indexedcols)
         indexed_cols_available = list(set(indexed_cols_available.split(',')))
 
+        # the same but for columns that have FTS indexes on them
         ftsindexed_cols_available = ','.join(ftsindexedcols)
         ftsindexed_cols_available = list(
             set(ftsindexed_cols_available.split(','))
