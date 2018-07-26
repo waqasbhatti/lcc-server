@@ -62,6 +62,115 @@ var lcc_ui = {
 
     },
 
+    // this updates all of the column associated controls whenever there's an
+    // update needed
+    update_column_associated_controls: function (columns,
+                                                 indexed_columns,
+                                                 fts_columns) {
+
+        // update the column select boxes
+        var column_selectboxes = $('.lcc-column-select');
+
+        column_selectboxes.each(function (e, i) {
+
+            var thisbox = $(this);
+
+            // clear it out
+            thisbox.empty();
+
+            var column_ind = 0;
+            for (column_ind; column_ind < columns.length; column_ind++) {
+                thisbox.append('<option value="' +
+                               columns[column_ind] +
+                               '">' +
+                               columns[column_ind] +
+                               '</option>');
+            }
+
+        });
+
+        // update the filter column select boxes
+        var filter_selectboxes = $('.lcc-filtercolumn-select');
+
+        filter_selectboxes.each(function (e, i) {
+
+            var thisbox = $(this);
+
+            // clear it out
+            thisbox.empty();
+
+            var column_ind = 0;
+            for (column_ind; column_ind < columns.length; column_ind++) {
+                thisbox.append('<option value="' +
+                               columns[column_ind] +
+                               '">' +
+                               columns[column_ind] +
+                               '</option>');
+            }
+
+        });
+
+        // update the filter column select boxes
+        var filter_sortboxes = $('.lcc-sortcolumn-select');
+
+        filter_sortboxes.each(function (e, i) {
+
+            var thisbox = $(this);
+
+            // clear it out
+            thisbox.empty();
+
+            var column_ind = 0;
+            var done_with_selected = false;
+
+            for (column_ind; column_ind < columns.length; column_ind++) {
+
+                // special: we'll sort by sdssr by default if it's there
+                // if it's not, we'll sort by objectid
+
+                if ((columns[column_ind] == 'sdssr') &&
+                    !done_with_selected) {
+
+                    thisbox.append('<option value="' +
+                                   columns[column_ind] +
+                                   '" selected>' +
+                                   columns[column_ind] +
+                                   '</option>');
+                    done_with_selected = true;
+
+                }
+                else if ((columns[column_ind] == 'sdssr') &&
+                         !done_with_selected) {
+
+                    thisbox.append('<option value="' +
+                                   columns[column_ind] +
+                                   '" selected>' +
+                                   columns[column_ind] +
+                                   '</option>');
+                    done_with_selected = true;
+
+                }
+                else {
+                    thisbox.append('<option value="' +
+                                   columns[column_ind] +
+                                   '">' +
+                                   columns[column_ind] +
+                                   '</option>');
+
+                }
+            }
+
+        });
+
+        // update the FTS query FTS column list
+        $('#ftsquery-column-list')
+            .html(fts_columns.sort().join(', '));
+
+        // update the indexed column list
+        $('#columnsearch-indexed-columnlist')
+            .html(indexed_columns.sort().join(', '));
+    },
+
 
     // this wires up all the controls
     action_setup: function () {
@@ -95,6 +204,82 @@ var lcc_ui = {
 
             event.preventDefault();
             lcc_search.do_xmatch();
+
+        });
+
+        // bind the change event on lcc-collection-select select boxes
+        // everywhere so the list of the columns shown in .lcc-column-select
+        // boxes is always up to date
+        $('.lcc-collection-select').on('change', function (evt) {
+
+            var current_val = $(this).val();
+            var coll_ind;
+            var column_ind;
+
+            // for each of the values, go through and get their available
+            // columns
+            var available_columns = [];
+            var available_indexcols = [];
+            var available_ftscols = [];
+
+            // if the current value of the select is ['all'], then the only
+            // available columns are the ones common to all collections
+            if (current_val.length == 1 && current_val[0] == 'all') {
+                available_columns = lcc_search.columns.sort();
+                available_indexcols = lcc_search.indexcols.sort();
+                available_ftscols = lcc_search.ftscols.sort();
+            }
+
+            // otherwise, we have to go through the current collections and get
+            // the common columns
+            else {
+
+                available_columns = new Set();
+                available_indexcols = new Set();
+                available_ftscols = new Set();
+
+                for (coll_ind = 0;
+                     coll_ind < current_val.length;
+                     coll_ind++) {
+
+                    var thiscoll = current_val[coll_ind];
+
+                    // check if this collection exists in our store
+                    var thiscollcheck =
+                        lcc_search.collections
+                        .db_collection_id.indexOf(thiscoll);
+
+                    // if it does, then put its columns into the
+                    // available_columns list
+                    if (thiscollcheck != -1) {
+
+                            lcc_search.collections['columnlist'][thiscollcheck]
+                            .split(',').forEach(function (elem) {
+                                available_columns.add(elem);
+                            });
+
+                            lcc_search.collections['indexedcols'][thiscollcheck]
+                            .split(',').forEach(function (elem) {
+                                available_indexcols.add(elem);
+                            });
+
+                            lcc_search.collections['ftsindexedcols'][thiscollcheck]
+                            .split(',').forEach(function (elem) {
+                                available_ftscols.add(elem);
+                            });
+
+                    }
+
+                }
+            }
+
+            // now that we have a list of available columns we can use,
+            // add these to all of the column select boxes
+            lcc_ui.update_column_associated_controls(
+                Array.from(available_columns),
+                Array.from(available_indexcols),
+                Array.from(available_ftscols)
+            );
 
         });
 
@@ -151,6 +336,9 @@ var lcc_ui = {
             }
 
             // look up the dtype of the column
+            // this is done in two steps
+            // 1. look up the currently active
+
             var filter_dtype = lcc_search.coldefs[filter_col]['dtype']
                 .replace('<','');
 
@@ -555,32 +743,35 @@ var lcc_ui = {
             // otherwise, fill in the collections table
             else {
 
-                var collections = result.collections;
-
                 // store this so we can refer to it later
-                lcc_search.collections = collections;
-
+                var collections = result.collections;
                 var collection_ids = collections.collection_id;
+                lcc_search.collections = collections;
+                var coll_idx;
 
-                // we'll also store the available columns and their definitions
-                lcc_search.columns = available_columns;
-                lcc_search.coldefs = collections['columnjson'][0];
-
-
-                //we use all available columns to figure out the common cols and
-                //also the per collection special cols
+                // THESE ARE INTERSECTIONS ACROSS ALL COLLECTIONS SO ONLY THE
+                // COMMON COLUMNS ACROSS COLLECTIONS
                 var available_columns = result.available_columns;
-
                 var indexed_columns = result.available_indexed_columns;
                 var fts_columns = result.available_fts_columns;
 
+                // we'll also store the available columns and their definitions
+                lcc_search.columns = available_columns;
+
+                //we use all available columns to figure out the common cols and
+                //also the per collection special cols
                 lcc_search.indexcols = indexed_columns;
                 lcc_search.ftscols = fts_columns;
 
-                var coll_idx = 0;
+                // select all of the collection selectboxes so we can update
+                // them for all collections
                 var collection_selectboxes = $('.lcc-collection-select');
 
-                for (coll_idx; coll_idx < collection_ids.length; coll_idx++) {
+                // now process each collection
+                // add it to the list of collections on the collections tab
+                for (coll_idx = 0;
+                     coll_idx < collection_ids.length;
+                     coll_idx++) {
 
                     //
                     // name column
@@ -666,6 +857,7 @@ var lcc_ui = {
                     // 3. other columns
                     var formatted_colspec = [];
 
+                    // add each column for this collection to the output
                     for (colind; colind < columns.length; colind++) {
 
                         var thiscol = columns[colind];
@@ -704,6 +896,19 @@ var lcc_ui = {
 
                         }
 
+                        // at the end, check if a column by this name exists in
+                        // the lcc_search.coldefs key and put it in there if it
+                        // doesn't. we will not update the key if it does exist
+                        // FIXME: this has the potential to miss updated
+                        // columns, but hopefully column definitions for the
+                        // same column names don't change between collections
+                        // (or if they do, the change is backported to the
+                        // previous collection)
+                        if (! (thiscol in lcc_search.coldefs) ) {
+                            lcc_search.coldefs[thiscol] =
+                                collections.columnjson[coll_idx][thiscol];
+                        }
+
                     }
                     var formatted_column_list = formatted_colspec.join(', ');
 
@@ -723,95 +928,12 @@ var lcc_ui = {
                 }
 
                 // update the column select boxes
-                var column_selectboxes = $('.lcc-column-select');
+                lcc_ui.update_column_associated_controls(
+                    columns,
+                    indexed_columns,
+                    fts_columns
+                );
 
-                column_selectboxes.each(function (e, i) {
-
-                    var thisbox = $(this);
-                    var column_ind = 0;
-                    for (column_ind; column_ind < columns.length; column_ind++) {
-                        thisbox.append('<option value="' +
-                                       columns[column_ind] +
-                                       '">' +
-                                       columns[column_ind] +
-                                       '</option>');
-                    }
-
-                });
-
-                // update the filter column select boxes
-                var filter_selectboxes = $('.lcc-filtercolumn-select');
-
-                filter_selectboxes.each(function (e, i) {
-
-                    var thisbox = $(this);
-                    var column_ind = 0;
-                    for (column_ind; column_ind < columns.length; column_ind++) {
-                        thisbox.append('<option value="' +
-                                       columns[column_ind] +
-                                       '">' +
-                                       columns[column_ind] +
-                                       '</option>');
-                    }
-
-                });
-
-                // update the filter column select boxes
-                var filter_sortboxes = $('.lcc-sortcolumn-select');
-
-                filter_sortboxes.each(function (e, i) {
-
-                    var thisbox = $(this);
-                    var column_ind = 0;
-                    var done_with_selected = false;
-
-                    for (column_ind; column_ind < columns.length; column_ind++) {
-
-                        // special: we'll sort by sdssr by default if it's there
-                        // if it's not, we'll sort by objectid
-
-                        if ((columns[column_ind] == 'sdssr') &&
-                            !done_with_selected) {
-
-                            thisbox.append('<option value="' +
-                                           columns[column_ind] +
-                                           '" selected>' +
-                                           columns[column_ind] +
-                                           '</option>');
-                            done_with_selected = true;
-
-                        }
-                        else if ((columns[column_ind] == 'sdssr') &&
-                                 !done_with_selected) {
-
-                            thisbox.append('<option value="' +
-                                           columns[column_ind] +
-                                           '" selected>' +
-                                           columns[column_ind] +
-                                           '</option>');
-                            done_with_selected = true;
-
-                        }
-                        else {
-                            thisbox.append('<option value="' +
-                                           columns[column_ind] +
-                                           '">' +
-                                           columns[column_ind] +
-                                           '</option>');
-
-                        }
-                    }
-
-                });
-
-
-                // update the FTS query FTS column list
-                $('#ftsquery-column-list')
-                    .html(fts_columns.sort().join(', '));
-
-                // update the indexed column list
-                $('#columnsearch-indexed-columnlist')
-                    .html(indexed_columns.sort().join(', '));
             }
 
             // at the end, activate the tooltips and popovers
@@ -842,7 +964,7 @@ var lcc_search = {
     columns: null,
 
     // this holds the current column definitions
-    coldefs: null,
+    coldefs: {},
 
     // this holds the FTS index columns
     ftscols: null,
