@@ -13,6 +13,30 @@ var lcc_ui = {
     // this holds intervals for lazy background checking
     intervals: {},
 
+
+    // debounce function to slow down mindless clicking on buttons the backend
+    // APIs can probably handle it, but it just wastes time/resources taken
+    // straight from: https://davidwalsh.name/essential-javascript-functions
+
+    // Returns a function, that, as long as it continues to be invoked, will not
+    // be triggered. The function will be called after it stops being called for
+    // N milliseconds. If `immediate` is passed, trigger the function on the
+    // leading edge, instead of the trailing.
+    debounce: function (func, wait, immediate) {
+        var timeout;
+        return function() {
+            var context = this, args = arguments;
+            var later = function() {
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+        };
+    },
+
     // alert types: 'primary', 'secondary', 'success', 'danger', 'warning',
     //              'info', 'light', 'dark'
     alert_box: function(message, alert_type) {
@@ -179,7 +203,7 @@ var lcc_ui = {
         $('#conesearch-form').on('submit', function (event) {
 
             event.preventDefault();
-            lcc_search.do_conesearch();
+            lcc_ui.debounce(lcc_search.do_conesearch(), 250);
 
         });
 
@@ -187,7 +211,7 @@ var lcc_ui = {
         $('#ftsquery-form').on('submit', function (event) {
 
             event.preventDefault();
-            lcc_search.do_ftsquery();
+            lcc_ui.debounce(lcc_search.do_ftsquery(), 250);
 
         });
 
@@ -195,7 +219,7 @@ var lcc_ui = {
         $('#columnsearch-form').on('submit', function (event) {
 
             event.preventDefault();
-            lcc_search.do_columnsearch();
+            lcc_ui.debounce(lcc_search.do_columnsearch(), 250);
 
         });
 
@@ -203,7 +227,7 @@ var lcc_ui = {
         $('#xmatch-form').on('submit', function (event) {
 
             event.preventDefault();
-            lcc_search.do_xmatch();
+            lcc_ui.debounc(lcc_search.do_xmatch(), 250);
 
         });
 
