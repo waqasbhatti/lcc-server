@@ -67,7 +67,6 @@ import hmac
 import tornado.ioloop
 import tornado.httpserver
 import tornado.web
-import tornado.ioloop
 
 from tornado.escape import xhtml_escape, squeeze, utf8
 from tornado import gen

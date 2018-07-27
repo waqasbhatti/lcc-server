@@ -79,6 +79,7 @@ from cryptography.fernet import Fernet
 from . import indexserver_handlers as ih
 from . import searchserver_handlers as sh
 from . import dataserver_handlers as dh
+from . import objectserver_handlers as oh
 
 
 ###############################
@@ -162,6 +163,15 @@ define('uselcdir',
              'light curves when it is converting them to the '
              'LCC CSV format'),
        type=str)
+
+## this tells the indexserver about the backend checkplotservers
+define('cpaddr',
+       default='http://localhost:5225',
+       help=('This tells the lcc-server the address of a '
+             'running checkplotserver instance that might be '
+             'used to get individual object info.'),
+       type='str')
+
 
 
 #########################
@@ -396,10 +406,13 @@ def main():
     CURRENTDIR = os.path.abspath(os.getcwd())
 
     # get our secret keys
-    SESSIONSECRET, SIGNER, FERNET, CPSECRET = get_secret_keys(
+    SESSIONSECRET, SIGNER, FERNET, CPKEY = get_secret_keys(
         tornado.options,
         LOGGER
     )
+    # get the address of the background checkplotserver instance
+    CPADDR = options.cpaddr
+
 
 
     ####################################
@@ -605,6 +618,24 @@ def main():
           'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
+        ################################################
+        ## OBJECT INFORMATION FROM CHECKPLOT HANDLERS ##
+        ################################################
+
+        (r'/api/checkplot',
+         oh.ObjectCheckplotHandler,
+         {'currentdir':CURRENTDIR,
+          'apiversion':APIVERSION,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'signer':SIGNER,
+          'fernet':FERNET,
+          'cpsharedkey':CPKEY,
+          'cpaddress':CPADDR}),
 
     ]
 
