@@ -459,6 +459,18 @@ def sqlite_fulltext_search(basedir,
     # default cols
     if getcolumns is not None:
 
+        # make double sure that there are no columns requested that are NOT in
+        # the intersection of all the requested collections
+        column_check = set(getcolumns) - set(available_columns)
+        if len(column_check) > 0:
+            LOGWARNING('some requested columns cannot be found '
+                       'in the intersection of all columns from '
+                       'the requested collections')
+            # remove these extraneous columns from the column request
+            for c in column_check:
+                LOGWARNING('removing extraneous column: %s' % c)
+                getcolumns.remove(c)
+
         # get the requested columns together
         columnstr = ', '.join('a.%s' % (c,) for c in getcolumns)
 
@@ -697,6 +709,18 @@ def sqlite_column_search(basedir,
     # we have some default columns that we'll always get
     # if we have some columns to get, get them and append default cols
     if getcolumns is not None:
+
+        # make double sure that there are no columns requested that are NOT in
+        # the intersection of all the requested collections
+        column_check = set(getcolumns) - set(available_columns)
+        if len(column_check) > 0:
+            LOGWARNING('some requested columns cannot be found '
+                       'in the intersection of all columns from '
+                       'the requested collections')
+            # remove these extraneous columns from the column request
+            for c in column_check:
+                LOGWARNING('removing extraneous column: %s' % c)
+                getcolumns.remove(c)
 
         # get the requested columns together
         columnstr = ', '.join('a.%s' % c for c in getcolumns)
@@ -977,6 +1001,20 @@ def sqlite_kdtree_conesearch(basedir,
 
     # get the requested columns together
     if getcolumns is not None:
+
+        # make double sure that there are no columns requested that are NOT in
+        # the intersection of all the requested collections
+        column_check = set(getcolumns) - set(available_columns)
+        if len(column_check) > 0:
+            LOGWARNING('some requested columns cannot be found '
+                       'in the intersection of all columns from '
+                       'the requested collections')
+            # remove these extraneous columns from the column request
+            for c in column_check:
+                LOGWARNING('removing extraneous column: %s' % c)
+                getcolumns.remove(c)
+
+
         columnstr = ', '.join('a.%s' % c for c in getcolumns)
 
         # we add some columns that will always be present to use in sorting and
@@ -1390,8 +1428,20 @@ def sqlite_xmatch_search(basedir,
     # get the requested columns together
     if getcolumns is not None:
 
-        columnstr = ', '.join('b.%s' % c for c in getcolumns)
+        # make double sure that there are no columns requested that are NOT in
+        # the intersection of all the requested collections
+        column_check = set(getcolumns) - set(available_columns)
+        if len(column_check) > 0:
+            LOGWARNING('some requested columns cannot be found '
+                       'in the intersection of all columns from '
+                       'the requested collections')
+            # remove these extraneous columns from the column request
+            for c in column_check:
+                LOGWARNING('removing extraneous column: %s' % c)
+                getcolumns.remove(c)
 
+
+        columnstr = ', '.join('b.%s' % c for c in getcolumns)
         columnstr = ', '.join(
             [columnstr,
              ('b.objectid as db_oid, '
