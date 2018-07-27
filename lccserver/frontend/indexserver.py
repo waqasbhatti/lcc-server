@@ -27,6 +27,7 @@ import signal
 import time
 import sys
 import socket
+import stat
 
 # this handles async background stuff
 from concurrent.futures import ProcessPoolExecutor
@@ -49,9 +50,10 @@ try:
     import asyncio
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    print('indexserver is using the uvloop IOLoop')
+    IOLOOP_SPEC = 'uvloop'
 except:
-    pass
+    HAVE_UVLOOP = False
+    IOLOOP_SPEC = 'asyncio'
 
 import tornado.ioloop
 import tornado.httpserver
@@ -88,9 +90,7 @@ modpath = os.path.abspath(os.path.dirname(__file__))
 # define our commandline options
 
 # the port to serve on
-# indexserver  will serve on 12500-12509
-# searchserver will serve on 12510-12519
-# lcserver     will serve on 12520-12529
+# indexserver  will serve on 12500-12519 by default
 define('port',
        default=12500,
        help='Run on the given port.',
@@ -104,9 +104,12 @@ define('serve',
 
 # path to the cookie secrets file
 define('secretfile',
-       default=os.path.join(os.getcwd(), 'lccserver-secrets'),
+       default=os.path.join(os.getcwd(), 'lccserver.secret'),
        help=('The path to a text file containing a strong randomly '
-             'generated token suitable for signing cookies.'),
+             'generated token suitable for signing cookies. Will be used as '
+             'the filename basis for files containing a Fernet key for '
+             'API authentication and a shared key for '
+             'checkplotserver as well.'),
        type=str)
 
 # whether to run in debugmode or not
@@ -161,6 +164,198 @@ define('uselcdir',
        type=str)
 
 
+#########################
+## SECRET KEY HANDLING ##
+#########################
+
+def get_secret_keys(tornado_options, logger):
+    """
+    This loads and generates secret keys.
+
+    """
+    # handle the session secret to generate coookies and itsdangerous tokens
+    # with signatures
+    if 'LCC_SESSIONSECRET' in os.environ:
+
+        SESSIONSECRET = os.environ['LCC_SESSIONSECRET']
+        if len(SESSIONSECRET) == 0:
+
+            logger.error(
+                'SESSIONSECRET from environ["LCC_SESSIONSECRET"] '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'using SESSIONSECRET from environ["LCC_SESSIONSECRET"]'
+        )
+
+    elif os.path.exists(options.secretfile):
+
+        # check if this file is readable/writeable by user only
+        fileperm = oct(os.stat(options.secretfile)[stat.ST_MODE])
+
+        if not (fileperm == '0100600' or fileperm == '0o100600'):
+            logger.error('incorrect file permissions on %s '
+                         '(needs chmod 600)' % options.secretfile)
+            sys.exit(1)
+
+
+        with open(options.secretfile,'r') as infd:
+            SESSIONSECRET = infd.read().strip('\n')
+
+        if len(SESSIONSECRET) == 0:
+
+            logger.error(
+                'SESSIONSECRET from file in current base directory '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'using SESSIONSECRET from file in current base directory'
+        )
+
+    else:
+
+        logger.warning(
+            'no session secret file found in '
+            'current base directory and no LCC_SESSIONSECRET '
+            'environment variable found. will make a new session '
+            'secret file in current directory: %s' % options.secretfile
+        )
+        SESSIONSECRET = hashlib.sha512(os.urandom(32)).hexdigest()
+        with open(options.secretfile,'w') as outfd:
+            outfd.write(SESSIONSECRET)
+        os.chmod(options.secretfile, 0o100600)
+
+
+    # handle the fernet secret key to encrypt tokens sent out by itsdangerous
+    fernet_secrets = options.secretfile + '-fernet'
+
+    if 'LCC_FERNETSECRET' in os.environ:
+
+        FERNETSECRET = os.environ['LCSERVER_FERNETSECRET']
+        if len(FERNETSECRET) == 0:
+
+            logger.error(
+                'FERNETSECRET from environ["LCC_FERNETSECRET"] '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'using FERNETSECRET from environ["LCC_FERNETSECRET"]'
+        )
+
+    elif os.path.exists(fernet_secrets):
+
+        # check if this file is readable/writeable by user only
+        fileperm = oct(os.stat(fernet_secrets)[stat.ST_MODE])
+
+        if not (fileperm == '0100600' or fileperm == '0o100600'):
+            logger.error('incorrect file permissions on %s '
+                         '(needs chmod 600)' % fernet_secrets)
+            sys.exit(1)
+
+
+        with open(fernet_secrets,'r') as infd:
+            FERNETSECRET = infd.read().strip('\n')
+
+        if len(FERNETSECRET) == 0:
+
+            logger.error(
+                'FERNETSECRET from file in current base directory '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'using FERNETSECRET from file in current base directory'
+        )
+
+    else:
+
+        logger.warning(
+            'no fernet secret file found in '
+            'current base directory and no LCC_FERNETSECRET '
+            'environment variable found. will make a new fernet '
+            'secret file in current directory: %s' % fernet_secrets
+        )
+        FERNETSECRET = Fernet.generate_key()
+        with open(fernet_secrets,'wb') as outfd:
+            outfd.write(FERNETSECRET)
+        os.chmod(fernet_secrets, 0o100600)
+
+
+
+    # handle the cpserver secret key to encrypt tokens sent out by itsdangerous
+    cpserver_secrets = options.secretfile + '-cpserver'
+
+    if 'CPSERVER_SHAREDSECRET' in os.environ:
+
+        CPSERVERSECRET = os.environ['CPSERVER_SHAREDSECRET']
+        if len(CPSERVERSECRET) == 0:
+
+            logger.error(
+                'CPSERVERSECRET from environ["CPSERVER_SHAREDSECRET"] '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'using CPSERVERSECRET from environ["CPSERVER_SHAREDSECRET"]'
+        )
+
+    elif os.path.exists(cpserver_secrets):
+
+        with open(cpserver_secrets,'r') as infd:
+            CPSERVERSECRET = infd.read().strip('\n')
+
+        # check if this file is readable/writeable by user only
+        fileperm = oct(os.stat(cpserver_secrets)[stat.ST_MODE])
+
+        if not (fileperm == '0100600' or fileperm == '0o100600'):
+            logger.error('incorrect file permissions on %s '
+                         '(needs chmod 600)' % cpserver_secrets)
+            sys.exit(1)
+
+
+        if len(CPSERVERSECRET) == 0:
+
+            logger.error(
+                'CPSERVERSECRET from file in current base directory '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'using CPSERVERSECRET from file in current base directory'
+        )
+
+    else:
+
+        logger.warning(
+            'no cpserver secret file found in '
+            'current base directory and no CPSERVER_SHAREDSECRET '
+            'environment variable found. will make a new cpserver '
+            'secret file in current directory: %s' % cpserver_secrets
+        )
+        CPSERVERSECRET = Fernet.generate_key()
+        with open(cpserver_secrets,'wb') as outfd:
+            outfd.write(CPSERVERSECRET)
+        os.chmod(cpserver_secrets, 0o100600)
+
+    # return our signer object, fernet object and shared key for talking to
+    # checkplotserver
+    SIGNER = URLSafeTimedSerializer(SESSIONSECRET,
+                                    salt='lcc-server-api')
+    FERNET = Fernet(FERNETSECRET)
+
+    return SESSIONSECRET, SIGNER, FERNET, CPSERVERSECRET
+
+
+
 ############
 ### MAIN ###
 ############
@@ -200,107 +395,11 @@ def main():
 
     CURRENTDIR = os.path.abspath(os.getcwd())
 
-    # handle the session secret to generate coookies and itsdangerous tokens
-    # with signatures
-    if 'LCCSERVER_SESSIONSECRET' in os.environ:
-
-        SESSIONSECRET = os.environ['LCSERVER_SESSIONSECRET']
-        if len(SESSIONSECRET) == 0:
-
-            LOGGER.error(
-                'SESSIONSECRET from environ["LCCSERVER_SESSIONSECRET"] '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        LOGGER.info(
-            'using SESSIONSECRET from environ["LCCSERVER_SESSIONSECRET"]'
-        )
-
-    elif os.path.exists(options.secretfile):
-
-        with open(options.secretfile,'r') as infd:
-            SESSIONSECRET = infd.read().strip('\n')
-
-        if len(SESSIONSECRET) == 0:
-
-            LOGGER.error(
-                'SESSIONSECRET from file in current base directory '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        LOGGER.info(
-            'using SESSIONSECRET from file in current base directory'
-        )
-
-    else:
-
-        LOGGER.warning(
-            'no session secret file found in '
-            'current base directory and no LCCSERVER_SESSIONSECRET '
-            'environment variable found. will make a new session '
-            'secret file in current directory: %s' % options.secretfile
-        )
-        SESSIONSECRET = hashlib.sha512(os.urandom(32)).hexdigest()
-        with open(options.secretfile,'w') as outfd:
-            outfd.write(SESSIONSECRET)
-        os.chmod(options.secretfile, 0o100600)
-
-
-    # handle the fernet secret key to encrypt tokens sent out by itsdangerous
-    fernet_secrets = options.secretfile + '-fernet'
-
-    if 'LCCSERVER_FERNETSECRET' in os.environ:
-
-        FERNETSECRET = os.environ['LCSERVER_FERNETSECRET']
-        if len(FERNETSECRET) == 0:
-
-            LOGGER.error(
-                'FERNETSECRET from environ["LCCSERVER_FERNETSECRET"] '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        LOGGER.info(
-            'using FERNETSECRET from environ["LCCSERVER_FERNETSECRET"]'
-        )
-
-    elif os.path.exists(fernet_secrets):
-
-        with open(fernet_secrets,'r') as infd:
-            FERNETSECRET = infd.read().strip('\n')
-
-        if len(FERNETSECRET) == 0:
-
-            LOGGER.error(
-                'FERNETSECRET from file in current base directory '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        LOGGER.info(
-            'using FERNETSECRET from file in current base directory'
-        )
-
-    else:
-
-        LOGGER.warning(
-            'no fernet secret file found in '
-            'current base directory and no LCCSERVER_FERNETSECRET '
-            'environment variable found. will make a new fernet '
-            'secret file in current directory: %s' % options.secretfile
-        )
-        FERNETSECRET = Fernet.generate_key()
-        with open(fernet_secrets,'wb') as outfd:
-            outfd.write(FERNETSECRET)
-        os.chmod(fernet_secrets, 0o100600)
-
-
-    # using the SESSIONSECRET, start the signer
-    SIGNER = URLSafeTimedSerializer(SESSIONSECRET,
-                                    salt='lcc-server-api')
-    FERNET = Fernet(FERNETSECRET)
+    # get our secret keys
+    SESSIONSECRET, SIGNER, FERNET, CPSECRET = get_secret_keys(
+        tornado.options,
+        LOGGER
+    )
 
 
     ####################################
@@ -554,6 +653,9 @@ def main():
 
     LOGGER.info('started indexserver. listening on http://%s:%s' %
                 (options.serve, serverport))
+    LOGGER.info('background worker processes: %s, IOLoop in use: %s' %
+                (MAXWORKERS, IOLOOP_SPEC))
+    LOGGER.info('the current base directory is: %s' % os.path.abspath(BASEDIR))
 
     # register the signal callbacks
     signal.signal(signal.SIGINT,recv_sigint)
@@ -571,7 +673,7 @@ def main():
         # close down the processpool
 
     EXECUTOR.shutdown()
-    time.sleep(3)
+    time.sleep(2)
 
 # run the server
 if __name__ == '__main__':

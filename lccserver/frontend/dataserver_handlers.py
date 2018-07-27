@@ -251,8 +251,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                 }
 
                 dsjson = json.dumps(jsondict)
-                dsjson = dsjson.replace('nan','null')
-                self.set_header('Content-Type','application/json')
+                dsjson = dsjson.replace('nan','null').replace('NaN','null')
+                self.set_header('Content-Type',
+                                'application/json; charset=UTF-8')
                 self.write(dsjson)
                 raise tornado.web.Finish()
 
@@ -375,8 +376,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                     })
 
                     dsjson = json.dumps(jsondict)
-                    dsjson = dsjson.replace('nan','null')
-                    self.set_header('Content-Type','application/json')
+                    dsjson = dsjson.replace('nan','null').replace('NaN','null')
+                    self.set_header('Content-Type',
+                                    'application/json; charset=UTF-8')
                     self.write(dsjson)
                     self.finish()
 
@@ -438,8 +440,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                     })
 
                     dsjson = json.dumps(jsondict)
-                    dsjson = dsjson.replace('nan','null')
-                    self.set_header('Content-Type','application/json')
+                    dsjson = dsjson.replace('nan','null').replace('NaN','null')
+                    self.set_header('Content-Type',
+                                    'application/json; charset=UTF-8')
                     self.write(dsjson)
                     self.finish()
 

@@ -568,7 +568,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
             "time":'%sZ' % datetime.utcnow().isoformat()
         }
         retdict = '%s\n' % json.dumps(retdict)
-        self.set_header('Content-Type','application/json')
+        self.set_header('Content-Type','application/json; charset=UTF-8')
         self.write(retdict)
         yield self.flush()
 
@@ -1147,7 +1147,7 @@ class ConeSearchHandler(tornado.web.RequestHandler):
             "time":'%sZ' % datetime.utcnow().isoformat()
         }
         retdict = '%s\n' % json.dumps(retdict)
-        self.set_header('Content-Type','application/json')
+        self.set_header('Content-Type','application/json; charset=UTF-8')
         self.write(retdict)
         yield self.flush()
 
@@ -1707,7 +1707,7 @@ class FTSearchHandler(tornado.web.RequestHandler):
             "time":'%sZ' % datetime.utcnow().isoformat()
         }
         retdict = '%s\n' % json.dumps(retdict)
-        self.set_header('Content-Type','application/json')
+        self.set_header('Content-Type','application/json; charset=UTF-8')
         self.write(retdict)
         yield self.flush()
 
@@ -2481,7 +2481,7 @@ class XMatchHandler(tornado.web.RequestHandler):
             "time":'%sZ' % datetime.utcnow().isoformat()
         }
         retdict = '%s\n' % json.dumps(retdict)
-        self.set_header('Content-Type','application/json')
+        self.set_header('Content-Type','application/json; charset=UTF-8')
         self.write(retdict)
         yield self.flush()
 
