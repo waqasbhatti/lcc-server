@@ -166,7 +166,7 @@ define('uselcdir',
 
 ## this tells the indexserver about the backend checkplotservers
 define('cpaddr',
-       default='http://localhost:5225',
+       default='http://127.0.0.1:5225',
        help=('This tells the lcc-server the address of a '
              'running checkplotserver instance that might be '
              'used to get individual object info.'),

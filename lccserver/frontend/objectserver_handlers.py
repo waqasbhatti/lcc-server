@@ -248,6 +248,7 @@ class ObjectCheckplotHandler(tornado.web.RequestHandler):
             # so that's what we'll forward to the client.
             self.set_header('Content-Type',
                             'application/json; charset=UTF-8')
+
             self.write(resp.body)
             self.finish()
 
