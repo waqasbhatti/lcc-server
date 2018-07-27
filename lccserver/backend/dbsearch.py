@@ -532,7 +532,9 @@ def sqlite_fulltext_search(basedir,
         )
 
         # add these to the default columns we return
-        rescolumns.extend(collection_ftscols)
+        for c in collection_ftscols:
+            if c not in rescolumns:
+                rescolumns.append(c)
 
         # add them to the SQL column statement too
         columnstr = (
