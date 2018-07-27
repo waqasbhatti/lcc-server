@@ -265,10 +265,22 @@ def sqlite_new_dataset(basedir,
     columnspec = {x:searchresult[x]['columnspec'] for x in collections}
     collid = {x:searchresult[x]['collid'] for x in collections}
 
-    # these are the common columns across all collections. I know there's a
-    # better way of flattening lists, but it's 4 AM
-    columns = ','.join([','.join(list(searchresult[x]['result'][0].keys()))
-                        for x in collections]).split(',')
+    xcolumns = []
+    for coll in collections:
+        try:
+            coll_columns = list(searchresult[coll]['result'][0].keys())
+            xcolumns.extend(coll_columns)
+        except:
+            pass
+    columns = sorted(list(set(xcolumns)))
+
+    # we want to return the columns in the order they were requested, so we need
+    # to reorder them here
+    reqcols = searchargs['getcolumns']
+    for c in columns:
+        if c not in reqcols:
+            reqcols.append(c)
+
 
     # total number of objects found
     nmatches = {x:searchresult[x]['nmatches'] for x in collections}
@@ -285,7 +297,7 @@ def sqlite_new_dataset(basedir,
         'desc':setdesc,
         'ispublic':ispublic,
         'collections':collections,
-        'columns':columns,
+        'columns':reqcols,  # these are the columns guaranteed to be in all cols
         'result':result,
         'searchtype':searchtype,
         'searchargs':searchargs,

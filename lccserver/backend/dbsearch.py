@@ -101,7 +101,7 @@ import os.path
 import sqlite3
 import pickle
 import json
-from tornado.escape import squeeze
+from tornado.escape import squeeze, xhtml_unescape
 
 import numpy as np
 
@@ -148,7 +148,7 @@ def sqlite_get_collections(basedir,
              "{lccspec}")
 
     # handle the case where lcclist is provided
-    if lcclist is not None:
+    if lcclist:
 
         sanitized_lcclist = []
 
@@ -159,22 +159,34 @@ def sqlite_get_collections(basedir,
                 if len(thislcc) > 0 and thislcc != 'all':
                     sanitized_lcclist.append(thislcc)
 
-
         # we need to do this because we're mapping from directory names on the
         # filesystem that may contain hyphens (although they really shouldn't)
         # and database names in the sqlite3 table which can't have hyphens
-        query = query.format(
-            lccspec="where replace(collection_id,'-','_') in (?)"
-        )
-        db_lcclist = ','.join(lcclist)
+        if len(sanitized_lcclist) > 0:
 
-        if require_ispublic:
-            query = query + ' and ispublic = 1'
+            lccspec = ("where replace(collection_id,'-','_') in (%s)" %
+                       (','.join(['?' for x in sanitized_lcclist])))
+            params = sanitized_lcclist
+            query = query.format(
+                lccspec=lccspec
+            )
+            if require_ispublic:
+                query = query + ' and ispublic = 1'
+            cur.execute(query, params)
 
-        cur.execute(query, (db_lcclist,))
+        # if no collection made it through sanitation, we'll search all of them
+        else:
+            lccspec = ''
+            query = query.format(
+                lccspec=''
+            )
 
-    # otherwise, we'll provide a list of LCCs, we'll use any LCC available
-    # in the database
+            if require_ispublic:
+                query = query + ' and ispublic = 1'
+            cur.execute(query)
+
+
+    # otherwise, we'll use any LCC available in the database
     else:
 
         query = query.format(lccspec='')
@@ -547,11 +559,23 @@ def sqlite_fulltext_search(basedir,
                              collection_id=lcc,
                              extraconditions=extraconditionstr)
 
-            # execute the query
-            LOGINFO('query = %s' % thisq)
+            # we need to unescape the search string because it might contain
+            # exact match strings that we might want to use with FTS
+            unescapedstr = xhtml_unescape(ftsquerystr)
+            if unescapedstr != ftsquerystr:
+                ftsquerystr = unescapedstr
+                LOGWARNING('unescaped FTS string because '
+                           'it had quotes in it for exact matching: %r' %
+                           unescapedstr)
 
-            cur.execute(thisq, (ftsquerystr,))
-            rows = cur.fetchall()
+            try:
+                # execute the query
+                LOGINFO('query = %s' % thisq.replace('?',"'%s'" % ftsquerystr))
+                cur.execute(thisq, (ftsquerystr,))
+                rows = cur.fetchall()
+            except Exception as e:
+                LOGEXCEPTION('query failed, probably a syntax error')
+                rows = None
 
             if rows and len(rows) > 0:
 
@@ -1168,11 +1192,15 @@ def sqlite_kdtree_conesearch(basedir,
                                  matching_decls)])
 
             # now run our query
-            LOGINFO('query = %s' % thisq)
-            cur.execute(thisq)
 
-            # get the results
-            rows = [dict(x) for x in cur.fetchall()]
+            try:
+                LOGINFO('query = %s' % thisq)
+                cur.execute(thisq)
+                # get the results
+                rows = [dict(x) for x in cur.fetchall()]
+            except Exception as e:
+                LOGEXCEPTION('query failed, probably an SQL error')
+                rows = None
 
             # remove the temporary table
             cur.execute('drop table _temp_objectid_list')
@@ -1182,53 +1210,72 @@ def sqlite_kdtree_conesearch(basedir,
             # for each row of the results, add in the objectid, ra, decl if
             # they're not already present in the requested columns. also add in
             # the distance from the center of the cone search
-            for row in rows:
+            if rows:
+                for row in rows:
 
-                obj = row['db_oid']
-                ra = row['db_ra']
-                decl = row['db_decl']
+                    obj = row['db_oid']
+                    ra = row['db_ra']
+                    decl = row['db_decl']
 
-                # figure out the distances from the search center
-                searchcenter_distarcsec = great_circle_dist(
-                    center_ra,
-                    center_decl,
-                    ra,
-                    decl
-                )
+                    # figure out the distances from the search center
+                    searchcenter_distarcsec = great_circle_dist(
+                        center_ra,
+                        center_decl,
+                        ra,
+                        decl
+                    )
 
-                if 'objectid' not in row:
-                    row['objectid'] = obj
-                if 'ra' not in row:
-                    row['ra'] = ra
-                if 'decl' not in row:
-                    row['decl'] = decl
-                if 'dist_arcsec' not in row:
-                    row['dist_arcsec'] = searchcenter_distarcsec
+                    if 'objectid' not in row:
+                        row['objectid'] = obj
+                    if 'ra' not in row:
+                        row['ra'] = ra
+                    if 'decl' not in row:
+                        row['decl'] = decl
+                    if 'dist_arcsec' not in row:
+                        row['dist_arcsec'] = searchcenter_distarcsec
 
 
-            # make sure to resort the rows in the order of the distances
-            rows = sorted(rows, key=lambda row: row['dist_arcsec'])
+                # make sure to resort the rows in the order of the distances
+                rows = sorted(rows, key=lambda row: row['dist_arcsec'])
 
-            # generate the output dict key
-            results[lcc] = {'result':rows,
-                            'query':thisq,
-                            'success':True}
+                # generate the output dict key
+                results[lcc] = {'result':rows,
+                                'query':thisq,
+                                'success':True}
 
-            results[lcc]['nmatches'] = len(rows)
-            msg = ('executed query successfully for collection: %s'
-                   ', matching nrows: %s' %
-                   (lcc, results[lcc]['nmatches']))
-            results[lcc]['message'] = msg
-            LOGINFO(msg)
-            results[lcc]['lcformatkey'] = lcc_lcformatkey
-            results[lcc]['lcformatdesc'] = lcc_lcformatdesc
-            results[lcc]['columnspec'] = lcc_columnspec
-            results[lcc]['collid'] = lcc_collid
+                results[lcc]['nmatches'] = len(rows)
+                msg = ('executed query successfully for collection: %s'
+                       ', matching nrows: %s' %
+                       (lcc, results[lcc]['nmatches']))
+                results[lcc]['message'] = msg
+                LOGINFO(msg)
+                results[lcc]['lcformatkey'] = lcc_lcformatkey
+                results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['columnspec'] = lcc_columnspec
+                results[lcc]['collid'] = lcc_collid
 
+            else:
+
+                msg = ('failed to execute query for collection: %s, '
+                       'likely no matches' % (lcc,))
+                LOGEXCEPTION(msg)
+
+                results[lcc] = {
+                    'result':[],
+                    'query':q,
+                    'nmatches':0,
+                    'message':msg,
+                    'success':False,
+                }
+                results[lcc]['lcformatkey'] = lcc_lcformatkey
+                results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['columnspec'] = lcc_columnspec
+                results[lcc]['collid'] = lcc_collid
 
         except Exception as e:
 
-            msg = ('failed to execute query for collection: %s, exception: %s' %
+            msg = ('failed to execute query for collection: %s, '
+                   'exception: %s' %
                    (lcc, e))
             LOGEXCEPTION(msg)
 
@@ -1643,38 +1690,49 @@ def sqlite_xmatch_search(basedir,
                                  placeholders=placeholders,
                                  extraconditionstr=extraconditionstr)
 
-                cur.execute(thisq, tuple(matching_lcc_objectids))
-
-                rows = [dict(x) for x in cur.fetchall()]
-
-                # add in the information from the input data
-                inputdata_row = datatable[input_objind]
-                inputdata_dict = {}
-
-                for icol, item in zip(col_names, inputdata_row):
-
-                    ircol = 'in_%s' % icol
-                    inputdata_dict[ircol] = item
-
-                # for each row add in the input object's info
-                for x in rows:
-                    x.update(inputdata_dict)
-
-                # add in the distance from the input object
-                for row in rows:
-
-                    in_lcc_dist = great_circle_dist(
-                        row['db_ra'],
-                        row['db_decl'],
-                        row['in_%s' % inputdata['colra']],
-                        row['in_%s' % inputdata['coldec']]
+                try:
+                    cur.execute(thisq, tuple(matching_lcc_objectids))
+                    rows = [dict(x) for x in cur.fetchall()]
+                except Exception as e:
+                    LOGEXCEPTION(
+                        'xmatch object lookup for input object '
+                        'with data: %r '
+                        'returned an sqlite3 exception. '
+                        'skipping this object' %
+                        datatable[input_objind]
                     )
-                    row['dist_arcsec'] = in_lcc_dist
+                    rows = None
 
-                # we'll order the results of this objectid search by distance
-                # from the input object.
-                rows = sorted(rows, key=lambda row: row['dist_arcsec'])
-                this_lcc_results.extend(rows)
+                if rows:
+
+                    # add in the information from the input data
+                    inputdata_row = datatable[input_objind]
+                    inputdata_dict = {}
+
+                    for icol, item in zip(col_names, inputdata_row):
+
+                        ircol = 'in_%s' % icol
+                        inputdata_dict[ircol] = item
+
+                    # for each row add in the input object's info
+                    for x in rows:
+                        x.update(inputdata_dict)
+
+                    # add in the distance from the input object
+                    for row in rows:
+
+                        in_lcc_dist = great_circle_dist(
+                            row['db_ra'],
+                            row['db_decl'],
+                            row['in_%s' % inputdata['colra']],
+                            row['in_%s' % inputdata['coldec']]
+                        )
+                        row['dist_arcsec'] = in_lcc_dist
+
+                    # we'll order the results of this objectid search by
+                    # distance from the input object.
+                    rows = sorted(rows, key=lambda row: row['dist_arcsec'])
+                    this_lcc_results.extend(rows)
 
             #
             # done with this LCC, add in the results to the results dict
@@ -1719,6 +1777,9 @@ def sqlite_xmatch_search(basedir,
 
 
     elif xmatch_type == 'column':
+
+        # FIXME: change this to make sqlite do an FTS on each input object name
+        # if the input match column is objectid.
 
         # this will be a straightforward table join using the inputmatchcol and
         # the dbmatchcol

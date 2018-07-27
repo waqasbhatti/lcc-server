@@ -555,7 +555,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
             "status":"queued",
             "result":{
                 "setid": self.setid,
-                "api_service":"conesearch",
+                "api_service":"columnsearch",
                 "api_args":{
                     "conditions":conditions,
                     "sortcol":sortcol,

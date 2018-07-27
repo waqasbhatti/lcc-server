@@ -562,19 +562,25 @@
                         <p>Full text search is useful for object names,
                           variable type tags, object classification tags,
                           and external object names (e.g. from SIMBAD if they're
-                          available). Matching text may be found in any of the
+                          available). Queries use the
+                          <a href="https://www.sqlite.org/fts5.html#full_text_query_syntax">
+                            SQLite FTS5 query syntax</a>. For an exact match
+                          against an object name, use <code>&quot;object name&quot;</code>.
+                          Matching text may be found in any of the
                           FTS-indexed columns below. They will always be
-                          returned with query results. Queries use the
-                          <a href="https://www.sqlite.org/fts5.html#full_text_query_syntax">SQLite FTS5 query syntax</a>.</p>
+                          returned with query results. </p>
 
                         <p><small><code><span id="ftsquery-column-list"></span></code></small></p>
+
+                        <p>Results are returned in order of
+                          <a href="https://en.wikipedia.org/wiki/Okapi_BM25"> relevance</a>.</p>
 
                         <dl>
                           <dt>Examples:</dt>
                           <dd>
                             objects in ASAS and NSVS: <code>ASAS AND NSVS</code><br>
-                            RR Lyrae that are also suspected EBs:<br>
-                            <code>simbad_best_objtype:EB AND color_classes:RR*</code><br>
+                            all ASAS objects at RA 19h: <code>"ASAS J19"*</code><br>
+                            RR Lyr color EBs: <code>simbad_best_objtype:EB color_classes:RR*</code>
                           </dd>
                         </dl>
 
