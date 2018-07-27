@@ -389,6 +389,29 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
         self.fernet = fernet
 
 
+
+    def write_error(self, status_code, **kwargs):
+        '''This overrides the usual write_error function so we can return JSON.
+
+        Mostly useful to not make the frontend UI not hang indefinitely in case
+        of a 500 from the backend.
+
+        '''
+
+        retdict = {
+            "status":"failed",
+            "result":None,
+            "message":("Encountered an unrecoverable exception "
+                       "while processing your query, which has been cancelled. "
+                       "Please let the admin of this LCC server "
+                       "instance know if this persists. "
+                       "The exception raised was: %s - '%s'" %
+                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
+        }
+        self.write(retdict)
+
+
+
     @gen.coroutine
     def get(self):
         '''This runs the query.
@@ -500,8 +523,6 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
 
             else:
                 lcclist = None
-
-
 
             #
             # now we've collected all the parameters for
@@ -954,6 +975,29 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+
+
+
+    def write_error(self, status_code, **kwargs):
+        '''This overrides the usual write_error function so we can return JSON.
+
+        Mostly useful to not make the frontend UI not hang indefinitely in case
+        of a 500 from the backend.
+
+        '''
+
+        retdict = {
+            "status":"failed",
+            "result":None,
+            "message":("Encountered an unrecoverable exception "
+                       "while processing your query, which has been cancelled. "
+                       "Please let the admin of this LCC server "
+                       "instance know if this persists. "
+                       "The exception raised was: %s - '%s'" %
+                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
+        }
+        self.write(retdict)
+
 
 
     @gen.coroutine
@@ -1536,6 +1580,29 @@ class FTSearchHandler(tornado.web.RequestHandler):
         self.fernet = fernet
 
 
+
+    def write_error(self, status_code, **kwargs):
+        '''This overrides the usual write_error function so we can return JSON.
+
+        Mostly useful to not make the frontend UI not hang indefinitely in case
+        of a 500 from the backend.
+
+        '''
+
+        retdict = {
+            "status":"failed",
+            "result":None,
+            "message":("Encountered an unrecoverable exception "
+                       "while processing your query, which has been cancelled. "
+                       "Please let the admin of this LCC server "
+                       "instance know if this persists. "
+                       "The exception raised was: %s - '%s'" %
+                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
+        }
+        self.write(retdict)
+
+
+
     @gen.coroutine
     def get(self):
         '''This runs the query.
@@ -2109,6 +2176,28 @@ class XMatchHandler(tornado.web.RequestHandler):
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+
+
+
+    def write_error(self, status_code, **kwargs):
+        '''This overrides the usual write_error function so we can return JSON.
+
+        Mostly useful to not make the frontend UI not hang indefinitely in case
+        of a 500 from the backend.
+
+        '''
+
+        retdict = {
+            "status":"failed",
+            "result":None,
+            "message":("Encountered an unrecoverable exception "
+                       "while processing your query, which has been cancelled. "
+                       "Please let the admin of this LCC server "
+                       "instance know if this persists. "
+                       "The exception raised was: %s - '%s'" %
+                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
+        }
+        self.write(retdict)
 
 
 

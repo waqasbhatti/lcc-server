@@ -1355,11 +1355,9 @@ var lcc_search = {
 
                     // alert the user that the query failed
                     lcc_ui.alert_box(
-                        'Query failed because the search backend ' +
-                            'returned an error code: <code>' +
-                            err.statusCode +
-                            '</code>! See the console for ' +
-                            'more details...', 'danger'
+                        'Query failed! Search backend ' +
+                            'cancelled it because of an exception.',
+                        'danger'
                     );
 
 
@@ -1696,11 +1694,9 @@ var lcc_search = {
 
                     // alert the user that the query failed
                     lcc_ui.alert_box(
-                        'Query failed because the search backend ' +
-                            'returned an error code: <code>' +
-                            err.statusCode +
-                            '</code>! See the console for ' +
-                            'more details...', 'danger'
+                        'Query failed! Search backend ' +
+                            'cancelled it because of an exception.',
+                        'danger'
                     );
 
 
@@ -2033,11 +2029,9 @@ var lcc_search = {
 
                     // alert the user that the query failed
                     lcc_ui.alert_box(
-                        'Query failed because the search backend ' +
-                            'returned an error code: <code>' +
-                            err.statusCode +
-                            '</code>! See the console for ' +
-                            'more details...', 'danger'
+                        'Query failed! Search backend ' +
+                            'cancelled it because of an exception.',
+                        'danger'
                     );
 
 
@@ -2370,11 +2364,9 @@ var lcc_search = {
 
                     // alert the user that the query failed
                     lcc_ui.alert_box(
-                        'Query failed because the search backend ' +
-                            'returned an error code: <code>' +
-                            err.statusCode +
-                            '</code>! See the console for ' +
-                            'more details...', 'danger'
+                        'Query failed! Search backend ' +
+                            'cancelled it because of an exception.',
+                        'danger'
                     );
 
                 });
