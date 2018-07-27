@@ -2424,20 +2424,30 @@ class XMatchHandler(tornado.web.RequestHandler):
         # debugging
         LOGGER.info('request arguments: %r' % self.request.arguments)
 
+        # REQUIRED: xmatch specifications and xmatch distance
+        xmq = self.get_argument('xmq')
+        xmd = self.get_argument('xmdistarc',default='3.0')
+        parsed_xmq, parsed_xmd = parse_xmatch_input(xmq, xmd)
+
+        # return early if we can't parse the input data
+        if not parsed_xmq or not parsed_xmd:
+
+            msg = ("Could not parse the xmatch input or "
+                   " the match radius is invalid.")
+
+            retdict = {'status':'failed',
+                       'message':msg,
+                       'result':None}
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+        # if we parsed the input OK, proceed
         try:
 
             if 'X-Real-Host' in self.request.headers:
                 self.req_hostname = self.request.headers['X-Real-Host']
             else:
                 self.req_hostname = self.request.host
-
-            # REQUIRED: xmatch specifications and xmatch distance
-            xmq = self.get_argument('xmq')
-            xmd = self.get_argument('xmdistarc',default='3.0')
-            parsed_xmq, parsed_xmd = parse_xmatch_input(xmq, xmd)
-
-            if not parsed_xmq or not parsed_xmd:
-                raise Exception('could not parse the xmatch input data')
 
             # REQUIRED: extraconditions
             extraconditions = self.get_argument('filters', default=None)

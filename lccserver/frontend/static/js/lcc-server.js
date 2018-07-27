@@ -1026,7 +1026,8 @@ var lcc_search = {
     // this runs an FTS query
     do_xmatch: function () {
 
-        var proceed = false;
+        var proceed_step1 = false;
+        var proceed_step2 = false;
 
         // get the collections to use
         var collections = $('#xmatch-collection-select').val();
@@ -1041,16 +1042,18 @@ var lcc_search = {
         // get the xmatch input
         var xmatchtext = $('#xmatch-query').val().trim();
         if (xmatchtext.length > 0) {
-            proceed = true;
+            proceed_step1 = true;
         }
 
         // get the xmatch distance param
         var xmatchdistance = parseFloat($('#xmatch-matchradius').val().trim());
-        if (xmatchdistance != undefined || !isNaN(xmatchdistance)) {
-            proceed = true;
+        if (xmatchdistance != undefined &&
+            !isNaN(xmatchdistance) &&
+            xmatchdistance > 0.0) {
+            proceed_step2 = true;
         }
         else {
-            proceed = false;
+            proceed_step2 = false;
         }
 
         // get the ispublic parameter
@@ -1086,7 +1089,7 @@ var lcc_search = {
         posturl = posturl + '?' + postparams;
         console.log(postparams);
 
-        if (proceed) {
+        if (proceed_step1 && proceed_step2) {
 
             // disable the submit button until we return
             // FIXME: may need to turn off handler as well
