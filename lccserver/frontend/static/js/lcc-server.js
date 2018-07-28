@@ -184,6 +184,11 @@ var lcc_ui = {
                 }
             }
 
+            // add any sort col to the columns for retrieval
+            // FIXME: finish this
+            var this_selected_sortcol = $(this).val();
+
+
         });
 
         // update the FTS query FTS column list

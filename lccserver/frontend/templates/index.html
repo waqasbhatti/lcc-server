@@ -365,9 +365,12 @@
 
                         <p>Use J2000 equatorial coordinates in either decimal or
                           sexagesimal format and an optional search radius in
-                          decimal arcminutes. The maximum search radius is 60
-                          arcminutes = 1 degree. If a search radius isn't
-                          specified, 5.0 arcminutes will be used by default.</p>
+                          arcminutes. The maximum search radius is 60
+                          arcmin = 1.0 deg. If a search radius isn't
+                          specified, 5.0 arcmin will be used by default.</p>
+
+                        <p>Results are returned in order of increasing
+                          distance (in arcsec) from the center coordinates.</p>
 
                         <dl>
                           <dt>Decimal coordinates</dt>
@@ -381,6 +384,7 @@
                               HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
                               example: 19 25 27.9129 +42 47 03.693 15.0</code></dd>
                         </dl>
+
 
                       </div>
                     </div>
@@ -775,7 +779,8 @@
                         columns in the database and the filters you choose.
                         Filters may be chained together using AND/OR logic.
                         You may also choose a column to sort the
-                        result-set rows in a particular order.</p>
+                        result-set rows in a particular order. This will be
+                        automatically added to the requested query columns.</p>
 
                     </div>
                   </div>
