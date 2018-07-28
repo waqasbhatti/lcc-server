@@ -561,6 +561,15 @@ def sqlite_fulltext_search(basedir,
 
                 extraconditionstr = ' and (%s)' % extraconditions
 
+                # replace the column names and add the table prefixes to them so
+                # they remain unambiguous in case the 'where' columns are in
+                # both the 'object_catalog a' and the 'catalog_fts b' tables
+                for c in rescolumns:
+                    if c in extraconditionstr:
+                        extraconditionstr = (
+                            extraconditionstr.replace(c,'a.%s' % c)
+                        )
+
             else:
 
                 extraconditionstr = ''
@@ -752,7 +761,7 @@ def sqlite_column_search(basedir,
          "{wherecondition} {sortcondition} {limitcondition}")
 
     # validate the column conditions
-    if conditions is not None:
+    if conditions:
 
         wherecondition = validate_sqlite_filters(conditions,
                                                  columnlist=available_columns)
@@ -764,7 +773,10 @@ def sqlite_column_search(basedir,
 
     else:
 
-        wherecondition = ''
+        # we will not proceed if the conditions are None or empty
+        LOGERROR('no conditions specified to filter columns by, '
+                 'will not fetch the entire database')
+        return None
 
 
     # validate the sortby condition
@@ -1253,7 +1265,6 @@ def sqlite_kdtree_conesearch(basedir,
             if rows:
                 for row in rows:
 
-                    obj = row['db_oid']
                     ra = row['db_ra']
                     decl = row['db_decl']
 
@@ -1265,12 +1276,7 @@ def sqlite_kdtree_conesearch(basedir,
                         decl
                     )
 
-                    if 'objectid' not in row:
-                        row['objectid'] = obj
-                    if 'ra' not in row:
-                        row['ra'] = ra
-                    if 'decl' not in row:
-                        row['decl'] = decl
+                    # add in the distance column to the row
                     if 'dist_arcsec' not in row:
                         row['dist_arcsec'] = searchcenter_distarcsec
 
@@ -1841,6 +1847,16 @@ def sqlite_xmatch_search(basedir,
         if extraconditions is not None and len(extraconditions) > 0:
 
             extraconditionstr = 'where (%s)' % extraconditions
+
+            # replace the column names and add the table prefixes to them so
+            # they remain unambiguous in case the 'where' columns are in
+            # both the '_temp_xmatch_table a' and the 'object_catalog b' tables
+            for c in rescolumns:
+                if c in extraconditionstr:
+                    extraconditionstr = (
+                        extraconditionstr.replace(c,'b.%s' % c)
+                    )
+
 
         else:
 

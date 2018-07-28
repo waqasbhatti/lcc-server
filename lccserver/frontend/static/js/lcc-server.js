@@ -13,6 +13,12 @@ var lcc_ui = {
     // this holds intervals for lazy background checking
     intervals: {},
 
+    // this holds previous sort column values for add/removing them from the col
+    // retrieval list
+    prev_sort_cols: {},
+
+    // this holds the currently active filters per search type
+    active_filter_cols: {},
 
     // debounce function to slow down mindless clicking on buttons the backend
     // APIs can probably handle it, but it just wastes time/resources taken
@@ -134,10 +140,10 @@ var lcc_ui = {
 
         });
 
-        // update the filter column select boxes
-        var filter_sortboxes = $('.lcc-sortcolumn-select');
+        // update the sort column select boxes
+        var sort_selectboxes = $('.lcc-sortcolumn-select');
 
-        filter_sortboxes.each(function (e, i) {
+        sort_selectboxes.each(function (e, i) {
 
             var thisbox = $(this);
 
@@ -149,44 +155,29 @@ var lcc_ui = {
 
             for (column_ind; column_ind < columns.length; column_ind++) {
 
-                // special: we'll sort by sdssr by default if it's there
-                // if it's not, we'll sort by objectid
+                thisbox.append('<option value="' +
+                               columns[column_ind] +
+                               '">' +
+                               columns[column_ind] +
+                               '</option>');
 
-                if ((columns[column_ind] == 'sdssr') &&
-                    !done_with_selected) {
-
-                    thisbox.append('<option value="' +
-                                   columns[column_ind] +
-                                   '" selected>' +
-                                   columns[column_ind] +
-                                   '</option>');
-                    done_with_selected = true;
-
-                }
-                else if ((columns[column_ind] == 'sdssr') &&
-                         !done_with_selected) {
-
-                    thisbox.append('<option value="' +
-                                   columns[column_ind] +
-                                   '" selected>' +
-                                   columns[column_ind] +
-                                   '</option>');
-                    done_with_selected = true;
-
-                }
-                else {
-                    thisbox.append('<option value="' +
-                                   columns[column_ind] +
-                                   '">' +
-                                   columns[column_ind] +
-                                   '</option>');
-
-                }
             }
 
-            // add any sort col to the columns for retrieval
-            // FIXME: finish this
-            var this_selected_sortcol = $(this).val();
+            // find either the sdssr column or the objectid column in the
+            // columns to select them as a default sort col
+            var sdssr_ok = columns.find(function (elem) {
+                return elem == 'sdssr';
+            });
+            var objectid_ok = columns.find(function (elem) {
+                return elem == 'objectid';
+            });
+
+            if (sdssr_ok) {
+                thisbox.children('option[value="sdssr"]').attr('selected',true);
+            }
+            else if (objectid_ok) {
+                thisbox.children('option[value="objectid"]').attr('selected',true);
+            }
 
 
         });
@@ -232,7 +223,7 @@ var lcc_ui = {
         $('#xmatch-form').on('submit', function (event) {
 
             event.preventDefault();
-            lcc_ui.debounc(lcc_search.do_xmatch(), 250);
+            lcc_ui.debounce(lcc_search.do_xmatch(), 250);
 
         });
 
@@ -460,13 +451,6 @@ var lcc_ui = {
 
                 filterbucket_elem.append(filter_card);
 
-                // helpfully add this filter column to the list of columns to be
-                // retrieved so we can actually see its effects
-                $('#' + target +
-                  '-column-select > option[value="' + filter_col + '"]')
-                    .attr('selected', true);
-
-
             }
 
             else {
@@ -488,16 +472,8 @@ var lcc_ui = {
 
             e.preventDefault();
 
-            // helpfully remove this filter column from the list of columns to
-            // be retrieved (this might not be what the user wants though?)
             var filter_col = $(this).attr('data-colrem');
             var target = $(this).attr('data-target');
-
-            $('#' +
-              target +
-              '-column-select > option[value="' + filter_col  + '"]')
-                .attr('selected',false);
-
 
             // find our parent
             var thiscard = $(this).parents('.filterbucket-card');
@@ -532,7 +508,7 @@ var lcc_ui = {
 
 
     // this parses the filter control results for any searchtype it is pointed
-    // to. returns an SQL string that can be validated by the backend
+    // to. returns an SQL string that can be validated by the backend.
     parse_column_filters: function(target) {
 
         var filterbucket_elem = $('#' + target + '-filterbucket');
@@ -540,7 +516,9 @@ var lcc_ui = {
         var filterbucket_nitems = filterbucket_items.length;
 
         var filters = [];
+        var filter_cols = [];
 
+        // go through each of the filter items and parse them
         filterbucket_items.each( function (i, e) {
 
             // get this card's vals
@@ -567,10 +545,11 @@ var lcc_ui = {
             }
 
             filters.push(thisfilter);
+            filter_cols.push(col);
 
         });
 
-        return filters.join(' ');
+        return [filters.join(' '), new Set(filter_cols)];
 
     },
 
@@ -667,7 +646,7 @@ var lcc_ui = {
                     var cpzip_download = '';
 
                     if (dataset_fpath != null) {
-                        dataset_download = '<a rel="nofollow" ' +
+                        dataset_download = '<a download rel="nofollow" ' +
                             'href="' + dataset_fpath +
                             '" title="download search results pickle">' +
                             'dataset pickle' +
@@ -677,7 +656,7 @@ var lcc_ui = {
                     }
 
                     if (lczip_fpath != null) {
-                        lczip_download = '<a rel="nofollow" ' +
+                        lczip_download = '<a download rel="nofollow" ' +
                             'href="' + lczip_fpath +
                             '" title="download light curves ZIP">' +
                             'light curve ZIP' +
@@ -687,7 +666,7 @@ var lcc_ui = {
                     }
 
                     if (pfzip_fpath != null) {
-                        pfzip_download = '<a rel="nofollow" ' +
+                        pfzip_download = '<a download rel="nofollow" ' +
                             'href="' + pfzip_fpath +
                             '" title="download period-finding results ZIP">' +
                             'period-finding result pickles ZIP' +
@@ -697,7 +676,7 @@ var lcc_ui = {
                     }
 
                     if (cpzip_fpath != null) {
-                        cpzip_download = '<a rel="nofollow" ' +
+                        cpzip_download = '<a download rel="nofollow" ' +
                         'href="' + cpzip_fpath +
                             '" title="download checkplot pickles ZIP">' +
                             'checkplot pickles ZIP' +
@@ -796,6 +775,7 @@ var lcc_ui = {
 
                 // store this so we can refer to it later
                 var collections = result.collections;
+
                 var collection_ids = collections.collection_id;
                 lcc_search.collections = collections;
                 var coll_idx;
@@ -1094,13 +1074,23 @@ var lcc_search = {
         }
 
         // parse the extra filters
-        var filters = lcc_ui.parse_column_filters('xmatch');
+        var [filters, filter_cols] = lcc_ui.parse_column_filters('xmatch');
+
         if (filters.length == 0) {
             filters = null;
+        }
+        // add any filter enabled columns to the columns to retrieve
+        else {
+            for (let thisfilt of filter_cols) {
+                if (columns.indexOf(thisfilt) == -1) {
+                    columns.push(thisfilt);
+                }
+            }
         }
 
         // get the value of the _xsrf token
         var _xsrf = $('#xmatch-form > input[type="hidden"]').val();
+
 
         var posturl = '/api/xmatch';
         var postparams = {xmq: xmatchtext,
@@ -1111,7 +1101,7 @@ var lcc_search = {
                           columns: columns,
                           filters: filters};
 
-        console.log(postparams);
+        console.table(postparams);
         postparams = $.param(postparams);
         posturl = posturl + '?' + postparams;
         console.log(postparams);
@@ -1430,11 +1420,27 @@ var lcc_search = {
         }
 
         // parse the extra filters
-        var filters = lcc_ui.parse_column_filters('columnsearch');
+        var [filters, filter_cols] = lcc_ui.parse_column_filters('columnsearch');
 
-        // if there are no filters, we won't be fetching the entire catalog
         if (filters.length == 0) {
             filters = null;
+        }
+        // add any filter enabled columns to the columns to retrieve
+        else {
+            for (let thisfilt of filter_cols) {
+                if (columns.indexOf(thisfilt) == -1) {
+                    columns.push(thisfilt);
+                }
+            }
+        }
+
+        // if there are no filters, we won't be fetching the entire catalog
+        if (filters == null || filters.length == 0) {
+            filters = null;
+            lcc_ui.alert_box("No column filters were specified, " +
+                             "not going to fetch entire collection tables.",
+                             'secondary');
+            proceed = false;
         }
         else {
             proceed = true;
@@ -1443,6 +1449,16 @@ var lcc_search = {
         // get the sort column and order
         var sortcol = $('#columnsearch-sortcolumn-select').val();
         var sortorder = $('#columnsearch-sortorder-select').val();
+
+        // also, add the sortby column to the retrieval column list
+
+        var sortcol_in_columns = columns.find(function (elem) {
+            return elem == sortcol;
+        });
+
+        if (!sortcol_in_columns) {
+            columns.push(sortcol);
+        }
 
         var geturl = '/api/columnsearch';
         var getparams = {result_ispublic: ispublic,
@@ -1773,9 +1789,18 @@ var lcc_search = {
         }
 
         // parse the extra filters
-        var filters = lcc_ui.parse_column_filters('ftsquery');
+        var [filters, filter_cols] = lcc_ui.parse_column_filters('ftsquery');
+
         if (filters.length == 0) {
             filters = null;
+        }
+        // add any filter enabled columns to the columns to retrieve
+        else {
+            for (let thisfilt of filter_cols) {
+                if (columns.indexOf(thisfilt) == -1) {
+                    columns.push(thisfilt);
+                }
+            }
         }
 
         var geturl = '/api/ftsquery';
@@ -2108,9 +2133,18 @@ var lcc_search = {
         }
 
         // parse the extra filters
-        var filters = lcc_ui.parse_column_filters('conesearch');
+        var [filters, filter_cols] = lcc_ui.parse_column_filters('conesearch');
+
         if (filters.length == 0) {
             filters = null;
+        }
+        // add any filter enabled columns to the columns to retrieve
+        else {
+            for (let thisfilt of filter_cols) {
+                if (columns.indexOf(thisfilt) == -1) {
+                    columns.push(thisfilt);
+                }
+            }
         }
 
         var geturl = '/api/conesearch';
@@ -2484,37 +2518,45 @@ var lcc_datasets = {
                                                              2) +
                                               '</pre></detail>');
 
-                // 6. nobjects
+                // 6. collections
+                $('#dataset-collections').html( data.collections.join(', '));
+
+                // 7. setpickle
+                $('#dataset-setpickle')
+                    .html('<a download ref="nofollow" href="' +
+                          data.dataset_pickle + '">download file</a>');
+                // 8. picklesha
+                $('#dataset-picklesha')
+                    .html('SHA256: <code>' + data.dataset_shasum + '</code>');
+
+                // 9. setcsv
+                $('#dataset-setcsv')
+                    .html('<a download ref="nofollow" href="' +
+                          data.dataset_csv + '">download file</a>');
+                // 10. csvsha
+                $('#dataset-csvsha')
+                    .html('SHA256: <code>' + data.csv_shasum + '</code>');
+
+
+                // 11. nobjects
                 if ('rowstatus' in data) {
-                    $('#dataset-nobjects').html(data.nobjects + ' (' + data.rowstatus + ')');
+                    $('#dataset-nobjects').html(data.nobjects +
+                                                ' (' +
+                                                data.rowstatus +
+                                                ' &mdash; see the ' +
+                                                '<a download ref="nofollow" href="' +
+                                                data.dataset_csv + '">dataset CSV</a>' +
+                                                ' for complete table)');
                 }
                 else {
                     $('#dataset-nobjects').html(data.nobjects);
                 }
 
-                // 7. collections
-                $('#dataset-collections').html( data.collections.join(', '));
-
-                // 8. setpickle
-                $('#dataset-setpickle')
-                    .html('<a ref="nofollow" href="' +
-                          data.dataset_pickle + '">download file</a>');
-                // 9. picklesha
-                $('#dataset-picklesha')
-                    .html('SHA256: <code>' + data.dataset_shasum + '</code>');
-
-                // 10. setcsv
-                $('#dataset-setcsv')
-                    .html('<a ref="nofollow" href="' +
-                          data.dataset_csv + '">download file</a>');
-                // 11. csvsha
-                $('#dataset-csvsha')
-                    .html('SHA256: <code>' + data.csv_shasum + '</code>');
 
                 if (data.lczip != null && data.lczip != undefined) {
                     // 12. lczip
                     $('#dataset-lczip')
-                        .html('<a ref="nofollow" href="' +
+                        .html('<a download ref="nofollow" href="' +
                               data.lczip + '">download file</a>');
                     // 13. lcsha
                     $('#dataset-lcsha')
@@ -2528,7 +2570,7 @@ var lcc_datasets = {
                 if (data.pfzip != null) {
                     // 14. pfzip
                     $('#dataset-pfzip')
-                        .html('<a ref="nofollow" href="' +
+                        .html('<a download ref="nofollow" href="' +
                               data.pfzip + '">download file</a>');
                     // 15. pfsha
                     $('#dataset-pfsha')
@@ -2546,7 +2588,7 @@ var lcc_datasets = {
                 if (data.cpzip != null) {
                     // 16. cpzip
                     $('#dataset-cpzip')
-                        .html('<a ref="nofollow" href="' +
+                        .html('<a download ref="nofollow" href="' +
                               data.cpzip + '">download file</a>');
                     // 17. cpsha
                     $('#dataset-cpsha')
@@ -2616,7 +2658,10 @@ var lcc_datasets = {
 
                 // check if there are too many rows
                 // if so, only draw the first 3000
-                var max_rows = 3000;
+                var max_rows = data.rows.length;
+                if (data.rows.length > 3000) {
+                    max_rows = 3000;
+                }
 
                 for (rowind; rowind < max_rows; rowind++) {
 
@@ -2671,7 +2716,6 @@ var lcc_datasets = {
                 else {
                     $('#dataset-nobjects').html(data.nobjects);
                 }
-
 
                 // 7. collections
                 $('#dataset-collections').html(data.collections.join(', '));
