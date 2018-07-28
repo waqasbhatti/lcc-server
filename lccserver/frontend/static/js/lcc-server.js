@@ -626,10 +626,11 @@ var lcc_ui = {
                     //
                     // Query column
                     //
-                    var table_query = '<td width="300">' +
+                    var table_query = '<td width="350">' +
                         '<code><details><summary>' + query_type +
-                        '</summary>' +
-                        query_params + '</details></code>' +
+                        '</summary><pre>' +
+                        JSON.stringify(JSON.parse(query_params),null,2) +
+                        '</pre></details></code>' +
                         'collections used: <code>' +
                         queriedcolls + '</code>' +
                         '</td>';
@@ -911,15 +912,17 @@ var lcc_ui = {
 
                             if (ftscols.indexOf(thiscol) != -1) {
                                 formatted_colspec.push(
-                                    '<span class="fts-col">' +
-                                        col_popover + '</span>'
-                                );
-                            }
-                            else if (indexedcols.indexOf(thiscol) != -1) {
-                                formatted_colspec.push(
                                     '<span class="kdtree-col">' +
                                         col_popover + '</span>'
                                 );
+                            }
+                            // indexed columns are not interesting, because
+                            // everyone expects fast searches on any column and
+                            // we indexed pretty much every column anyway. let's
+                            // get rid of <span class="kdtree-col"></span> for
+                            // these for now
+                            else if (indexedcols.indexOf(thiscol) != -1) {
+                                formatted_colspec.push(col_popover);
                             }
                             else {
                                 formatted_colspec.push(col_popover);
