@@ -42,21 +42,22 @@ def readme():
         return f.read()
 
 INSTALL_REQUIRES = [
-    'astrobase>=0.3',
-    'astropy',
     'numpy',
     'scipy',
-    'tornado',
+    'astropy',
     'matplotlib',
+    'tornado',
     'requests',
     'tqdm',
     'markdown',
     'pygments',
+    'pymdown-extensions',
     'psutil',
     'itsdangerous',
     'passlib',
     'bleach',
     'cryptography',
+    'astrobase>=0.3.16',
 ]
 
 EXTRAS_REQUIRE = {
