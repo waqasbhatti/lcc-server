@@ -72,13 +72,12 @@
                 </tr>
 
                 <tr>
-                  <th width="200">search query type</th>
-                  <td><code id="dataset-searchtype">{{ header['searchtype'] }}</code></td>
-                </tr>
-
-                <tr>
                   <th width="200">search query parameters</th>
-                  <td><code id="dataset-searchargs">{{ header['searchargs'] }}</code></td>
+                  <td>
+                    <code id="dataset-searchargs">
+                      <details><summary>{{ header['searchtype'].replace('sqlite_','').replace('postgres_','') }}</summary>{{ header['searchargs'] }}</details>
+                    </code>
+                  </td>
                 </tr>
 
                 <tr>

@@ -636,10 +636,7 @@ var lcc_ui = {
                     var table_setid = '<td>' +
                         '<a rel="nofollow" href="/set/' +
                         setid + '">' +
-                        setid + '</a><br>' +
-                        'collections used: <code>' +
-                        queriedcolls + '</code>' +
-                        '</td>';
+                        setid + '</a></td>';
 
                     //
                     // Objects column
@@ -647,14 +644,19 @@ var lcc_ui = {
                     var table_nobjects = '<td>' +
                         nobjects +
                         '</td>';
-
                     //
                     // Query column
                     //
-                    var table_query = '<td>' +
-                        'query type: <code>' + query_type + '</code><br>' +
-                        'query params: <code>' + query_params + '</code>' +
+                    var table_query = '<td width="300">' +
+                        '<code><details><summary>' + query_type +
+                        '</summary>' +
+                        query_params + '</details></code>' +
+                        'collections used: <code>' +
+                        queriedcolls + '</code>' +
                         '</td>';
+                    table_query = table_query
+                        .replace('sqlite_','')
+                        .replace('postgres_','');
 
                     //
                     // Products column
@@ -2471,28 +2473,27 @@ var lcc_datasets = {
                                           status +
                                           '</span>');
 
-                // 4. searchtype
-                $('#dataset-searchtype').html('<code>' + data.searchtype +
-                                              '</code>');
-
-                // 5. searchargs
-                $('#dataset-searchargs').html('<pre>' +
+                // 4 and 5. searchtype and searchargs
+                $('#dataset-searchargs').html('<details><summary>' +
+                                              data.searchtype
+                                              .replace('sqlite_','')
+                                              .replace('postgres_','') +
+                                              '</summary><pre>' +
                                               JSON.stringify(data.searchargs,
                                                              null,
                                                              2) +
-                                              '</pre>');
+                                              '</pre></detail>');
 
-                // get the row status if there is one
-                var rowstatus = data.rowstatus || ' ';
                 // 6. nobjects
-                $('#dataset-nobjects').html('<code>' +
-                                             data.nobjects +
-                                             '</code> '+ rowstatus);
+                if ('rowstatus' in data) {
+                    $('#dataset-nobjects').html(data.nobjects + ' (' + data.rowstatus + ')');
+                }
+                else {
+                    $('#dataset-nobjects').html(data.nobjects);
+                }
 
                 // 7. collections
-                $('#dataset-collections').html('<code>' +
-                                               data.collections.join(', ') +
-                                               '</code>');
+                $('#dataset-collections').html( data.collections.join(', '));
 
                 // 8. setpickle
                 $('#dataset-setpickle')
@@ -2510,13 +2511,19 @@ var lcc_datasets = {
                 $('#dataset-csvsha')
                     .html('SHA256: <code>' + data.csv_shasum + '</code>');
 
-                // 12. lczip
-                $('#dataset-lczip')
-                    .html('<a ref="nofollow" href="' +
-                          data.lczip + '">download file</a>');
-                // 13. lcsha
-                $('#dataset-lcsha')
-                    .html('SHA256: <code>' + data.lczip_shasum + '</code>');
+                if (data.lczip != null && data.lczip != undefined) {
+                    // 12. lczip
+                    $('#dataset-lczip')
+                        .html('<a ref="nofollow" href="' +
+                              data.lczip + '">download file</a>');
+                    // 13. lcsha
+                    $('#dataset-lcsha')
+                        .html('SHA256: <code>' + data.lczip_shasum + '</code>');
+                }
+                else {
+                    $('#dataset-lczip').html('not available');
+                    $('#dataset-lcsha').empty();
+                }
 
                 if (data.pfzip != null) {
                     // 14. pfzip
@@ -2611,15 +2618,6 @@ var lcc_datasets = {
                 // if so, only draw the first 3000
                 var max_rows = 3000;
 
-                if (data.nobjects > max_rows) {
-                    $('#dataset-nobjects').html(data.nobjects +
-                                                ' (showing only top 3000)');
-                }
-                else {
-                    max_rows = data.nobjects;
-                    $('#dataset-nobjects').html(data.nobjects);
-                }
-
                 for (rowind; rowind < max_rows; rowind++) {
 
                     datarows_elem.append('<tr><td>' +
@@ -2627,11 +2625,6 @@ var lcc_datasets = {
                                          '</td></tr>');
 
                 }
-
-                // 6. nobjects
-                $('#dataset-nobjects').html('<code>' +
-                                            data.nobjects +
-                                            '</code>');
 
                 // clear out the loading indicators at the end
                 $('#setload-icon').empty();
@@ -2660,27 +2653,28 @@ var lcc_datasets = {
                                           status +
                                           '</span>');
 
-                // 4. searchtype
-                $('#dataset-searchtype').html('<code>' + data.searchtype +
-                                              '</code>');
-
-                // 5. searchargs
-                $('#dataset-searchargs').html(
-                    '<code>not available yet...</code>'
-                );
+                // 4 and 5. searchtype and searchargs
+                $('#dataset-searchargs').html('<details><summary>' +
+                                              data.searchtype
+                                              .replace('sqlite_','')
+                                              .replace('postgres_','') +
+                                              '</summary><pre>' +
+                                              JSON.stringify(data.searchargs,
+                                                             null,
+                                                             2) +
+                                              '</pre></detail>');
 
                 // 6. nobjects
-                // get the row status if there is one
-                rowstatus = data.rowstatus || ' ';
-                $('#dataset-nobjects').html('<code>' +
-                                             data.nobjects +
-                                             '</code> '+ rowstatus);
+                if ('rowstatus' in data) {
+                    $('#dataset-nobjects').html(data.nobjects + ' (' + data.rowstatus + ')');
+                }
+                else {
+                    $('#dataset-nobjects').html(data.nobjects);
+                }
 
 
                 // 7. collections
-                $('#dataset-collections').html('<code>' +
-                                               data.collections.join(', ') +
-                                               '</code>');
+                $('#dataset-collections').html(data.collections.join(', '));
 
                 // now wait for the next loop
                 window.setTimeout(function () {
@@ -2695,7 +2689,7 @@ var lcc_datasets = {
             // anything else is weird and broken
             else {
 
-                var message = 'could not retrieve the dataset ' +
+                var message = 'Could not retrieve the dataset ' +
                     'from the LCC server backend';
 
                 lcc_ui.alert_box(message, 'danger');
@@ -2709,7 +2703,7 @@ var lcc_datasets = {
 
         }).fail(function (xhr) {
 
-            var message = 'could not retrieve the dataset ' +
+            var message = 'Could not retrieve the dataset ' +
                 'from the LCC server backend';
 
             lcc_ui.alert_box(message, 'danger');
