@@ -445,13 +445,22 @@ var lcc_ui = {
                     '<div class="ml-auto">' +
                     '<a href="#" title="remove this filter" ' +
                     'class="btn btn-outline-danger btn-sm p-1 ' +
-                    'ml-auto lcc-filterbucket-remove">' +
+                    'ml-auto lcc-filterbucket-remove" ' +
+                    'data-target="' +  target + '"' +
+                    'data-colrem="' + filter_col + '">' +
                     '<img src="/static/images/twotone-clear-24px.svg"></a>' +
                     '</div>' +
                     '</div>' +
                     '</div>';
 
                 filterbucket_elem.append(filter_card);
+
+                // helpfully add this filter column to the list of columns to be
+                // retrieved so we can actually see its effects
+                $('#' + target +
+                  '-column-select > option[value="' + filter_col + '"]')
+                    .attr('selected', true);
+
 
             }
 
@@ -473,6 +482,17 @@ var lcc_ui = {
         $('.tab-pane').on('click', '.lcc-filterbucket-remove', function(e) {
 
             e.preventDefault();
+
+            // helpfully remove this filter column from the list of columns to
+            // be retrieved (this might not be what the user wants though?)
+            var filter_col = $(this).attr('data-colrem');
+            var target = $(this).attr('data-target');
+
+            $('#' +
+              target +
+              '-column-select > option[value="' + filter_col  + '"]')
+                .attr('selected',false);
+
 
             // find our parent
             var thiscard = $(this).parents('.filterbucket-card');
