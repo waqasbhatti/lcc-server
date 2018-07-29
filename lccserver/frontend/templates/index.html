@@ -151,7 +151,7 @@
       <div class="tab-content" id="myTabContent">
 
 
-        <!-- COLLECTION DISPLAY PANEL -->
+        <!-- COLLECTIONS LIST TAB -->
         <div class="tab-pane"
              id="collections" role="tabpanel" aria-labelledby="collections-tab">
 
@@ -187,44 +187,7 @@
         </div>
 
 
-        <!-- DATASET DISPLAY PANEL -->
-        <div class="tab-pane"
-             id="datasets" role="tabpanel" aria-labelledby="datasets-tab">
-
-          <div class="row mt-2">
-            <div class="col-12">
-
-              <h3>Datasets from recent search queries</h3>
-
-              <p>The table below lists the 25 most recent public
-                datasets generated on the LCC server. See <a href="/datasets">all
-                available datasets</a> for a full list.</p>
-
-              <table id="lcc-datasets-table" class="table table-hover table-sm">
-
-                <thead class="bg-light">
-                  <tr>
-                    <th scope="col" width="100">Set ID</th>
-                    <th scope="col" width="80">Objects</th>
-                    <th scope="col" width="350">Query</th>
-                    <th scope="col" width="150">Products</th>
-                    <th scope="col" width="150">Last updated</th>
-                  </tr>
-                </thead>
-
-                <tbody id="lcc-datasets-tablerows">
-
-                </tbody>
-
-              </table>
-
-            </div>
-          </div>
-
-        </div>
-
-
-        <!-- CONE SEARCH QUERY PANEL -->
+        <!-- CONE SEARCH QUERY TAB -->
         <div class="tab-pane show active"
              id="conesearch" role="tabpanel" aria-labelledby="conesearch-tab">
 
@@ -422,7 +385,7 @@
         </div>
 
 
-        <!-- FTS QUERY PANEL -->
+        <!-- FTS QUERY TAB -->
         <div class="tab-pane"
              id="fts" role="tabpanel" aria-labelledby="fts-tab">
 
@@ -624,7 +587,7 @@
         </div>
 
 
-        <!-- COLUMN SEARCH QUERY PANEL -->
+        <!-- COLUMN SEARCH QUERY TAB -->
         <div class="tab-pane"
              id="columns" role="tabpanel" aria-labelledby="columns-tab">
 
@@ -826,7 +789,7 @@
         </div>
 
 
-        <!-- XMATCH QUERY PANEL -->
+        <!-- XMATCH QUERY TAB -->
         <div class="tab-pane"
              id="xmatch" role="tabpanel" aria-labelledby="xmatch-tab">
 
@@ -1015,6 +978,8 @@
 
         </div>
 
+
+        <!-- SQL QUERY TAB -->
         <!-- <div class="tab-pane" -->
         <!--      id="sql" role="tabpanel" aria-labelledby="sql-tab"> -->
 
@@ -1024,8 +989,46 @@
         <!--     </div> -->
         <!--   </div> -->
 
+
         <!-- </div> -->
 
+        <!-- RECENT DATASETS TAB -->
+        <div class="tab-pane"
+             id="datasets" role="tabpanel" aria-labelledby="datasets-tab">
+
+          <div class="row mt-2">
+            <div class="col-12">
+
+              <h3>Datasets from recent search queries</h3>
+
+              <p>The table below lists the 25 most recent public
+                datasets generated on the LCC server. See <a href="/datasets">all
+                available datasets</a> for a full list.</p>
+
+              <table id="lcc-datasets-table" class="table table-hover table-sm">
+
+                <thead class="bg-light">
+                  <tr>
+                    <th scope="col" width="100">Set ID</th>
+                    <th scope="col" width="80">Objects</th>
+                    <th scope="col" width="350">Query</th>
+                    <th scope="col" width="150">Products</th>
+                    <th scope="col" width="150">Last updated</th>
+                  </tr>
+                </thead>
+
+                <tbody id="lcc-datasets-tablerows">
+
+                </tbody>
+
+              </table>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- QUERY STATUS TAB -->
         <div class="tab-pane"
              id="results" role="tabpanel" aria-labelledby="results-tab">
 
