@@ -514,7 +514,7 @@ def sqlite_fulltext_search(basedir,
     # FIXME: FIXME: FIXME: add support for the object_is_public column here
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
          "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
-         "catalog_fts MATCH ?{extraconditions} "
+         "catalog_fts MATCH ? {extraconditions} {publiccondition} "
          "order by bm25(catalog_fts)")
 
     # handle the extra conditions
@@ -597,11 +597,19 @@ def sqlite_fulltext_search(basedir,
 
 
             # format the query
+
+            # add in the object_is_public condition if it is True
+            if require_objectispublic:
+                publiccondition = 'and (object_is_public = 1)'
+            else:
+                publiccondition = ''
+
             # FIXME: this isn't using sqlite safe param substitution
             # does it matter?
             thisq = q.format(columnstr=columnstr,
                              collection_id=lcc,
-                             extraconditions=extraconditionstr)
+                             extraconditions=extraconditionstr,
+                             publiccondition=publiccondition)
 
             # we need to unescape the search string because it might contain
             # exact match strings that we might want to use with FTS
