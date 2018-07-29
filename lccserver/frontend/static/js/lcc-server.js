@@ -866,9 +866,9 @@ var lcc_ui = {
 
                 // THESE ARE INTERSECTIONS ACROSS ALL COLLECTIONS SO ONLY THE
                 // COMMON COLUMNS ACROSS COLLECTIONS
-                var available_columns = result.available_columns;
-                var indexed_columns = result.available_indexed_columns;
-                var fts_columns = result.available_fts_columns;
+                var available_columns = result.available_columns.sort();
+                var indexed_columns = result.available_indexed_columns.sort();
+                var fts_columns = result.available_fts_columns.sort();
 
                 // we'll also store the available columns and their definitions
                 lcc_search.columns = available_columns;
