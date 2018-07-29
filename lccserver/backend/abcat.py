@@ -682,7 +682,8 @@ def objectinfo_to_sqlite(augcatpkl,
 
         indexcols = []
 
-        for icol in defaultcolinfo.keys():
+        # don't forget to index the object_is_public column
+        for icol in (list(defaultcolinfo.keys()) + ['object_is_public']):
 
             if defaultcolinfo[icol]['index']:
                 sqlindex = ('create index %s_idx on object_catalog (%s)' %
