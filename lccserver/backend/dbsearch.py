@@ -691,6 +691,7 @@ def sqlite_column_search(basedir,
                          limit=None,
                          lcclist=None,
                          raiseonfail=False,
+                         require_objectispublic=True,
                          require_ispublic=True):
     '''This runs an arbitrary column search.
 
@@ -940,6 +941,7 @@ def sqlite_sql_search(basedir,
                       sqlstatement,
                       lcclist=None,
                       require_ispublic=True,
+                      require_objectispublic=True,
                       raiseonfail=False):
     '''This runs an arbitrary SQL statement search.
 
@@ -1403,6 +1405,7 @@ def sqlite_xmatch_search(basedir,
                          extraconditions=None,
                          fail_if_conditions_invalid=True,
                          lcclist=None,
+                         require_objectispublic=True,
                          require_ispublic=True,
                          max_matchradius_arcsec=30.0,
                          raiseonfail=False):
