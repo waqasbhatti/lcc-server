@@ -341,11 +341,11 @@ class DatasetHandler(tornado.web.RequestHandler):
 
 
             # check if there are too many rows in the dataset and don't return
-            # data if there more than 5000 rows
+            # data if there more than 3000 rows
             if ds['nobjects'] > 3000:
 
                 LOGGER.warning('more than 3000 objects '
-                               'in dataset. Not making rows')
+                               'in dataset!')
 
                 if returnjson:
 

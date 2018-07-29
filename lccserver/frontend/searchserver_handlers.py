@@ -397,16 +397,34 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
 
         '''
 
-        retdict = {
-            "status":"failed",
-            "result":None,
-            "message":("Encountered an unrecoverable exception "
-                       "while processing your query, which has been cancelled. "
-                       "Please let the admin of this LCC server "
-                       "instance know if this persists. "
-                       "The exception raised was: %s - '%s'" %
-                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
-        }
+        if 'exc_info' in kwargs:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists. "
+                    "The exception raised was: %s - '%s'" %
+                    (kwargs['exc_info'][0], kwargs['exc_info'][1])
+                )
+            }
+
+        else:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists."
+                )
+            }
+
         self.write(retdict)
 
 
@@ -415,7 +433,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
     def get(self):
         '''This runs the query.
 
-        URL: /api/ftsquery?<params>
+        URL: /api/columnsearch?<params>
 
         required params
         ---------------
@@ -985,16 +1003,34 @@ class ConeSearchHandler(tornado.web.RequestHandler):
 
         '''
 
-        retdict = {
-            "status":"failed",
-            "result":None,
-            "message":("Encountered an unrecoverable exception "
-                       "while processing your query, which has been cancelled. "
-                       "Please let the admin of this LCC server "
-                       "instance know if this persists. "
-                       "The exception raised was: %s - '%s'" %
-                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
-        }
+        if 'exc_info' in kwargs:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists. "
+                    "The exception raised was: %s - '%s'" %
+                    (kwargs['exc_info'][0], kwargs['exc_info'][1])
+                )
+            }
+
+        else:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists."
+                )
+            }
+
         self.write(retdict)
 
 
@@ -1588,16 +1624,34 @@ class FTSearchHandler(tornado.web.RequestHandler):
 
         '''
 
-        retdict = {
-            "status":"failed",
-            "result":None,
-            "message":("Encountered an unrecoverable exception "
-                       "while processing your query, which has been cancelled. "
-                       "Please let the admin of this LCC server "
-                       "instance know if this persists. "
-                       "The exception raised was: %s - '%s'" %
-                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
-        }
+        if 'exc_info' in kwargs:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists. "
+                    "The exception raised was: %s - '%s'" %
+                    (kwargs['exc_info'][0], kwargs['exc_info'][1])
+                )
+            }
+
+        else:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists."
+                )
+            }
+
         self.write(retdict)
 
 
@@ -2186,16 +2240,34 @@ class XMatchHandler(tornado.web.RequestHandler):
 
         '''
 
-        retdict = {
-            "status":"failed",
-            "result":None,
-            "message":("Encountered an unrecoverable exception "
-                       "while processing your query, which has been cancelled. "
-                       "Please let the admin of this LCC server "
-                       "instance know if this persists. "
-                       "The exception raised was: %s - '%s'" %
-                       (kwargs['exc_info'][0], kwargs['exc_info'][1]) )
-        }
+        if 'exc_info' in kwargs:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists. "
+                    "The exception raised was: %s - '%s'" %
+                    (kwargs['exc_info'][0], kwargs['exc_info'][1])
+                )
+            }
+
+        else:
+
+            retdict = {
+                "status":"failed",
+                "result":None,
+                "message":(
+                    "Encountered an unrecoverable exception "
+                    "while processing your query, which has been cancelled. "
+                    "Please let the admin of this LCC server "
+                    "instance know if this persists."
+                )
+            }
+
         self.write(retdict)
 
 
