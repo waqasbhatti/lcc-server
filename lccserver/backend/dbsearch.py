@@ -101,7 +101,9 @@ import os.path
 import sqlite3
 import pickle
 import json
+from functools import reduce
 from tornado.escape import squeeze, xhtml_unescape
+
 
 import numpy as np
 
@@ -217,18 +219,19 @@ def sqlite_get_collections(basedir,
         # this is the intersection of all columns available across all
         # collections.  effectively defines the cross-collection columns
         # available for use in queries
-        columns_available = ','.join(columnlist)
-        columns_available = list(set(columns_available.split(',')))
+        collection_columns = [set(x.split(',')) for x in columnlist]
+        columns_available = reduce(lambda x,y: x.intersection(y),
+                                   collection_columns)
 
         # the same, but for columns that have indexes on them
-        indexed_cols_available = ','.join(indexedcols)
-        indexed_cols_available = list(set(indexed_cols_available.split(',')))
+        indexed_columns = [set(x.split(',')) for x in indexedcols]
+        indexed_cols_available = reduce(lambda x,y: x.intersection(y),
+                                        indexed_columns)
 
         # the same but for columns that have FTS indexes on them
-        ftsindexed_cols_available = ','.join(ftsindexedcols)
-        ftsindexed_cols_available = list(
-            set(ftsindexed_cols_available.split(','))
-        )
+        fts_columns = [set(x.split(',')) for x in ftsindexedcols]
+        ftsindexed_cols_available = reduce(lambda x,y: x.intersection(y),
+                                           fts_columns)
 
         if return_connection:
 
@@ -253,9 +256,9 @@ def sqlite_get_collections(basedir,
             'connection':newconn,
             'cursor':newcur,
             'databases':dbnames,
-            'columns':columns_available,
-            'indexedcols':indexed_cols_available,
-            'ftscols':ftsindexed_cols_available,
+            'columns':list(columns_available),
+            'indexedcols':list(indexed_cols_available),
+            'ftscols':list(ftsindexed_cols_available),
             'info':{
                 'collection_id':collection_id,
                 'db_collection_id':[d.replace('-','_') for d in collection_id],
@@ -402,6 +405,7 @@ def sqlite_fulltext_search(basedir,
                            extraconditions=None,
                            lcclist=None,
                            require_ispublic=True,
+                           require_objectispublic=True,
                            raiseonfail=False):
     '''This searches the specified collections for a full-text match.
 
@@ -424,6 +428,9 @@ def sqlite_fulltext_search(basedir,
 
     require_ispublic sets if the query is restricted to public light curve
     collections only.
+
+    require_objectispublic sets if the results should be restricted to objects
+    that are public only.
 
     '''
 
@@ -499,6 +506,7 @@ def sqlite_fulltext_search(basedir,
                       'db_lcfname']
 
     # this is the query that will be used for FTS
+    # FIXME: FIXME: FIXME: add support for the object_is_public column here
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
          "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
          "catalog_fts MATCH ?{extraconditions} "

@@ -234,7 +234,6 @@ var lcc_ui = {
 
             var current_val = $(this).val();
             var coll_ind;
-            var column_ind;
 
             // for each of the values, go through and get their available
             // columns
@@ -243,63 +242,117 @@ var lcc_ui = {
             var available_ftscols = [];
 
             // if the current value of the select is ['all'], then the only
-            // available columns are the ones common to all collections
+            // available columns are the ones common to all collections. this
+            // from an intersection operation run by the backend at
+            // /api/collections
             if (current_val.length == 1 && current_val[0] == 'all') {
+
                 available_columns = lcc_search.columns.sort();
                 available_indexcols = lcc_search.indexcols.sort();
                 available_ftscols = lcc_search.ftscols.sort();
+
+                lcc_ui.update_column_associated_controls(
+                    available_columns,
+                    available_indexcols,
+                    available_ftscols
+                );
+
             }
 
             // otherwise, we have to go through the current collections and get
-            // the common columns
+            // the intersections, i.e. the common columns
             else {
 
-                available_columns = new Set();
-                available_indexcols = new Set();
-                available_ftscols = new Set();
+                // make sure to remove the 'all' value from the array of current
+                // collections
+                current_val = current_val.filter(function (elem) {
+                    return elem != 'all';
+                });
 
-                for (coll_ind = 0;
-                     coll_ind < current_val.length;
-                     coll_ind++) {
+                // get the actual collection associated lists of columns,
+                // indexedcols, and ftscols from the current_val of the select
+                // box
+                var curr_columns = [];
+                var curr_indexedcols = [];
+                var curr_ftscols = [];
 
-                    var thiscoll = current_val[coll_ind];
+                current_val.forEach(function (elem, ind, arr) {
 
-                    // check if this collection exists in our store
-                    var thiscollcheck =
-                        lcc_search.collections
-                        .db_collection_id.indexOf(thiscoll);
+                    coll_ind = lcc_ui.collections.db_collection_id.indexOf(elem);
+                    curr_columns.push(lcc_ui.collections.columnlist[coll_ind]);
+                    curr_indexedcols.push(lcc_ui.collections.indexedcols[coll_ind]);
+                    curr_ftscols.push(lcc_ui.collections.ftsindexedcols[coll_ind]);
 
-                    // if it does, then put its columns into the
-                    // available_columns list
-                    if (thiscollcheck != -1) {
+                });
 
-                            lcc_search.collections['columnlist'][thiscollcheck]
-                            .split(',').forEach(function (elem) {
-                                available_columns.add(elem);
-                            });
 
-                            lcc_search.collections['indexedcols'][thiscollcheck]
-                            .split(',').forEach(function (elem) {
-                                available_indexcols.add(elem);
-                            });
+                // first, we map a function to turn all the column lists from
+                // all collections into sets
+                var cols = curr_columns.map(function (elem) {
+                    return new Set(elem.split(','));
+                });
 
-                            lcc_search.collections['ftsindexedcols'][thiscollcheck]
-                            .split(',').forEach(function (elem) {
-                                available_ftscols.add(elem);
-                            });
+                // next, we'll have to do a reduce operation on the intersection
+                // of all sets of columns available.
+                available_columns = cols
+                    .reduce(function (acc, curr, currind, prev) {
+                        var intersect = new Set();
+                        for (let elem of acc) {
+                            if (curr.has(elem)) {
+                                intersect.add(elem);
+                            }
+                        }
+                        return intersect;
+                    });
 
-                    }
+                // I feel so clever after getting that working...
+                // now, let's do it again for indexed and fts cols
 
-                }
+                // map indexedcols
+                var indexedcols = curr_indexedcols.map(function (elem) {
+                    return new Set(elem.split(','));
+                });
+
+                // reduce to intersection
+                available_indexcols = indexedcols
+                    .reduce(function (acc, curr, currind, prev) {
+                        var intersect = new Set();
+                        for (let elem of acc) {
+                            if (curr.has(elem)) {
+                                intersect.add(elem);
+                            }
+                        }
+                        return intersect;
+                    });
+
+
+                // map ftscols
+                var ftscols = curr_ftscols.map(function (elem) {
+                    return new Set(elem.split(','));
+                });
+
+                // reduce to intersection
+                available_ftscols = ftscols
+                    .reduce(function (acc, curr, currind, prev) {
+                        var intersect = new Set();
+                        for (let elem of acc) {
+                            if (curr.has(elem)) {
+                                intersect.add(elem);
+                            }
+                        }
+                        return intersect;
+                    });
+
+
+                // now that we have a list of available columns we can use,
+                // add these to all of the column select boxes
+                lcc_ui.update_column_associated_controls(
+                    Array.from(available_columns),
+                    Array.from(available_indexcols),
+                    Array.from(available_ftscols)
+                );
+
             }
-
-            // now that we have a list of available columns we can use,
-            // add these to all of the column select boxes
-            lcc_ui.update_column_associated_controls(
-                Array.from(available_columns),
-                Array.from(available_indexcols),
-                Array.from(available_ftscols)
-            );
 
         });
 
@@ -795,6 +848,7 @@ var lcc_ui = {
 
                 // store this so we can refer to it later
                 var collections = result.collections;
+                lcc_ui.collections = collections;
 
                 var collection_ids = collections.collection_id;
                 lcc_search.collections = collections;
@@ -982,7 +1036,7 @@ var lcc_ui = {
 
                 // update the column select boxes
                 lcc_ui.update_column_associated_controls(
-                    columns,
+                    available_columns,
                     indexed_columns,
                     fts_columns
                 );
@@ -1123,10 +1177,8 @@ var lcc_search = {
                           columns: columns,
                           filters: filters};
 
-        console.table(postparams);
         postparams = $.param(postparams);
         posturl = posturl + '?' + postparams;
-        console.log(postparams);
 
         if (proceed_step1 && proceed_step2) {
 
@@ -1490,7 +1542,6 @@ var lcc_search = {
                          sortcol: sortcol,
                          sortorder: sortorder};
 
-        console.log(getparams);
         getparams = $.param(getparams);
         geturl = geturl + '?' + getparams;
 
@@ -1833,7 +1884,6 @@ var lcc_search = {
                          filters: filters};
 
 
-        console.log(getparams);
         getparams = $.param(getparams);
         geturl = geturl + '?' + getparams;
 
@@ -2177,7 +2227,6 @@ var lcc_search = {
                          filters: filters};
 
 
-        console.log(getparams);
         getparams = $.param(getparams);
         geturl = geturl + '?' + getparams;
 

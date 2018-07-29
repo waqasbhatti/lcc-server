@@ -90,6 +90,7 @@ from functools import reduce
 from operator import getitem
 from textwrap import indent
 import gzip
+import operator
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -103,7 +104,7 @@ from tqdm import tqdm
 ## DEFAULT COLUMNS THAT ARE RECOGNIZED ##
 #########################################
 
-from .abcat_columns import COLUMN_INFO
+from .abcat_columns import COLUMN_INFO, COMPOSITE_COLUMN_INFO
 
 
 
@@ -144,9 +145,18 @@ def kdtree_from_lclist(lclistpkl, outfile):
         return None
 
 
+# this is used to map the operator spec in the COMPOSITE_COLUMN_INFO dict to an
+# actual Python operator function
+OPERATORS = {'+':operator.add,
+             '-':operator.sub,
+             '*':operator.mul,
+             '/':operator.truediv}
+
+
+
 def objectinfo_to_sqlite(augcatpkl,
                          outfile,
-                         lcset_name=None,
+                         lcset_name,
                          lcset_desc=None,
                          lcset_project=None,
                          lcset_datarelease=None,
@@ -158,14 +168,20 @@ def objectinfo_to_sqlite(augcatpkl,
 
     '''This writes the object information to an SQLite file.
 
-    lcset_* sets some metadata for the project. this is used by the top-level
-    lcc-collections.sqlite database for all LC collections.
+    lcset_name must be provided. It will be used as name of the DB in several
+    frontend LCC server controls. This is a string, e.g. 'HATNet DR0: Kepler
+    Field'.
 
-    FIXME: add this stuff
+    The other lcset_* kwargs set some metadata for the project. this is used by
+    the top-level lcc-collections.sqlite database for all LC collections. These
+    can all contain Markdown. The frontend will use these to render HTML
+    descriptions, etc.
 
-    makes indexes for fast look up by objectid by default and any columns
-    included in indexcols. also makes a full-text search index for any columns
-    in ftsindexcols.
+    This function makes indexes for fast look up by objectid by default and any
+    columns included in indexcols. also makes a full-text search index for any
+    columns in ftsindexcols. If either of these are not provided, will look for
+    and make indices as specified in abcat_columns.COLUMN_INFO and
+    COMPOSITE_COLUMN_INFO.
 
     If colinfo is not None, it should be either a dict or JSON with elements
     that are of the form:
@@ -180,6 +196,11 @@ def objectinfo_to_sqlite(augcatpkl,
     where column_name should be each column in the augcatpkl file. Any column
     that doesn't have a key in colinfo won't have any extra information
     associated with it.
+
+    If colinfo is not provided, this function will use the column definitions
+    provided in abcat.COLUMN_INFO and abcat.COMPOSITE_COLUMN_INFO. These are
+    fairly extensive and should cover all of the data that the upstream
+    astrobase tools can generate for object information.
 
     NOTE: This function requires FTS5 to be available in SQLite because we don't
     want to mess with ranking algorithms to be implemented for FTS4.
@@ -247,6 +268,7 @@ def objectinfo_to_sqlite(augcatpkl,
             else:
                 defaultcolinfo[thiscol_name]['format'] = '%s'
 
+            # this gets the string representation of the numpy dtype object
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
 
@@ -289,7 +311,111 @@ def objectinfo_to_sqlite(augcatpkl,
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
 
-    # now go though the mag affiliated columns, per magcol
+    # go through the composite unaffiliated columns next (these are generated
+    # from two key:val pairs in the objectinfo dict
+    composite_cols = COMPOSITE_COLUMN_INFO.keys()
+
+    for col in composite_cols:
+
+        #
+        # actually generate the column
+        #
+        col_opstr, col_operand1, col_operand2 = (
+            COMPOSITE_COLUMN_INFO[col]['from']
+        )
+        col_op = OPERATORS[col_opstr]
+
+        # this should magically work because of numpy arrays (hopefully)
+        augcat['objects'][col] = col_op(augcat['objects'][col_operand1],
+                                        augcat['objects'][col_operand2])
+        augcat['columns'].append(col)
+        LOGINFO('generated composite column: %s '
+                'using operator: %r on cols: %s and %s' % (col,
+                                                           col_op,
+                                                           col_operand1,
+                                                           col_operand2))
+
+        thiscol_name = col.replace('.','_')
+        thiscol_dtype = augcat['objects'][col].dtype
+        colnames.append(thiscol_name)
+
+        # set up the default info element
+        defaultcolinfo[thiscol_name] = {'title':None,
+                                        'description':None,
+                                        'dtype':None,
+                                        'format':None,
+                                        'index':False,
+                                        'ftsindex':False}
+
+        colinfo_key = col
+
+
+        #
+        # now go through the various formats
+        #
+
+        # strings
+        if thiscol_dtype.type is np.str_:
+
+            coldefs.append(('%s text' % thiscol_name, str))
+
+            if colinfo_key in COMPOSITE_COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                    colinfo_key
+                ]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%s'
+
+            # this gets the string representation of the numpy dtype
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+
+        # floats
+        elif thiscol_dtype.type is np.float64:
+
+            coldefs.append(('%s double precision' % thiscol_name, float))
+
+            if colinfo_key in COMPOSITE_COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                    colinfo_key
+                ]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%.7f'
+
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+
+        # integers
+        elif thiscol_dtype.type is np.int64:
+
+            coldefs.append(('%s integer' % thiscol_name, int))
+
+            if colinfo_key in COMPOSITE_COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                    colinfo_key
+                ]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%i'
+
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+
+        # everything else is coerced into a string
+        else:
+
+            coldefs.append(('%s text' % thiscol_name, str))
+
+            if colinfo_key in COMPOSITE_COLUMN_INFO:
+                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                    colinfo_key
+                ]
+            else:
+                defaultcolinfo[thiscol_name]['format'] = '%s'
+
+            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+
+    # finally, go though the mag affiliated columns, per magcol
 
     for mc in magcols:
 
@@ -431,13 +557,18 @@ def objectinfo_to_sqlite(augcatpkl,
     # now, we'll generate the create statement
 
     # now these are all cols
-    cols = unaffiliated_cols + mag_affil_cols
+    cols = unaffiliated_cols + list(composite_cols) + mag_affil_cols
 
     column_and_type_list = ', '.join([x[0] for x in coldefs])
     column_list = ', '.join(colnames)
     placeholders = ','.join(['?']*len(cols))
 
+    # this is the final SQL used to create the database this includes an
+    # object_is_public column to add object-level public/private categories. all
+    # of the functions in dbsearch.py can then set to respect this column when
+    # searching.
     sqlcreate = ("create table object_catalog ({column_type_list}, "
+                 "object_is_public integer not null default 1, "
                  "primary key (objectid))")
     sqlcreate = sqlcreate.format(column_type_list=column_and_type_list)
 
@@ -450,6 +581,9 @@ def objectinfo_to_sqlite(augcatpkl,
     LOGINFO('objects in %s: %s, generating SQLite database...' %
             (augcatpkl, augcat['nfiles']))
 
+    LOGINFO('CREATE TABLE statement will be: "%s"' % sqlcreate)
+    LOGINFO('INSERT statement will be: "%s"' % sqlinsert)
+
     # connect to the database
     db = sqlite3.connect(outfile)
     cur = db.cursor()
@@ -457,10 +591,16 @@ def objectinfo_to_sqlite(augcatpkl,
     colformatters = [x[1] for x in coldefs]
 
     # start the transaction
+    cur.executescript('pragma journal_mode = wal; '
+                      'pragma journal_size_limit = 52428800;')
+
     cur.execute('begin')
 
     # create the table
     cur.execute(sqlcreate)
+
+    LOGINFO('object_catalog table created successfully, '
+            'now inserting objects...')
 
     # now we'll insert things into the table
     for rowind in tqdm(range(augcat['objects'][cols[0]].size)):
@@ -687,6 +827,9 @@ def check_extmodule(module, formatkey):
 ##############################################
 
 SQLITE_LCC_CREATE = '''\
+pragma journal_mode = wal;
+pragma journal_size_limit = 52428800;
+
 -- make the main table
 create table lcc_index (
   collection_id text not null,
