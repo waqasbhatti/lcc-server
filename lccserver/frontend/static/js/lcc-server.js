@@ -454,13 +454,25 @@ var lcc_ui = {
             }
 
             else {
-                var msg = target + ', ' +
-                    'column: ' +
-                    filter_col + ' requires dtype: ' +
-                    filter_dtype + ' for its value. ' +
-                    ' (current value is: <strong>' +
-                    filter_val + '</strong>, current filter op is: ' +
-                    '<strong>' + filter_op + '</strong>)';
+
+                var friendly_dtype = 'string';
+                if (filter_dtype.indexOf('f') != -1) {
+                    friendly_dtype = 'float';
+                }
+                else if (filter_dtype.indexOf('i') != -1) {
+                    friendly_dtype = 'int';
+                }
+
+
+                var msg = target +
+                    ' column: <span class="text-primary">' +
+                    filter_col + '</span> ' +
+                    'requires dtype: ' +
+                    '<span class="text-info">' +
+                    friendly_dtype + '</span>. The current filter operator: ' +
+                    '<span class="text-primary">' + filter_op + '</span> or ' +
+                    'operand: <strong>[' + filter_val +
+                    ']</strong> are not compatible.';
 
                 lcc_ui.alert_box(msg, 'secondary');
             }
