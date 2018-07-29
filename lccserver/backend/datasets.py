@@ -1102,12 +1102,16 @@ def sqlite_get_dataset(basedir,
             returndict['pfzip'] = None
 
         # blank out the original LCs
-        for collection in returndict['collections']:
-            for row in returndict['result'][collection]['data']:
-                if 'db_lcfname' in row:
-                    row['db_lcfname'] = None
-                if 'lcfname' in row:
-                    row['lcfname'] = None
+        # FIXME: FIXME: FIXME: why are we doing this?
+
+        # should let these through to generate_dataset_tablerows even if
+        # the dataset is forced to completion
+        # for collection in returndict['collections']:
+        #     for row in returndict['result'][collection]['data']:
+        #         if 'db_lcfname' in row:
+        #             row['db_lcfname'] = None
+        #         if 'lcfname' in row:
+        #             row['lcfname'] = None
 
         LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
                    (returndict['status'], returndict['setid']))
@@ -1130,150 +1134,12 @@ def sqlite_get_dataset(basedir,
 
 
 
-def generate_dataset_csv(
-        basedir,
-        in_dataset,
-        force=False,
-        separator='|',
-        comment='#',
-):
-    '''
-    This generates a CSV for the dataset's data table.
-
-    Requires the output from sqlite_get_dataset or postgres_get_dataset.
-
-    '''
-
-    dataset = in_dataset.copy()
-    productdir = os.path.abspath(os.path.join(basedir,
-                                              'datasets'))
-    setid = dataset['setid']
-    dataset_csv = os.path.join(productdir,'dataset-%s.csv' % setid)
-
-    if os.path.exists(dataset_csv) and not force:
-
-        return dataset_csv
-
-    else:
-
-        setcols = dataset['columns']
-
-        # FIXME: we need to get columnspec per collection
-        # FIXME: this should be the same for each collection
-        # FIXME: but this might break later
-        firstcoll = dataset['collections'][0]
-        colspec = dataset['result'][firstcoll]['columnspec']
-
-        # generate the header JSON now
-        header = {
-            'setid':setid,
-            'created':'%sZ' % dataset['created_on'],
-            'updated':'%sZ' % dataset['last_updated'],
-            'public':dataset['ispublic'],
-            'searchtype':dataset['searchtype'],
-            'searchargs':dataset['searchargs'],
-            'collections':dataset['collections'],
-            'columns':setcols[::],
-            'nobjects':dataset['nobjects'],
-            'coldesc':{}
-        }
-
-        # generate the format string from here
-        formspec = []
-
-        # go through each column and get its info from colspec
-        # also build up the format string for the CSV
-        for col in setcols:
-
-            header['coldesc'][col] = {
-                'desc': colspec[col]['description'],
-                'dtype': colspec[col]['dtype']
-            }
-            formspec.append(colspec[col]['format'])
-
-        # there's an extra collection column needed for the CSV
-        formspec.append('%s')
-        header['columns'].append('collection')
-        header['coldesc']['collection'] = {
-            'desc':'LC collection of this object',
-            'dtype':'U60'
-        }
-
-        # generate the JSON header for the CSV
-        csvheader = json.dumps(header, indent=2)
-        csvheader = indent(csvheader, '%s ' % comment)
-
-        # finalize the formspec
-        formstr = separator.join(formspec)
-
-        # write to the output file now
-        with open(dataset_csv,'wb') as outfd:
-
-            # write the header first
-            outfd.write(('%s\n' % csvheader).encode())
-
-            # we'll go by collection_id first, then by entry
-            for collid in dataset['collections']:
-
-                for entry in dataset['result'][collid]['data']:
-
-                    # censor the light curve filenames
-                    # also make sure the actual files exist, otherwise,
-                    # return nothing for those entries
-                    if 'db_lcfname' in entry:
-
-                        if (entry['db_lcfname'] is not None and
-                            os.path.exists(entry['db_lcfname'])):
-
-                            entry['db_lcfname'] = entry['db_lcfname'].replace(
-                                os.path.abspath(basedir),
-                                '/l'
-                            )
-                        else:
-                            entry['db_lcfname'] = 'missing'
-
-                    if 'lcfname' in entry:
-
-                        if (entry['lcfname'] is not None and
-                            os.path.exists(entry['lcfname'])):
-
-                            entry['lcfname'] = entry['lcfname'].replace(
-                                os.path.abspath(basedir),
-                                '/l'
-                            )
-                        else:
-                            entry['lcfname'] = 'missing'
-
-                    # do the formatting more carefully
-                    row = []
-                    for ic, col in enumerate(setcols):
-
-                        if 'f' in formspec[ic] and entry[col] is None:
-                            row.append(nan)
-
-                        # at some point, numpy started complaining about nans
-                        # not being convertible to integers
-                        elif 'i' in formspec[ic] and entry[col] is None:
-                            row.append(-9999)
-
-                        else:
-                            row.append(entry[col])
-
-                    row.append(collid)
-                    rowstr = formstr % tuple(row)
-                    outfd.write(('%s\n' % rowstr).encode())
-
-        LOGINFO('wrote CSV: %s for dataset: %s' % (dataset_csv, setid))
-        return dataset_csv
-
-
-
 def generate_dataset_tablerows(
         basedir,
         in_dataset,
+        giveupafter=3001,
         headeronly=False,
         strformat=False,
-        giveupafter=3001,
 ):
     '''This generates row elements useful for direct insert into a HTML table.
 
@@ -1283,13 +1149,44 @@ def generate_dataset_tablerows(
 
     dataset = in_dataset.copy()
     setid = dataset['setid']
-    setcols = dataset['columns']
 
-    # FIXME: we need to get columnspec per collection
-    # FIXME: this should be the same for each collection
-    # FIXME: but this might break later
-    firstcoll = dataset['collections'][0]
-    colspec = dataset['result'][firstcoll]['columnspec']
+    # we'll get the common columns across all collections
+    xcolumns = []
+
+    # this is the merged colspec dictionary across all collections
+    colspec = {}
+
+    for coll in dataset['collections']:
+        try:
+            # get this collection's column keys from the first row
+            coll_columns = list(dataset['result'][coll]['data'][0].keys())
+
+            # append them as a set to the global list of all collections'
+            # columns
+            xcolumns.append(set(coll_columns))
+
+            # finally, for each column in this collection, get its
+            # specifications
+            for cc in coll_columns:
+                colspec[cc] = dataset['result'][coll]['columnspec'][cc]
+        except:
+            pass
+
+    # xcolumns is now a list of sets of column keys from all collections.
+    # we can only display columns that are common to all collections, so we need
+    # to do a reduce operation on set intersections of all of these sets.
+    columns = reduce(lambda x,y: x.intersection(y), xcolumns)
+    columns = list(columns)
+
+    # we need to reorder the common columns in the order they were requested in
+    requested_cols = dataset['columns']
+
+    # but the requested columns might contain columns that are not common across
+    # all collections, so we need to be careful
+    final_cols = []
+    for col in requested_cols:
+        if col in columns:
+            final_cols.append(col)
 
     # generate the header JSON now
     header = {
@@ -1301,14 +1198,14 @@ def generate_dataset_tablerows(
         'searchtype':dataset['searchtype'],
         'searchargs':dataset['searchargs'],
         'collections':dataset['collections'],
-        'columns':setcols[::],
+        'columns':final_cols,
         'nobjects':dataset['nobjects'],
         'coldesc':{}
     }
 
     # go through each column and get its info from colspec
     # also build up the format string for the CSV
-    for col in setcols:
+    for col in final_cols:
 
         header['coldesc'][col] = {
             'title': colspec[col]['title'],
@@ -1332,11 +1229,17 @@ def generate_dataset_tablerows(
     table_rows = []
     nitems = 0
 
+    if giveupafter is None or giveupafter is False:
+        maxrows = sum(len(dataset['result'][collid]['data']) for
+                      collid in dataset['collections'])
+    else:
+        maxrows = giveupafter
+
     # we'll go by collection_id first, then by entry
     for collid in dataset['collections']:
         for entry in dataset['result'][collid]['data']:
 
-            if nitems > giveupafter:
+            if nitems > maxrows:
                 LOGWARNING('reached %s rows, returning early' % giveupafter)
                 break
 
@@ -1367,19 +1270,22 @@ def generate_dataset_tablerows(
                 else:
                     entry['lcfname'] = None
 
+            # if we're returning in string format, we need to format each
+            # row according to the per-column format strings
             if strformat:
 
                 row = []
 
-                for col in setcols:
+                for col in final_cols[:-1]:
 
                     if col in ('lcfname', 'db_lcfname'):
                         if entry[col] is not None:
-                            row.append('<a href="%s">download light curve</a>' %
-                                       entry[col])
+                            row.append(
+                                '<a href="%s">download light curve</a>' %
+                                (entry[col],)
+                            )
                         else:
-                            row.append('<span class="text-danger">'
-                                       'unavailable or missing</span>')
+                            row.append('unavailable or missing')
 
                     # take care with nans, Nones, and missing integers
                     else:
@@ -1392,102 +1298,79 @@ def generate_dataset_tablerows(
                         else:
                             row.append(colform % entry[col])
 
+            # otherwise, we can just return the row for this entry
             else:
-                row = [entry[col] for col in setcols]
+                row = [entry[col] for col in final_cols[:-1]]
 
+            # at end of the row processing, append the collection ID
             row.append(collid)
+
+            # append this row to the table_rows
             table_rows.append(row)
             nitems = nitems + 1
+
 
     return header, table_rows
 
 
 
-################################################################
-## FUNCTIONS THAT WRAP DBSEARCH FUNCTIONS AND RETURN DATASETS ##
-################################################################
-
-# ALL LATER
-
-def sqlite_dataset_fulltext_search(basedir,
-                                   ftsquerystr,
-                                   getcolumns=None,
-                                   extraconditions=None,
-                                   lcclist=None,
-                                   require_ispublic=True):
+def generate_dataset_csv(
+        basedir,
+        in_dataset,
+        force=False,
+        separator='|',
+        comment='#',
+):
     '''
-    This does a full-text search and returns a dataset.
+    This generates a CSV for the dataset's data table.
+
+    Requires the output from sqlite_get_dataset or postgres_get_dataset.
 
     '''
+    productdir = os.path.abspath(os.path.join(basedir,
+                                              'datasets'))
+    setid = in_dataset['setid']
+    dataset_csv = os.path.join(productdir,'dataset-%s.csv' % setid)
+
+    if not force and os.path.exists(dataset_csv):
+
+        LOGINFO('returning cached version of %s' % dataset_csv)
+        return dataset_csv
+
+    else:
+
+        # generate the strformatted table rows using generate_dataset_tablerows
+        header, datarows = generate_dataset_tablerows(basedir,
+                                                      in_dataset,
+                                                      giveupafter=None,
+                                                      headeronly=False,
+                                                      strformat=True)
+
+        LOGINFO('generating new CSV for dataset: %s' % setid)
+
+        # generate the JSON header for the CSV
+        csvheader = json.dumps(header, indent=2)
+        csvheader = indent(csvheader, '%s ' % comment)
+
+        # write to the output file now
+        with open(dataset_csv,'wb') as outfd:
+
+            # write the header first
+            outfd.write(('%s\n' % csvheader).encode())
+
+            for row in datarows:
+                outfd.write(('%s\n' % separator.join(row)).encode())
 
 
-def sqlite_dataset_column_search(basedir,
-                                 getcolumns=None,
-                                 conditions=None,
-                                 sortby=None,
-                                 limit=None,
-                                 lcclist=None,
-                                 require_ispublic=True):
-    '''
-    This does a column search and returns a dataset.
-
-    '''
-
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
-
-
-def sqlite_dataset_sql_search(basedir,
-                              sqlstatement,
-                              lcclist=None,
-                              require_ispublic=True):
-    '''
-    This does an arbitrary SQL search and returns a dataset.
-
-    '''
-
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
-
-
-def sqlite_dataset_kdtree_conesearch(basedir,
-                                     center_ra,
-                                     center_decl,
-                                     radius_arcmin,
-                                     getcolumns=None,
-                                     extraconditions=None,
-                                     lcclist=None,
-                                     require_ispublic=True,
-                                     conesearchworkers=1):
-    '''
-    This does a cone-search and returns a dataset.
-
-    '''
-
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
-
-
-def sqlite_xmatch_search(basedir,
-                         inputdata,
-                         xmatch_dist_arcsec=3.0,
-                         xmatch_closest_only=False,
-                         inputmatchcol=None,
-                         dbmatchcol=None,
-                         getcolumns=None,
-                         extraconditions=None,
-                         lcclist=None,
-                         require_ispublic=None,
-                         max_matchradius_arcsec=30.0):
-    '''This does an xmatch between the input and LCC databases and returns a
-    dataset.
-
-    '''
-
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+        LOGINFO('wrote CSV: %s for dataset: %s' % (dataset_csv, setid))
+        return dataset_csv
 
 
 
 #####################################
 ## SEARCHING FOR STUFF IN DATASETS ##
 #####################################
+
+# TODO: these functions search in the lcc-datasets.sqlite databases:
+# - full text match on dataset ID, description, name, searchargs
+# - cone search and overlapping query on dataset footprint
