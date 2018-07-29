@@ -31,24 +31,26 @@
         <div class="card">
           <div class="card-header" id="headingOne">
             <h3 class="mb-0">
-              <button class="btn btn-link"
+              <button class="btn btn-link collapsed" id="dataset-header"
                       type="button" data-toggle="collapse"
                       data-target="#collapseOne"
-                      aria-expanded="true" aria-controls="collapseOne">
-                Dataset metadata
+                      aria-expanded="false" aria-controls="collapseOne">
+                Dataset
+                <span id="dataset-setid" data-setid="{{ header['setid'] }}" >{{ header['setid'] }}</span>
+                &mdash; <span id="dataset-status"><span class="text-info">{{ header['status'] }}</span></span>
               </button>
             </h3>
           </div>
 
-          <div id="collapseOne" class="collapse show"
+          <div id="collapseOne" class="collapse"
                aria-labelledby="headingOne" data-parent="#accordionExample">
             <div class="card-body">
 
               <table class="table table-borderless table-sm">
 
                 <tr>
-                  <th width="200">dataset ID</th>
-                  <td id="dataset-setid" data-setid="{{ header['setid'] }}">{{ header['setid'] }}</td>
+                  <th width="80">objects</th>
+                  <td><span id="dataset-nobjects">{{ header['nobjects'] }}</span></td>
                 </tr>
 
                 <tr>
@@ -59,11 +61,6 @@
                 <tr>
                   <th width="200">last updated</th>
                   <td><span class="moment-format" id="dataset-lastupdated">{{ header['updated'] }}</span></td>
-                </tr>
-
-                <tr>
-                  <th width="200">status</th>
-                  <td id="dataset-status"><span class="text-info">{{ header['status'] }}</span></td>
                 </tr>
 
                 <tr>
@@ -78,11 +75,6 @@
                       <details><summary>{{ header['searchtype'].replace('sqlite_','').replace('postgres_','') }}</summary>{{ header['searchargs'] }}</details>
                     </code>
                   </td>
-                </tr>
-
-                <tr>
-                  <th width="200">total objects found</th>
-                  <td><code id="dataset-nobjects">{{ header['nobjects'] }}</code></td>
                 </tr>
 
                 <tr>
