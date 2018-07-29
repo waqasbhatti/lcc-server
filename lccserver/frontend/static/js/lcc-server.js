@@ -354,6 +354,13 @@ var lcc_ui = {
 
             }
 
+            // IMPORTANT: clear out all the filter buckets because the backend
+            // will ignore non-existent columns that might get left behind if
+            // the filter bucket remains unchanged after the collection change
+            // is fired.
+            // FIXME: fix this on the backend too
+            $('.lcc-filterbucket').empty();
+
         });
 
         // bind the lcc-filtertarget so an Enter clicks the add-filter button
@@ -504,6 +511,9 @@ var lcc_ui = {
                     '</div>';
 
                 filterbucket_elem.append(filter_card);
+
+                // clear the current value box so it's empty for the next item
+                filter_val_elem.val('');
 
             }
 
@@ -1294,7 +1304,7 @@ var lcc_search = {
                             + msgdata.result.nobjects +
                             '</strong> matched objects found. ' +
                             '<a target="_blank" ' +
-                            'rel="noreferrer noopener" href="' +
+                            'rel="nofollow noreferer noopener" href="' +
                             msgdata.result.seturl +
                             '">Result dataset is ready to view.</a>';
 
@@ -1348,15 +1358,34 @@ var lcc_search = {
                                 '</span>'
                         );
 
-                        // notify the user that the query is in the background
-                        alertmsg = 'Query <code>' +
-                            msgdata.result.setid +
-                            '</code> now in background queue. ' +
-                            'Results will appear at ' +
-                            '<a rel="noopener noreferrer"' +
-                            'target="_blank" href="/set/' +
-                            msgdata.result.setid + '">its dataset page</a> ' +
-                            'when done.';
+                        // check if the query went to the background or if it
+                        // actually decided to give up LC zipping because too
+                        // many LCs were requested
+                        if (msgdata.message.indexOf("won't generate") != -1) {
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code>: is complete, but there are &gt; ' +
+                                '20,000 LCs to collect so no ZIP file was ' +
+                                'generated. Try refining your query, or see ' +
+                                ' the <a target="_blank" ' +
+                                'rel="nofollow noreferer noopener" href="' +
+                                msgdata.result.seturl + '">dataset page for a ' +
+                                'CSV that lists all objects and download links ' +
+                                'for their individual light curves.';
+                        }
+
+                        else {
+                            // notify the user that the query is in the background
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code> now in background queue. ' +
+                                'Results will appear at ' +
+                                '<a rel="nofollow noopener noreferrer"' +
+                                'target="_blank" href="/set/' +
+                                msgdata.result.setid + '">its dataset page</a> ' +
+                                'when done.';
+
+                        }
 
                         lcc_ui.alert_box(alertmsg, 'warning');
 
@@ -1659,7 +1688,7 @@ var lcc_search = {
                             + msgdata.result.nobjects +
                             '</strong> matched objects found. ' +
                             '<a target="_blank" ' +
-                            'rel="noreferrer noopener" href="' +
+                            'rel="nofollow noreferrer noopener" href="' +
                             msgdata.result.seturl +
                             '">Result dataset is ready to view.</a>';
 
@@ -1713,15 +1742,34 @@ var lcc_search = {
                                 '</span>'
                         );
 
-                        // notify the user that the query is in the background
-                        alertmsg = 'Query <code>' +
-                            msgdata.result.setid +
-                            '</code> now in background queue. ' +
-                            'Results will appear at ' +
-                            '<a rel="noopener noreferrer"' +
-                            'target="_blank" href="/set/' +
-                            msgdata.result.setid + '">its dataset page</a> ' +
-                            'when done.';
+                        // check if the query went to the background or if it
+                        // actually decided to give up LC zipping because too
+                        // many LCs were requested
+                        if (msgdata.message.indexOf("won't generate") != -1) {
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code>: is complete, but there are &gt; ' +
+                                '20,000 LCs to collect so no ZIP file was ' +
+                                'generated. Try refining your query, or see ' +
+                                ' the <a target="_blank" ' +
+                                'rel="nofollow noreferer noopener" href="' +
+                                msgdata.result.seturl + '">dataset page for a ' +
+                                'CSV that lists all objects and download links ' +
+                                'for their individual light curves.';
+                        }
+
+                        else {
+                            // notify the user that the query is in the background
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code> now in background queue. ' +
+                                'Results will appear at ' +
+                                '<a rel="nofollow noopener noreferrer"' +
+                                'target="_blank" href="/set/' +
+                                msgdata.result.setid + '">its dataset page</a> ' +
+                                'when done.';
+
+                        }
 
                         lcc_ui.alert_box(alertmsg, 'warning');
 
@@ -2001,7 +2049,7 @@ var lcc_search = {
                             + msgdata.result.nobjects +
                             '</strong> matched objects found. ' +
                             '<a target="_blank" ' +
-                            'rel="noreferrer noopener" href="' +
+                            'rel="nofollow noreferrer noopener" href="' +
                             msgdata.result.seturl +
                             '">Result dataset is ready to view.</a>';
 
@@ -2055,15 +2103,34 @@ var lcc_search = {
                                 '</span>'
                         );
 
-                        // notify the user that the query is in the background
-                        alertmsg = 'Query <code>' +
-                            msgdata.result.setid +
-                            '</code> now in background queue. ' +
-                            'Results will appear at ' +
-                            '<a rel="noopener noreferrer"' +
-                            'target="_blank" href="/set/' +
-                            msgdata.result.setid + '">its dataset page</a> ' +
-                            'when done.';
+                        // check if the query went to the background or if it
+                        // actually decided to give up LC zipping because too
+                        // many LCs were requested
+                        if (msgdata.message.indexOf("won't generate") != -1) {
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code>: is complete, but there are &gt; ' +
+                                '20,000 LCs to collect so no ZIP file was ' +
+                                'generated. Try refining your query, or see ' +
+                                ' the <a target="_blank" ' +
+                                'rel="nofollow noopener noreferer" href="' +
+                                msgdata.result.seturl + '">dataset page for a ' +
+                                'CSV that lists all objects and download links ' +
+                                'for their individual light curves.';
+                        }
+
+                        else {
+                            // notify the user that the query is in the background
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code> now in background queue. ' +
+                                'Results will appear at ' +
+                                '<a rel="nofollow noopener noreferrer"' +
+                                'target="_blank" href="/set/' +
+                                msgdata.result.setid + '">its dataset page</a> ' +
+                                'when done.';
+
+                        }
 
                         lcc_ui.alert_box(alertmsg, 'warning');
 
@@ -2344,7 +2411,7 @@ var lcc_search = {
                             + msgdata.result.nobjects +
                             '</strong> matched objects found. ' +
                             '<a target="_blank" ' +
-                            'rel="noreferrer noopener" href="' +
+                            'rel="nofollow noreferrer noopener" href="' +
                             msgdata.result.seturl +
                             '">Result dataset is ready to view.</a>';
 
@@ -2398,15 +2465,34 @@ var lcc_search = {
                                 '</span>'
                         );
 
-                        // notify the user that the query is in the background
-                        alertmsg = 'Query <code>' +
-                            msgdata.result.setid +
-                            '</code> now in background queue. ' +
-                            'Results will appear at ' +
-                            '<a rel="noopener noreferrer"' +
-                            'target="_blank" href="/set/' +
-                            msgdata.result.setid + '">its dataset page</a> ' +
-                            'when done.';
+                        // check if the query went to the background or if it
+                        // actually decided to give up LC zipping because too
+                        // many LCs were requested
+                        if (msgdata.message.indexOf("won't generate") != -1) {
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code>: is complete, but there are &gt; ' +
+                                '20,000 LCs to collect so no ZIP file was ' +
+                                'generated. Try refining your query, or see ' +
+                                ' the <a target="_blank" ' +
+                                'rel="nofollow noopener noreferer" href="' +
+                                msgdata.result.seturl + '">dataset page for a ' +
+                                'CSV that lists all objects and download links ' +
+                                'for their individual light curves.';
+                        }
+
+                        else {
+                            // notify the user that the query is in the background
+                            alertmsg = 'Query <code>' +
+                                msgdata.result.setid +
+                                '</code> now in background queue. ' +
+                                'Results will appear at ' +
+                                '<a rel="nofollow noopener noreferrer"' +
+                                'target="_blank" href="/set/' +
+                                msgdata.result.setid + '">its dataset page</a> ' +
+                                'when done.';
+
+                        }
 
                         lcc_ui.alert_box(alertmsg, 'warning');
 

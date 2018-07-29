@@ -404,9 +404,10 @@ def sqlite_fulltext_search(basedir,
                            getcolumns=None,
                            extraconditions=None,
                            lcclist=None,
+                           raiseonfail=False,
                            require_ispublic=True,
                            require_objectispublic=True,
-                           raiseonfail=False):
+                           fail_if_conditions_invalid=True):
     '''This searches the specified collections for a full-text match.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -431,6 +432,10 @@ def sqlite_fulltext_search(basedir,
 
     require_objectispublic sets if the results should be restricted to objects
     that are public only.
+
+    fail_if_conditions_invalid sets the behavior of the function if it finds
+    that the conditions provided in extraconditions kwarg don't pass
+    validate_sqlite_filters().
 
     '''
 
@@ -518,6 +523,14 @@ def sqlite_fulltext_search(basedir,
         # validate this string
         extraconditions = validate_sqlite_filters(extraconditions,
                                                   columnlist=available_columns)
+
+    elif fail_if_conditions_invalid:
+
+        LOGERROR('fail_if_conditions_invalid = True '
+                 'and extraconditions did not pass '
+                 'validate_sqlite_filters, returning early')
+        db.close()
+        return None
 
 
     # now we have to execute the FTS query for all of the attached databases.
@@ -677,8 +690,8 @@ def sqlite_column_search(basedir,
                          sortby=None,
                          limit=None,
                          lcclist=None,
-                         require_ispublic=True,
-                         raiseonfail=False):
+                         raiseonfail=False,
+                         require_ispublic=True):
     '''This runs an arbitrary column search.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -782,8 +795,9 @@ def sqlite_column_search(basedir,
     else:
 
         # we will not proceed if the conditions are None or empty
-        LOGERROR('no conditions specified to filter columns by, '
+        LOGERROR('invalid conditions specified to filter columns by, '
                  'will not fetch the entire database')
+        db.close()
         return None
 
 
@@ -964,6 +978,7 @@ def sqlite_kdtree_conesearch(basedir,
                              extraconditions=None,
                              lcclist=None,
                              require_ispublic=True,
+                             fail_if_conditions_invalid=True,
                              conesearchworkers=1,
                              raiseonfail=False):
     '''This does a cone-search using searchparams over all lcc in lcclist.
@@ -1087,6 +1102,13 @@ def sqlite_kdtree_conesearch(basedir,
         # validate this string
         extraconditions = validate_sqlite_filters(extraconditions,
                                                   columnlist=available_columns)
+
+    elif fail_if_conditions_invalid:
+        LOGERROR("fail_if_conditions_invalid = True and "
+                 "extraconditions did not pass "
+                 "validate_sqlite_filters, returning early...")
+        db.close()
+        return None
 
 
     # now go through each LCC
@@ -1379,6 +1401,7 @@ def sqlite_xmatch_search(basedir,
                          dbmatchcol=None,
                          getcolumns=None,
                          extraconditions=None,
+                         fail_if_conditions_invalid=True,
                          lcclist=None,
                          require_ispublic=True,
                          max_matchradius_arcsec=30.0,
@@ -1615,6 +1638,15 @@ def sqlite_xmatch_search(basedir,
         # validate this string
         extraconditions = validate_sqlite_filters(extraconditions,
                                                   columnlist=available_columns)
+
+    elif fail_if_conditions_invalid:
+
+        LOGERROR("fail_if_conditions_invalid = True "
+                 "and extraconditions did not pass validate_sqlite_filters, "
+                 "returning early...")
+        db.close()
+        return None
+
 
 
     # handle xmatching by coordinates
