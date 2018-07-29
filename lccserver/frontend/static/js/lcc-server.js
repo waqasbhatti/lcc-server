@@ -1364,12 +1364,12 @@ var lcc_search = {
                         if (msgdata.message.indexOf("won't generate") != -1) {
                             alertmsg = 'Query <code>' +
                                 msgdata.result.setid +
-                                '</code>: is complete, but there are &gt; ' +
+                                '</code> is complete, but there are &gt; ' +
                                 '20,000 LCs to collect so no ZIP file was ' +
                                 'generated. Try refining your query, or see ' +
-                                ' the <a target="_blank" ' +
+                                '<a target="_blank" ' +
                                 'rel="nofollow noreferer noopener" href="' +
-                                msgdata.result.seturl + '">dataset page for a ' +
+                                msgdata.result.seturl + '">its dataset page</a> for a ' +
                                 'CSV that lists all objects and download links ' +
                                 'for their individual light curves.';
                         }
@@ -1748,12 +1748,12 @@ var lcc_search = {
                         if (msgdata.message.indexOf("won't generate") != -1) {
                             alertmsg = 'Query <code>' +
                                 msgdata.result.setid +
-                                '</code>: is complete, but there are &gt; ' +
+                                '</code> is complete, but there are &gt; ' +
                                 '20,000 LCs to collect so no ZIP file was ' +
                                 'generated. Try refining your query, or see ' +
-                                ' the <a target="_blank" ' +
+                                '<a target="_blank" ' +
                                 'rel="nofollow noreferer noopener" href="' +
-                                msgdata.result.seturl + '">dataset page for a ' +
+                                msgdata.result.seturl + '">its dataset page</a> for a ' +
                                 'CSV that lists all objects and download links ' +
                                 'for their individual light curves.';
                         }
@@ -2109,12 +2109,12 @@ var lcc_search = {
                         if (msgdata.message.indexOf("won't generate") != -1) {
                             alertmsg = 'Query <code>' +
                                 msgdata.result.setid +
-                                '</code>: is complete, but there are &gt; ' +
+                                '</code> is complete, but there are &gt; ' +
                                 '20,000 LCs to collect so no ZIP file was ' +
                                 'generated. Try refining your query, or see ' +
-                                ' the <a target="_blank" ' +
+                                '<a target="_blank" ' +
                                 'rel="nofollow noopener noreferer" href="' +
-                                msgdata.result.seturl + '">dataset page for a ' +
+                                msgdata.result.seturl + '">its dataset page</a> for a ' +
                                 'CSV that lists all objects and download links ' +
                                 'for their individual light curves.';
                         }
@@ -2471,12 +2471,12 @@ var lcc_search = {
                         if (msgdata.message.indexOf("won't generate") != -1) {
                             alertmsg = 'Query <code>' +
                                 msgdata.result.setid +
-                                '</code>: is complete, but there are &gt; ' +
+                                '</code> is complete, but there are &gt; ' +
                                 '20,000 LCs to collect so no ZIP file was ' +
                                 'generated. Try refining your query, or see ' +
-                                ' the <a target="_blank" ' +
+                                '<a target="_blank" ' +
                                 'rel="nofollow noopener noreferer" href="' +
-                                msgdata.result.seturl + '">dataset page for a ' +
+                                msgdata.result.seturl + '">its dataset page</a> for a ' +
                                 'CSV that lists all objects and download links ' +
                                 'for their individual light curves.';
                         }
