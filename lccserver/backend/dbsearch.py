@@ -319,10 +319,20 @@ SQLITE_ALLOWED_ORDERBY = ['asc','desc']
 
 SQLITE_ALLOWED_LIMIT = ['limit']
 
+SQLITE_DISALLOWED_STRINGS = ['object_is_public',
+                             '--',
+                             '||',
+                             'drop',
+                             'delete',
+                             'update',
+                             'insert',
+                             'alter',
+                             'create']
 
 
 def validate_sqlite_filters(filterstring,
                             columnlist=None,
+                            disallowed_strings=SQLITE_DISALLOWED_STRINGS,
                             allowedsqlwords=SQLITE_ALLOWED_WORDS,
                             otherkeywords=None):
     '''This validates the sqlitecurve filter string.
@@ -330,6 +340,17 @@ def validate_sqlite_filters(filterstring,
     This MUST be valid SQL but not contain any commands.
 
     '''
+
+    # fail immediately if any of the disallowed_strings are in the query string
+    for dstr in disallowed_strings:
+        if dstr in filterstring:
+            LOGERROR('found disallowed string: %s in query, '
+                     'bailing out immediately' % dstr)
+            return None
+
+    #
+    # otherwise, continue as usual
+    #
 
     # first, lowercase, then squeeze to single spaces
     stringelems = squeeze(filterstring).lower()
@@ -391,6 +412,17 @@ def validate_sqlite_filters(filterstring,
         return None
 
     else:
+
+        # at the end, check again for disallowed words
+        reconstructed_filterstring = ' '.join(stringelems)
+
+        for dstr in disallowed_strings:
+            if dstr in reconstructed_filterstring:
+                LOGERROR('found disallowed string: %s in reconstructed query, '
+                         'bailing out immediately' % dstr)
+                return None
+
+        # if all succeeded, return the filterstring to indicate it's ok
         return filterstring
 
 
@@ -471,6 +503,8 @@ def sqlite_fulltext_search(basedir,
     # default cols
     if getcolumns is not None:
 
+        getcolumns = list(getcolumns)
+
         # make double sure that there are no columns requested that are NOT in
         # the intersection of all the requested collections
         column_check = set(getcolumns) - set(available_columns)
@@ -524,13 +558,13 @@ def sqlite_fulltext_search(basedir,
         extraconditions = validate_sqlite_filters(extraconditions,
                                                   columnlist=available_columns)
 
-    elif fail_if_conditions_invalid:
+        if not extraconditions and fail_if_conditions_invalid:
 
-        LOGERROR('fail_if_conditions_invalid = True '
-                 'and extraconditions did not pass '
-                 'validate_sqlite_filters, returning early')
-        db.close()
-        return None
+            LOGERROR('fail_if_conditions_invalid = True '
+                     'and extraconditions did not pass '
+                     'validate_sqlite_filters, returning early')
+            db.close()
+            return None
 
 
     # now we have to execute the FTS query for all of the attached databases.
@@ -699,6 +733,7 @@ def sqlite_column_search(basedir,
                          limit=None,
                          lcclist=None,
                          raiseonfail=False,
+                         fail_if_conditions_invalid=True,
                          require_objectispublic=True,
                          require_ispublic=True):
     '''This runs an arbitrary column search.
@@ -749,6 +784,8 @@ def sqlite_column_search(basedir,
     # if we have some columns to get, get them and append default cols
     if getcolumns is not None:
 
+        getcolumns = list(getcolumns)
+
         # make double sure that there are no columns requested that are NOT in
         # the intersection of all the requested collections
         column_check = set(getcolumns) - set(available_columns)
@@ -790,21 +827,43 @@ def sqlite_column_search(basedir,
     q = ("select {columnstr} from {collection_id}.object_catalog a "
          "{wherecondition} {sortcondition} {limitcondition}")
 
-    # validate the column conditions
+    # set up the object_is_public condition
+    if require_objectispublic:
+
+        publiccondition = '(object_is_public = 1)'
+
+    else:
+
+        publiccondition = ''
+
+
+    # validate the column conditions and add in any
     if conditions:
 
         wherecondition = validate_sqlite_filters(conditions,
                                                  columnlist=available_columns)
 
-        if not wherecondition:
-            wherecondition = ''
+        # do not proceed if the sqlite filters don't validate
+        if not wherecondition and fail_if_conditions_invalid:
+            LOGERROR('fail_if_conditions_invalid = True and conditions did not '
+                     'pass validate_sqlite_filters, returning early')
+            db.close()
+            return None
+
         else:
-            wherecondition = 'where %s' % wherecondition
+
+            if require_objectispublic:
+                wherecondition = (
+                    'where %s and (object_is_public = 1)' % wherecondition
+                )
+
+            else:
+                wherecondition = 'where %s' % wherecondition
 
     else:
 
         # we will not proceed if the conditions are None or empty
-        LOGERROR('invalid conditions specified to filter columns by, '
+        LOGERROR('no conditions specified to filter columns by, '
                  'will not fetch the entire database')
         db.close()
         return None
@@ -879,6 +938,7 @@ def sqlite_column_search(basedir,
         thisq = q.format(columnstr=columnstr,
                          collection_id=lcc,
                          wherecondition=wherecondition,
+                         publiccondition=publiccondition,
                          sortcondition=sortcondition,
                          limitcondition=limitcondition)
 
@@ -949,6 +1009,7 @@ def sqlite_sql_search(basedir,
                       sqlstatement,
                       lcclist=None,
                       require_ispublic=True,
+                      fail_if_sql_invalid=True,
                       require_objectispublic=True,
                       raiseonfail=False):
     '''This runs an arbitrary SQL statement search.
@@ -988,6 +1049,7 @@ def sqlite_kdtree_conesearch(basedir,
                              extraconditions=None,
                              lcclist=None,
                              require_ispublic=True,
+                             require_objectispublic=True,
                              fail_if_conditions_invalid=True,
                              conesearchworkers=1,
                              raiseonfail=False):
@@ -1046,6 +1108,8 @@ def sqlite_kdtree_conesearch(basedir,
 
     # get the requested columns together
     if getcolumns is not None:
+
+        getcolumns = list(getcolumns)
 
         # make double sure that there are no columns requested that are NOT in
         # the intersection of all the requested collections
@@ -1106,6 +1170,7 @@ def sqlite_kdtree_conesearch(basedir,
          "join _temp_objectid_list b on (a.objectid = b.objectid) "
          "{extraconditions} order by b.objectid asc")
 
+
     # handle the extra conditions
     if extraconditions is not None and len(extraconditions) > 0:
 
@@ -1113,13 +1178,18 @@ def sqlite_kdtree_conesearch(basedir,
         extraconditions = validate_sqlite_filters(extraconditions,
                                                   columnlist=available_columns)
 
-    elif fail_if_conditions_invalid:
-        LOGERROR("fail_if_conditions_invalid = True and "
-                 "extraconditions did not pass "
-                 "validate_sqlite_filters, returning early...")
-        db.close()
-        return None
+        if not extraconditions and fail_if_conditions_invalid:
+            LOGERROR("fail_if_conditions_invalid = True and "
+                     "extraconditions did not pass "
+                     "validate_sqlite_filters, returning early...")
+            db.close()
+            return None
 
+    # handle the publiccondition
+    if require_objectispublic:
+        publiccondition = '(a.object_is_public = 1)'
+    else:
+        publiccondition = ''
 
     # now go through each LCC
     # - load the kdtree
@@ -1251,11 +1321,20 @@ def sqlite_kdtree_conesearch(basedir,
             # if we have extra filters, apply them
             if extraconditions is not None and len(extraconditions) > 0:
 
-                extraconditionstr = 'where (%s)' % extraconditions
+                if publiccondition:
+                    publiccondstr = 'and %s' % publiccondition
+                else:
+                    publiccondstr = ''
+
+                extraconditionstr = 'where (%s) %s' % (extraconditions,
+                                                       publiccondstr)
 
             else:
 
-                extraconditionstr = ''
+                if publiccondition:
+                    extraconditionstr = 'where %s' % publiccondition
+                else:
+                    extraconditionstr = ''
 
             # now, we'll get the corresponding info from the database
             thisq = q.format(columnstr=columnstr,
@@ -1413,8 +1492,8 @@ def sqlite_xmatch_search(basedir,
                          extraconditions=None,
                          fail_if_conditions_invalid=True,
                          lcclist=None,
-                         require_objectispublic=True,
                          require_ispublic=True,
+                         require_objectispublic=True,
                          max_matchradius_arcsec=30.0,
                          raiseonfail=False):
     '''This does an xmatch between the input and LCC databases.
@@ -1434,6 +1513,17 @@ def sqlite_xmatch_search(basedir,
      'colobjectid':name of the objectid column (if None, we'll fake objectids),
      'colra':'name of right ascension column if present' or None,
      'coldec':'name of declination column if present' or None}
+
+    e.g.:
+
+    {'data': {'objectid': ['aaa', 'bbb', 'ccc', 'ddd', 'eee'],
+              'ra': [289.99698, 293.358, 294.197, 291.36630375, 291.3625],
+              'decl': [44.99839, -23.206, 23.181, 42.78435, -42.784]},
+    'columns': ['objectid', 'ra', 'decl'],
+    'types': ['str', 'float', 'float'],
+    'colobjectid': 'objectid',
+    'colra': 'ra',
+    'coldec': 'decl'}
 
     if inputmatchcol is None
        and dbmatchcol is None
@@ -1475,6 +1565,8 @@ def sqlite_xmatch_search(basedir,
 
     # get the requested columns together
     if getcolumns is not None:
+
+        getcolumns = list(getcolumns)
 
         # make double sure that there are no columns requested that are NOT in
         # the intersection of all the requested collections
@@ -1650,13 +1742,14 @@ def sqlite_xmatch_search(basedir,
         extraconditions = validate_sqlite_filters(extraconditions,
                                                   columnlist=available_columns)
 
-    elif fail_if_conditions_invalid:
+        if not extraconditions and fail_if_conditions_invalid:
 
-        LOGERROR("fail_if_conditions_invalid = True "
-                 "and extraconditions did not pass validate_sqlite_filters, "
-                 "returning early...")
-        db.close()
-        return None
+            LOGERROR("fail_if_conditions_invalid = True "
+                     "and extraconditions did not pass "
+                     "validate_sqlite_filters, "
+                     "returning early...")
+            db.close()
+            return None
 
 
 
@@ -1668,7 +1761,7 @@ def sqlite_xmatch_search(basedir,
         q = (
             "select {columnstr} from {collection_id}.object_catalog b "
             "where b.objectid in ({placeholders}) {extraconditionstr} "
-            "order by b.objectid"
+            "{publiccondition} order by b.objectid"
         )
 
         # go through each LCC
@@ -1775,6 +1868,11 @@ def sqlite_xmatch_search(basedir,
 
             this_lcc_results = []
 
+            if require_objectispublic:
+                publiccondition = 'and (b.object_is_public = 1)'
+            else:
+                publiccondition = ''
+
             # if we have extra filters, apply them
             if extraconditions is not None and len(extraconditions) > 0:
 
@@ -1783,6 +1881,14 @@ def sqlite_xmatch_search(basedir,
             else:
 
                 extraconditionstr = ''
+
+            LOGINFO('query = %s' % q.format(
+                columnstr=columnstr,
+                collection_id=lcc,
+                placeholders='<placeholders>',
+                publiccondition=publiccondition,
+                extraconditionstr=extraconditionstr)
+            )
 
             # for each object ind in the input list that has a possible match,
             # look at the list of matched object inds in the LC collection
@@ -1797,6 +1903,7 @@ def sqlite_xmatch_search(basedir,
                 thisq = q.format(columnstr=columnstr,
                                  collection_id=lcc,
                                  placeholders=placeholders,
+                                 publiccondition=publiccondition,
                                  extraconditionstr=extraconditionstr)
 
                 try:
@@ -1908,10 +2015,22 @@ def sqlite_xmatch_search(basedir,
                         extraconditionstr.replace(c,'b.%s' % c)
                     )
 
+            if require_objectispublic:
+                publiccondition = 'and (b.object_is_public = 1)'
+            else:
+                publiccondition = ''
+
+            extraconditionstr = '%s %s' % (extraconditionstr, publiccondition)
+
 
         else:
 
-            extraconditionstr = ''
+            if require_objectispublic:
+                publiccondition = 'where (b.object_is_public = 1)'
+            else:
+                publiccondition = ''
+
+            extraconditionstr = publiccondition
 
         # we use a left outer join because we want to keep all the input columns
         # and notice when there are no database matches
