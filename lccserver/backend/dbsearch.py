@@ -594,11 +594,14 @@ def sqlite_fulltext_search(basedir,
 
         # we should return all FTS indexed columns regardless of whether the
         # user selected them or not
-        collection_ftscols = (
-            dbinfo['info']['ftsindexedcols'][dbindex].split(',')
-        )
 
+        # NOTE: we can only return FTS indexed columns that are valid in the
+        # current context, i.e. only the intersection of all FTS index columns
+        # for all collections requrested for this search. so we DON'T have per
+        # collection column keys in the result row, just the globally available
+        # FTS column keys
         # add these to the default columns we return
+        collection_ftscols = dbinfo['ftscols']
         for c in collection_ftscols:
             if c not in rescolumns:
                 rescolumns.append(c)

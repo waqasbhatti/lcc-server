@@ -85,8 +85,9 @@ import json
 import subprocess
 from multiprocessing import Pool
 from textwrap import indent
-from numpy import nan
+from functools import reduce
 
+from numpy import nan
 
 from . import dbsearch
 dbsearch.set_logger_parent(__name__)
@@ -269,10 +270,15 @@ def sqlite_new_dataset(basedir,
     for coll in collections:
         try:
             coll_columns = list(searchresult[coll]['result'][0].keys())
-            xcolumns.extend(coll_columns)
+            xcolumns.append(set(coll_columns))
         except:
             pass
-    columns = sorted(list(set(xcolumns)))
+
+    # xcolumns is now a list of sets of column keys from all collections.
+    # we can only display columns that are common to all collections, so we need
+    # to do a reduce operation on set intersections of all of these sets.
+    columns = reduce(lambda x,y: x.intersection(y), xcolumns)
+    columns = list(columns)
 
     # we want to return the columns in the order they were requested, so we need
     # to reorder them here
@@ -280,7 +286,6 @@ def sqlite_new_dataset(basedir,
     for c in columns:
         if c not in reqcols:
             reqcols.append(c)
-
 
     # total number of objects found
     nmatches = {x:searchresult[x]['nmatches'] for x in collections}
@@ -297,7 +302,8 @@ def sqlite_new_dataset(basedir,
         'desc':setdesc,
         'ispublic':ispublic,
         'collections':collections,
-        'columns':reqcols,  # these are the columns guaranteed to be in all cols
+        'columns':reqcols,  # these are the columns guaranteed to be in all
+                            # collections
         'result':result,
         'searchtype':searchtype,
         'searchargs':searchargs,
