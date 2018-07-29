@@ -1267,9 +1267,9 @@ def generate_dataset_tablerows(
         in_dataset,
         headeronly=False,
         strformat=False,
+        giveupafter=3001,
 ):
-    '''
-    This generates row elements useful direct insert into an HTML template.
+    '''This generates row elements useful for direct insert into a HTML table.
 
     Requires the output from sqlite_get_dataset or postgres_get_dataset.
 
@@ -1324,10 +1324,15 @@ def generate_dataset_tablerows(
         return header
 
     table_rows = []
+    nitems = 0
 
     # we'll go by collection_id first, then by entry
     for collid in dataset['collections']:
         for entry in dataset['result'][collid]['data']:
+
+            if nitems > giveupafter:
+                LOGWARNING('reached %s rows, returning early' % giveupafter)
+                break
 
             # censor the light curve filenames
             # also make sure the actual files exist, otherwise,
@@ -1386,6 +1391,7 @@ def generate_dataset_tablerows(
 
             row.append(collid)
             table_rows.append(row)
+            nitems = nitems + 1
 
     return header, table_rows
 
