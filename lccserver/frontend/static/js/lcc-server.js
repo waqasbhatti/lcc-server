@@ -377,12 +377,13 @@ var lcc_ui = {
 
             }
 
-            // integer
+            // integer (usually counts of some sort, so we enforce !< 0)
             else if (filter_dtype.indexOf('i') != -1) {
 
                 filter_check = (
                     !(isNaN(parseInt(filter_val.trim()))) &&
-                        filter_opstr != 'ct'
+                        (filter_opstr != 'ct') &&
+                        !(parseInt(filter_val.trim()) < 0)
                 );
 
             }
@@ -463,16 +464,22 @@ var lcc_ui = {
                     friendly_dtype = 'int';
                 }
 
+                var friendly_filterval = filter_val;
+                if (!filter_val || filter_val.length == 0) {
+                    friendly_filterval = 'None';
+                }
 
-                var msg = target +
-                    ' column: <span class="text-primary">' +
-                    filter_col + '</span> ' +
+                var msg = 'Column: <span class="text-primary"><strong>' +
+                    filter_col + '</strong></span> ' +
                     'requires dtype: ' +
-                    '<span class="text-info">' +
-                    friendly_dtype + '</span>. The current filter operator: ' +
-                    '<span class="text-primary">' + filter_op + '</span> or ' +
-                    'operand: <strong>[' + filter_val +
-                    ']</strong> are not compatible.';
+                    '<span class="text-info"><strong>' +
+                    friendly_dtype + '</strong></span>. ' +
+                    'The current filter operator: ' +
+                    '<span class="text-primary"><strong>' +
+                    filter_op + '</strong></span> or ' +
+                    'operand: <span class="text-primary"><strong>' +
+                    friendly_filterval +
+                    '</strong></span> are not compatible.';
 
                 lcc_ui.alert_box(msg, 'secondary');
             }
