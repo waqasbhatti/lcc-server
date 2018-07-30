@@ -683,7 +683,7 @@ def objectinfo_to_sqlite(augcatpkl,
         indexcols = []
 
         # don't forget to index the object_is_public column
-        for icol in (list(defaultcolinfo.keys()) + ['object_is_public']):
+        for icol in defaultcolinfo.keys():
 
             if defaultcolinfo[icol]['index']:
                 sqlindex = ('create index %s_idx on object_catalog (%s)' %
@@ -691,6 +691,10 @@ def objectinfo_to_sqlite(augcatpkl,
                 cur.execute(sqlindex)
                 indexcols.append(icol)
 
+        # make an index on the object_is_public column
+        # this doesn't show up in the public column or indexes lists
+        cur.execute('create index object_is_public_idx '
+                    'on object_catalog (object_is_public)')
 
     # create any full-text-search indices we want
     if ftsindexcols:
