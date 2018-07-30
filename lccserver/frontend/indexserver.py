@@ -479,7 +479,7 @@ def main():
         # this handles static file downloads for individual light curves
         (r'/l/(.*)',
          tornado.web.StaticFileHandler,
-         {'path':BASEDIR}),
+         {'path':os.path.join(BASEDIR,'csvlcs')}),
 
 
         ######################
