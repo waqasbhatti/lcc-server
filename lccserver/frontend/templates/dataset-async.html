@@ -212,7 +212,7 @@
 <!-- the full table -->
 <div class="container-fluid">
 
-  <div class="row mt-4 datatable-container">
+  <div class="row mt-3 datatable-container">
     <div class="col-12">
 
       <table id="lcc-datatable" class="table table-striped table-sm dataset-table">
@@ -262,6 +262,41 @@ $(this).html($(this).text() + ' <strong>(' + mt + ')</strong>');
 
 // start the dataset check every 15 seconds and load if available
 lcc_datasets.get_dataset('{{ setid }}', 15.0);
+
+// on window resize, make sure to stick the table to the bottom again
+$(window).on('resize', function (evt) {
+
+// calculate the offset
+var datacontainer_offset = $('.datatable-container').offset().top;
+
+$('.datatable-container').height($(window).height() -
+datacontainer_offset - 5);
+
+// make the table div bottom stick to the bottom of the container
+// so we can have a scrollbar at the bottom
+$('.dataset-table')
+.height($('.datatable-container').height());
+
+});
+
+// also listen on any collapse events so we can set the height
+// correctly
+$('.accordion').on('shown.bs.collapse hidden.bs.collapse', function (evt) {
+
+// calculate the offset
+var datacontainer_offset = $('.datatable-container').offset().top;
+
+$('.datatable-container').height($(window).height() -
+datacontainer_offset - 5);
+
+// make the table div bottom stick to the bottom of the container
+// so we can have a scrollbar at the bottom
+$('.dataset-table')
+.height($('.datatable-container').height());
+
+});
+
+
 
 });
 

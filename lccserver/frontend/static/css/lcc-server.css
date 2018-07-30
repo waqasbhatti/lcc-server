@@ -66,10 +66,7 @@ code {
 
 .datatable-container {
     overflow-x: auto;
-}
-
-.dataset-table {
-    width: 100%;
+    overflow-y: auto;
 }
 
 .lcc-filterbucket {

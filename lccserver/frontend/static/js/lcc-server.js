@@ -2646,7 +2646,6 @@ var lcc_datasets = {
                 // fill in the header first //
                 //////////////////////////////
 
-
                 // 2a. created
                 var created_on = data.created;
                 created_on = created_on + ' <strong>(' +
@@ -2773,13 +2772,16 @@ var lcc_datasets = {
 
                 var coldef_rows = [];
 
+                var column_widths = [];
+                var thiscol_width = null;
+
                 for (colind; colind < columns.length; colind++) {
 
                     var this_col = columns[colind];
 
                     var this_title = coldesc[this_col]['title'];
                     var this_desc = coldesc[this_col]['desc'];
-                    var this_dtype = coldesc[this_col]['dtype'];
+                    var this_dtype = coldesc[this_col]['dtype'].replace('<','');
 
                     // add the columndef
                     var this_row = '<tr>' +
@@ -2787,17 +2789,44 @@ var lcc_datasets = {
                         '<td width="150">' + this_title + '</td>' +
                         '<td width="350">' + this_desc + '</td>' +
                         '<td width="100"><code>' +
-                        this_dtype.replace('<','&lt;') +
+                        this_dtype +
                         '</code>' +
                         '</td>' +
                         '</tr>';
                     coldef_rows.push(this_row);
 
-                    // also add the column to the header of the datatable
+                    // calculate the width of the header cells
+                    if (this_dtype == 'f8') {
+                        thiscol_width = 100;
+                    }
+                    else if (this_dtype == 'i8') {
+                        thiscol_width = 80;
+                    }
+                    else if (this_dtype.indexOf('U') != -1) {
+                        thiscol_width = parseInt(this_dtype.replace('U',''))*10;
+                        if (thiscol_width > 500) {
+                            thiscol_width = 500;
+                        }
+                    }
+                    else {
+                        thiscol_width = 100;
+                    }
+                    column_widths.push(thiscol_width);
+
+                    // add the column names to the table header
                     $('#lcc-datatable-header').append(
-                        '<th>' + this_col + '</th>'
+                        '<th width="'+ thiscol_width + '">' + this_col + '</th>'
                     );
+
                 }
+
+                // make the table header width = to the sum of the widths we
+                // need
+                var table_width = column_widths
+                    .reduce(function (acc, curr, currind, prev ) {
+                        return parseInt(acc + curr);
+                    });
+                $('#lcc-datatable').width(table_width);
 
                 // finish up the column defs and write them to the table
                 coldef_rows = coldef_rows.join('');
@@ -2831,6 +2860,21 @@ var lcc_datasets = {
                 // clear out the loading indicators at the end
                 $('#setload-icon').empty();
                 $('#setload-indicator').empty();
+
+                // make the table div bottom stick to the bottom of the window
+                // so we can have a scrollbar at the bottom
+
+                // calculate the offset
+                var datacontainer_offset = $('.datatable-container').offset().top;
+
+                $('.datatable-container').height($(window).height() -
+                                                 datacontainer_offset - 5);
+
+                // make the table div bottom stick to the bottom of the container
+                // so we can have a scrollbar at the bottom
+                $('.dataset-table')
+                    .height($('.datatable-container').height());
+
 
             }
 
@@ -2868,7 +2912,8 @@ var lcc_datasets = {
 
                 // 6. nobjects
                 if ('rowstatus' in data) {
-                    $('#dataset-nobjects').html(data.nobjects + ' (' + data.rowstatus + ')');
+                    $('#dataset-nobjects').html(data.nobjects +
+                                                ' (' + data.rowstatus + ')');
                 }
                 else {
                     $('#dataset-nobjects').html(data.nobjects);
