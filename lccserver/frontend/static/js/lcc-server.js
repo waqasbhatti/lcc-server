@@ -1489,7 +1489,7 @@ var lcc_search = {
         }
         else {
             var error_message =
-                "No query text found in the FTS query text box.";
+                "No query text found in the cross-match object list input box.";
             lcc_ui.alert_box(error_message, 'secondary');
         }
 
