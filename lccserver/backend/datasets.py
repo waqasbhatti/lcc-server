@@ -508,8 +508,11 @@ def sqlite_make_dataset_lczip(basedir,
                 if link_csvlc_files:
 
                     # get this collection's LC directory under the LCC basedir
+                    # basedir/csvlcs/<collection>/lightcurves/<lcfname>
                     thiscoll_lcdir = os.path.join(
-                        os.path.dirname(lcformatdesc),
+                        basedir,
+                        'csvlcs',
+                        os.path.dirname(lcformatdesc).split('/')[-1],
                         'lightcurves'
                     )
                     if os.path.exists(thiscoll_lcdir):

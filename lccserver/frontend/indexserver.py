@@ -464,7 +464,7 @@ def main():
         # this handles static file downloads for collection info
         (r'/c/(.*)',
          tornado.web.StaticFileHandler,
-         {'path':BASEDIR}),
+         {'path':os.path.join(BASEDIR,'lccjsons')}),
 
         # this handles static file downloads for dataset pickles
         (r'/d/(.*)',
