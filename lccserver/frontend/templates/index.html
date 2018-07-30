@@ -199,7 +199,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search in collections</h4>
+                  <h3>Search in collections</h3>
 
                   <select class="custom-select lcc-collection-select"
                           id="conesearch-collection-select" multiple size="5">
@@ -344,8 +344,6 @@
                 </div>
               </div>
 
-
-
             </div>
 
             <div class="col-4">
@@ -353,7 +351,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search help</h4>
+                  <h3>Search help</h3>
 
                   <p>Use J2000 equatorial coordinates in either decimal or
                     sexagesimal format and an optional search radius in
@@ -395,12 +393,12 @@
           <!-- main search controls -->
           <div class="row mt-2">
 
-            <div class="col">
+            <div class="col" >
 
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search in collections</h4>
+                  <h3>Search in collections</h3>
 
                   <select class="custom-select lcc-collection-select"
                           id="ftsquery-collection-select" multiple size="5">
@@ -449,51 +447,95 @@
                 </div>
               </div>
 
-
             </div>
 
+            <div class="col-5" >
 
-            <div class="col-4">
-              <h4>Add column filters</h4>
+              <div class="row" >
+                <div class="col-12" >
+                  <h3>Run a full-text search query</h3>
 
-              <div class="form-inline">
+                  <form class="form" id="ftsquery-form"
+                        action="/api/ftsquery" method="post">
+                    {% module xsrf_form_html() %}
+                    <div class="row">
+                      <div class="col-12">
 
-                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
-                        id="ftsquery-filtercolumn-select">
-                </select>
+                        <div class="input-group" >
+                          <input class="form-control" id="ftsquery-query"
+                                 name="ftsquery-query" autocomplete="on"
+                                 type="search" autofocus=""
+                                 placeholder="object name, 2MASS ID, SIMBAD ID, description, tags, etc."
+                                 aria-label="Search">
+                          <div class="input-group-append" >
+                            <button class="btn btn-primary"
+                                    type="submit" id="ftsquery-submit">Search</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
-                        id="ftsquery-filtercondition-select">
-                  <option value="lt" selected>&lt;</option>
-                  <option value="gt">&gt;</option>
-                  <option value="le">&le;</option>
-                  <option value="ge">&ge;</option>
-                  <option value="eq">=</option>
-                  <option value="ne">&ne;</option>
-                  <option value="ct">has</option>
-                </select>
+                    <div class="form-row mt-2 align-items-center justify-content-start">
+                      <div class="col-12">
+                        <div class="form-check">
+                          <input class="form-check-input lcc-result-ispublic"
+                                 type="checkbox" id="ftsquery-ispublic" checked="">
+                          <label class="form-check-label" for="ftsquery-ispublic">
+                            Make dataset from query result publicly visible
+                          </label>
+                        </div>
+                      </div>
+                    </div>
 
-                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
-                       data-searchtype="ftsquery" placeholder="value"
-                       id="ftsquery-filtertarget">
+                  </form>
 
-                <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
-                        type="button"
-                        data-searchtype="ftsquery"
-                        id="ftsquery-filter-add">
-                  <img class="icon-svg"
-                       alt="add this column filter"
-                       src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
-                </button>
-
+                </div>
               </div>
 
-              <div class="row mt-2">
-                <div class="col-12">
+              <div class="row mt-4" >
+                <div class="col-12" >
+                  <h4>Add column filters</h4>
+                  <div class="form-inline">
 
-                  <div class="card px-2 py-2" >
-                    <h6 class="text-muted">Active column filters</h6>
-                    <div class="lcc-filterbucket" id="ftsquery-filterbucket">
+                    <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                            id="ftsquery-filtercolumn-select">
+                    </select>
+
+                    <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                            id="ftsquery-filtercondition-select">
+                      <option value="lt" selected>&lt;</option>
+                      <option value="gt">&gt;</option>
+                      <option value="le">&le;</option>
+                      <option value="ge">&ge;</option>
+                      <option value="eq">=</option>
+                      <option value="ne">&ne;</option>
+                      <option value="ct">contains</option>
+                    </select>
+
+                    <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                           data-searchtype="ftsquery" placeholder="value"
+                           id="ftsquery-filtertarget">
+
+                    <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
+                            type="button"
+                            data-searchtype="ftsquery"
+                            id="ftsquery-filter-add">
+                      <img class="icon-svg"
+                           alt="add this column filter"
+                           src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
+                    </button>
+
+                  </div>
+
+                  <div class="row mt-2">
+                    <div class="col-12">
+
+                      <div class="card px-2 py-2" >
+                        <h6 class="text-muted">Active column filters</h6>
+                        <div class="lcc-filterbucket" id="ftsquery-filterbucket">
+
+                        </div>
+                      </div>
 
                     </div>
                   </div>
@@ -503,84 +545,33 @@
 
             </div>
 
-            <div class="col-5">
+            <div class="col-4" >
+              <h3>Search help</h3>
 
-              <div class="row">
-                <div class="col-12">
+              <p>Full text search is useful for object names,
+                variable type tags, object classification tags,
+                and external object names (e.g. from SIMBAD if they're
+                available). Queries use the
+                <a href="https://www.sqlite.org/fts5.html#full_text_query_syntax">
+                  SQLite FTS5 query syntax</a>. For an exact match
+                against an object name, use <code>&quot;object name&quot;</code>.
+                Matching text may be found in any of the
+                FTS-indexed columns below. They will always be
+                returned with query results. </p>
 
-                  <h4>Run a full text search query</h4>
+              <p><code><span id="ftsquery-column-list"></span></code></p>
 
-                  <form class="form" id="ftsquery-form"
-                        action="/api/ftsquery" method="post">
-                    {% module xsrf_form_html() %}
-                    <div class="row">
-                      <div class="col-12">
+              <p>Results are returned in order of
+                <a href="https://en.wikipedia.org/wiki/Okapi_BM25"> relevance</a>.</p>
 
-                        <input class="form-control" id="ftsquery-query"
-                               name="ftsquery-query" autocomplete="on"
-                               type="search"
-                               placeholder="object name, comment text, tags, etc."
-                               aria-label="Search">
-                      </div>
-                    </div>
-
-                    <div class="row mt-2">
-                      <div class="col-12">
-
-                        <p>Full text search is useful for object names,
-                          variable type tags, object classification tags,
-                          and external object names (e.g. from SIMBAD if they're
-                          available). Queries use the
-                          <a href="https://www.sqlite.org/fts5.html#full_text_query_syntax">
-                            SQLite FTS5 query syntax</a>. For an exact match
-                          against an object name, use <code>&quot;object name&quot;</code>.
-                          Matching text may be found in any of the
-                          FTS-indexed columns below. They will always be
-                          returned with query results. </p>
-
-                        <p><small><code><span id="ftsquery-column-list"></span></code></small></p>
-
-                        <p>Results are returned in order of
-                          <a href="https://en.wikipedia.org/wiki/Okapi_BM25"> relevance</a>.</p>
-
-                        <dl>
-                          <dt>Examples:</dt>
-                          <dd>
-                            objects in ASAS and NSVS: <code>ASAS AND NSVS</code><br>
-                            all ASAS objects at RA 19h: <code>"ASAS J19"*</code><br>
-                            RR Lyr color EBs: <code>simbad_best_objtype:EB color_classes:RR*</code>
-                          </dd>
-                        </dl>
-
-                      </div>
-                    </div>
-
-                    <div class="row mt-2">
-                      <div class="col-12">
-
-                        <div class="form-row align-items-center justify-content-end">
-                          <div class="col-sm-9">
-                            <div class="form-check">
-                              <input class="form-check-input lcc-result-ispublic"
-                                     type="checkbox" id="ftsquery-ispublic" checked="">
-                              <label class="form-check-label" for="ftsquery-ispublic">
-                                Make dataset from query result publicly visible
-                              </label>
-                            </div>
-                          </div>
-                          <div class="d-flex col-sm-3">
-                            <button class="btn btn-primary flex-grow-1"
-                                    type="submit" id="ftsquery-submit">Search</button>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-
-                  </form>
-
-                </div>
-              </div>
+              <dl>
+                <dt>Examples:</dt>
+                <dd>
+                  objects in ASAS and NSVS: <code>ASAS AND NSVS</code><br>
+                  all ASAS objects at RA 19h: <code>"ASAS J19"*</code><br>
+                  RR Lyr color EBs: <code>simbad_best_objtype:EB color_classes:RR*</code>
+                </dd>
+              </dl>
 
             </div>
 
@@ -602,7 +593,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search in collections</h4>
+                  <h3>Search in collections</h3>
 
                   <select class="custom-select lcc-collection-select"
                           id="columnsearch-collection-select" multiple size="5">
@@ -653,47 +644,58 @@
 
             </div>
 
-            <div class="col-4">
-              <h4>Add column filters</h4>
+            <div class="col-5">
 
-              <div class="form-inline">
-
-                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
-                        id="columnsearch-filtercolumn-select">
-                </select>
-
-                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
-                        id="columnsearch-filtercondition-select">
-                  <option value="lt" selected>&lt;</option>
-                  <option value="gt">&gt;</option>
-                  <option value="le">&le;</option>
-                  <option value="ge">&ge;</option>
-                  <option value="eq">=</option>
-                  <option value="ne">&ne;</option>
-                  <option value="ct">has</option>
-                </select>
-
-                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
-                       data-searchtype="columnsearch" placeholder="value"
-                       id="columnsearch-filtertarget">
-
-                <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
-                        type="button"
-                        data-searchtype="columnsearch"
-                        id="columnsearch-filter-add">
-                  <img class="icon-svg"
-                       alt="add this column filter"
-                       src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
-                </button>
-
+              <div class="row" >
+                <div class="col-12" >
+                  <h3>Run a database column query</h3>
+                </div>
               </div>
 
-              <div class="row mt-2">
-                <div class="col-12">
+              <div class="row" >
+                <div class="col-12" >
+                  <h4>Add column filters</h4>
+                  <div class="form-inline">
 
-                  <div class="card px-2 py-2" >
-                    <h6 class="text-muted">Active column filters</h6>
-                    <div class="lcc-filterbucket" id="columnsearch-filterbucket">
+                    <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                            id="columnsearch-filtercolumn-select">
+                    </select>
+
+                    <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                            id="columnsearch-filtercondition-select">
+                      <option value="lt" selected>&lt;</option>
+                      <option value="gt">&gt;</option>
+                      <option value="le">&le;</option>
+                      <option value="ge">&ge;</option>
+                      <option value="eq">=</option>
+                      <option value="ne">&ne;</option>
+                      <option value="ct">contains</option>
+                    </select>
+
+                    <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                           data-searchtype="columnsearch" placeholder="value"
+                           id="columnsearch-filtertarget">
+
+                    <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
+                            type="button"
+                            data-searchtype="columnsearch"
+                            id="columnsearch-filter-add">
+                      <img class="icon-svg"
+                           alt="add this column filter"
+                           src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
+                    </button>
+
+                  </div>
+
+                  <div class="row mt-2">
+                    <div class="col-12">
+
+                      <div class="card px-2 py-2" >
+                        <h6 class="text-muted">Active column filters</h6>
+                        <div class="lcc-filterbucket" id="columnsearch-filterbucket">
+
+                        </div>
+                      </div>
 
                     </div>
                   </div>
@@ -701,88 +703,46 @@
                 </div>
               </div>
 
-              <div class="row mt-2">
+              <div class="row mt-2" >
+                <div class="col-12" >
 
-                <div class="col-7">
-                  <div class="form-group">
-                    <label for="columnsearch-filtercolumn-select">
-                      Column to sort results by
-                    </label>
-                    <select class="custom-select lcc-sortcolumn-select"
-                            id="columnsearch-sortcolumn-select"
-                            data-target="columnsearch">
-                    </select>
-                  </div>
+                  <form id="columnsearch-form"
+                        action="/api/columnsearch" method="post">
+                    {% module xsrf_form_html() %}
+
+                    <div class="form-row align-items-center justify-content-end">
+                      <div class="col-sm-9">
+                        <div class="form-check">
+                          <input class="form-check-input lcc-result-ispublic"
+                                 type="checkbox" id="columnsearch-ispublic" checked="">
+                          <label class="form-check-label" for="columnsearch-ispublic">
+                            Make dataset from query result publicly visible
+                          </label>
+                        </div>
+                      </div>
+                      <div class="d-flex col-sm-3">
+                        <button class="btn btn-primary flex-grow-1"
+                                type="submit" id="columnsearch-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </form>
+
+
                 </div>
-
-                <div class="col-5">
-                  <div class="form-group">
-                    <label for="columnsearch-filtercolumn-select">
-                      Use sort order
-                    </label>
-                    <select class="custom-select lcc-sortorder-select"
-                            id="columnsearch-sortorder-select"
-                            data-target="columnsearch">
-                      <option value="asc">ascending</option>
-                      <option value="desc">descending</option>
-                    </select>
-                  </div>
-                </div>
-
               </div>
 
             </div>
 
-            <div class="col-5">
+            <div class="col-4" >
+              <h3>Search help</h3>
 
-              <div class="row">
-                <div class="col-12">
-
-                  <h4>Run a database column query</h4>
-
-                  <div class="row mt-2">
-                    <div class="col-12">
-
-                      <p>This form lets you build a query based on the available
-                        columns in the database and the filters you choose.
-                        Filters may be chained together using AND/OR logic.
-                        You may also choose a column to sort the
-                        result-set rows in a particular order. This will be
-                        automatically added to the requested query columns.</p>
-
-                    </div>
-                  </div>
-
-                  <div class="row mt-2">
-                    <div class="col-12">
-
-                      <form id="columnsearch-form"
-                            action="/api/columnsearch" method="post">
-                        {% module xsrf_form_html() %}
-
-                        <div class="form-row align-items-center justify-content-end">
-                          <div class="col-sm-9">
-                            <div class="form-check">
-                              <input class="form-check-input lcc-result-ispublic"
-                                     type="checkbox" id="columnsearch-ispublic" checked="">
-                              <label class="form-check-label" for="columnsearch-ispublic">
-                                Make dataset from query result publicly visible
-                              </label>
-                            </div>
-                          </div>
-                          <div class="d-flex col-sm-3">
-                            <button class="btn btn-primary flex-grow-1"
-                                    type="submit" id="columnsearch-submit">Search</button>
-                          </div>
-                        </div>
-
-                      </form>
-
-                    </div>
-                  </div>
-
-                </div>
-              </div>
+              <p>This form lets you build a query based on the available
+                columns in the database and the filters you choose.
+                Filters may be chained together using AND/OR logic.
+                You may also choose a column to sort the
+                result-set rows in a particular order. This will be
+                automatically added to the requested query columns.</p>
 
             </div>
 
@@ -804,7 +764,7 @@
               <div class="row">
                 <div class="col-12">
 
-                  <h4>Search in collections</h4>
+                  <h3>Search in collections</h3>
 
                   <select class="custom-select lcc-collection-select"
                           id="xmatch-collection-select" multiple size="5">
@@ -855,8 +815,74 @@
 
             </div>
 
+            <div class="col-5" >
+
+              <h3>Cross-match object lists</h3>
+
+              <form class="form" id="xmatch-form"
+                    action="/api/xmatch" method="post">
+                {% module xsrf_form_html() %}
+
+                <div class="row">
+                  <div class="col-12">
+
+                    <div class="form-group">
+                      <label for="xmatch-query">Type or paste in <code>[Object Name] [RA] [Dec]</code>
+                        rows separated by line breaks
+                        (<a href="#" id="xmatch-example" >see an example</a>).
+                        The maximum number of objects allowed is 5000.</label>
+                      <textarea class="form-control" id="xmatch-query"
+                                name="xmq" rows="14"></textarea>
+                    </div>
+
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-12">
+
+                    <div class="form-group form-inline">
+                      <label for="xmatch-matchradius">Match radius [arcsec]</label>
+                      <input type="text" id="xmatch-matchradius" value="3.0"
+                             class="w-25 form-control mx-sm-3">
+                      <small id="xmatch-matchradius-helpline"
+                             class="text-muted">
+                        Maximum 30 arcsec.
+                      </small>
+                    </div>
+
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-12">
+
+                    <div class="form-row align-items-center justify-content-end">
+                      <div class="col-sm-9">
+                        <div class="form-check">
+                          <input class="form-check-input lcc-result-ispublic"
+                                 type="checkbox" id="xmatch-ispublic" checked="">
+                          <label class="form-check-label" for="xmatch-ispublic">
+                            Make dataset from query result publicly visible
+                          </label>
+                        </div>
+                      </div>
+                      <div class="d-flex col-sm-3">
+                        <button class="btn btn-primary flex-grow-1"
+                                type="submit" id="xmatch-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+              </form>
+
+            </div>
+
+
             <div class="col-4">
-              <h4>Add column filters</h4>
+              <h3>Add column filters</h3>
 
               <div class="form-inline">
 
@@ -872,7 +898,7 @@
                   <option value="ge">&ge;</option>
                   <option value="eq">=</option>
                   <option value="ne">&ne;</option>
-                  <option value="ct">has</option>
+                  <option value="ct">contains</option>
                 </select>
 
                 <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
@@ -899,77 +925,6 @@
 
                     </div>
                   </div>
-
-                </div>
-              </div>
-
-            </div>
-
-            <div class="col-5">
-
-              <div class="row">
-                <div class="col-12">
-
-                  <h4>Cross-match lists of object coordinates</h4>
-
-                  <form class="form" id="xmatch-form"
-                        action="/api/xmatch" method="post">
-                    {% module xsrf_form_html() %}
-
-                    <div class="row">
-                      <div class="col-12">
-
-                        <div class="form-group">
-                          <label for="xmatch-query"><code>[Name] [RA] [Dec]</code>
-                            rows separated by lines
-                            (<a href="#" id="xmatch-example" >see an example</a>).
-                            The maximum number of object lines allowed is 5000.</label>
-                          <textarea class="form-control" id="xmatch-query"
-                                    name="xmq" rows="15"></textarea>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="col-12">
-
-                        <div class="form-group form-inline">
-                          <label for="xmatch-matchradius">Match radius [arcsec]</label>
-                          <input type="text" id="xmatch-matchradius" value="3.0"
-                                 class="w-25 form-control mx-sm-3">
-                          <small id="xmatch-matchradius-helpline"
-                                 class="text-muted">
-                            Maximum 30 arcsec.
-                          </small>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    <div class="row mt-2">
-                      <div class="col-12">
-
-                        <div class="form-row align-items-center justify-content-end">
-                          <div class="col-sm-9">
-                            <div class="form-check">
-                              <input class="form-check-input lcc-result-ispublic"
-                                     type="checkbox" id="xmatch-ispublic" checked="">
-                              <label class="form-check-label" for="xmatch-ispublic">
-                                Make dataset from query result publicly visible
-                              </label>
-                            </div>
-                          </div>
-                          <div class="d-flex col-sm-3">
-                            <button class="btn btn-primary flex-grow-1"
-                                    type="submit" id="xmatch-submit">Search</button>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-
-                  </form>
 
                 </div>
               </div>
