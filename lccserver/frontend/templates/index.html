@@ -250,62 +250,11 @@
 
             </div>
 
-            <div class="col-4">
-              <h4>Add column filters</h4>
-
-              <div class="form-inline">
-
-                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
-                        id="conesearch-filtercolumn-select">
-                </select>
-
-                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
-                        id="conesearch-filtercondition-select">
-                  <option value="lt" selected>&lt;</option>
-                  <option value="gt">&gt;</option>
-                  <option value="le">&le;</option>
-                  <option value="ge">&ge;</option>
-                  <option value="eq">=</option>
-                  <option value="ne">&ne;</option>
-                  <option value="ct">has</option>
-                </select>
-
-                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
-                       data-searchtype="conesearch" placeholder="value"
-                       id="conesearch-filtertarget">
-
-                <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
-                        type="button"
-                        data-searchtype="conesearch"
-                        id="conesearch-filter-add">
-                  <img class="icon-svg"
-                       alt="add this column filter"
-                       src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
-                </button>
-
-              </div>
-
-              <div class="row mt-2">
-                <div class="col-12">
-
-                  <div class="card px-2 py-2" >
-                    <h6 class="text-muted">Active column filters</h6>
-                    <div class="lcc-filterbucket" id="conesearch-filterbucket">
-
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-            </div>
-
             <div class="col-5">
 
-              <div class="row">
-                <div class="col-12">
-
-                  <h4>Run a cone-search query</h4>
+              <div class="row" >
+                <div class="col-12" >
+                  <h3>Run a cone-search query</h3>
 
                   <form class="form" id="conesearch-form"
                         action="/api/conesearch" method="post">
@@ -313,66 +262,118 @@
                     <div class="row">
                       <div class="col-12">
 
-                        <input class="form-control" id="conesearch-query"
-                               name="conesearch-query" autocomplete="on"
-                               type="search" autofocus=""
-                               placeholder="[right ascension] [declination] [search radius (arcmin)]"
-                               aria-label="Search">
-                      </div>
-                    </div>
-
-                    <div class="row mt-2">
-                      <div class="col-12">
-
-                        <p>Use J2000 equatorial coordinates in either decimal or
-                          sexagesimal format and an optional search radius in
-                          arcminutes. The maximum search radius is 60
-                          arcmin = 1.0 deg. If a search radius isn't
-                          specified, 5.0 arcmin will be used by default.</p>
-
-                        <p>Results are returned in order of increasing
-                          distance (in arcsec) from the center coordinates.</p>
-
-                        <dl>
-                          <dt>Decimal coordinates</dt>
-
-                          <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
-                              example: 289.0 45.0 10.0</code></dd>
-
-                          <dt>Sexagesimal coordinates</dt>
-
-                          <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
-                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
-                              example: 19 25 27.9129 +42 47 03.693 15.0</code></dd>
-                        </dl>
-
-
-                      </div>
-                    </div>
-
-                    <div class="row mt-2">
-                      <div class="col-12">
-
-                        <div class="form-row align-items-center justify-content-end">
-                          <div class="col-sm-9">
-                            <div class="form-check">
-                              <input class="form-check-input lcc-result-ispublic"
-                                     type="checkbox" id="conesearch-ispublic" checked="">
-                              <label class="form-check-label" for="conesearch-ispublic">
-                                Make dataset from query result publicly visible
-                              </label>
-                            </div>
-                          </div>
-                          <div class="d-flex col-sm-3">
+                        <div class="input-group" >
+                          <input class="form-control" id="conesearch-query"
+                                 name="conesearch-query" autocomplete="on"
+                                 type="search" autofocus=""
+                                 placeholder="[right ascension] [declination] [search radius (arcmin)]"
+                                 aria-label="Search">
+                          <div class="input-group-append" >
                             <button class="btn btn-primary flex-grow-1"
                                     type="submit" id="conesearch-submit">Search</button>
                           </div>
                         </div>
+                      </div>
+                    </div>
 
+                    <div class="form-row mt-2 align-items-center justify-content-start">
+                      <div class="form-check">
+                        <input class="form-check-input lcc-result-ispublic"
+                               type="checkbox" id="conesearch-ispublic" checked="">
+                        <label class="form-check-label" for="conesearch-ispublic">
+                          Make dataset from query result publicly visible
+                        </label>
                       </div>
                     </div>
 
                   </form>
+
+                </div>
+              </div>
+
+              <div class="row mt-4" >
+                <div class="col-12" >
+                  <h4>Add column filters</h4>
+                  <div class="form-inline">
+
+                    <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                            id="conesearch-filtercolumn-select">
+                    </select>
+
+                    <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                            id="conesearch-filtercondition-select">
+                      <option value="lt" selected>&lt;</option>
+                      <option value="gt">&gt;</option>
+                      <option value="le">&le;</option>
+                      <option value="ge">&ge;</option>
+                      <option value="eq">=</option>
+                      <option value="ne">&ne;</option>
+                      <option value="ct">contains</option>
+                    </select>
+
+                    <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                           data-searchtype="conesearch" placeholder="value"
+                           id="conesearch-filtertarget">
+
+                    <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
+                            type="button"
+                            data-searchtype="conesearch"
+                            id="conesearch-filter-add">
+                      <img class="icon-svg"
+                           alt="add this column filter"
+                           src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
+                    </button>
+
+                  </div>
+
+                  <div class="row mt-2">
+                    <div class="col-12">
+
+                      <div class="card px-2 py-2" >
+                        <h6 class="text-muted">Active column filters</h6>
+                        <div class="lcc-filterbucket" id="conesearch-filterbucket">
+
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+
+
+            </div>
+
+            <div class="col-4">
+
+              <div class="row">
+                <div class="col-12">
+
+                  <h4>Search help</h4>
+
+                  <p>Use J2000 equatorial coordinates in either decimal or
+                    sexagesimal format and an optional search radius in
+                    arcminutes. The maximum search radius is 60
+                    arcmin = 1.0 deg. If a search radius isn't
+                    specified, 5.0 arcmin will be used by default.</p>
+
+                  <p>Results are returned in order of increasing
+                    distance (in arcsec) from the center coordinates.</p>
+
+                  <dl>
+                    <dt>Decimal coordinates</dt>
+
+                    <dd><code>[DD]D.ddd... [+-][D]D.ddd... DD.dd...<br>
+                              example: 289.0 45.0 10.0</code></dd>
+
+                    <dt>Sexagesimal coordinates</dt>
+
+                    <dd><code>HH:MM:SS.sss... [+-]DD:MM:SS.sss... DD.dd...<br>
+                              HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
+                              example: 19 25 27.9129 +42 47 03.693 15.0</code></dd>
+                  </dl>
 
                 </div>
               </div>
