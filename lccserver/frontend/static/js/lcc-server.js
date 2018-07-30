@@ -2804,8 +2804,8 @@ var lcc_datasets = {
                     }
                     else if (this_dtype.indexOf('U') != -1) {
                         thiscol_width = parseInt(this_dtype.replace('U',''))*10;
-                        if (thiscol_width > 500) {
-                            thiscol_width = 500;
+                        if (thiscol_width > 400) {
+                            thiscol_width = 400;
                         }
                     }
                     else {
