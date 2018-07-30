@@ -610,10 +610,67 @@ var lcc_ui = {
             }
 
             else {
+                var lcfbasename = lcfname.split('/');
+                lcfbasename = lcfbasename[lcfbasename.length-1];
+
                 modal.find('#modal-downloadlc')
                     .attr('href',lcfname)
-                    .attr('download','true');
+                    .attr('download',lcfbasename);
             }
+
+
+            // now we'll hit the objectinfo API for info on this object
+            var geturl = '/api/object';
+            var params = {objectid:objectid,
+                          collection:collection};
+
+            $.getJSON(geturl, params, function (data) {
+
+                var msg = data.message;
+                var result = data.result;
+                var status = data.status;
+
+                // render the modal UI
+                lcc_objectinfo.render_modal_template();
+
+                // add in the finder chart
+                lcc_objectinfo.b64_to_canvas(result.finderchart,
+                                             '#finderchart');
+
+                // add in the object light curve
+                lcc_objectinfo.b64_to_image(result.magseries,
+                                            '.magseriesplot');
+
+                // add in the object's info table
+
+                // add in the object's neighbors and GAIA tables
+
+                // add in the object's
+
+
+            }).fail(function (xhr) {
+
+                // this means the object wasn't found
+                if (xhr.status == 404) {
+                    $('.modal-body').html(
+                        '<div class="row"><div class="col-12">' +
+                            '<h6>Sorry, no additional information ' +
+                            'is available for this object.</h6></div</div>'
+                    );
+                }
+
+                // any other status code means the backend threw an error
+                else {
+                    $('.modal-body').html(
+                        '<div class="row"><div class="col-12">' +
+                            '<h6>Sorry, something broke while trying ' +
+                            'to look up this object.</h6></div></div>'
+                    );
+
+                }
+
+            });
+
 
         });
 
@@ -3046,6 +3103,143 @@ var lcc_datasets = {
             $('#setload-indicator').empty();
 
         });
+
+    }
+
+};
+
+
+
+// this contains methods to render objectinfo from checkplot JSONs
+var lcc_objectinfo = {
+
+    // this is the ES6 template string for the modal UI
+    modal_template: `
+<div class="row d-flex align-items-center justify-content-center">
+  <div class="col-4">
+    <canvas id="finderchart"></canvas>
+  </div>
+
+  <div class="col-8">
+    <img class="img-fluid magseriesplot">
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12">
+
+  </div>
+</div>
+`,
+
+
+    // this decodes a string from base64
+    b64_decode: function (str) {
+        return decodeURIComponent(window.atob(str).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+    },
+
+    // https://stackoverflow.com/a/26601101
+    b64_decode2: function (s) {
+
+        var e={},i,b=0,c,x,l=0,a,r='',w=String.fromCharCode,L=s.length;
+        var A="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        for(i=0;i<64;i++){e[A.charAt(i)]=i;}
+        for(x=0;x<L;x++){
+            c=e[s.charAt(x)];b=(b<<6)+c;l+=6;
+            while(l>=8){((a=(b>>>(l-=8))&0xff)||(x<(L-2)))&&(r+=w(a));}
+        }
+        return r;
+
+    },
+
+
+    // this turns a base64 string into an image by updating its source
+    b64_to_image: function (str, targetelem) {
+
+        var datauri = 'data:image/png;base64,' + str;
+        $(targetelem).attr('src',datauri);
+
+    },
+
+    // this displays a base64 encoded image on the canvas
+    b64_to_canvas: function (str, targetelem) {
+
+        var datauri = 'data:image/png;base64,' + str;
+        var newimg = new Image();
+        var canvas = document.getElementById(targetelem.replace('#',''));
+
+        var imgheight = 300;
+        var imgwidth = 300;
+        var cnvwidth = canvas.width;
+        canvas.height = cnvwidth;
+        var imgscale = cnvwidth/imgwidth;
+
+        var ctx = canvas.getContext('2d');
+
+        // this event listener will fire when the image is loaded
+        newimg.addEventListener('load', function () {
+            ctx.drawImage(newimg,
+                          0,
+                          0,
+                          imgwidth*imgscale,
+                          imgheight*imgscale);
+        });
+
+        // load the image and fire the listener
+        newimg.src = datauri;
+
+    },
+
+    // this holds imagedata for the canvas so we can restore changed parts of
+    // the image
+    pixeltracker: null,
+
+    // this writes out the template string containing the modal UI to the modal
+    // if the object request succeeds
+    render_modal_template: function() {
+        $('.modal-body').html(lcc_objectinfo.modal_template);
+    },
+
+    // this writes the finder chart to the modal's finderchart canvas element
+    render_finderchart: function (imgb64, target) {
+
+
+
+    },
+
+    // this writes the object's light curve to the modal's object-lightcurve img
+    // element
+    render_objectlc: function (imgb64, target) {
+
+
+
+    },
+
+    render_infotable: function (objectinfo, target) {
+
+
+
+    },
+
+    render_neighbors_and_gaia: function (neighbors, neighbors_target,
+                                         gaiainfo, gaiainfo_target) {
+
+
+
+    },
+
+    render_pfresult: function (pfresult, target) {
+
+
+
+    },
+
+    render_varinfo: function (varinfo, target) {
+
+
 
     }
 

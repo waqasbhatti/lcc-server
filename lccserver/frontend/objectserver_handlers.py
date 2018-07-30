@@ -89,21 +89,29 @@ def check_for_checkplots(objectid, basedir, collection):
 
     '''
 
-    cpfpath = os.path.join(basedir,
-                           collection,
-                           'checkplots',
-                           'checkplot-%s*.pkl*' % objectid)
-    possible_checkplots = glob.glob(cpfpath)
+    cpfpath1 = os.path.join(basedir,
+                            collection,
+                            'checkplots',
+                            'checkplot-%s*.pkl*' % objectid)
+
+    # this is the annoying bit we need to fix, need to check with collection
+    # underscore -> hyphen
+    cpfpath2 = os.path.join(basedir,
+                            collection.replace('_','-'),
+                            'checkplots',
+                            'checkplot-%s*.pkl*' % objectid)
+
+    possible_checkplots = glob.glob(cpfpath1) + glob.glob(cpfpath2)
 
     LOGGER.info('checkplot candidates found at: %r' % possible_checkplots)
 
     if len(possible_checkplots) == 0:
 
-        return None, cpfpath
+        return None, [cpfpath1, cpfpath2]
 
     elif len(possible_checkplots) == 1:
 
-        return possible_checkplots[0], cpfpath
+        return possible_checkplots[0], [cpfpath1, cpfpath2]
 
     # if there are multiple checkplots, they might .gz or cpserver-temp ones,
     # pick the canonical form of *.pkl if it exists, *.pkl.gz if it doesn't
@@ -116,11 +124,11 @@ def check_for_checkplots(objectid, basedir, collection):
         for cp in possible_checkplots:
 
             if cp.endswith('.pkl'):
-                return cp, cpfpath
+                return cp, [cpfpath1, cpfpath2]
             elif cp.endswith('.pkl.gz'):
-                return cp, cpfpath
+                return cp, [cpfpath1, cpfpath2]
 
-        return None, cpfpath
+        return None, [cpfpath1, cpfpath2]
 
 
 
@@ -254,13 +262,16 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
             self.set_header('Content-Type',
                             'application/json; charset=UTF-8')
 
-            self.write(resp.body)
+            # make sure once again to remove NaNs
+            retbody = resp.body.decode().replace('NaN','null')
+
+            self.write(retbody)
             self.finish()
 
         else:
 
             LOGGER.error(
-                'could not find the requested checkplot using glob: %s' %
+                'could not find the requested checkplot using globs: %r' %
                 checkplot_fglob
             )
             self.set_status(404)
