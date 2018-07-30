@@ -431,21 +431,19 @@ def csvlc_convert_worker(task):
 
     except Exception as e:
 
-        return '%s conversion to CSVLC failed' % lcfile
+        return '%s conversion to CSVLC failed' % os.path.basename(lcfile)
 
 
 
 
 def sqlite_make_dataset_lczip(basedir,
                               setid,
-                              convert_to_csvlc=True,
                               converter_processes=4,
                               converter_csvlc_version=1,
                               converter_comment_char='#',
                               converter_column_separator=',',
                               converter_skip_converted=True,
-                              override_lcdir=None,
-                              link_csvlc_files=True):
+                              override_lcdir=None):
     '''
     This makes a zip file for the light curves in the dataset.
 
@@ -461,214 +459,149 @@ def sqlite_make_dataset_lczip(basedir,
         with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
-        # if we're supposed to regen the LCs into a common format, do so here
-        if convert_to_csvlc:
+        dataset_lclist = []
 
-            dataset_lclist = []
+        # we'll do this by collection
+        for collection in dataset['collections']:
 
-            # we'll do this by collection
-            for collection in dataset['collections']:
-
-                # load the format description
-                lcformatdesc = dataset['lcformatdesc'][collection]
-                lcformatdict = abcat.get_lcformat_description(
-                    lcformatdesc
-                )
-                convertopts = {'csvlc_version':converter_csvlc_version,
-                               'comment_char':converter_comment_char,
-                               'column_separator':converter_column_separator,
-                               'skip_converted':converter_skip_converted}
-
-                collection_lclist = [
-                    x['db_lcfname'] for x in dataset['result'][collection]
-                ]
-
-                # we'll use this to form CSV filenames
-                collection_objectidlist = [
-                    x['db_oid'] for x in dataset['result'][collection]
-                ]
-
-                # handle the lcdir override if present
-                if override_lcdir and os.path.exists(override_lcdir):
-                    collection_lclist = [
-                        os.path.join(override_lcdir,
-                                     os.path.basename(x))
-                        for x in collection_lclist
-                    ]
-
-                # now, we'll convert these light curves in parallel
-                pool = Pool(converter_processes)
-                tasks = [(x, y, lcformatdict, convertopts) for x,y in
-                         zip(collection_lclist, collection_objectidlist)]
-                results = pool.map(csvlc_convert_worker, tasks)
-                pool.close()
-                pool.join()
-
-                # if we're supposed to make links, do so here
-                if link_csvlc_files:
-
-                    # get this collection's LC directory under the LCC basedir
-                    # basedir/csvlcs/<collection>/lightcurves/<lcfname>
-                    thiscoll_lcdir = os.path.join(
-                        basedir,
-                        'csvlcs',
-                        os.path.dirname(lcformatdesc).split('/')[-1],
-                        'lightcurves'
-                    )
-                    if os.path.exists(thiscoll_lcdir):
-                        for rind, rlc in enumerate(results):
-                            outpath = os.path.abspath(
-                                os.path.join(thiscoll_lcdir,
-                                             os.path.basename(rlc))
-                            )
-                            if os.path.exists(outpath):
-                                LOGWARNING(
-                                    'not linking CSVLC: %s to %s because '
-                                    ' it exists already' % (rlc, outpath)
-                                )
-                            elif os.path.exists(rlc):
-
-                                LOGINFO(
-                                    'linking CSVLC: %s -> %s OK' %
-                                    (rlc, outpath)
-                                )
-                                os.symlink(rlc, outpath)
-
-                            else:
-
-                                LOGWARNING(
-                                    'CSVLC: %s probably does not '
-                                    'exist, skipping linking...' % rlc
-                                )
-                                # the LC won't exist, but that's fine, we'll
-                                # catch it later down below
-
-                            # put the output path into the actual results list
-                            results[rind] = outpath
-
-
-                # update this collection's light curve list
-                for olc, nlc, dsrow in zip(collection_lclist,
-                                           results,
-                                           dataset['result'][collection]):
-
-                    # make sure we don't include broken or missing LCs
-                    if os.path.exists(nlc):
-                        dsrow['db_lcfname'] = nlc
-                        if 'lcfname' in dsrow:
-                            dsrow['db_lcfname'] = nlc
-                    else:
-                        dsrow['db_lcfname'] = None
-                        if 'lcfname' in dsrow:
-                            dsrow['db_lcfname'] = None
-
-
-                # update the global LC list
-                dataset_lclist.extend(results)
-
-            # we'll need to update the dataset pickle to reflect the new LC
-            # locations
-            dataset['lclist'] = dataset_lclist
-
-            # write the changes to the pickle and update the SHASUM
-            with gzip.open(dataset_fpath,'wb') as outfd:
-                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
-
-            try:
-
-                p = subprocess.run('sha256sum %s' % dataset_fpath,
-                                   shell=True,
-                                   timeout=60.0,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
-                shasum = p.stdout.decode().split()[0]
-
-            except Exception as e:
-
-                LOGWARNING('could not calculate SHA256 sum for %s' %
-                           dataset_fpath)
-                shasum = 'warning-no-sha256sum-available'
-
-            # update the database with the new SHASUM
-            datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
-            db = sqlite3.connect(
-                datasets_dbf,
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            # load the format description
+            lcformatdesc = dataset['lcformatdesc'][collection]
+            lcformatdict = abcat.get_lcformat_description(
+                lcformatdesc
             )
-            cur = db.cursor()
+            convertopts = {'csvlc_version':converter_csvlc_version,
+                           'comment_char':converter_comment_char,
+                           'column_separator':converter_column_separator,
+                           'skip_converted':converter_skip_converted}
 
-            # generate the entry in the lcc-datasets.sqlite table and commit it
-            query = ("update lcc_datasets set "
-                     "last_updated = ?, dataset_shasum = ? where setid = ?")
+            collection_lclist = [
+                x['db_lcfname'] for x in dataset['result'][collection]
+            ]
 
-            params = (datetime.utcnow().isoformat(), shasum, setid)
-            cur.execute(query, params)
-            db.commit()
-            db.close()
+            # we'll use this to form CSV filenames
+            collection_objectidlist = [
+                x['db_oid'] for x in dataset['result'][collection]
+            ]
 
-
-        # if we're not converting LCs, just update the LC locations if override
-        # is provided
-        else:
-
-            # get the list of light curve files
-            dataset_lclist = dataset['lclist']
-
-            # if we're collecting from some special directory
+            # handle the lcdir override if present
             if override_lcdir and os.path.exists(override_lcdir):
+                collection_lclist = [
+                    os.path.join(override_lcdir,
+                                 os.path.basename(x))
+                    for x in collection_lclist
+                ]
 
-                dataset_lclist = [os.path.join(override_lcdir,
-                                               os.path.basename(x)) for x in
-                                  dataset_lclist]
+            # now, we'll convert these light curves in parallel
+            pool = Pool(converter_processes)
+            tasks = [(x, y, lcformatdict, convertopts) for x,y in
+                     zip(collection_lclist, collection_objectidlist)]
+            results = pool.map(csvlc_convert_worker, tasks)
+            pool.close()
+            pool.join()
 
-                # we need to override all the light curves
-                for dsrow in dataset['result'][collection]:
+            #
+            # link the generated CSV LCs to the output directory
+            #
 
-                    dsrow['db_lcfname'] = os.path.join(
-                        override_lcdir,
-                        os.path.basename(dsrow['db_lcfname'])
+            # get this collection's output LC directory under the LCC basedir
+            # basedir/csvlcs/<collection>/lightcurves/<lcfname>
+            thiscoll_lcdir = os.path.join(
+                basedir,
+                'csvlcs',
+                os.path.dirname(lcformatdesc).split('/')[-1],
+            )
+
+            if os.path.exists(thiscoll_lcdir):
+                for rind, rlc in enumerate(results):
+                    outpath = os.path.abspath(
+                        os.path.join(thiscoll_lcdir,
+                                     os.path.basename(rlc))
                     )
-                dataset['lclist'] = dataset_lclist
+                    if os.path.exists(outpath):
+                        LOGWARNING(
+                            'not linking CSVLC: %s to %s because '
+                            ' it exists already' % (rlc, outpath)
+                        )
+                    elif os.path.exists(rlc):
 
-                # write the changes to the pickle and update the SHASUM
-                with gzip.open(dataset_fpath,'wb') as outfd:
-                    pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+                        LOGINFO(
+                            'linking CSVLC: %s -> %s OK' %
+                            (rlc, outpath)
+                        )
+                        os.symlink(rlc, outpath)
 
-                try:
+                    else:
 
-                    p = subprocess.run('sha256sum %s' % dataset_fpath,
-                                       shell=True,
-                                       timeout=60.0,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-                    shasum = p.stdout.decode().split()[0]
+                        LOGWARNING(
+                            '%s probably does not '
+                            'exist, skipping linking...' % rlc
+                        )
+                        # the LC won't exist, but that's fine, we'll
+                        # catch it later down below
 
-                except Exception as e:
+                    # put the output path into the actual results list
+                    results[rind] = outpath
 
-                    LOGWARNING('could not calculate SHA256 sum for %s' %
-                               dataset_fpath)
-                    shasum = 'warning-no-sha256sum-available'
 
-                # update the database with the new SHASUM
-                datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
-                db = sqlite3.connect(
-                    datasets_dbf,
-                    detect_types=(
-                        sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-                    )
-                )
-                cur = db.cursor()
+            # update this collection's light curve list
+            for olc, nlc, dsrow in zip(collection_lclist,
+                                       results,
+                                       dataset['result'][collection]):
 
-                # generate the entry in the lcc-datasets.sqlite table and commit
-                # it
-                query = ("update lcc_datasets set "
-                         "last_updated = ?, dataset_shasum = ? where setid = ?")
+                # make sure we don't include broken or missing LCs
+                if os.path.exists(nlc):
+                    dsrow['db_lcfname'] = nlc
+                    if 'lcfname' in dsrow:
+                        dsrow['db_lcfname'] = nlc
+                else:
+                    dsrow['db_lcfname'] = None
+                    if 'lcfname' in dsrow:
+                        dsrow['db_lcfname'] = None
 
-                params = (datetime.utcnow().isoformat(),
-                          shasum, setid)
-                cur.execute(query, params)
-                db.commit()
-                db.close()
+
+            # update the global LC list
+            dataset_lclist.extend(results)
+
+        # we'll need to update the dataset pickle to reflect the new LC
+        # locations
+        dataset['lclist'] = dataset_lclist
+
+        # write the changes to the pickle and update the SHASUM
+        with gzip.open(dataset_fpath,'wb') as outfd:
+            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+        try:
+
+            p = subprocess.run('sha256sum %s' % dataset_fpath,
+                               shell=True,
+                               timeout=60.0,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+            shasum = p.stdout.decode().split()[0]
+
+        except Exception as e:
+
+            LOGWARNING('could not calculate SHA256 sum for %s' %
+                       dataset_fpath)
+            shasum = 'warning-no-sha256sum-available'
+
+        # update the database with the new SHASUM
+        datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+        db = sqlite3.connect(
+            datasets_dbf,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        cur = db.cursor()
+
+        # generate the entry in the lcc-datasets.sqlite table and commit it
+        query = ("update lcc_datasets set "
+                 "last_updated = ?, dataset_shasum = ? where setid = ?")
+
+        params = (datetime.utcnow().isoformat(), shasum, setid)
+        cur.execute(query, params)
+        db.commit()
+        db.close()
+
 
         #
         # FINALLY, CARRY OUT THE ZIP OPERATION
@@ -907,6 +840,7 @@ def sqlite_get_dataset(basedir,
                        setid,
                        returnjson=False,
                        generatecsv=True,
+                       forcecsv=False,
                        forcecomplete=False):
     '''This gets the dataset as a dictionary and optionally as JSON.
 
@@ -1043,7 +977,7 @@ def sqlite_get_dataset(basedir,
 
     for coll in dataset['collections']:
 
-        returndict['result'][coll] = {'data':dataset['result'][coll],
+        returndict['result'][coll] = {'data':dataset['result'][coll][::],
                                       'success':dataset['success'][coll],
                                       'message':dataset['message'][coll],
                                       'nmatches':dataset['nmatches'][coll],
@@ -1056,6 +990,7 @@ def sqlite_get_dataset(basedir,
         csv = generate_dataset_csv(
             basedir,
             returndict,
+            force=forcecsv
         )
         returndict['dataset_csv'] = csv
 
@@ -1150,8 +1085,7 @@ def generate_dataset_tablerows(
 
     '''
 
-    dataset = in_dataset.copy()
-    setid = dataset['setid']
+    setid = in_dataset['setid']
 
     # we'll get the common columns across all collections
     xcolumns = []
@@ -1159,10 +1093,10 @@ def generate_dataset_tablerows(
     # this is the merged colspec dictionary across all collections
     colspec = {}
 
-    for coll in dataset['collections']:
+    for coll in in_dataset['collections']:
         try:
             # get this collection's column keys from the first row
-            coll_columns = list(dataset['result'][coll]['data'][0].keys())
+            coll_columns = list(in_dataset['result'][coll]['data'][0].keys())
 
             # append them as a set to the global list of all collections'
             # columns
@@ -1171,7 +1105,7 @@ def generate_dataset_tablerows(
             # finally, for each column in this collection, get its
             # specifications
             for cc in coll_columns:
-                colspec[cc] = dataset['result'][coll]['columnspec'][cc]
+                colspec[cc] = in_dataset['result'][coll]['columnspec'][cc]
         except:
             pass
 
@@ -1182,7 +1116,7 @@ def generate_dataset_tablerows(
     columns = list(columns)
 
     # we need to reorder the common columns in the order they were requested in
-    requested_cols = dataset['columns']
+    requested_cols = in_dataset['columns']
 
     # but the requested columns might contain columns that are not common across
     # all collections, so we need to be careful
@@ -1194,15 +1128,15 @@ def generate_dataset_tablerows(
     # generate the header JSON now
     header = {
         'setid':setid,
-        'status':dataset['status'],
-        'created':'%sZ' % dataset['created_on'],
-        'updated':'%sZ' % dataset['last_updated'],
-        'public':dataset['ispublic'],
-        'searchtype':dataset['searchtype'],
-        'searchargs':dataset['searchargs'],
-        'collections':dataset['collections'],
+        'status':in_dataset['status'],
+        'created':'%sZ' % in_dataset['created_on'],
+        'updated':'%sZ' % in_dataset['last_updated'],
+        'public':in_dataset['ispublic'],
+        'searchtype':in_dataset['searchtype'],
+        'searchargs':in_dataset['searchargs'],
+        'collections':in_dataset['collections'],
         'columns':final_cols,
-        'nobjects':dataset['nobjects'],
+        'nobjects':in_dataset['nobjects'],
         'coldesc':{}
     }
 
@@ -1233,14 +1167,19 @@ def generate_dataset_tablerows(
     nitems = 0
 
     if giveupafter is None or giveupafter is False:
-        maxrows = sum(len(dataset['result'][collid]['data']) for
-                      collid in dataset['collections'])
+        maxrows = sum(len(in_dataset['result'][collid]['data']) for
+                      collid in in_dataset['collections'])
     else:
         maxrows = giveupafter
 
     # we'll go by collection_id first, then by entry
-    for collid in dataset['collections']:
-        for entry in dataset['result'][collid]['data']:
+    for collid in in_dataset['collections']:
+        for ientry in in_dataset['result'][collid]['data']:
+
+            # this is to avoid weird breakage when we call
+            # generate_dataset_tablerows again
+            # (EVEN IF A COPY OF THE DATASET DICT IS PASSED TO IT - WTF?!)
+            entry = ientry.copy()
 
             if nitems > maxrows:
                 LOGWARNING('reached %s rows, returning early' % giveupafter)
@@ -1255,7 +1194,7 @@ def generate_dataset_tablerows(
                     os.path.exists(entry['db_lcfname'])):
 
                     entry['db_lcfname'] = entry['db_lcfname'].replace(
-                        os.path.abspath(basedir),
+                        os.path.join(os.path.abspath(basedir), 'csvlcs'),
                         '/l'
                     )
                 else:
@@ -1267,7 +1206,7 @@ def generate_dataset_tablerows(
                     os.path.exists(entry['lcfname'])):
 
                     entry['lcfname'] = entry['lcfname'].replace(
-                        os.path.abspath(basedir),
+                        os.path.join(os.path.abspath(basedir), 'csvlcs'),
                         '/l'
                     )
                 else:
@@ -1330,15 +1269,16 @@ def generate_dataset_csv(
     Requires the output from sqlite_get_dataset or postgres_get_dataset.
 
     '''
+
     productdir = os.path.abspath(os.path.join(basedir,
                                               'datasets'))
     setid = in_dataset['setid']
-    dataset_csv = os.path.join(productdir,'dataset-%s.csv' % setid)
+    in_dataset_csv = os.path.join(productdir,'dataset-%s.csv' % setid)
 
-    if not force and os.path.exists(dataset_csv):
+    if not force and os.path.exists(in_dataset_csv):
 
-        LOGINFO('returning cached version of %s' % dataset_csv)
-        return dataset_csv
+        LOGINFO('returning cached version of %s' % in_dataset_csv)
+        return in_dataset_csv
 
     else:
 
@@ -1349,14 +1289,14 @@ def generate_dataset_csv(
                                                       headeronly=False,
                                                       strformat=True)
 
-        LOGINFO('generating new CSV for dataset: %s' % setid)
+        LOGINFO('generating new CSV for in_dataset: %s' % setid)
 
         # generate the JSON header for the CSV
         csvheader = json.dumps(header, indent=2)
         csvheader = indent(csvheader, '%s ' % comment)
 
         # write to the output file now
-        with open(dataset_csv,'wb') as outfd:
+        with open(in_dataset_csv,'wb') as outfd:
 
             # write the header first
             outfd.write(('%s\n' % csvheader).encode())
@@ -1365,8 +1305,8 @@ def generate_dataset_csv(
                 outfd.write(('%s\n' % separator.join(row)).encode())
 
 
-        LOGINFO('wrote CSV: %s for dataset: %s' % (dataset_csv, setid))
-        return dataset_csv
+        LOGINFO('wrote CSV: %s for in_dataset: %s' % (in_dataset_csv, setid))
+        return in_dataset_csv
 
 
 
