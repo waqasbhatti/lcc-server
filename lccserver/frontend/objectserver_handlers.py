@@ -16,8 +16,6 @@ import os
 import os.path
 import logging
 import numpy as np
-from datetime import datetime, timedelta
-import re
 import glob
 
 ######################################
@@ -112,18 +110,21 @@ def check_for_checkplots(objectid, basedir, collection):
     # exist. if neither of these exist, return None
     else:
 
-        if cpfpath.replace('*','') in possible_checkplots:
-            return cpfpath.replace('*',''), cpfpath
+        LOGGER.warning('multiple checkplots found for %s in  %s' %
+                       (objectid, collection))
 
-        elif cpfpath.replace('*','.gz') in possible_checkplots:
-            return cpfpath.replace('*','.gz'), cpfpath
+        for cp in possible_checkplots:
 
-        else:
-            return None, cpfpath
+            if cp.endswith('.pkl'):
+                return cp, cpfpath
+            elif cp.endswith('.pkl.gz'):
+                return cp, cpfpath
+
+        return None, cpfpath
 
 
 
-class ObjectCheckplotHandler(tornado.web.RequestHandler):
+class ObjectInfoHandler(tornado.web.RequestHandler):
     '''
     This handles talking to the checkplotserver for checkplot info
     on a given object.
@@ -220,6 +221,9 @@ class ObjectCheckplotHandler(tornado.web.RequestHandler):
             collection
         )
 
+        LOGGER.info('fpath = %s, glob = %s' % (checkplot_fpath,
+                                               checkplot_fglob))
+
         # 2. ask the checkplotserver for this checkplot using our key
         if checkplot_fpath is not None:
 
@@ -228,7 +232,8 @@ class ObjectCheckplotHandler(tornado.web.RequestHandler):
             # generate our request URL
             req_url = url + '?' + urlencode(
                 {'cp':b64encode(checkplot_fpath.encode()),
-                 'key':self.cpkey})
+                 'key':self.cpkey}
+            )
 
             client = AsyncHTTPClient()
             resp = yield client.fetch(req_url, raise_error=False)
@@ -262,7 +267,9 @@ class ObjectCheckplotHandler(tornado.web.RequestHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':'could not find the requested checkplot on disk'
+                'message':('could not find information for '
+                           'object %s in collection %s' %
+                           (objectid, collection))
             }
             self.write(retdict)
             self.finish()

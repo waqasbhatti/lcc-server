@@ -585,6 +585,25 @@ var lcc_ui = {
         });
 
 
+        // bind the objectinfo-link to show a modal with objectinfo from
+        // checkplots
+        $('#objectinfo-modal').on('show.bs.modal', function (evt) {
+
+            // this is us
+            var modal = $(this);
+
+            // what triggered us?
+            var button = $(evt.relatedTarget);
+
+            // objectid and collection
+            var objectid = button.attr('data-objectid');
+            var collection = button.attr('data-collection');
+
+            modal.find('#modal-objectid').html(objectid);
+            modal.find('#modal-collectionid').html(collection);
+
+        });
+
 
     },
 
@@ -2772,12 +2791,32 @@ var lcc_datasets = {
 
                 var coldef_rows = [];
 
-                var column_widths = [];
+                // the first column of the table holds controls for getting
+                // object info. add this column first
+                $('#lcc-datatable-header').append(
+                    '<th width="40"></th>'
+                );
+
+                // these are used to calculate the full table width
+                var column_widths = [40];
                 var thiscol_width = null;
+
+                // generate the column names and descriptions, put them into the
+                // column definitions table, and also append them to the header
+                // row of the data table
+
+                var colind_objectid = 0;
+                var colind_collection = columns.length - 1;
 
                 for (colind; colind < columns.length; colind++) {
 
                     var this_col = columns[colind];
+                    if (this_col == 'db_oid') {
+                        colind_objectid = colind;
+                    }
+                    if (this_col == 'collection') {
+                        colind_collection = colind;
+                    }
 
                     var this_title = coldesc[this_col]['title'];
                     var this_desc = coldesc[this_col]['desc'];
@@ -2849,11 +2888,32 @@ var lcc_datasets = {
                     max_rows = 3000;
                 }
 
+                var objectentry_firstcol = '';
+                var thisrow = null;
+
                 for (rowind; rowind < max_rows; rowind++) {
 
-                    datarows_elem.append('<tr><td>' +
-                                         data.rows[rowind].join('</td><td>') +
-                                         '</td></tr>');
+                    // get this object's db_oid and collection. we'll use these
+                    // to set up the links to checkplot info on-demand in the
+                    // first column of the table
+
+                    thisrow = data.rows[rowind];
+
+                    objectentry_firstcol = '<a href="#" role="button" ' +
+                        'data-toggle="modal" data-target="#objectinfo-modal"' +
+                        'title="get available object information" ' +
+                        'data-objectid="' + thisrow[colind_objectid] + '" ' +
+                        'data-collection="' + thisrow[colind_collection] + '" ' +
+                        'class="btn btn-link btn-sm objectinfo-link">' +
+                        '<img class="table-icon-svg" ' +
+                        'src="/static/images/twotone-assistant-24px.svg"></a>';
+                    thisrow.splice(0,0,objectentry_firstcol);
+
+                    datarows_elem.append(
+                        '<tr><td>' +
+                            data.rows[rowind].join('</td><td>') +
+                            '</td></tr>'
+                    );
 
                 }
 
@@ -2874,7 +2934,6 @@ var lcc_datasets = {
                 // so we can have a scrollbar at the bottom
                 $('.dataset-table')
                     .height($('.datatable-container').height());
-
 
             }
 

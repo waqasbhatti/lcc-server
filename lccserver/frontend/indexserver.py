@@ -623,8 +623,8 @@ def main():
         ## OBJECT INFORMATION FROM CHECKPLOT HANDLERS ##
         ################################################
 
-        (r'/api/checkplot',
-         oh.ObjectCheckplotHandler,
+        (r'/api/object',
+         oh.ObjectInfoHandler,
          {'currentdir':CURRENTDIR,
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
