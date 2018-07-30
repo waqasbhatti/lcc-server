@@ -3128,6 +3128,20 @@ var lcc_objectinfo = {
 <div class="row">
   <div class="col-12">
 
+    <nav>
+      <div class="nav nav-tabs" id="modal-nav-tab" role="tablist">
+        <a class="nav-item nav-link active" id="modal-objectinfo" data-toggle="tab" href="#mtab-objectinfo" role="tab" aria-controls="modal-objectinfo" aria-selected="true">Object</a>
+        <a class="nav-item nav-link" id="modal-nbrsgaia" data-toggle="tab" href="#mtab-nbrsgaia" role="tab" aria-controls="modal-nbrsgaia" aria-selected="false">Neighbors</a>
+        <a class="nav-item nav-link" id="modal-phasedlcs" data-toggle="tab" href="#mtab-phasedlcs" role="tab" aria-controls="modal-phasedlcs" aria-selected="false">Phased LCs</a>
+      </div>
+    </nav>
+
+    <div class="tab-content" id="modal-nav-content">
+      <div class="tab-pane show active" id="mtab-objectinfo" role="tabpanel" aria-labelledby="modal-objectinfo">...</div>
+      <div class="tab-pane" id="mtab-nbrsgaia" role="tabpanel" aria-labelledby="modal-nbrsgaia">...</div>
+      <div class="tab-pane" id="mtab-phasedlcs" role="tabpanel" aria-labelledby="modal-phasedlcs">...</div>
+    </div>
+
   </div>
 </div>
 `,
