@@ -595,12 +595,25 @@ var lcc_ui = {
             // what triggered us?
             var button = $(evt.relatedTarget);
 
-            // objectid and collection
+            // objectid, collection, lcfname
             var objectid = button.attr('data-objectid');
             var collection = button.attr('data-collection');
+            var lcfname = button.attr('data-lcfname');
 
             modal.find('#modal-objectid').html(objectid);
             modal.find('#modal-collectionid').html(collection);
+
+            if (lcfname.indexOf('unavailable') != -1) {
+                modal.find('#modal-downloadlc')
+                    .addClass('disabled')
+                    .html('No light curve available');
+            }
+
+            else {
+                modal.find('#modal-downloadlc')
+                    .attr('href',lcfname)
+                    .attr('download','true');
+            }
 
         });
 
@@ -2807,6 +2820,7 @@ var lcc_datasets = {
 
                 var colind_objectid = 0;
                 var colind_collection = columns.length - 1;
+                var colind_lcfname = 0;
 
                 for (colind; colind < columns.length; colind++) {
 
@@ -2816,6 +2830,9 @@ var lcc_datasets = {
                     }
                     if (this_col == 'collection') {
                         colind_collection = colind;
+                    }
+                    if (this_col == 'db_lcfname') {
+                        colind_lcfname = colind;
                     }
 
                     var this_title = coldesc[this_col]['title'];
@@ -2842,7 +2859,7 @@ var lcc_datasets = {
                         thiscol_width = 80;
                     }
                     else if (this_dtype.indexOf('U') != -1) {
-                        thiscol_width = parseInt(this_dtype.replace('U',''))*10;
+                        thiscol_width = parseInt(this_dtype.replace('U',''))*12;
                         if (thiscol_width > 400) {
                             thiscol_width = 400;
                         }
@@ -2890,6 +2907,7 @@ var lcc_datasets = {
 
                 var objectentry_firstcol = '';
                 var thisrow = null;
+                var thisrow_lclink = null;
 
                 for (rowind; rowind < max_rows; rowind++) {
 
@@ -2899,11 +2917,21 @@ var lcc_datasets = {
 
                     thisrow = data.rows[rowind];
 
+                    // get this row's light curve if available
+                    thisrow_lclink = $(thisrow[colind_lcfname]);
+                    if (thisrow_lclink.text().indexOf('unavailable') != -1) {
+                        thisrow_lclink = thisrow_lclink.text();
+                    }
+                    else {
+                        thisrow_lclink = thisrow_lclink.attr('href');
+                    }
+
                     objectentry_firstcol = '<a href="#" role="button" ' +
                         'data-toggle="modal" data-target="#objectinfo-modal"' +
                         'title="get available object information" ' +
                         'data-objectid="' + thisrow[colind_objectid] + '" ' +
                         'data-collection="' + thisrow[colind_collection] + '" ' +
+                        'data-lcfname="' + thisrow_lclink + '" ' +
                         'class="btn btn-link btn-sm objectinfo-link">' +
                         '<img class="table-icon-svg" ' +
                         'src="/static/images/twotone-assistant-24px.svg"></a>';
