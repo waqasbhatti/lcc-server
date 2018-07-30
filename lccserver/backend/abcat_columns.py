@@ -688,10 +688,10 @@ COMPOSITE_COLUMN_INFO = {
     #
     'color_jmag_kmag':{
         'from':['-','jmag','kmag'],
-        'title':'<em>J</em> - <em>K</em>',
+        'title':'<em>J</em> - <em>K<sub>s</sub></em>',
         'dtype':'f8',
         'format':'%.3f',
-        'description':'<em>J</em> - <em>K</em> color [mag]',
+        'description':'<em>J</em> - <em>K<sub>s</sub></em> color [mag]',
         'index':True,
         'ftsindex':False,
     },
