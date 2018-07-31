@@ -1225,9 +1225,54 @@ var lcc_search = {
     coordlist_contents: "",
 
     // regexes to match lines of the uploaded xmatch objects
-    decimal_regex: /^(\w+)\s(\d{1,3}\.{0,1}\d*)\s([+-]{0,1}\d{1,2}\.{0,1}\d*)$/,
+    decimal_regex: /^(\w+)\s(\d{1,3}\.?\d*)\s([+-]?\d{1,2}\.?\d*)$/,
 
-    sexagesimal_regex: /^(\w+)\s(\d{1,2}[ :]\d{2}[ :]\d{2}\.{0,1}\d*)\s([+-]{0,1}\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$/g,
+    sexagesimal_regex: /^(\w+)\s(\d{1,2}[ :]\d{2}[ :]\d{2}\.?\d*)\s([+-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.?\d*)$/,
+
+    // this validates the lines in the xmatch input
+    validate_xmatch_query: function (target) {
+
+        var xmt = $(target).val().split('\n');
+
+        if (xmt.length > 5000) {
+            lcc_ui.alert_box('Cross-match input is limited to 5000 lines',
+                             'secondary');
+            return false;
+        }
+
+        var msgs = [], oklines = 0;
+        var decimalok = false, sexagesok = false, commentok = false;
+
+        for (let line of xmt) {
+
+            decimalok = lcc_search.decimal_regex.test(line);
+            sexagesok = lcc_search.sexagesimal_regex.test(line);
+            commentok = line.startsWith('#');
+
+            if (!commentok && !(decimalok || sexagesok)) {
+                msgs.push('# ' + line + '  <---- could not parse this line');
+            }
+            else {
+                msgs.push(line);
+                oklines++;
+            }
+
+        }
+
+        if (oklines == xmt.length) {
+            return true;
+        }
+        else {
+            lcc_ui.alert_box('Some cross-match input lines ' +
+                             'were invalid and have been commented out. ' +
+                             'See the messages below or ' +
+                             'click Search to continue with any remaining input.',
+                             'secondary');
+            $(target).val(msgs.join('\n'));
+            return false;
+        }
+
+    },
 
 
     // this runs an FTS query
@@ -1247,10 +1292,8 @@ var lcc_search = {
         var columns = $('#xmatch-column-select').val();
 
         // get the xmatch input
+        proceed_step1 = lcc_search.validate_xmatch_query('#xmatch-query');
         var xmatchtext = $('#xmatch-query').val().trim();
-        if (xmatchtext.length > 0) {
-            proceed_step1 = true;
-        }
 
         // get the xmatch distance param
         var xmatchdistance = parseFloat($('#xmatch-matchradius').val().trim());
@@ -1483,7 +1526,8 @@ var lcc_search = {
                                 'generated. Try refining your query, or see ' +
                                 '<a target="_blank" ' +
                                 'rel="nofollow noreferer noopener" href="' +
-                                msgdata.result.seturl + '">its dataset page</a> for a ' +
+                                msgdata.result.seturl +
+                                '">its dataset page</a> for a ' +
                                 'CSV that lists all objects and download links ' +
                                 'for their individual light curves.';
                         }
@@ -1603,7 +1647,7 @@ var lcc_search = {
         }
         else {
             var error_message =
-                "No query text found in the cross-match object list input box.";
+                "Invalid input in the cross-match object list input box.";
             lcc_ui.alert_box(error_message, 'secondary');
         }
 
