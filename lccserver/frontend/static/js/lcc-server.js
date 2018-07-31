@@ -3213,7 +3213,7 @@ var lcc_objectinfo = {
       <div class="tab-pane" id="mtab-phasedlcs"
            role="tabpanel" aria-labelledby="modal-phasedlcs">
 
-        <div class="row">
+        <div class="row mt-2">
           <div class="col-12">
 
             <div id="modal-phasedlc-container">
@@ -4058,7 +4058,6 @@ var lcc_objectinfo = {
 
         else {
             $('#modal-phasedlc-container').html(
-                '<div class="row mt-2"><div class="col-12">' +
                 "<p>Period-finding for general stellar variability " +
                     "has not been run on this object, either " +
                     "because it didn't look like a variable star, " +
@@ -4066,7 +4065,7 @@ var lcc_objectinfo = {
                     "It's also possible that we haven't gotten " +
                     "around to it just yet. " +
                     "The light curve is available for download " +
-                    "if you'd like to give it a go.</p></div></div>"
+                    "if you'd like to give it a go.</p>"
             );
         }
 
