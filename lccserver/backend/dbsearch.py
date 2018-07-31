@@ -427,6 +427,30 @@ def validate_sqlite_filters(filterstring,
 
 
 
+def sqlite3_to_memory(dbfile, dbname):
+    '''This returns a connection and cursor to the SQLite3 file dbfile.
+
+    The connection is actually made to an in-memory database, and the database
+    in dbfile is attached to it. This keeps the original file mostly free of any
+    temporary tables we make.
+
+    '''
+
+    # this is the connection we will return
+    newconn = sqlite3.connect(
+        ':memory:',
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    newconn.row_factory = sqlite3.Row
+    newcur = newconn.cursor()
+
+    newcur.execute("attach database '%s' as %s" % (dbfile, dbname))
+
+    return newconn, newcur
+
+
+
+
 ###################
 ## SQLITE SEARCH ##
 ###################
@@ -440,6 +464,7 @@ def sqlite_fulltext_search(basedir,
                            require_ispublic=True,
                            require_objectispublic=True,
                            fail_if_conditions_invalid=True):
+
     '''This searches the specified collections for a full-text match.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -471,14 +496,14 @@ def sqlite_fulltext_search(basedir,
 
     '''
 
-    # connect to all the specified databases
+    # get all the specified databases
     dbinfo = sqlite_get_collections(basedir,
                                     lcclist=lcclist,
-                                    require_ispublic=require_ispublic)
-    db = dbinfo['connection']
-    cur = dbinfo['cursor']
+                                    require_ispublic=require_ispublic,
+                                    return_connection=False)
 
     # get the available databases and columns
+    dbfiles = dbinfo['info']['object_catalog_path']
     available_lcc = dbinfo['databases']
     available_columns = dbinfo['columns']
 
@@ -489,7 +514,6 @@ def sqlite_fulltext_search(basedir,
 
         if not uselcc:
             LOGERROR("none of the specified input LC collections are valid")
-            db.close()
             return None
 
     else:
@@ -545,7 +569,6 @@ def sqlite_fulltext_search(basedir,
                       'db_lcfname']
 
     # this is the query that will be used for FTS
-    # FIXME: FIXME: FIXME: add support for the object_is_public column here
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
          "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
          "catalog_fts MATCH ? {extraconditions} {publiccondition} "
@@ -563,7 +586,6 @@ def sqlite_fulltext_search(basedir,
             LOGERROR('fail_if_conditions_invalid = True '
                      'and extraconditions did not pass '
                      'validate_sqlite_filters, returning early')
-            db.close()
             return None
 
 
@@ -572,7 +594,10 @@ def sqlite_fulltext_search(basedir,
 
     for lcc in uselcc:
 
+        # get the database now
         dbindex = available_lcc.index(lcc)
+        db, cur = sqlite3_to_memory(dbfiles[dbindex], lcc)
+
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
@@ -712,6 +737,10 @@ def sqlite_fulltext_search(basedir,
             if raiseonfail:
                 raise
 
+        # don't forget to close the open database at the end
+        finally:
+            db.close()
+
 
     # at the end, add in some useful info
     results['databases'] = available_lcc
@@ -723,8 +752,6 @@ def sqlite_fulltext_search(basedir,
                        'extraconditions':extraconditions}
     results['search'] = 'sqlite_fulltext_search'
 
-
-    db.close()
     return results
 
 
@@ -756,14 +783,14 @@ def sqlite_column_search(basedir,
 
     '''
 
-    # connect to all the specified databases
+    # get all the specified databases
     dbinfo = sqlite_get_collections(basedir,
                                     lcclist=lcclist,
-                                    require_ispublic=require_ispublic)
-    db = dbinfo['connection']
-    cur = dbinfo['cursor']
+                                    require_ispublic=require_ispublic,
+                                    return_connection=False)
 
     # get the available databases and columns
+    dbfiles = dbinfo['info']['object_catalog_path']
     available_lcc = dbinfo['databases']
     available_columns = dbinfo['columns']
 
@@ -774,7 +801,6 @@ def sqlite_column_search(basedir,
 
         if not uselcc:
             LOGERROR("none of the specified input LC collections are valid")
-            db.close()
             return None
 
     else:
@@ -850,7 +876,6 @@ def sqlite_column_search(basedir,
         if not wherecondition and fail_if_conditions_invalid:
             LOGERROR('fail_if_conditions_invalid = True and conditions did not '
                      'pass validate_sqlite_filters, returning early')
-            db.close()
             return None
 
         else:
@@ -868,7 +893,6 @@ def sqlite_column_search(basedir,
         # we will not proceed if the conditions are None or empty
         LOGERROR('no conditions specified to filter columns by, '
                  'will not fetch the entire database')
-        db.close()
         return None
 
 
@@ -917,7 +941,10 @@ def sqlite_column_search(basedir,
 
     for lcc in uselcc:
 
+        # get the database now
         dbindex = available_lcc.index(lcc)
+        db, cur = sqlite3_to_memory(dbfiles[dbindex], lcc)
+
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
@@ -992,6 +1019,10 @@ def sqlite_column_search(basedir,
             if raiseonfail:
                 raise
 
+        # don't forget to close the DB at the end
+        finally:
+            db.close()
+
     # at the end, add in some useful info
     results['databases'] = available_lcc
     results['columns'] = available_columns
@@ -1003,7 +1034,6 @@ def sqlite_column_search(basedir,
                        'lcclist':lcclist}
     results['search'] = 'sqlite_column_search'
 
-    db.close()
     return results
 
 
@@ -1082,16 +1112,18 @@ def sqlite_kdtree_conesearch(basedir,
     collections only.
 
     '''
-    # connect to all the specified databases
+
+    # get all the specified databases
     dbinfo = sqlite_get_collections(basedir,
                                     lcclist=lcclist,
-                                    require_ispublic=require_ispublic)
-    db = dbinfo['connection']
-    cur = dbinfo['cursor']
+                                    require_ispublic=require_ispublic,
+                                    return_connection=False)
 
     # get the available databases and columns
+    dbfiles = dbinfo['info']['object_catalog_path']
     available_lcc = dbinfo['databases']
     available_columns = dbinfo['columns']
+
 
     if lcclist is not None:
 
@@ -1100,7 +1132,6 @@ def sqlite_kdtree_conesearch(basedir,
 
         if not uselcc:
             LOGERROR("none of the specified input LC collections are valid")
-            db.close()
             return None
 
     else:
@@ -1185,7 +1216,6 @@ def sqlite_kdtree_conesearch(basedir,
             LOGERROR("fail_if_conditions_invalid = True and "
                      "extraconditions did not pass "
                      "validate_sqlite_filters, returning early...")
-            db.close()
             return None
 
     # handle the publiccondition
@@ -1205,6 +1235,10 @@ def sqlite_kdtree_conesearch(basedir,
     results = {}
 
     for lcc in uselcc:
+
+        # get the database now
+        dbindex = available_lcc.index(lcc)
+        db, cur = sqlite3_to_memory(dbfiles[dbindex], lcc)
 
         # get the kdtree path
         dbindex = available_lcc.index(lcc)
@@ -1463,6 +1497,11 @@ def sqlite_kdtree_conesearch(basedir,
                 raise
 
 
+        # don't forget to close the database at the end
+        finally:
+            db.close()
+
+
     # at the end, add in some useful info
     results['databases'] = available_lcc
     results['columns'] = available_columns
@@ -1476,7 +1515,6 @@ def sqlite_kdtree_conesearch(basedir,
 
     results['search'] = 'sqlite_kdtree_conesearch'
 
-    db.close()
     return results
 
 
@@ -1539,14 +1577,15 @@ def sqlite_xmatch_search(basedir,
     collections specified for use in the xmatch search.
 
     '''
-    # connect to all the specified databases
+
+    # get all the specified databases
     dbinfo = sqlite_get_collections(basedir,
                                     lcclist=lcclist,
-                                    require_ispublic=require_ispublic)
-    db = dbinfo['connection']
-    cur = dbinfo['cursor']
+                                    require_ispublic=require_ispublic,
+                                    return_connection=False)
 
     # get the available databases and columns
+    dbfiles = dbinfo['info']['object_catalog_path']
     available_lcc = dbinfo['databases']
     available_columns = dbinfo['columns']
 
@@ -1557,7 +1596,6 @@ def sqlite_xmatch_search(basedir,
 
         if not uselcc:
             LOGERROR("none of the specified input LC collections are valid")
-            db.close()
             return None
 
     else:
@@ -1662,77 +1700,8 @@ def sqlite_xmatch_search(basedir,
         LOGERROR("column xmatch mode selected but one "
                  "of inputmatchcol/dbmatchcol is not provided, "
                  "can't continue")
-        db.close()
         return None
 
-
-    ###########################################
-    ## create a temporary xmatch table first ##
-    ###########################################
-
-    # prepare the input data for inserting into a temporary xmatch table
-    datatable = [inputdata['data'][x] for x in inputdata['columns']]
-
-    # convert to tuples per row for use with sqlite.cursor.executemany()
-    datatable = list(zip(*datatable))
-
-    col_defs = []
-    col_names = []
-
-    for col, coltype in zip(inputdata['columns'], inputdata['types']):
-
-        # normalize the column name and add it to a tracking list
-        thiscol_name = col.replace(' ','_').replace('-','_').replace('.','_')
-        col_names.append(thiscol_name)
-
-        thiscol_type = coltype
-
-        if thiscol_type == 'str':
-            col_defs.append('%s text' % thiscol_name)
-        elif thiscol_type == 'int':
-            col_defs.append('%s integer' % thiscol_name)
-        elif thiscol_type == 'float':
-            col_defs.append('%s double precision' % thiscol_name)
-        elif thiscol_type == 'bool':
-            col_defs.append('%s integer' % thiscol_name)
-        else:
-            col_defs.append('%s text' % thiscol_name)
-
-    column_and_type_list = ', '.join(col_defs)
-
-    # this is the SQL to create the temporary xmatch table
-    create_temptable_q = (
-        "create table _temp_xmatch_table "
-        "({column_and_type_list}, primary key ({objectid_col}))"
-    ).format(column_and_type_list=column_and_type_list,
-             objectid_col=inputdata['colobjectid'])
-
-    # this is the SQL to make an index on the match column in the xmatch table
-    index_temptable_q = (
-        "create index xmatch_index on _temp_xmatch_table({xmatch_colname})"
-    ).format(xmatch_colname=xmatch_col)
-
-    # this is the SQL to insert all of the input data columns into the xmatch
-    # table
-    insert_temptable_q = (
-        "insert into _temp_xmatch_table values ({placeholders})"
-    ).format(placeholders=', '.join(['?']*len(col_names)))
-
-    # 1. create the temporary xmatch table
-    cur.execute(create_temptable_q)
-
-    # 2. insert the input data columns
-    cur.executemany(insert_temptable_q, datatable)
-
-    # 3. index the xmatch column
-    if xmatch_type == 'column':
-        cur.execute(index_temptable_q)
-
-    # this is the column string to be used in the query to join the LCC and
-    # xmatch tables
-    xmatch_columnstr = (
-        '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
-    )
 
     ###########################################
     ## figure out the xmatch type and run it ##
@@ -1751,9 +1720,7 @@ def sqlite_xmatch_search(basedir,
                      "and extraconditions did not pass "
                      "validate_sqlite_filters, "
                      "returning early...")
-            db.close()
             return None
-
 
 
     # handle xmatching by coordinates
@@ -1770,10 +1737,90 @@ def sqlite_xmatch_search(basedir,
         # go through each LCC
         for lcc in uselcc:
 
-            # get the kdtree path
+            # get the database now
             dbindex = available_lcc.index(lcc)
+            db, cur = sqlite3_to_memory(dbfiles[dbindex], lcc)
 
+            # get the kdtree path
             kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
+
+            ###########################################
+            ## create a temporary xmatch table first ##
+            ###########################################
+
+            # prepare the input data for inserting into a temporary xmatch table
+            datatable = [inputdata['data'][x] for x in inputdata['columns']]
+
+            # convert to tuples per row for use with sqlite.cursor.executemany()
+            datatable = list(zip(*datatable))
+
+            col_defs = []
+            col_names = []
+
+            for col, coltype in zip(inputdata['columns'], inputdata['types']):
+
+                # normalize the column name and add it to a tracking list
+                thiscol_name = (
+                    col.replace(' ','_').replace('-','_').replace('.','_')
+                )
+                col_names.append(thiscol_name)
+
+                thiscol_type = coltype
+
+                if thiscol_type == 'str':
+                    col_defs.append('%s text' % thiscol_name)
+                elif thiscol_type == 'int':
+                    col_defs.append('%s integer' % thiscol_name)
+                elif thiscol_type == 'float':
+                    col_defs.append('%s double precision' % thiscol_name)
+                elif thiscol_type == 'bool':
+                    col_defs.append('%s integer' % thiscol_name)
+                else:
+                    col_defs.append('%s text' % thiscol_name)
+
+            column_and_type_list = ', '.join(col_defs)
+
+            # this is the SQL to create the temporary xmatch table
+            create_temptable_q = (
+                "create table _temp_xmatch_table "
+                "({column_and_type_list}, primary key ({objectid_col}))"
+            ).format(column_and_type_list=column_and_type_list,
+                     objectid_col=inputdata['colobjectid'])
+
+            # this is the SQL to make an index on the match column in the xmatch
+            # table
+            index_temptable_q = (
+                "create index xmatch_index "
+                "on _temp_xmatch_table({xmatch_colname})"
+            ).format(xmatch_colname=xmatch_col)
+
+            # this is the SQL to insert all of the input data columns into the
+            # xmatch table
+            insert_temptable_q = (
+                "insert into _temp_xmatch_table values ({placeholders})"
+            ).format(placeholders=', '.join(['?']*len(col_names)))
+
+            # 1. create the temporary xmatch table
+            cur.execute(create_temptable_q)
+
+            # 2. insert the input data columns
+            cur.executemany(insert_temptable_q, datatable)
+
+            # 3. index the xmatch column
+            if xmatch_type == 'column':
+                cur.execute(index_temptable_q)
+
+            # this is the column string to be used in the query to join the LCC
+            # and xmatch tables
+            xmatch_columnstr = (
+                '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
+            )
+
+
+            #
+            # handle extra stuff that needs to go into the xmatch results
+            #
+
             lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
             lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
@@ -1970,6 +2017,11 @@ def sqlite_xmatch_search(basedir,
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
+            # at the end, drop the temp xmatch table and close the DB
+            cur.execute('drop table _temp_xmatch_table')
+            db.close()
+
+
         #
         # done with all LCCs
         #
@@ -1988,10 +2040,6 @@ def sqlite_xmatch_search(basedir,
                            'lcclist':lcclist}
         results['search'] = 'sqlite_xmatch_search'
 
-        # delete the temporary xmatch table
-        cur.execute('drop table _temp_xmatch_table')
-
-        db.close()
         return results
 
 
@@ -2049,7 +2097,90 @@ def sqlite_xmatch_search(basedir,
         # go through each LCC
         for lcc in uselcc:
 
+            # get the database now
             dbindex = available_lcc.index(lcc)
+            db, cur = sqlite3_to_memory(dbfiles[dbindex], lcc)
+
+            # get the kdtree path
+            kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
+
+            ###########################################
+            ## create a temporary xmatch table first ##
+            ###########################################
+
+            # prepare the input data for inserting into a temporary xmatch table
+            datatable = [inputdata['data'][x] for x in inputdata['columns']]
+
+            # convert to tuples per row for use with sqlite.cursor.executemany()
+            datatable = list(zip(*datatable))
+
+            col_defs = []
+            col_names = []
+
+            for col, coltype in zip(inputdata['columns'], inputdata['types']):
+
+                # normalize the column name and add it to a tracking list
+                thiscol_name = (
+                    col.replace(' ','_').replace('-','_').replace('.','_')
+                )
+                col_names.append(thiscol_name)
+
+                thiscol_type = coltype
+
+                if thiscol_type == 'str':
+                    col_defs.append('%s text' % thiscol_name)
+                elif thiscol_type == 'int':
+                    col_defs.append('%s integer' % thiscol_name)
+                elif thiscol_type == 'float':
+                    col_defs.append('%s double precision' % thiscol_name)
+                elif thiscol_type == 'bool':
+                    col_defs.append('%s integer' % thiscol_name)
+                else:
+                    col_defs.append('%s text' % thiscol_name)
+
+            column_and_type_list = ', '.join(col_defs)
+
+            # this is the SQL to create the temporary xmatch table
+            create_temptable_q = (
+                "create table _temp_xmatch_table "
+                "({column_and_type_list}, primary key ({objectid_col}))"
+            ).format(column_and_type_list=column_and_type_list,
+                     objectid_col=inputdata['colobjectid'])
+
+            # this is the SQL to make an index on the match column in the xmatch
+            # table
+            index_temptable_q = (
+                "create index xmatch_index "
+                "on _temp_xmatch_table({xmatch_colname})"
+            ).format(xmatch_colname=xmatch_col)
+
+            # this is the SQL to insert all of the input data columns into the
+            # xmatch table
+            insert_temptable_q = (
+                "insert into _temp_xmatch_table values ({placeholders})"
+            ).format(placeholders=', '.join(['?']*len(col_names)))
+
+            # 1. create the temporary xmatch table
+            cur.execute(create_temptable_q)
+
+            # 2. insert the input data columns
+            cur.executemany(insert_temptable_q, datatable)
+
+            # 3. index the xmatch column
+            if xmatch_type == 'column':
+                cur.execute(index_temptable_q)
+
+            # this is the column string to be used in the query to join the LCC
+            # and xmatch tables
+            xmatch_columnstr = (
+                '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
+            )
+
+
+            #
+            # handle extra stuff that needs to go into the xmatch results
+            #
+
             lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
             lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
 
@@ -2126,6 +2257,14 @@ def sqlite_xmatch_search(basedir,
 
                 if raiseonfail:
                     raise
+
+
+            # close the DB at the end of LCC processing
+            finally:
+                # delete the temporary xmatch table
+                cur.execute('drop table _temp_xmatch_table')
+                db.close()
+
         #
         # done with all LCCs
         #
@@ -2144,8 +2283,6 @@ def sqlite_xmatch_search(basedir,
                            'lcclist':lcclist}
         results['search'] = 'sqlite_xmatch_search'
 
-        # delete the temporary xmatch table
-        cur.execute('drop table _temp_xmatch_table')
 
         db.close()
         return results
