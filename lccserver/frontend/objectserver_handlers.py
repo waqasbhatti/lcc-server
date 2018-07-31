@@ -326,15 +326,13 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
             # stray nulls can kill base64 encoded images
 
             # first, we'll deserialize to JSON
-            ret = resp.json()
+            # make sure to replace NaNs only in the right places
+            rettext = resp.body.decode()
+            rettext = (
+                rettext.replace(': NaN',': null').replace(', NaN',', null')
+            )
 
-            # separate out the images
-            # FIXME: finish this
-
-
-            retbody = resp.body.decode().replace('NaN','null')
-
-            self.write(retbody)
+            self.write(rettext)
             self.finish()
 
         else:

@@ -651,18 +651,14 @@ var lcc_ui = {
                 lcc_objectinfo.render_modal_template();
 
                 // add in the finder chart
-                // also reverse the aggressive NaN to null conversion we did
-                // on the backend if necessary (this is kind of hilarious)
                 if ('finderchart' in result && result.finderchart != null) {
-                    var finderchart =
-                        result.finderchart.replace('null','NaN');
+                    var finderchart = result.finderchart;
                     lcc_objectinfo.b64_to_canvas(finderchart, '#finderchart');
                 }
 
                 // add in the object light curve
                 if ('magseries' in result && result.magseries != null) {
-                    var magseries =
-                        result.magseries.replace('null','NaN');
+                    var magseries = result.magseries;
                     lcc_objectinfo.b64_to_image(magseries, '.magseriesplot');
                 }
 
