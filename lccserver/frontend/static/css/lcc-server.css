@@ -89,6 +89,24 @@ code {
     font-size: small;
 }
 
+.objectinfo-table {
+    font-size: 12px;
+}
+
+.objectinfo-table td, .objectinfo-table th {
+    padding: 0.3rem;
+    vertical-align: middle;
+}
+
+.no-wrap-break {
+    white-space: nowrap;
+}
+
+canvas#finderchart {
+    width: 100%;
+}
+
+
 
 /* table sorter styles */
 /* from http://tristen.ca/tablesort/demo/ */

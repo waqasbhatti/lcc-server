@@ -105,7 +105,7 @@ define('serve',
 
 # path to the cookie secrets file
 define('secretfile',
-       default=os.path.join(os.getcwd(), 'lccserver.secret'),
+       default=os.path.join(os.getcwd(), '.lccserver.secret'),
        help=('The path to a text file containing a strong randomly '
              'generated token suitable for signing cookies. Will be used as '
              'the filename basis for files containing a Fernet key for '

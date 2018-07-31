@@ -194,6 +194,9 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
         probably yes. for now, we'll restrict this to the collection provided as
         the argument.
 
+        FIXME: FIXME: should probably check if the the object is actually public
+        before trying to fetch it
+
         '''
 
         objectid = self.get_argument('objectid',default=None)
@@ -256,6 +259,7 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
                                 objectid,
                                 collection,
                                 self.cpaddr, resp.code, resp.effective_url))
+                self.set_status(resp.code)
 
             # the checkplot server returns a JSON in case of success or error,
             # so that's what we'll forward to the client.

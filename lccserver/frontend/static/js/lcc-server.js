@@ -642,10 +642,11 @@ var lcc_ui = {
                                             '.magseriesplot');
 
                 // add in the object's info table
+                lcc_objectinfo.render_infotable(result);
 
                 // add in the object's neighbors and GAIA tables
 
-                // add in the object's
+                // add in the object's phased LCs from all available PFMETHODS
 
 
             }).fail(function (xhr) {
@@ -3130,16 +3131,71 @@ var lcc_objectinfo = {
 
     <nav>
       <div class="nav nav-tabs" id="modal-nav-tab" role="tablist">
-        <a class="nav-item nav-link active" id="modal-objectinfo" data-toggle="tab" href="#mtab-objectinfo" role="tab" aria-controls="modal-objectinfo" aria-selected="true">Object</a>
-        <a class="nav-item nav-link" id="modal-nbrsgaia" data-toggle="tab" href="#mtab-nbrsgaia" role="tab" aria-controls="modal-nbrsgaia" aria-selected="false">Neighbors</a>
-        <a class="nav-item nav-link" id="modal-phasedlcs" data-toggle="tab" href="#mtab-phasedlcs" role="tab" aria-controls="modal-phasedlcs" aria-selected="false">Phased LCs</a>
+
+        <a class="nav-item nav-link active" id="modal-objectinfo"
+           data-toggle="tab" href="#mtab-objectinfo" role="tab"
+           aria-controls="modal-objectinfo" aria-selected="true">Object</a>
+
+        <a class="nav-item nav-link" id="modal-phasedlcs"
+           data-toggle="tab" href="#mtab-phasedlcs" role="tab"
+           aria-controls="modal-phasedlcs" aria-selected="false">Phased LCs</a>
+
       </div>
     </nav>
 
     <div class="tab-content" id="modal-nav-content">
-      <div class="tab-pane show active" id="mtab-objectinfo" role="tabpanel" aria-labelledby="modal-objectinfo">...</div>
-      <div class="tab-pane" id="mtab-nbrsgaia" role="tabpanel" aria-labelledby="modal-nbrsgaia">...</div>
-      <div class="tab-pane" id="mtab-phasedlcs" role="tabpanel" aria-labelledby="modal-phasedlcs">...</div>
+
+      <div class="tab-pane show active" id="mtab-objectinfo"
+           role="tabpanel" aria-labelledby="modal-objectinfo">
+
+        <div class="row mt-2">
+          <div class="col-6">
+
+            <table id="objectinfo-basic"
+                   class="table table-borderless objectinfo-table">
+
+              <tr>
+                <th>Observations</th>
+                <td id="obsinfo">blah</td>
+              </tr>
+              <tr>
+                <th>Coords and PM</th>
+                <td id="coordspm">blah</td>
+              </tr>
+              <tr>
+                <th>Magnitudes<span id="magnotice"></span></th>
+                <td id="mags">blah</td>
+              </tr>
+              <tr>
+                <th>Colors<span id="derednotice"></span></th>
+                <td id="colors">blah</td>
+              </tr>
+
+            </table>
+
+          </div>
+
+          <div class="col-6">
+
+            <table id="objectinfo-extra"
+                   class="table table-borderless objectinfo-table">
+            </table>
+
+        </div>
+        </div>
+
+      </div>
+
+      <div class="tab-pane" id="mtab-phasedlcs"
+           role="tabpanel" aria-labelledby="modal-phasedlcs">
+
+
+
+
+
+
+      </div>
+
     </div>
 
   </div>
@@ -3217,31 +3273,624 @@ var lcc_objectinfo = {
         $('.modal-body').html(lcc_objectinfo.modal_template);
     },
 
-    // this writes the finder chart to the modal's finderchart canvas element
-    render_finderchart: function (imgb64, target) {
+    render_infotable: function (currcp) {
+
+        // get the number of detections
+        var objndet = currcp.objectinfo.ndet;
+
+        if (objndet == undefined) {
+            objndet = currcp.magseries_ndet;
+        }
+
+        // get the observatory information
+        if ('stations' in currcp.objectinfo) {
+
+            // get the HAT stations
+            var hatstations = currcp.objectinfo.stations;
+            var splitstations = '';
+
+            if (hatstations != undefined && hatstations) {
+                splitstations = (String(hatstations).split(',')).join(', ');
+            }
+
+            // update the objectinfo
+            var hatinfo = '<strong>' +
+                splitstations +
+                '</strong><br>' +
+                '<strong>LC points:</strong> ' + objndet;
+            $('#obsinfo').html(hatinfo);
+
+        }
+        else if ('observatory' in currcp.objectinfo) {
+
+            var obsinfo = '<strong'> +
+                currcp.objectinfo.observatory + '</strong><br>' +
+                '<strong>LC points:</strong> ' + objndet;
+            $('#obsinfo').html(obsinfo);
+
+        }
+        else if ('telescope' in currcp.objectinfo) {
+
+            var telinfo = '<strong'> +
+                currcp.objectinfo.telescope + '</strong><br>' +
+                '<strong>LC points:</strong> ' + objndet;
+            $('#obsinfo').html(telinfo);
+
+        }
+        else {
+            $('#obsinfo').html('<strong>LC points:</strong> ' + objndet);
+        }
+
+        // get the GAIA status (useful for G mags, colors, etc.)
+        var gaia_ok = false;
+        var gaia_message = (
+            'no GAIA cross-match information available'
+        );
+        if (currcp.objectinfo.gaia_status != undefined) {
+           gaia_ok =
+                currcp.objectinfo.gaia_status.indexOf('ok') != -1;
+            gaia_message =
+                currcp.objectinfo.gaia_status.split(':')[1];
+        }
+
+        // get the SIMBAD status (useful for G mags, colors, etc.)
+        var simbad_ok = false;
+        var simbad_message = (
+            'no SIMBAD cross-match information available'
+        );
+        if (currcp.objectinfo.simbad_status != undefined) {
+            simbad_ok =
+                currcp.objectinfo.simbad_status.indexOf('ok') != -1;
+            simbad_message =
+                currcp.objectinfo.simbad_status.split(':')[1];
+        }
 
 
-
-    },
-
-    // this writes the object's light curve to the modal's object-lightcurve img
-    // element
-    render_objectlc: function (imgb64, target) {
-
-
-
-    },
-
-    render_infotable: function (objectinfo, target) {
+        //
+        // get the coordinates and PM
+        //
+        var objectra = '';
+        var objectdecl = '';
+        var objectgl = '';
+        var objectgb = '';
+        var objectpm = '';
+        var objectrpmj = '';
 
 
+        // ra
+        if (currcp.objectinfo.ra != undefined) {
+            objectra = currcp.objectinfo.ra.toFixed(3);
+        }
+        // decl
+        if (currcp.objectinfo.decl != undefined) {
+            objectdecl = currcp.objectinfo.decl.toFixed(3);
+        }
+        // gl
+        if (currcp.objectinfo.gl != undefined) {
+            objectgl = currcp.objectinfo.gl.toFixed(3);
+        }
+        // gb
+        if (currcp.objectinfo.gb != undefined) {
+            objectgb = currcp.objectinfo.gb.toFixed(3);
+        }
+        // total proper motion
+        if (currcp.objectinfo.propermotion != undefined) {
+            objectpm = currcp.objectinfo.propermotion.toFixed(2)
+                + ' mas/yr';
 
-    },
+            if ( (currcp.objectinfo.pmra_source != undefined) &&
+                 (currcp.objectinfo.pmdecl_source != undefined) ) {
 
-    render_neighbors_and_gaia: function (neighbors, neighbors_target,
-                                         gaiainfo, gaiainfo_target) {
+                var pmra_source = currcp.objectinfo.pmra_source;
+                var pmdecl_source = currcp.objectinfo.pmdecl_source;
+
+                // note if the propermotion came from GAIA
+                if ( (pmra_source == pmdecl_source) &&
+                     (pmra_source == 'gaia') ) {
+                    objectpm = objectpm + ' (from GAIA)';
+                }
+
+            }
+
+        }
+
+        // reduced proper motion [Jmag]
+        if (currcp.objectinfo.rpmj != undefined) {
+            objectrpmj = currcp.objectinfo.rpmj.toFixed(2);
+        }
+        else if (currcp.objectinfo.reducedpropermotion != undefined) {
+            objectrpmj = currcp.objectinfo.reducedpropermotion.toFixed(2);
+        }
+
+        // format the coordinates and PM
+        var coordspm =
+            '<strong>Equatorial (&alpha;, &delta;):</strong> (' +
+            objectra + ', ' + objectdecl + ')<br>' +
+            '<strong>Galactic (l, b):</strong> (' +
+            objectgl + ', ' + objectgb + ')<br>' +
+            '<strong>Total PM:</strong> ' + objectpm + '<br>' +
+            '<strong>Reduced PM<sub>J</sub>:</strong> ' + objectrpmj;
+
+        // see if we can get the GAIA parallax
+        if (gaia_ok && currcp.objectinfo.gaia_parallaxes[0]) {
+
+            var gaia_parallax = currcp.objectinfo.gaia_parallaxes[0].toFixed(2);
+            coordspm = coordspm + '<br>' +
+                '<strong>GAIA parallax:</strong> ' +
+                gaia_parallax + ' mas';
+
+        }
+
+        $('#coordspm').html(coordspm);
+
+        //
+        // handle the mags
+        //
+
+        var magnotices = [];
+
+        if (currcp.objectinfo.bmagfromjhk != undefined &&
+            currcp.objectinfo.bmagfromjhk) {
+            magnotices.push('B');
+        }
+        if (currcp.objectinfo.vmagfromjhk != undefined &&
+            currcp.objectinfo.vmagfromjhk) {
+            magnotices.push('V');
+        }
+        if (currcp.objectinfo.sdssufromjhk != undefined &&
+            currcp.objectinfo.sdssufromjhk) {
+            magnotices.push('u');
+        }
+        if (currcp.objectinfo.sdssgfromjhk != undefined &&
+            currcp.objectinfo.sdssgfromjhk) {
+            magnotices.push('g');
+        }
+        if (currcp.objectinfo.sdssrfromjhk != undefined &&
+            currcp.objectinfo.sdssrfromjhk) {
+            magnotices.push('r');
+        }
+        if (currcp.objectinfo.sdssifromjhk != undefined &&
+            currcp.objectinfo.sdssifromjhk) {
+            magnotices.push('i');
+        }
+        if (currcp.objectinfo.sdsszfromjhk != undefined &&
+            currcp.objectinfo.sdsszfromjhk) {
+            magnotices.push('z');
+        }
+
+        if (magnotices.length > 0) {
+            $('#magnotice').html('<br>(' + magnotices.join('') +
+                                 ' via JHK transform)');
+        }
+
+        // set up the cmdplots property for currcp
+        currcp.cmdplots = [];
 
 
+        // set up GAIA info
+        var gaiamag = 'N/A';
+        var gaiakcolor = '';
+        var gaiaabsmag = 'N/A';
+        if (gaia_ok) {
+            gaiamag = currcp.objectinfo.gaia_mags[0].toFixed(3);
+            if (currcp.objectinfo.gaiak_colors != null) {
+                gaiakcolor = currcp.objectinfo.gaiak_colors[0].toFixed(3);
+            }
+            gaiaabsmag = currcp.objectinfo.gaia_absolute_mags[0].toFixed(3);
+        }
+
+        //
+        // now we need to handle both generations of checkplots
+        //
+
+        // this is for the current generation of checkplots
+        if (currcp.objectinfo.hasOwnProperty('available_bands')) {
+
+            var mind = 0;
+            var cind = 0;
+            var mlen = currcp.objectinfo['available_bands'].length;
+            var clen = currcp.objectinfo['available_colors'].length;
+
+            var maglabel_pairs = [];
+            var colorlabel_pairs = [];
+
+            var thiskey = null;
+            var thislabel = null;
+            var thisval = null;
+
+            // generate the mag-label pairs
+            for (mind; mind < mlen; mind++) {
+
+                thiskey = currcp.objectinfo['available_bands'][mind];
+                thislabel =
+                    currcp.objectinfo['available_band_labels'][mind];
+                if (!isNaN(parseFloat(currcp.objectinfo[thiskey]))) {
+                    thisval = currcp.objectinfo[thiskey].toFixed(3);
+                }
+                else {
+                    thisval = '';
+                }
+                maglabel_pairs.push('<span class="no-wrap-break">' +
+                                    '<strong><em>' +
+                                    thislabel +
+                                    '</em>:</strong> ' +
+                                    thisval +
+                                    '</span>');
+
+            }
+
+            // generate the color-label pairs
+            for (cind; cind < clen; cind++) {
+
+                thiskey = currcp.objectinfo['available_colors'][cind];
+                thislabel =
+                    currcp.objectinfo['available_color_labels'][cind];
+
+                if (!isNaN(parseFloat(currcp.objectinfo[thiskey]))) {
+                    thisval = currcp.objectinfo[thiskey].toFixed(2);
+                }
+                else {
+                    thisval = '';
+                }
+
+                if (currcp.objectinfo.dereddened != undefined &&
+                    currcp.objectinfo.dereddened) {
+                    thislabel = '(' + thislabel
+                        + ')<sub>0</sub>';
+                    $('#derednotice').html('<br>(dereddened)');
+                }
+                else {
+                    thislabel = '(' + thislabel + ')';
+                }
+
+                colorlabel_pairs.push('<span class="no-wrap-break">' +
+                                      '<strong><em>' +
+                                      thislabel +
+                                      '</em>:</strong> ' +
+                                      thisval +
+                                      '</span>');
+
+            }
+
+
+            // now add the GAIA information if it exists
+            maglabel_pairs.push(
+                '<span class="no-wrap-break">' +
+                    '<strong><em>GAIA G</em>:</strong> ' +
+                    gaiamag +
+                    '</span>'
+            );
+            maglabel_pairs.push(
+                '<span class="no-wrap-break">' +
+                    '<strong><em>GAIA M<sub>G</sub></em>:</strong> ' +
+                    gaiaabsmag +
+                    '</span>'
+            );
+
+
+            maglabel_pairs = maglabel_pairs.join(', ');
+            colorlabel_pairs = colorlabel_pairs.join(', ');
+
+            $('#mags').html(maglabel_pairs);
+            $('#colors').html(colorlabel_pairs);
+
+        }
+
+        // this is for the older generation of checkplots
+        else {
+
+            var [sdssu, sdssg, sdssr, sdssi, sdssz] = ['','','','',''];
+            var [jmag, hmag, kmag] = ['','',''];
+            var [bmag, vmag] = ['',''];
+
+            if (!isNaN(parseFloat(currcp.objectinfo.sdssu))) {
+                sdssu = currcp.objectinfo.sdssu.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.sdssg))) {
+                sdssg = currcp.objectinfo.sdssg.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.sdssr))) {
+                sdssr = currcp.objectinfo.sdssr.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.sdssi))) {
+                sdssi = currcp.objectinfo.sdssi.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.sdssz))) {
+                sdssz = currcp.objectinfo.sdssz.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.jmag))) {
+                jmag = currcp.objectinfo.jmag.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.hmag))) {
+                hmag = currcp.objectinfo.hmag.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.kmag))) {
+                kmag = currcp.objectinfo.kmag.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.bmag))) {
+                bmag = currcp.objectinfo.bmag.toFixed(3);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.vmag))) {
+                vmag = currcp.objectinfo.vmag.toFixed(3);
+            }
+
+            var mags = '<strong><em>ugriz</em>:</strong> ' +
+                sdssu + ', ' +
+                sdssg + ', ' +
+                sdssr + ', ' +
+                sdssi + ', ' +
+                sdssz + '<br>' +
+                '<strong><em>JHK</em>:</strong> ' +
+                jmag + ', ' +
+                hmag + ', ' +
+                kmag + '<br>' +
+                '<strong><em>BV</em>:</strong> ' +
+                bmag + ', ' +
+                vmag + '<br>' +
+                '<strong><em>GAIA G</em>:</strong> ' +
+                gaiamag + ', ' +
+                '<strong><em>GAIA M<sub>G</sub></em>:</strong> ' +
+                gaiaabsmag;
+
+            $('#mags').html(mags);
+
+            //
+            // handle the colors
+            //
+            var [bvcolor, vkcolor, jkcolor] = ['','',''];
+            var [ijcolor, gkcolor, grcolor] = ['','',''];
+
+            if (!isNaN(parseFloat(currcp.objectinfo.bvcolor))) {
+                bvcolor = currcp.objectinfo.bvcolor.toFixed(2);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.vkcolor))) {
+                vkcolor = currcp.objectinfo.vkcolor.toFixed(2);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.jkcolor))) {
+                jkcolor = currcp.objectinfo.jkcolor.toFixed(2);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.ijcolor))) {
+                ijcolor = currcp.objectinfo.ijcolor.toFixed(2);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.gkcolor))) {
+                gkcolor = currcp.objectinfo.gkcolor.toFixed(2);
+            }
+            if (!isNaN(parseFloat(currcp.objectinfo.grcolor))) {
+                grcolor = currcp.objectinfo.grcolor.toFixed(2);
+            }
+
+            var colors =
+                '<strong><em>(B - V)</em>:</strong> ' +
+                bvcolor + ',  ' +
+                '<strong><em>(V - K)</em>:</strong> ' +
+                vkcolor + '<br>' +
+                '<strong><em>(J - K)</em>:</strong> ' +
+                jkcolor + ',  ' +
+                '<strong><em>(i - J)</em>:</strong> ' +
+                ijcolor + '<br>' +
+                '<strong><em>(g - K)</em>:</strong> ' +
+                gkcolor + ',  ' +
+                '<strong><em>(g - r)</em>:</strong> ' +
+                grcolor;
+
+            if (currcp.objectinfo.dereddened != undefined &&
+                currcp.objectinfo.dereddened) {
+                $('#derednotice').html('<br>(dereddened)');
+            }
+
+            // format the colors
+            $('#colors').html(colors);
+
+        }
+
+
+        //
+        // additional stuff
+        //
+
+        // first, empty out the extra info table
+        $("#objectinfo-extra").empty();
+
+        // add the color classification if available
+        if (currcp.objectinfo.color_classes != undefined &&
+            currcp.objectinfo.color_classes.length > 0) {
+
+            var formatted_color_classes =
+                currcp.objectinfo.color_classes.join(', ');
+            $('#objectinfo-extra')
+                .append(
+                    "<tr>" +
+                        "<th>SDSS/SEGUE color class</th>" +
+                        "<td>" + formatted_color_classes + "</td>" +
+                        "</tr>"
+                );
+
+        }
+
+        // neighbors
+        if (currcp.objectinfo.neighbors != undefined ||
+            (currcp.objectinfo.gaia_ids != undefined &&
+             currcp.objectinfo.gaia_ids.length > 0) ) {
+
+            var formatted_neighbors =
+                '<strong><em>from LCs in collection</em>:</strong> 0<br>';
+            if (currcp.objectinfo.neighbors > 0) {
+
+                formatted_neighbors =
+                    '<strong><em>from LCs in collection</em>:</strong> ' +
+                    currcp.objectinfo.neighbors + '<br>' +
+                    '<em>closest:</em> ' +
+                    currcp.objectinfo.closestdistarcsec.toFixed(1) +
+                    '&Prime; &rarr; <span class="text-primary">N1: ' +
+                    currcp.neighbors[0]['objectid'] + '</span><br>';
+            }
+
+            var formatted_gaia =
+                '<strong><em>GAIA query failed</em>:</strong> ' +
+                gaia_message;
+            if (gaia_ok) {
+                formatted_gaia =
+                    '<strong><em>from GAIA</em>:</strong> ' +
+                    (currcp.objectinfo.gaia_ids.length - 1) + '<br>' +
+                    '<em>closest distance</em>: ' +
+                    currcp.objectinfo.gaia_closest_distarcsec.toFixed(2) +
+                    '&Prime;<br>' +
+                    '<em>closest G mag (obj - nbr)</em>: ' +
+                    currcp.objectinfo.gaia_closest_gmagdiff.toFixed(2) +
+                    ' mag';
+
+            }
+
+            $('#objectinfo-extra').append(
+                    "<tr>" +
+                    "<th>Neighbors within " +
+                    currcp.objectinfo.searchradarcsec.toFixed(1) +
+                    "&Prime;</th>" +
+                    "<td>" + formatted_neighbors +
+                    formatted_gaia +
+                    "</td>" +
+                    "</tr>"
+            );
+
+
+        }
+
+        // get the CMDs for this object if there are any
+        if (currcp.hasOwnProperty('colormagdiagram') &&
+            currcp.colormagdiagram != null) {
+
+            var cmdlist = Object.getOwnPropertyNames(
+                currcp.colormagdiagram
+            );
+
+            var cmdkey = '<tr><th>' +
+                'Color-magnitude diagrams' +
+                '</th>';
+
+            var cmdval = '<td>';
+            var cmdimgs = [];
+
+            // prepare the img divs
+            var cmdi = 0;
+            for (cmdi; cmdi < cmdlist.length; cmdi++) {
+
+                var thiscmdlabel = cmdlist[cmdi];
+                var thiscmdplot = currcp.colormagdiagram[cmdlist[cmdi]];
+
+                var cmddd =
+                    '<div class="dropdown">' +
+                    '<a href="#" ' +
+                    'title="Click to see the ' +
+                    thiscmdlabel +
+                    ' color-magnitude ' +
+                    'diagram for this object" ' +
+                    'id="cmd-' + cmdi +
+                    '-dropdown" data-toggle="dropdown" ' +
+                    'aria-haspopup="true" aria-expanded="false">' +
+                    '<strong>' + thiscmdlabel + ' CMD</strong>' +
+                    '</a>' +
+                    '<div class="dropdown-menu text-sm-center cmd-dn" ' +
+                    'aria-labelledby="cmd-' + cmdi + '-dropdown">' +
+                    '<img id="cmd-' + cmdi +'-plot" class="img-fluid">' +
+                    '</div></div>';
+                cmdval = cmdval + cmddd;
+                cmdimgs.push('#cmd-' + cmdi + '-plot');
+
+            }
+
+            cmdval = cmdkey + cmdval + '</td></tr>';
+            $('#objectinfo-extra').append(cmdval);
+
+            // now populate the img divs with the actual CMD images
+            cmdi = 0;
+            for (cmdi; cmdi < cmdlist.length; cmdi++) {
+
+                thiscmdlabel = cmdlist[cmdi];
+                thiscmdplot = currcp.colormagdiagram[thiscmdlabel];
+                lcc_objectinfo.b64_to_image(thiscmdplot, cmdimgs[cmdi]);
+
+            }
+
+        }
+
+        // get SIMBAD info if possible
+        if (currcp.objectinfo.simbad_status != undefined) {
+
+            var formatted_simbad =
+                '<strong><em>SIMBAD query failed</em>:</strong> ' +
+                simbad_message;
+            if (simbad_ok) {
+
+                var simbad_best_allids =
+                    currcp.objectinfo.simbad_best_allids
+                    .split('|').join(', ');
+
+                formatted_simbad =
+                    '<strong><em>matching objects</em>:</strong> ' +
+                    (currcp.objectinfo.simbad_nmatches) + '<br>' +
+                    '<em>closest distance</em>: ' +
+                    currcp.objectinfo.simbad_best_distarcsec.toFixed(2) +
+                    '&Prime;<br>' +
+                    '<em>closest object ID</em>: ' +
+                    currcp.objectinfo.simbad_best_mainid + '<br>' +
+                    '<em>closest object type</em>: ' +
+                    currcp.objectinfo.simbad_best_objtype + '<br>' +
+                    '<em>closest object other IDs</em>: ' +
+                    simbad_best_allids;
+
+            }
+
+            $('#objectinfo-extra')
+                .append(
+                    "<tr>" +
+                        "<th>SIMBAD information</th>" +
+                        "<td>" + formatted_simbad +
+                        "</td>" +
+                        "</tr>"
+                );
+
+        }
+
+        // get the period and variability info -> .objectinfo-extra
+        if ('varinfo' in currcp) {
+
+            var objectisvar = currcp.objectisvar;
+
+            if (objectisvar == 1) {
+                objectisvar = 'Probably a variable star';
+            }
+            if (objectisvar == 2) {
+                objectisvar = 'Probably not a variable star';
+            }
+            if (objectisvar == 3) {
+                objectisvar = 'May be a variable star, but difficult to tell.';
+            }
+            else {
+                objectisvar = 'Variability unknown or not checked yet';
+            }
+
+            var objectperiod = currcp.varinfo.varperiod;
+            var objectepoch = currcp.varinfo.varperiod;
+
+        }
+
+        // get the object comments -> .objectinfo-table
+        if ('objectcomments' in currcp &&
+            (currcp.objectcomments.length != null ||
+             currcp.objectcomments != undefined) &&
+            currcp.objectcomments.length > 0) {
+
+
+        }
+
+        // get the object tags -> .objectinfo-table
+        if ('objectcomments' in currcp &&
+            (currcp.objectcomments.length != null ||
+             currcp.objectcomments != undefined) &&
+            currcp.objectcomments.length > 0) {
+
+
+        }
 
     },
 
