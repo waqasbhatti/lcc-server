@@ -641,6 +641,11 @@ var lcc_ui = {
             var params = {objectid:objectid,
                           collection:collection};
 
+            // put in a message saying we're getting info
+            $('.modal-body')
+                .html('<div class="row"><div class="col-12">' +
+                      '<h6>Looking up this object...</h6></div></div>');
+
             $.getJSON(geturl, params, function (data) {
 
                 var msg = data.message;
@@ -4053,6 +4058,7 @@ var lcc_objectinfo = {
 
         else {
             $('#modal-phasedlc-container').html(
+                '<div class="row mt-2"><div class="col-12">' +
                 "<p>Period-finding for general stellar variability " +
                     "has not been run on this object, either " +
                     "because it didn't look like a variable star, " +
@@ -4060,7 +4066,7 @@ var lcc_objectinfo = {
                     "It's also possible that we haven't gotten " +
                     "around to it just yet. " +
                     "The light curve is available for download " +
-                    "if you'd like to give it a go.</p>"
+                    "if you'd like to give it a go.</p></div></div>"
             );
         }
 
