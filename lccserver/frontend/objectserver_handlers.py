@@ -132,6 +132,62 @@ def check_for_checkplots(objectid, basedir, collection):
 
 
 
+class ObjectInfoPageHandler(tornado.web.RequestHandler):
+    '''
+    This just calls the handler below to load object info to a blank template.
+
+    This listens on /o/<collection>/<objectid>.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   apiversion,
+                   templatepath,
+                   assetpath,
+                   docspath,
+                   executor,
+                   basedir,
+                   signer,
+                   fernet,
+                   cpsharedkey,
+                   cpaddress):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.apiversion = apiversion
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.docspath = docspath
+        self.executor = executor
+        self.basedir = basedir
+        self.signer = signer
+        self.fernet = fernet
+        self.cpkey = cpsharedkey
+        self.cpaddr = cpaddress
+
+
+
+    @gen.coroutine
+    def get(self, collection, objectid):
+        '''This runs the query.
+
+        Just renders templates/objectinfo-async.html.
+
+        That page has an async call to the objectinfo JSON API below.
+
+        FIXME: FIXME: should probably check if the the object is actually public
+        before trying to fetch it
+        '''
+
+        collection = xhtml_escape(collection)
+        objectid = xhtml_escape(objectid)
+
+
+
 class ObjectInfoHandler(tornado.web.RequestHandler):
     '''
     This handles talking to the checkplotserver for checkplot info

@@ -89,6 +89,12 @@ code {
     font-size: small;
 }
 
+/* styles for the objectinfo modal  */
+
+.modal-toprow {
+    height: 300px;
+}
+
 .objectinfo-table {
     font-size: 12px;
 }
@@ -106,6 +112,29 @@ canvas#finderchart {
     width: 100%;
 }
 
+span.cp-tag {
+    padding-top: 3px;
+    padding-bottom: 2px;
+    padding-left: 3px;
+    padding-right: 3px;
+    margin: 2px auto;
+    background: #2f4f4f;
+    color: #eee;
+    white-space: nowrap;
+}
+
+#modal-phasedlc-container {
+    height: 350px;
+    overflow-y: auto;
+}
+
+.zoomable-tile {
+    transition: 0.2s ease-out;
+    -webkit-transition: 0.2s ease-out;
+    position: relative;
+    top: 0;
+    left: 0;
+}
 
 
 /* table sorter styles */

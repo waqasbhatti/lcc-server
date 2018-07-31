@@ -442,7 +442,7 @@ def main():
           'basedir':BASEDIR}),
 
         # docs page index and other subdirs, renders markdown to HTML
-        (r'/docs/?(.*)',
+        (r'/docs/?(\w*)',
          ih.DocsHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
@@ -585,7 +585,7 @@ def main():
         ##############################################
 
         # this is the dataset display API for a single dataset
-        (r'/set/(.*)',
+        (r'/set/(\w+)',
          dh.DatasetHandler,
          {'currentdir':CURRENTDIR,
           'apiversion':APIVERSION,
@@ -623,8 +623,24 @@ def main():
         ## OBJECT INFORMATION FROM CHECKPLOT HANDLERS ##
         ################################################
 
+        # the main objectinfo API - talks to checkplotserver
         (r'/api/object',
          oh.ObjectInfoHandler,
+         {'currentdir':CURRENTDIR,
+          'apiversion':APIVERSION,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'docspath':DOCSPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'signer':SIGNER,
+          'fernet':FERNET,
+          'cpsharedkey':CPKEY,
+          'cpaddress':CPADDR}),
+
+        # renders objectinfo from API above to an HTML page for easy viewing
+        (r'/obj/(\w+)/(\w+)',
+         oh.ObjectInfoPageHandler,
          {'currentdir':CURRENTDIR,
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,

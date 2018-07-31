@@ -584,6 +584,23 @@ var lcc_ui = {
 
         });
 
+        // fancy zoom and pan effects for a phased LC tile
+        // see https://codepen.io/ccrch/pen/yyaraz
+        $('.modal-body')
+            .on('mouseover', '.zoomable-tile', function (evt) {
+
+                $(this).css({'transform': 'scale(1.6)',
+                             'z-index':1000});
+
+            });
+        $('.modal-body')
+            .on('mouseout', '.zoomable-tile', function (evt) {
+
+                $(this).css({'transform': 'scale(1.0)',
+                             'z-index':0});
+
+            });
+
 
         // bind the objectinfo-link to show a modal with objectinfo from
         // checkplots
@@ -634,20 +651,26 @@ var lcc_ui = {
                 lcc_objectinfo.render_modal_template();
 
                 // add in the finder chart
-                lcc_objectinfo.b64_to_canvas(result.finderchart,
-                                             '#finderchart');
+                // also reverse the aggressive NaN to null conversion we did
+                // on the backend if necessary (this is kind of hilarious)
+                if ('finderchart' in result && result.finderchart != null) {
+                    var finderchart =
+                        result.finderchart.replace('null','NaN');
+                    lcc_objectinfo.b64_to_canvas(finderchart, '#finderchart');
+                }
 
                 // add in the object light curve
-                lcc_objectinfo.b64_to_image(result.magseries,
-                                            '.magseriesplot');
+                if ('magseries' in result && result.magseries != null) {
+                    var magseries =
+                        result.magseries.replace('null','NaN');
+                    lcc_objectinfo.b64_to_image(magseries, '.magseriesplot');
+                }
 
                 // add in the object's info table
                 lcc_objectinfo.render_infotable(result);
 
-                // add in the object's neighbors and GAIA tables
-
                 // add in the object's phased LCs from all available PFMETHODS
-
+                lcc_objectinfo.render_pfresult(result);
 
             }).fail(function (xhr) {
 
@@ -3116,7 +3139,7 @@ var lcc_objectinfo = {
 
     // this is the ES6 template string for the modal UI
     modal_template: `
-<div class="row d-flex align-items-center justify-content-center">
+<div class="row d-flex align-items-center justify-content-center modal-toprow">
   <div class="col-4">
     <canvas id="finderchart"></canvas>
   </div>
@@ -3134,11 +3157,11 @@ var lcc_objectinfo = {
 
         <a class="nav-item nav-link active" id="modal-objectinfo"
            data-toggle="tab" href="#mtab-objectinfo" role="tab"
-           aria-controls="modal-objectinfo" aria-selected="true">Object</a>
+           aria-controls="modal-objectinfo" aria-selected="true">Object details</a>
 
         <a class="nav-item nav-link" id="modal-phasedlcs"
            data-toggle="tab" href="#mtab-phasedlcs" role="tab"
-           aria-controls="modal-phasedlcs" aria-selected="false">Phased LCs</a>
+           aria-controls="modal-phasedlcs" aria-selected="false">Period search results</a>
 
       </div>
     </nav>
@@ -3189,10 +3212,15 @@ var lcc_objectinfo = {
       <div class="tab-pane" id="mtab-phasedlcs"
            role="tabpanel" aria-labelledby="modal-phasedlcs">
 
+        <div class="row">
+          <div class="col-12">
 
+            <div id="modal-phasedlc-container">
 
+            </div>
 
-
+          </div>
+        </div>
 
       </div>
 
@@ -3857,53 +3885,187 @@ var lcc_objectinfo = {
             var objectisvar = currcp.objectisvar;
 
             if (objectisvar == 1) {
-                objectisvar = 'Probably a variable star';
+                objectisvar = 'probably variable';
             }
             if (objectisvar == 2) {
-                objectisvar = 'Probably not a variable star';
+                objectisvar = 'probably not variable';
             }
             if (objectisvar == 3) {
-                objectisvar = 'May be a variable star, but difficult to tell.';
+                objectisvar = 'may be variable, but difficult to tell.';
             }
             else {
-                objectisvar = 'Variability unknown or not checked yet';
+                objectisvar = 'unknown or not checked yet';
             }
 
             var objectperiod = currcp.varinfo.varperiod;
+            if (objectperiod != null && objectperiod != undefined) {
+                objectperiod = objectperiod.toFixed(6);
+            }
+            else {
+                objectperiod = 'undetermined';
+            }
+
             var objectepoch = currcp.varinfo.varperiod;
+            if (objectepoch != null && objectepoch != undefined) {
+                objectepoch = objectepoch.toFixed(5);
+            }
+            else {
+                objectepoch = 'undetermined';
+            }
+
+            var vartags = 'none';
+            if ('vartags' in currcp.varinfo &&
+                (currcp.varinfo.vartags != null ||
+                 currcp.varinfo.vartags != undefined) &&
+                currcp.varinfo.vartags.length > 0) {
+
+                vartags = currcp.varinfo.vartags.split(', ').map(
+                    function (elem) {
+                        return '<span class="cp-tag">' + elem + '</span>';
+                    }).join(', ');
+
+            }
+
+            $('#objectinfo-extra')
+                .append('<tr>' +
+                        '<th>Variable star?</th>' +
+                        '<td>' + objectisvar + '</td></tr>');
+            $('#objectinfo-extra')
+                .append('<tr>' +
+                        '<th>Best period and epoch</th>' +
+                        '<td><em>Period [days]</em>: ' + objectperiod + '<br>' +
+                        '<em>Epoch [RJD]</em>: ' + objectepoch + '</td>' +
+                        '</tr>');
+            $('#objectinfo-extra')
+                .append('<tr>' +
+                        '<th>Variability tags</th>' +
+                        '<td>' + vartags + '</td></tr>');
+
+        }
+
+        // get the object tags -> .objectinfo-table
+        if ('objecttags' in currcp.objectinfo &&
+            (currcp.objectinfo.objecttags != null ||
+             currcp.objectinfo.objecttags != undefined) &&
+            currcp.objectinfo.objecttags.length > 0) {
+
+            var objecttags = currcp.objectinfo.objecttags.split(', ').map(
+                function (elem) {
+                    return '<span class="cp-tag">' + elem + '</span>';
+                }).join(', ');
+
+            $('#objectinfo-basic').append(
+                '<tr>' +
+                    '<th>Object tags</th>' +
+                    '<td>' + objecttags + '</td></tr>'
+            );
 
         }
 
         // get the object comments -> .objectinfo-table
         if ('objectcomments' in currcp &&
-            (currcp.objectcomments.length != null ||
+            (currcp.objectcomments != null ||
              currcp.objectcomments != undefined) &&
             currcp.objectcomments.length > 0) {
 
+            $('#objectinfo-basic').append(
+                '<tr>' +
+                    '<th>Comments</th>' +
+                    '<td>' + currcp.objectcomments + '</td></tr>'
+            );
 
         }
-
-        // get the object tags -> .objectinfo-table
-        if ('objectcomments' in currcp &&
-            (currcp.objectcomments.length != null ||
-             currcp.objectcomments != undefined) &&
-            currcp.objectcomments.length > 0) {
-
-
-        }
-
-    },
-
-    render_pfresult: function (pfresult, target) {
-
 
 
     },
 
-    render_varinfo: function (varinfo, target) {
+    render_pfresult: function (currcp) {
 
+        // first, check if we have any pfmethods at all
+        var pfmethods = null;
 
+        if ('pfmethods' in currcp &&
+            currcp.pfmethods != null &&
+            currcp.pfmethods.length > 0) {
+
+            pfmethods = currcp.pfmethods;
+
+            // we'll make tiles of best 3 phased LCs for each pfmethod
+            // -> 3 x nrows using one row per pfmethod. the first tile will
+            // be the periodogram, the other 3 will be the best 3 period
+            // phased LCs. we'll use the zoom-in technique from the
+            //checkplotserver since these plots will be tiny
+            // to fit into the modal
+
+            var [row, header, container] = ['', '', ''];
+            var [col1, col2, col3, col4] = ['', '', '', ''];
+
+            for (let pfm of pfmethods) {
+
+                var pfm_label = pfm.split('-');
+                pfm_label = pfm_label[pfm_label.length - 1];
+
+                row = '<div class="row mt-2">';
+
+                header = '<div class="col-12">' +
+                    '<h6>' +
+                    'Period-finder: ' + pfm_label.toUpperCase() +
+                    ', best period [days]: ' +
+                    currcp[pfm].phasedlc0.period.toFixed(6) +
+                    ', best epoch [RJD]: ' +
+                    currcp[pfm].phasedlc0.epoch.toFixed(5) +
+                    '</h6></div>';
+
+                col1 = '<div class="col-3 px-0">' +
+                    '<img src="data:image/png;base64,' +
+                    currcp[pfm].periodogram.replace('null','NaN') +
+                    '" ' +
+                    'class="img-fluid zoomable-tile" id="periodogram-' +
+                    pfm + '"></div>';
+
+                col2 = '<div class="col-3 px-0">' +
+                    '<img src="data:image/png;base64,' +
+                    currcp[pfm]['phasedlc0']['plot'].replace('null','NaN') +
+                    '" ' +
+                    'class="img-fluid zoomable-tile" id="phasedlc-0-' +
+                    pfm + '"></div>';
+
+                col3 = '<div class="col-3 px-0">' +
+                    '<img src="data:image/png;base64,' +
+                    currcp[pfm]['phasedlc1']['plot'].replace('null','NaN') +
+                    '" ' +
+                    'class="img-fluid zoomable-tile" id="phasedlc-1-' +
+                    pfm + '"></div>';
+
+                col4 = '<div class="col-3 px-0">' +
+                    '<img src="data:image/png;base64,' +
+                    currcp[pfm]['phasedlc2']['plot'].replace('null','NaN') +
+                    '" ' +
+                    'class="img-fluid zoomable-tile" id="phasedlc-2-' +
+                    pfm + '"></div>';
+
+                container = row + header + '</div>' +
+                    row + col1 + col2 + col3 + col4 + '</div>';
+                $('#modal-phasedlc-container').append(container);
+
+            }
+
+        }
+
+        else {
+            $('#modal-phasedlc-container').html(
+                "<p>Period-finding for general stellar variability " +
+                    "has not been run on this object, either " +
+                    "because it didn't look like a variable star, " +
+                    "or it was not a likely exoplanet transit candidate. " +
+                    "It's also possible that we haven't gotten " +
+                    "around to it just yet. " +
+                    "The light curve is available for download " +
+                    "if you'd like to give it a go.</p>"
+            );
+        }
 
     }
+
 
 };
