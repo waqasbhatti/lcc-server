@@ -112,16 +112,10 @@ canvas#finderchart {
     width: 100%;
 }
 
-span.cp-tag {
-    padding-top: 3px;
-    padding-bottom: 2px;
-    padding-left: 3px;
-    padding-right: 3px;
-    margin: 2px auto;
-    background: #2f4f4f;
-    color: #eee;
-    white-space: nowrap;
+td > .badge {
+    padding: 0.4em;
 }
+
 
 #modal-phasedlc-container {
     height: 350px;

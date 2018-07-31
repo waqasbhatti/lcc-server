@@ -3882,15 +3882,16 @@ var lcc_objectinfo = {
         // get the period and variability info -> .objectinfo-extra
         if ('varinfo' in currcp) {
 
-            var objectisvar = currcp.objectisvar;
+            var objectisvar = currcp.varinfo.objectisvar;
 
-            if (objectisvar == 1) {
-                objectisvar = 'probably variable';
+            if (parseInt(objectisvar) == 1) {
+                objectisvar =
+                    '<span class="text-success">probably variable</span>';
             }
-            if (objectisvar == 2) {
+            else if (parseInt(objectisvar) == 2) {
                 objectisvar = 'probably not variable';
             }
-            if (objectisvar == 3) {
+            else if (parseInt(objectisvar) == 3) {
                 objectisvar = 'may be variable, but difficult to tell.';
             }
             else {
@@ -3905,7 +3906,7 @@ var lcc_objectinfo = {
                 objectperiod = 'undetermined';
             }
 
-            var objectepoch = currcp.varinfo.varperiod;
+            var objectepoch = currcp.varinfo.varepoch;
             if (objectepoch != null && objectepoch != undefined) {
                 objectepoch = objectepoch.toFixed(5);
             }
@@ -3921,8 +3922,9 @@ var lcc_objectinfo = {
 
                 vartags = currcp.varinfo.vartags.split(', ').map(
                     function (elem) {
-                        return '<span class="cp-tag">' + elem + '</span>';
-                    }).join(', ');
+                        return '<span class="badge badge-success">' +
+                            elem + '</span>';
+                    }).join(' ');
 
             }
 
@@ -3951,8 +3953,9 @@ var lcc_objectinfo = {
 
             var objecttags = currcp.objectinfo.objecttags.split(', ').map(
                 function (elem) {
-                    return '<span class="cp-tag">' + elem + '</span>';
-                }).join(', ');
+                    return '<span class="badge badge-secondary">' +
+                        elem + '</span>';
+                }).join(' ');
 
             $('#objectinfo-basic').append(
                 '<tr>' +
