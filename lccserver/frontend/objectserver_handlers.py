@@ -322,7 +322,16 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
             self.set_header('Content-Type',
                             'application/json; charset=UTF-8')
 
-            # make sure once again to remove NaNs
+            # make sure once again to remove NaNs. do this carefully because
+            # stray nulls can kill base64 encoded images
+
+            # first, we'll deserialize to JSON
+            ret = resp.json()
+
+            # separate out the images
+            # FIXME: finish this
+
+
             retbody = resp.body.decode().replace('NaN','null')
 
             self.write(retbody)
