@@ -5,7 +5,7 @@ of each line. By default, the separator used is the comma character: `,`. The
 default comment character is the octothorpe: `#`.
 
 The metadata and columns included in the light curve files for this project's
-LCC server installation are described in the [lcformat](/docs/lcformat)
+LCC server instance are described in the [lcformat](/docs/lcformat)
 docs page.
 
 [TOC]

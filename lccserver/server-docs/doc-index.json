@@ -3,8 +3,8 @@
     "search": "How searching for objects works",
     "conesearch": "Searching for objects near coordinates",
     "ftsearch": "Searching for objects by name or description",
-    "columnsearch": "Searching by database collection columns",
-    "xmatch": "Cross-matching uploaded object catalogs",
+    "columnsearch": "Searching in database collection columns",
+    "xmatch": "Cross-matching to uploaded object lists",
     "datasets": "Datasets and products of search results",
     "acknowledgments": "Open source code, data, and service acknowledgments"
 }

@@ -647,10 +647,15 @@ def sqlite_fulltext_search(basedir,
                 # replace the column names and add the table prefixes to them so
                 # they remain unambiguous in case the 'where' columns are in
                 # both the 'object_catalog a' and the 'catalog_fts b' tables
+
+                # the space enforces the full column name must match. this is to
+                # avoid inadvertently replacing stuff like: 'dered_jmag_kmag'
+                # with 'dered_a.jmag_a.kmag'
+                # FIXME: find a better way of doing this
                 for c in rescolumns:
-                    if c in extraconditionstr:
+                    if '(%s ' % c in extraconditionstr:
                         extraconditionstr = (
-                            extraconditionstr.replace(c,'a.%s' % c)
+                            extraconditionstr.replace('(%s ' % c,'(a.%s ' % c)
                         )
 
             else:
@@ -2061,9 +2066,9 @@ def sqlite_xmatch_search(basedir,
             # they remain unambiguous in case the 'where' columns are in
             # both the '_temp_xmatch_table a' and the 'object_catalog b' tables
             for c in rescolumns:
-                if c in extraconditionstr:
+                if '(%s ' % c in extraconditionstr:
                     extraconditionstr = (
-                        extraconditionstr.replace(c,'b.%s' % c)
+                        extraconditionstr.replace('(%s ' % c,'(b.%s ' % c)
                     )
 
             if require_objectispublic:
