@@ -4,6 +4,10 @@ header at the top of the file marked out by comment characters at the beginning
 of each line. By default, the separator used is the comma character: `,`. The
 default comment character is the octothorpe: `#`.
 
+The metadata and columns included in the light curve files for this project's
+LCC server installation are described in the [lcformat](/docs/lcformat)
+docs page.
+
 [TOC]
 
 ## Light curve format
@@ -269,74 +273,4 @@ Use it like so:
 ```python
 
 lcdict = read_lcc_csvlc('/path/to/<objectid>-csvlc.gz')
-```
-
-
-## Object metadata key listing
-
-```
-            objectid | object ID
-               hatid | HAT ID
-           twomassid | 2MASS ID
-                  ra | RA [deg]
-                decl | Dec [deg]
-                jmag | 2MASS J
-                hmag | 2MASS H
-                kmag | 2MASS Ks
-                ndet | total number of observations
-            stations | observed by telescopes
-             network | observation network
-         lcapertures | aperture definitions [aperture number, size in pixels]
-             filters | telescope filter definitions [code, short name, description]
-         lastupdated | last updated at UNIX time
-            lcserver | HATLC generator gitref
-      lcinstnormcols | light curve normalization description
-```
-
-## Light curve column listing
-
-```
-column 00 |      rjd | numpy dtype:  f8 | time of observation in Reduced Julian date (JD = 2400000.0 + RJD)
-column 01 |      bjd | numpy dtype:  f8 | time of observation in Baryocentric Julian date (BJD_TDB)
-column 02 |      net | numpy dtype:  i8 | network of telescopes observing this target
-column 03 |      stf | numpy dtype:  i8 | station ID of the telescope observing this target
-column 04 |      cfn | numpy dtype:  i8 | camera frame serial number
-column 05 |      cfs | numpy dtype: U20 | camera subframe id
-column 06 |      ccd | numpy dtype:  i8 | camera CCD position number
-column 07 |      prj | numpy dtype: U20 | project ID of this observation
-column 08 |      fld | numpy dtype: U20 | observed field name
-column 09 |      frt | numpy dtype: U20 | image frame type [flat, object, etc.]
-column 10 |      flt | numpy dtype:  i8 | filter ID from the filters table
-column 11 |      exp | numpy dtype:  f8 | exposure time for this observation in seconds
-column 12 |      tfs | numpy dtype:  i8 | telescope focus setting
-column 13 |      ttt | numpy dtype:  f8 | telescope tube temperature [deg]
-column 14 |      tms | numpy dtype: U20 | telescope mount state (tracking, drizzling, etc.)
-column 15 |      mph | numpy dtype:  f8 | moon phase at this observation
-column 16 |      iha | numpy dtype:  f8 | hour angle of object at this observation
-column 17 |      izd | numpy dtype:  f8 | zenith distance of object at this observation
-column 18 |      xcc | numpy dtype:  f8 | x coordinate on CCD chip
-column 19 |      ycc | numpy dtype:  f8 | y coordinate on CCD chip
-column 20 |      bgv | numpy dtype:  f8 | sky background measurement around object in ADU
-column 21 |      bge | numpy dtype:  f8 | error in sky background measurement in ADU
-column 22 |      fsv | numpy dtype:  f8 | source extraction S parameter (1/[the PSF spatial RMS]^2)
-column 23 |      fdv | numpy dtype:  f8 | source extraction D parameter (the PSF ellipticity in xy)
-column 24 |      fkv | numpy dtype:  f8 | source extraction K parameter (the PSF diagonal ellipticity)
-column 25 |  aim_000 | numpy dtype:  f8 | aperture photometry raw instrumental magnitude in aperture 000
-column 26 |  aim_001 | numpy dtype:  f8 | aperture photometry raw instrumental magnitude in aperture 001
-column 27 |  aim_002 | numpy dtype:  f8 | aperture photometry raw instrumental magnitude in aperture 002
-column 28 |  aie_000 | numpy dtype:  f8 | aperture photometry raw instrumental mag error in aperture 000
-column 29 |  aie_001 | numpy dtype:  f8 | aperture photometry raw instrumental mag error in aperture 001
-column 30 |  aie_002 | numpy dtype:  f8 | aperture photometry raw instrumental mag error in aperture 002
-column 31 |  aiq_000 | numpy dtype:  f8 | aperture photometry raw instrumental mag quality flag, aperture 000
-column 32 |  aiq_001 | numpy dtype:  f8 | aperture photometry raw instrumental mag quality flag, aperture 001
-column 33 |  aiq_002 | numpy dtype:  f8 | aperture photometry raw instrumental mag quality flag, aperture 002
-column 34 |  arm_000 | numpy dtype:  f8 | aperture photometry fit magnitude in aperture 000
-column 35 |  arm_001 | numpy dtype:  f8 | aperture photometry fit magnitude in aperture 001
-column 36 |  arm_002 | numpy dtype:  f8 | aperture photometry fit magnitude in aperture 002
-column 37 |  aep_000 | numpy dtype:  f8 | aperture photometry EPD magnitude in aperture 000
-column 38 |  aep_001 | numpy dtype:  f8 | aperture photometry EPD magnitude in aperture 001
-column 39 |  aep_002 | numpy dtype:  f8 | aperture photometry EPD magnitude in aperture 002
-column 40 |  atf_000 | numpy dtype:  f8 | aperture photometry TFA magnitude in aperture 000
-column 41 |  atf_001 | numpy dtype:  f8 | aperture photometry TFA magnitude in aperture 001
-column 42 |  atf_002 | numpy dtype:  f8 | aperture photometry TFA magnitude in aperture 002
 ```

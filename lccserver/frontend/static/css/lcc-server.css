@@ -236,6 +236,4 @@ details.no-details:not([open]) summary {
 .codehilite {
     background-color: #f8f9fa!important;
     border-radius: .5rem!important;
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
 }

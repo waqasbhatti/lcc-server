@@ -382,7 +382,8 @@ def doc_render_worker(docpage,
         output_format='html5',
         extensions=['markdown.extensions.extra',
                     'markdown.extensions.codehilite',
-                    'markdown.extensions.toc']
+                    'markdown.extensions.toc',
+                    'markdown.extensions.tables']
     )
 
     return doc_html, page_title
