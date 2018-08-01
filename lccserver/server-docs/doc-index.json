@@ -1,8 +1,8 @@
 {
-    "search": "How searching for objects works",
     "csvlc": "The LCC CSV light curve format",
+    "search": "How searching for objects works",
     "conesearch": "Searching for objects near coordinates",
-    "fts": "Searching for objects by name or description",
+    "ftsearch": "Searching for objects by name or description",
     "columnsearch": "Searching by database collection columns",
     "xmatch": "Cross-matching uploaded object catalogs",
     "datasets": "Datasets and products of search results",
