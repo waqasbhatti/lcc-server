@@ -469,6 +469,11 @@ def main():
           'serverdocs':SERVER_DOCINDEX,
           'sitedocs':SITE_DOCINDEX}),
 
+
+        ###################################
+        ## STATIC FILE DOWNLOAD HANDLERS ##
+        ###################################
+
         # static files like images, etc associated with site docs
         (r'/doc-static/(.*)',
          tornado.web.StaticFileHandler,
@@ -478,10 +483,6 @@ def main():
         (r'/server-static/(.*)',
          tornado.web.StaticFileHandler,
          {'path':SERVER_STATIC}),
-
-        ###################################
-        ## STATIC FILE DOWNLOAD HANDLERS ##
-        ###################################
 
         # this handles static file downloads for collection info
         (r'/c/(.*)',
@@ -619,19 +620,6 @@ def main():
           'basedir':BASEDIR,
           'signer':SIGNER, 'fernet':FERNET}),
 
-        # this is the associated set data AJAX endpoint
-        # unused at the moment
-        # (r'/set-data/(.*)',
-        #  dh.DatasetAJAXHandler,
-        #  {'currentdir':CURRENTDIR,
-        #   'apiversion':APIVERSION,
-        #   'templatepath':TEMPLATEPATH,
-        #   'assetpath':ASSETPATH,
-        #   'docspath':DOCSPATH,
-        #   'executor':EXECUTOR,
-        #   'basedir':BASEDIR,
-        #   'signer':SIGNER, 'fernet':FERNET}),
-
         # this just shows all datasets in a big table
         (r'/datasets',
          dh.AllDatasetsHandler,
@@ -640,6 +628,7 @@ def main():
           'assetpath':ASSETPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
+
 
         ################################################
         ## OBJECT INFORMATION FROM CHECKPLOT HANDLERS ##
