@@ -3160,11 +3160,15 @@ var lcc_objectinfo = {
 
         <a class="nav-item nav-link active" id="modal-objectinfo"
            data-toggle="tab" href="#mtab-objectinfo" role="tab"
-           aria-controls="modal-objectinfo" aria-selected="true">Object details</a>
+           aria-controls="modal-objectinfo" aria-selected="true">
+          Object details
+        </a>
 
         <a class="nav-item nav-link" id="modal-phasedlcs"
            data-toggle="tab" href="#mtab-phasedlcs" role="tab"
-           aria-controls="modal-phasedlcs" aria-selected="false">Period search results</a>
+           aria-controls="modal-phasedlcs" aria-selected="false">
+          Period search results
+        </a>
 
       </div>
     </nav>
@@ -4121,7 +4125,7 @@ var lcc_objectinfo = {
             if (separatepage != undefined && separatepage == true) {
 
                 $('.lc-download-link').html(
-                    '<a class="btn btn-primary" ' +
+                    '<a rel="nofollow" class="btn btn-primary" ' +
                         'href="/l/' + collection +
                         '/' + objectid + '-csvlc.gz" download="' +
                         objectid + '-csvlc.gz' +
