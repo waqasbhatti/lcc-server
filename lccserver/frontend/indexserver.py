@@ -425,8 +425,8 @@ def main():
     # server docs
     #
     SERVER_DOCSPATH = os.path.abspath(os.path.join(modpath,
-                                                '..',
-                                                'server-docs'))
+                                                   '..',
+                                                   'server-docs'))
     SERVER_STATIC = os.path.join(SERVER_DOCSPATH, 'static')
     with open(os.path.join(SERVER_DOCSPATH,'doc-index.json'),'r') as infd:
         SERVER_DOCINDEX = json.load(infd)
@@ -459,7 +459,7 @@ def main():
           'basedir':BASEDIR}),
 
         # docs page index and other subdirs, renders markdown to HTML
-        (r'/docs/?(\w*)',
+        (r'/docs/?(\S*)',
          ih.DocsHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,

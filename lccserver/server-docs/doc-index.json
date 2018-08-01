@@ -1,8 +1,10 @@
 {
-    "lcformat": "LCC CSV light curve format",
-    "columnsearch": "Searching by database collection columns",
+    "search": "How searching for objects works",
+    "lcformat": "The LCC CSV light curve format",
     "conesearch": "Searching for objects near coordinates",
-    "xmatch": "Cross-matching uploaded object catalogs",
     "fts": "Searching for objects by name or description",
-    "about": "About the LCC server"
+    "columnsearch": "Searching by database collection columns",
+    "xmatch": "Cross-matching uploaded object catalogs",
+    "datasets": "Datasets and products of search results",
+    "acknowledgments": "Open source code, data, and service acknowledgments"
 }
