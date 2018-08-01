@@ -70,7 +70,7 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 
-from tornado.escape import xhtml_escape
+from tornado.escape import xhtml_escape, url_unescape
 from base64 import b64encode
 from tornado import gen
 
@@ -136,7 +136,7 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
     '''
     This just calls the handler below to load object info to a blank template.
 
-    This listens on /o/<collection>/<objectid>.
+    This listens on /obj/<collection>/<objectid>.
 
     '''
 
@@ -180,11 +180,29 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
         That page has an async call to the objectinfo JSON API below.
 
         FIXME: FIXME: should probably check if the the object is actually public
-        before trying to fetch it
+        before trying to fetch it (this can just be a
+        dbsearch.sqlite_column_search on this object's collection and objectid
+        to see if it's public. if it's not, then return 401)
         '''
 
-        collection = xhtml_escape(collection)
-        objectid = xhtml_escape(objectid)
+        try:
+
+            collection = url_unescape(xhtml_escape(collection))
+            objectid = url_unescape(xhtml_escape(objectid))
+
+            self.render(
+                'objectinfo-async.html',
+                page_title='LCC server object info',
+                collection=collection,
+                objectid=objectid
+            )
+
+        except Exception as e:
+
+            self.set_status(400)
+            self.render('errorpage.html',
+                        page_title='400 - object request not valid',
+                        error_message='Could not parse your object request.')
 
 
 
@@ -251,7 +269,9 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
         the argument.
 
         FIXME: FIXME: should probably check if the the object is actually public
-        before trying to fetch it
+        before trying to fetch it (this can just be a
+        dbsearch.sqlite_column_search on this object's collection and objectid
+        to see if it's public. if it's not, then return 401)
 
         '''
 

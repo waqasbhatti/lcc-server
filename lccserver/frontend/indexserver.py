@@ -639,7 +639,7 @@ def main():
           'cpaddress':CPADDR}),
 
         # renders objectinfo from API above to an HTML page for easy viewing
-        (r'/obj/(\w+)/(\w+)',
+        (r'/obj/(\S+)/(\S+)',
          oh.ObjectInfoPageHandler,
          {'currentdir':CURRENTDIR,
           'apiversion':APIVERSION,

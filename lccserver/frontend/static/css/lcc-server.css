@@ -109,18 +109,18 @@ code {
 }
 
 canvas#finderchart {
-    width: 100%;
+    width: 300px;
+}
+
+.magseriesplot {
+    width: 500px;
+    height: auto;
 }
 
 td > .badge {
     padding: 0.4em;
 }
 
-
-#modal-phasedlc-container {
-    height: 350px;
-    overflow-y: auto;
-}
 
 .zoomable-tile {
     transition: 0.2s ease-out;

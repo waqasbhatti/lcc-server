@@ -601,6 +601,20 @@ var lcc_ui = {
 
             });
 
+        $('#objectinfo-container')
+            .on('mouseover', '.zoomable-tile', function (evt) {
+
+                $(this).css({'transform': 'scale(1.6)',
+                             'z-index':1000});
+
+            });
+        $('#objectinfo-container')
+            .on('mouseout', '.zoomable-tile', function (evt) {
+
+                $(this).css({'transform': 'scale(1.0)',
+                             'z-index':0});
+
+            });
 
         // bind the objectinfo-link to show a modal with objectinfo from
         // checkplots
@@ -635,67 +649,8 @@ var lcc_ui = {
                     .attr('download',lcfbasename);
             }
 
-
-            // now we'll hit the objectinfo API for info on this object
-            var geturl = '/api/object';
-            var params = {objectid:objectid,
-                          collection:collection};
-
-            // put in a message saying we're getting info
-            $('.modal-body')
-                .html('<div class="row"><div class="col-12">' +
-                      '<h6>Looking up this object...</h6></div></div>');
-
-            $.getJSON(geturl, params, function (data) {
-
-                var msg = data.message;
-                var result = data.result;
-                var status = data.status;
-
-                // render the modal UI
-                lcc_objectinfo.render_modal_template();
-
-                // add in the finder chart
-                if ('finderchart' in result && result.finderchart != null) {
-                    var finderchart = result.finderchart;
-                    lcc_objectinfo.b64_to_canvas(finderchart, '#finderchart');
-                }
-
-                // add in the object light curve
-                if ('magseries' in result && result.magseries != null) {
-                    var magseries = result.magseries;
-                    lcc_objectinfo.b64_to_image(magseries, '.magseriesplot');
-                }
-
-                // add in the object's info table
-                lcc_objectinfo.render_infotable(result);
-
-                // add in the object's phased LCs from all available PFMETHODS
-                lcc_objectinfo.render_pfresult(result);
-
-            }).fail(function (xhr) {
-
-                // this means the object wasn't found
-                if (xhr.status == 404) {
-                    $('.modal-body').html(
-                        '<div class="row"><div class="col-12">' +
-                            '<h6>Sorry, no additional information ' +
-                            'is available for this object.</h6></div</div>'
-                    );
-                }
-
-                // any other status code means the backend threw an error
-                else {
-                    $('.modal-body').html(
-                        '<div class="row"><div class="col-12">' +
-                            '<h6>Sorry, something broke while trying ' +
-                            'to look up this object.</h6></div></div>'
-                    );
-
-                }
-
-            });
-
+            // fire the objectinfo function
+            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
 
         });
 
@@ -3184,13 +3139,16 @@ var lcc_objectinfo = {
 
     // this is the ES6 template string for the modal UI
     modal_template: `
-<div class="row d-flex align-items-center justify-content-center modal-toprow">
+<div class="row objectinfo-header">
+</div>
+
+<div class="row mt-2 d-flex align-items-center">
   <div class="col-4">
     <canvas id="finderchart"></canvas>
   </div>
 
   <div class="col-8">
-    <img class="img-fluid magseriesplot">
+    <img class="magseriesplot">
   </div>
 </div>
 
@@ -3249,7 +3207,13 @@ var lcc_objectinfo = {
                    class="table table-borderless objectinfo-table">
             </table>
 
+          </div>
+
         </div>
+
+        <div class="row mt-2">
+          <div class="col-12 lc-download-link">
+          </div>
         </div>
 
       </div>
@@ -3260,7 +3224,7 @@ var lcc_objectinfo = {
         <div class="row mt-2">
           <div class="col-12">
 
-            <div id="modal-phasedlc-container">
+            <div id="modal-phasedlc-container" class="phasedlc-container">
 
             </div>
 
@@ -3342,8 +3306,8 @@ var lcc_objectinfo = {
 
     // this writes out the template string containing the modal UI to the modal
     // if the object request succeeds
-    render_modal_template: function() {
-        $('.modal-body').html(lcc_objectinfo.modal_template);
+    render_modal_template: function(target) {
+        $(target).html(lcc_objectinfo.modal_template);
     },
 
     render_infotable: function (currcp) {
@@ -4112,6 +4076,92 @@ var lcc_objectinfo = {
                     "if you'd like to give it a go.</p>"
             );
         }
+
+    },
+
+    // this function rolls up the others above
+    get_object_info: function (collection, objectid, target, separatepage) {
+
+        // we'll hit the objectinfo API for info on this object
+        var geturl = '/api/object';
+        var params = {objectid:objectid,
+                      collection:collection};
+
+        // put in a message saying we're getting info
+        $(target)
+            .html('<div class="row"><div class="col-12">' +
+                  '<h6>Looking up this object...</h6></div></div>');
+
+        $.getJSON(geturl, params, function (data) {
+
+            var msg = data.message;
+            var result = data.result;
+            var status = data.status;
+
+            // render the modal UI
+            lcc_objectinfo.render_modal_template(target);
+
+            // add in the finder chart
+            if ('finderchart' in result && result.finderchart != null) {
+                var finderchart = result.finderchart;
+                lcc_objectinfo.b64_to_canvas(finderchart, '#finderchart');
+            }
+
+            // add in the object light curve
+            if ('magseries' in result && result.magseries != null) {
+                var magseries = result.magseries;
+                lcc_objectinfo.b64_to_image(magseries, '.magseriesplot');
+            }
+
+            // add in the object's info table
+            lcc_objectinfo.render_infotable(result);
+
+            // render the object's lightcurve download link if we're in separate
+            // page mode. also render the object's collection and title
+            if (separatepage != undefined && separatepage == true) {
+
+                $('.lc-download-link').html(
+                    '<a class="btn btn-primary" ' +
+                        'href="/l/' + collection +
+                        '/' + objectid + '-csvlc.gz" download="' +
+                        objectid + '-csvlc.gz' +
+                        '">Download light curve</a>'
+                );
+
+                $('.objectinfo-header')
+                    .addClass('mt-2')
+                    .html('<div class="col-12"><h2>' + objectid +
+                          ' in collection <code>' +
+                          collection.replace('-','_') + '</code></h2>');
+
+            }
+
+            // add in the object's phased LCs from all available PFMETHODS
+            lcc_objectinfo.render_pfresult(result);
+
+
+        }).fail(function (xhr) {
+
+            // this means the object wasn't found
+            if (xhr.status == 404) {
+                $(target).html(
+                    '<div class="row mt-2"><div class="col-12">' +
+                        '<h6>Sorry, no detailed information ' +
+                        'is available for this object.</h6></div</div>'
+                );
+            }
+
+            // any other status code means the backend threw an error
+            else {
+                $(target).html(
+                    '<div class="row mt-2"><div class="col-12">' +
+                        '<h6>Sorry, something broke while trying ' +
+                        'to look up this object.</h6></div></div>'
+                );
+
+            }
+
+        });
 
     }
 

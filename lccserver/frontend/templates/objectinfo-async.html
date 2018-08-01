@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block pagecontent %}
+
+<div class="container" id="objectinfo-container">
+
+
+</div>
+
+
+{% end %}
+
+
+{% block pagejs %}
+
+$(document).ready(function() {
+
+
+// UI action setup
+lcc_ui.action_setup();
+
+// fire the async request to get the object information
+lcc_objectinfo.get_object_info('{{ collection }}',
+                               '{{ objectid }}',
+                               '#objectinfo-container', true);
+
+
+});
+
+{% end %}
