@@ -315,7 +315,11 @@ def objectinfo_to_sqlite(augcatpkl,
     # from two key:val pairs in the objectinfo dict
     composite_cols = COMPOSITE_COLUMN_INFO.keys()
 
+    # make sure not to get columns that are already in the augcat
+    composite_cols = list(set(composite_cols) - set(augcat['objects'].keys()))
+
     for col in composite_cols:
+
 
         #
         # actually generate the column
