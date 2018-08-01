@@ -3143,11 +3143,11 @@ var lcc_objectinfo = {
 </div>
 
 <div class="row mt-2 d-flex align-items-center">
-  <div class="col-4">
+  <div class="col-5">
     <canvas id="finderchart"></canvas>
   </div>
 
-  <div class="col-8">
+  <div class="col-7">
     <img class="magseriesplot">
   </div>
 </div>

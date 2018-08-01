@@ -91,6 +91,10 @@ code {
 
 /* styles for the objectinfo modal  */
 
+.modal-dialog {
+    max-width: 960px;
+}
+
 .modal-toprow {
     height: 300px;
 }
