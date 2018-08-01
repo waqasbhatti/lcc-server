@@ -345,7 +345,13 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
             # make sure to replace NaNs only in the right places
             rettext = resp.body.decode()
             rettext = (
-                rettext.replace(': NaN',': null').replace(', NaN',', null')
+                rettext.replace(
+                    ': NaN',': null'
+                ).replace(
+                    ', NaN',', null'
+                ).replace(
+                    '[NaN','[null'
+                )
             )
 
             self.write(rettext)
