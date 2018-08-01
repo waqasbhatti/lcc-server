@@ -1,0 +1,8 @@
+{
+    "lcformat": "LCC CSV light curve format",
+    "columnsearch": "Searching by database collection columns",
+    "conesearch": "Searching for objects near coordinates",
+    "xmatch": "Cross-matching uploaded object catalogs",
+    "fts": "Searching for objects by name or description",
+    "about": "About the LCC server"
+}

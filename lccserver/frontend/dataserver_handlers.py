@@ -94,7 +94,6 @@ class DatasetHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    signer,
@@ -108,7 +107,6 @@ class DatasetHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
@@ -504,7 +502,6 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    signer,
@@ -518,7 +515,6 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
@@ -583,7 +579,6 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
                    currentdir,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir):
         '''
@@ -594,7 +589,6 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
         self.currentdir = currentdir
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
 

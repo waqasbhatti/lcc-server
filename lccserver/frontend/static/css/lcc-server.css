@@ -212,3 +212,30 @@ details.no-details:not([open]) > * {
 details.no-details:not([open]) summary {
   display: block;
 }
+
+
+/* styles for docs pages */
+
+.lcc-breadcrumb {
+    background: #fff;
+    font-size: 2.5rem;
+    padding-left: 0px;
+}
+
+.toc {
+    border-radius: .5rem!important;
+    background-color: #f8f9fa!important;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.toc > ul {
+    margin-bottom: 0px;
+}
+
+.codehilite {
+    background-color: #f8f9fa!important;
+    border-radius: .5rem!important;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}

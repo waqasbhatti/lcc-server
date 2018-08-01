@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- favicon -->
+    <link rel="icon" type="image/png" href="{{ static_url('images/favicon.png') }}">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ static_url('css/bootstrap.min.css') }}">
+
+    <!-- animate CSS -->
+    <link rel="stylesheet" href="{{ static_url('css/animate.min.css') }}">
+
+    <!-- pygmentize CSS -->
+    <link rel="stylesheet" href="{{ static_url('css/codehilite.css') }}">
+
+    <!-- lcc-server CSS -->
+    <link rel="stylesheet" href="{{ static_url('css/lcc-server.css') }}">
+
+    {% block pagecss %}
+
+    {% end %}
+
+    <title>{{ page_title }}</title>
+  </head>
+
+  <body>
+
+    {% block topnav %}
+    <!-- the top bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+
+      <a class="navbar-brand" href="/">
+        <img class="icon-logo"
+             src="{{ static_url('images/lcc-logo-web.svg') }}">
+      </a>
+
+      <a class="nav-item nav-link"
+         title="See all public datasets"
+         href="/datasets">
+        Datasets
+      </a>
+
+      <button class="navbar-toggler"
+              type="button"
+              data-toggle="collapse"
+              data-target="#navbarNavAltMarkup"
+              aria-controls="navbarNavAltMarkup"
+              aria-expanded="false"
+              aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+        <div class="navbar-nav">
+          <a class="nav-item nav-link active">
+            <strong>LCC server docs</strong>
+            <span class="sr-only">(current)</span>
+          </a>
+        </div>
+      </div>
+
+    </nav>
+    {% end %}
+
+    {% block pagecontent %}
+    <div class="container-fluid">
+
+      <h1>Hello, world! This is the {{ page_title }} page.</h1>
+
+    </div>
+    {% end %}
+
+    <!-- bootstrap scripts -->
+    <script src="{{ static_url('js/jquery.min.js') }}"></script>
+    <script src="{{ static_url('js/popper.min.js') }}"></script>
+    <script src="{{ static_url('js/bootstrap.min.js') }}"></script>
+
+    {% block pagejs_modules %}
+
+    {% end %}
+
+    <script>
+     {% block pagejs %}
+
+     $(document).ready(function() {
+
+     });
+
+     {% end %}
+    </script>
+
+  </body>
+
+</html>

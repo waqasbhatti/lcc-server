@@ -145,7 +145,6 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    signer,
@@ -161,7 +160,6 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
@@ -218,7 +216,6 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    signer,
@@ -234,7 +231,6 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.signer = signer

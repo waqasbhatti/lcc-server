@@ -28,6 +28,7 @@ import time
 import sys
 import socket
 import stat
+import json
 
 # this handles async background stuff
 from concurrent.futures import ProcessPoolExecutor
@@ -399,7 +400,6 @@ def main():
     BASEDIR = os.path.abspath(options.basedir)
     TEMPLATEPATH = os.path.abspath(options.templatepath)
     ASSETPATH = os.path.abspath(options.assetpath)
-    DOCSPATH = os.path.abspath(options.docspath)
 
     USELCDIR = options.uselcdir
 
@@ -412,6 +412,24 @@ def main():
     )
     # get the address of the background checkplotserver instance
     CPADDR = options.cpaddr
+
+    #
+    # site docs
+    #
+    SITE_DOCSPATH = options.docspath
+    SITE_STATIC = os.path.join(SITE_DOCSPATH,'static')
+    with open(os.path.join(SITE_DOCSPATH, 'doc-index.json'),'r') as infd:
+        SITE_DOCINDEX = json.load(infd)
+
+    #
+    # server docs
+    #
+    SERVER_DOCSPATH = os.path.abspath(os.path.join(modpath,
+                                                '..',
+                                                'server-docs'))
+    SERVER_STATIC = os.path.join(SERVER_DOCSPATH, 'static')
+    with open(os.path.join(SERVER_DOCSPATH,'doc-index.json'),'r') as infd:
+        SERVER_DOCINDEX = json.load(infd)
 
 
 
@@ -437,7 +455,6 @@ def main():
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
 
@@ -447,15 +464,20 @@ def main():
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'serverdocs':SERVER_DOCINDEX,
+          'sitedocs':SITE_DOCINDEX}),
 
-        # static files like images, etc associated with docs
+        # static files like images, etc associated with site docs
         (r'/doc-static/(.*)',
          tornado.web.StaticFileHandler,
-         {'path':os.path.join(BASEDIR, 'docs', 'static')}),
+         {'path':SITE_STATIC}),
 
+        # static files like images, etc associated with server docs
+        (r'/server-static/(.*)',
+         tornado.web.StaticFileHandler,
+         {'path':SERVER_STATIC}),
 
         ###################################
         ## STATIC FILE DOWNLOAD HANDLERS ##
@@ -490,13 +512,15 @@ def main():
         (r'/api/key',
          ih.APIKeyHandler,
          {'apiversion':APIVERSION,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
         # this checks the API key to see if it's still valid
         (r'/api/auth',
          ih.APIAuthHandler,
          {'apiversion':APIVERSION,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
         # this returns a JSON list of the currently available LC collections
         (r'/api/collections',
@@ -505,10 +529,10 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
         # this returns a JSON list of the currently available datasets
         (r'/api/datasets',
@@ -517,10 +541,10 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
 
         ##################################
@@ -534,11 +558,11 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
         # this is the cone search API endpoint
         (r'/api/conesearch',
@@ -547,11 +571,11 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
         # this is the FTS search API endpoint
         (r'/api/ftsquery',
@@ -560,11 +584,11 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
         # this is the xmatch search API endpoint
         (r'/api/xmatch',
@@ -573,11 +597,11 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET}),
 
 
         ##############################################
@@ -591,7 +615,6 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'signer':SIGNER, 'fernet':FERNET}),
@@ -615,7 +638,6 @@ def main():
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR}),
 
@@ -630,7 +652,6 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'signer':SIGNER,
@@ -645,7 +666,6 @@ def main():
           'apiversion':APIVERSION,
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
-          'docspath':DOCSPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'signer':SIGNER,

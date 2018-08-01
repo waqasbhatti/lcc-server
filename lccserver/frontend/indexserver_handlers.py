@@ -316,7 +316,6 @@ class IndexHandler(tornado.web.RequestHandler):
                    currentdir,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir):
         '''
@@ -327,7 +326,6 @@ class IndexHandler(tornado.web.RequestHandler):
         self.currentdir = currentdir
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
 
@@ -343,6 +341,53 @@ class IndexHandler(tornado.web.RequestHandler):
         )
 
 
+#########################################
+## DOCS HANDLING FUNCTIONS AND CLASSES ##
+#########################################
+
+def doc_render_worker(docpage,
+                      basedir,
+                      serverindex,
+                      siteindex):
+    '''This is a worker that renders Markdown to HTML markup.
+
+    Works in a background Executor.
+
+    serverindex and siteindex are the dicts containing server and site doc page
+    titles and doc page names.
+
+    '''
+
+    # find the doc page requested
+    if docpage in serverindex:
+        page_title = serverindex[docpage]
+        doc_md_file = os.path.join(os.path.dirname(__file__),
+                                   '..',
+                                   'server-docs',
+                                   '%s.md' % docpage)
+    elif docpage in siteindex:
+        page_title = siteindex[docpage]
+        doc_md_file = os.path.join(basedir,'docs',
+                                   '%s.md' % docpage)
+
+    LOGGER.info('opening %s for docs page: %s...' % (doc_md_file, docpage))
+
+    # we'll open in 'r' mode since we want unicode for markdown
+    with open(doc_md_file,'r') as infd:
+        doc_markdown = infd.read()
+
+    # render the markdown to HTML
+    doc_html = markdown.markdown(
+        doc_markdown,
+        output_format='html5',
+        extensions=['markdown.extensions.extra',
+                    'markdown.extensions.codehilite',
+                    'markdown.extensions.toc']
+    )
+
+    return doc_html, page_title
+
+
 
 class DocsHandler(tornado.web.RequestHandler):
     '''This handles the docs index page and all other docs requests.
@@ -353,9 +398,10 @@ class DocsHandler(tornado.web.RequestHandler):
                    currentdir,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
-                   basedir):
+                   basedir,
+                   serverdocs,
+                   sitedocs):
         '''
         handles initial setup.
 
@@ -364,81 +410,66 @@ class DocsHandler(tornado.web.RequestHandler):
         self.currentdir = currentdir
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
 
-        # look up the docindex JSON
-        docindexfile = os.path.join(self.docspath, 'doc-index.json')
+        #
+        # these are the doc index JSONs parsed into dicts
+        #
 
-        # this is used to match docpage to title and path of the docpage
-        with open(docindexfile,'r') as infd:
-            self.docindex = json.load(infd)
+        # this is the lcc-server doc index
+        self.server_docindex = serverdocs
+
+        # this is the site-specific documentation index
+        self.site_docindex = sitedocs
 
 
+    @gen.coroutine
     def get(self, docpage):
         '''This handles GET requests for docs
 
         '''
 
-        # get a specific documentation page
-        if docpage and len(docpage) > 0:
+        if not docpage or len(docpage) == 0:
 
-            # get the Markdown file from the docpage specifier
+            self.render('docs-index.html',
+                        page_title="Documentation index",
+                        serverdocs=self.server_docindex,
+                        sitedocs=self.site_docindex)
+
+
+
+        # get a specific documentation page
+        elif docpage and len(docpage) > 0:
 
             docpage = xhtml_escape(docpage)
-            doc_md_file = os.path.join(self.docspath, '%s.md' % docpage)
 
-            if os.path.exists(doc_md_file):
-
-                # we'll open in 'r' mode since we want unicode for markdown
-                with open(doc_md_file,'r') as infd:
-                    doc_markdown = infd.read()
-
-                # render the markdown to HTML
-                doc_html = markdown.markdown(
-                    doc_markdown,
-                    output_format='html5',
-                    extensions=['markdown.extensions.extra',
-                                'markdown.extensions.codehilite',
-                                'markdown.extensions.toc']
+            try:
+                rendered, page_title = yield self.executor.submit(
+                    doc_render_worker,
+                    docpage,
+                    self.basedir,
+                    self.server_docindex,
+                    self.site_docindex
                 )
 
-                # get the docpage's title
-                page_title = self.docindex[docpage]
+                self.render('docs-page.html',
+                            page_title=page_title,
+                            page_content=rendered)
+
+
+            except Exception as e:
+
+                LOGGER.exception('failed to render doc page: %s' % docpage)
+                self.set_status(404)
 
                 self.render(
-                    'docs-page.html',
-                    page_title=page_title,
-                    page_content=doc_html,
+                    'errorpage.html',
+                    page_title='404 - no docs available',
+                    error_message=('Could not find a docs page '
+                                   'for the requested item.')
                 )
 
-            else:
-
-                error_message = ("No docs page found matching: '%s'." % docpage)
-                self.render('errorpage.html',
-                            page_title='404 - Page not found',
-                            error_message=error_message)
-
-        # otherwise get the documentation index
-        else:
-
-            doc_md_file = os.path.join(self.docspath, 'index.md')
-
-            with open(doc_md_file,'r') as infd:
-                doc_markdown = infd.read()
-
-            # render the markdown to HTML
-            doc_html = markdown.markdown(doc_markdown)
-
-            # get the docpage's title
-            page_title = self.docindex['index']
-
-            self.render(
-                'docs-page.html',
-                page_title=page_title,
-                page_content=doc_html,
-            )
 
 
 
@@ -453,7 +484,6 @@ class CollectionListHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    signer,
@@ -467,7 +497,6 @@ class CollectionListHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
@@ -531,7 +560,6 @@ class DatasetListHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    signer,
@@ -545,7 +573,6 @@ class DatasetListHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.signer = signer

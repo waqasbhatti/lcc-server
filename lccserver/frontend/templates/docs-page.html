@@ -1,18 +1,22 @@
-{% extends 'base.html' %}
-
-{% block pagecss %}
-
-<!-- pygmentize CSS -->
-<link rel="stylesheet" href="{{ static_url('css/codehilite.css') }}">
-
-{% end %}
-
+{% extends 'base-docs.html' %}
 
 {% block pagecontent %}
 
 <div class="container">
 
-  <div class="row mt-4">
+  <div class="row" >
+    <div class="col-12" >
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb lcc-breadcrumb">
+          <li class="breadcrumb-item"><a href="/docs">Docs</a></li>
+          <li class="breadcrumb-item active"
+              aria-current="page">{{ page_title }}</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="row">
     <div class="col-12">
       {% raw page_content %}
     </div>
@@ -20,20 +24,5 @@
 
 
 </div>
-
-
-{% end %}
-
-
-{% block pagejs %}
-
-$(document).ready(function() {
-
-
-// UI action setup
-lcc_ui.action_setup();
-
-
-});
 
 {% end %}

@@ -1,0 +1,57 @@
+{% extends 'base-docs.html' %}
+
+
+{% block pagecontent %}
+
+<div class="container">
+
+  <div class="row" >
+    <div class="col-12" >
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb lcc-breadcrumb">
+          <li class="breadcrumb-item active"
+              aria-current="page">{{ page_title }}</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="row" >
+    <div class="col-12">
+      <h2>The LCC server</h2>
+
+      <ul>
+        {% for item in serverdocs %}
+        <li><a href="/docs/{{ item }}">{% raw serverdocs[item] %}</a> </li>
+        {% end %}
+      </ul>
+
+    </div>
+  </div>
+
+  <div class="row" >
+    <div class="col-12">
+      <h2>Hosted light curve collections</h2>
+
+      <ul>
+        {% for item in sitedocs %}
+        <li><a href="/docs/{{ item }}">{% raw sitedocs[item] %}</a> </li>
+        {% end %}
+      </ul>
+
+    </div>
+  </div>
+
+</div>
+
+
+{% end %}
+
+
+{% block pagejs %}
+
+$(document).ready(function() {
+
+});
+
+{% end %}

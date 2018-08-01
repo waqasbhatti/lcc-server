@@ -365,7 +365,6 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    uselcdir,
@@ -380,7 +379,6 @@ class ColumnSearchHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
@@ -971,7 +969,6 @@ class ConeSearchHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    uselcdir,
@@ -986,7 +983,6 @@ class ConeSearchHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
@@ -1592,7 +1588,6 @@ class FTSearchHandler(tornado.web.RequestHandler):
                    apiversion,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    uselcdir,
@@ -1607,7 +1602,6 @@ class FTSearchHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
@@ -2208,7 +2202,6 @@ class XMatchHandler(tornado.web.RequestHandler):
                    currentdir,
                    templatepath,
                    assetpath,
-                   docspath,
                    executor,
                    basedir,
                    uselcdir,
@@ -2223,7 +2216,6 @@ class XMatchHandler(tornado.web.RequestHandler):
         self.apiversion = apiversion
         self.templatepath = templatepath
         self.assetpath = assetpath
-        self.docspath = docspath
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
