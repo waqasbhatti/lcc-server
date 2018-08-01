@@ -1289,12 +1289,13 @@ def get_lcformat_description(descpath):
 
     # 2b. next, get the per magnitude columns
     apertures = formatdesc['mag_apertures']
+    aperturejoiner = formatdesc['aperture_joiner']
 
     for key in formatdesc['per_aperture_cols']:
 
         for ap in apertures:
 
-            fullkey = '%s_%s' % (key, ap)
+            fullkey = '%s%s%s' % (key, aperturejoiner, ap)
             desc, textform, dtype = formatdesc['column_keys'][key]
             desc = desc % ap
 

@@ -1,0 +1,214 @@
+{
+    "lc_formatkey": "hat-k2lc",
+    "lc_fileglob": "*-k2lc.csv.gz",
+    "lc_readermodule": "astrobase.hatsurveys.k2hat",
+    "lc_readerfunc": "read_csv_lightcurve",
+    "lc_normalizemodule": null,
+    "lc_normalizefunc": null,
+    "unaffiliated_cols": [
+        "bjd",
+        "bgv",
+        "bge",
+        "frn",
+        "xcc",
+        "ycc",
+        "arc"
+    ],
+    "mag_apertures":[
+        "00",
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08",
+        "09",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33",
+        "34",
+        "35"
+    ],
+    "per_aperture_cols":[
+        "im",
+        "ie",
+        "iq",
+        "ep",
+        "eq",
+        "tf",
+        "cf"
+    ],
+    "aperture_joiner":"",
+    "metadata_keys":{
+        "objectid":[
+            "object ID",
+            "%s",
+            "str"
+        ],
+        "objectinfo.kepid":[
+            "Kepler ID",
+            "%s",
+            "str"
+        ],
+        "objectinfo.ucac4id":[
+            "UCAC4 ID",
+            "%s",
+            "str"
+        ],
+        "objectinfo.kepmag":[
+            "Kepler mag",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.ra":[
+            "RA [deg]",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.decl":[
+            "Dec [deg]",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.ndet":[
+            "total number of observations",
+            "%i",
+            "int"
+        ],
+        "objectinfo.campaign":[
+            "K2 Campaign",
+            "%i",
+            "int"
+        ],
+        "objectinfo.fovccd":[
+            "CCD on the Kepler FOV",
+            "%i",
+            "int"
+        ],
+        "objectinfo.fovchannel":[
+            "Channel number on the Kepler FOV",
+            "%i",
+            "int"
+        ],
+        "objectinfo.fovmodule":[
+            "Module number on the Kepler FOV",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.qualflag":[
+            "Quality flag",
+            "%i",
+            "int"
+        ],
+        "objectinfo.bjdoffset":[
+            "BJD offset for time in light curve",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.napertures":[
+            "Number of apertures used for photometry",
+            "%.i",
+            "int"
+        ],
+        "objectinfo.kernelspec":[
+            "Image subtraction kernel specification",
+            "%s",
+            "str"
+        ],
+        "objectinfo.aperpixradius":[
+            "Photometric aperture radius in px for each aperture",
+            "%s",
+            "str"
+        ]
+    },
+    "column_keys": {
+        "bjd":[
+            "time of observation in Baryocentric Julian date (BJD offset - BJD_TDB)",
+            "%.7f",
+            "f8"
+        ],
+        "frn":[
+            "cadence number of observation",
+            "%i",
+            "i8"
+        ],
+        "xcc":[
+            "x coordinate on CCD chip",
+            "%.3f",
+            "f8"
+        ],
+        "ycc":[
+            "y coordinate on CCD chip",
+            "%.3f",
+            "f8"
+        ],
+        "bgv":[
+            "sky background measurement around object in ADU",
+            "%.3f",
+            "f8"
+        ],
+        "bge":[
+            "error in sky background measurement in ADU",
+            "%.3f",
+            "f8"
+        ],
+        "arc":[
+            "arc length parameter",
+            "%.3f",
+            "f8"
+        ],
+        "im":[
+            "aperture photometry raw instrumental magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "ie":[
+            "aperture photometry raw instrumental mag error in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "iq":[
+            "aperture photometry raw instrumental mag quality flag, aperture %s",
+            "%s",
+            "U20"
+        ],
+        "ep":[
+            "aperture photometry EPD magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "tf":[
+            "aperture photometry TFA magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "cf":[
+            "aperture photometry cosine-filtered magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ]
+    }
+}

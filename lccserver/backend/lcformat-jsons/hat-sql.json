@@ -1,0 +1,462 @@
+{
+    "lc_formatkey": "hat-sql",
+    "lc_fileglob": "*-hatlc.sqlite.gz",
+    "lc_readermodule": "astrobase.hatsurveys.hatlc",
+    "lc_readerfunc": "read_and_filter_sqlitecurve",
+    "lc_normalizemodule": "astrobase.hatsurveys.hatlc",
+    "lc_normalizefunc": "normalize_lcdict_byinst",
+    "unaffiliated_cols": [
+        "rjd",
+        "bjd",
+        "net",
+        "stf",
+        "cfn",
+        "cfs",
+        "ccd",
+        "prj",
+        "fld",
+        "frt",
+        "flt",
+        "flv",
+        "cid",
+        "cvn",
+        "cbv",
+        "cdv",
+        "cfv",
+        "exp",
+        "tid",
+        "tvn",
+        "tfs",
+        "ttt",
+        "tms",
+        "tmi",
+        "tmv",
+        "tgs",
+        "mph",
+        "iha",
+        "izd",
+        "xcc",
+        "ycc",
+        "bgv",
+        "bge",
+        "fsv",
+        "fdv",
+        "fkv",
+        "xic",
+        "yic",
+        "psim",
+        "psie",
+        "psiq",
+        "psrm",
+        "psep",
+        "pstf"
+    ],
+    "mag_apertures":[
+        "000",
+        "001",
+        "002"
+    ],
+    "aperture_joiner":"_",
+    "per_aperture_cols":[
+        "aim",
+        "aie",
+        "aiq",
+        "arm",
+        "aep",
+        "atf",
+        "irm",
+        "ire",
+        "irq",
+        "iep",
+        "itf"
+    ],
+    "metadata_keys":{
+        "objectid":[
+            "object ID",
+            "%s",
+            "str"
+        ],
+        "objectinfo.hatid":[
+            "HAT ID",
+            "%s",
+            "str"
+        ],
+        "objectinfo.twomassid":[
+            "2MASS ID",
+            "%s",
+            "str"
+        ],
+        "objectinfo.ra":[
+            "RA [deg]",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.decl":[
+            "Dec [deg]",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.jmag":[
+            "2MASS J",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.hmag":[
+            "2MASS H",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.kmag":[
+            "2MASS Ks",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.sdssg":[
+            "SDSS g",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.sdssr":[
+            "SDSS r",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.sdssi":[
+            "SDSS i",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.bmag":[
+            "APASS B",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.vmag":[
+            "APASS V",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.ndet":[
+            "total number of observations",
+            "%i",
+            "int"
+        ],
+        "objectinfo.stations":[
+            "observed by telescopes",
+            "%s",
+            "str"
+        ],
+        "objectinfo.network":[
+            "observation network",
+            "%s",
+            "str"
+        ],
+        "lcapertures":[
+            "aperture definitions [aperture number, size in pixels]",
+            "%s",
+            "str"
+        ],
+        "filters":[
+            "telescope filter definitions [code, short name, description]",
+            "%s",
+            "str"
+        ],
+        "lastupdated":[
+            "last updated at UNIX time",
+            "%i",
+            "int"
+        ],
+        "lcserver":[
+            "HATLC generator gitref",
+            "%s",
+            "str"
+        ],
+        "lcnormcols":[
+            "light curve normalization description",
+            "%s",
+            "str"
+        ],
+        "lcinstnormcols":[
+            "light curve normalization description",
+            "%s",
+            "str"
+        ]
+    },
+    "column_keys": {
+        "rjd":[
+            "time of observation in Reduced Julian date (JD = 2400000.0 + RJD)",
+            "%.7f",
+            "f8"
+        ],
+        "bjd":[
+            "time of observation in Baryocentric Julian date (BJD_TDB)",
+            "%.7f",
+            "f8"
+        ],
+        "net":[
+            "network of telescopes observing this target",
+            "%s",
+            "U20"
+        ],
+        "stf":[
+            "station ID of the telescope observing this target",
+            "%i",
+            "i8"
+        ],
+        "cfn":[
+            "camera frame serial number",
+            "%i",
+            "i8"
+        ],
+        "cfs":[
+            "camera subframe id",
+            "%s",
+            "U20"
+        ],
+        "ccd":[
+            "camera CCD position number",
+            "%i",
+            "i8"
+        ],
+        "prj":[
+            "project ID of this observation",
+            "%s",
+            "U20"
+        ],
+        "fld":[
+            "observed field name",
+            "%s",
+            "U20"
+        ],
+        "frt":[
+            "image frame type [flat, object, etc.]",
+            "%s",
+            "U20"
+        ],
+        "flt":[
+            "filter ID from the filters table",
+            "%s",
+            "U20"
+        ],
+        "flv":[
+            "filter version used",
+            "%s",
+            "U20"
+        ],
+        "cid":[
+            "camera ID ",
+            "%s",
+            "U20"
+        ],
+        "cvn":[
+            "camera version",
+            "%s",
+            "U20"
+        ],
+        "cbv":[
+            "camera bias-frame version",
+            "%s",
+            "U20"
+        ],
+        "cdv":[
+            "camera dark-frame version",
+            "%s",
+            "U20"
+        ],
+        "cfv":[
+            "camera flat-frame version",
+            "%s",
+            "U20"
+        ],
+        "exp":[
+            "exposure time for this observation in seconds",
+            "%.3f",
+            "f8"
+        ],
+        "tid":[
+            "telescope ID",
+            "%s",
+            "U20"
+        ],
+        "tvn":[
+            "telescope version",
+            "%s",
+            "U20"
+        ],
+        "tfs":[
+            "telescope focus setting",
+            "%s",
+            "U20"
+        ],
+        "ttt":[
+            "telescope tube temperature [deg]",
+            "%.3f",
+            "f8"
+        ],
+        "tms":[
+            "telescope mount state (tracking, drizzling, etc.)",
+            "%s",
+            "U20"
+        ],
+        "tmi":[
+            "telescope mount ID",
+            "%s",
+            "U20"
+        ],
+        "tmv":[
+            "telescope mount version",
+            "%s",
+            "U20"
+        ],
+        "tgs":[
+            "telescope guider status",
+            "%s",
+            "U20"
+        ],
+        "mph":[
+            "moon phase at this observation",
+            "%.2f",
+            "f8"
+        ],
+        "iha":[
+            "hour angle of object at this observation",
+            "%.3f",
+            "f8"
+        ],
+        "izd":[
+            "zenith distance of object at this observation",
+            "%.3f",
+            "f8"
+        ],
+        "xcc":[
+            "x coordinate on CCD chip",
+            "%.3f",
+            "f8"
+        ],
+        "ycc":[
+            "y coordinate on CCD chip",
+            "%.3f",
+            "f8"
+        ],
+        "bgv":[
+            "sky background measurement around object in ADU",
+            "%.3f",
+            "f8"
+        ],
+        "bge":[
+            "error in sky background measurement in ADU",
+            "%.3f",
+            "f8"
+        ],
+        "fsv":[
+            "source extraction S parameter (1/[the PSF spatial RMS]^2)",
+            "%.5f",
+            "f8"
+        ],
+        "fdv":[
+            "source extraction D parameter (the PSF ellipticity in xy)",
+            "%.5f",
+            "f8"
+        ],
+        "fkv":[
+            "source extraction K parameter (the PSF diagonal ellipticity)",
+            "%.5f",
+            "f8"
+        ],
+        "aim":[
+            "aperture photometry raw instrumental magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "aie":[
+            "aperture photometry raw instrumental mag error in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "aiq":[
+            "aperture photometry raw instrumental mag quality flag, aperture %s",
+            "%s",
+            "U20"
+        ],
+        "arm":[
+            "aperture photometry fit magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "aep":[
+            "aperture photometry EPD magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "atf":[
+            "aperture photometry TFA magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "psim":[
+            "PSF fit instrumental raw magnitude",
+            "%.5f",
+            "f8"
+        ],
+        "psie":[
+            "PSF fit instrumental raw magnitude error",
+            "%.5f",
+            "f8"
+        ],
+        "psiq":[
+            "PSF fit instrumental raw magnitude quality flag",
+            "%s",
+            "U20"
+        ],
+        "psrm":[
+            "PSF fit final magnitude after mag-fit",
+            "%.5f",
+            "f8"
+        ],
+        "psep":[
+            "PSF fit EPD magnitude",
+            "%.5f",
+            "f8"
+        ],
+        "pstf":[
+            "PSF fit TFA magnitude",
+            "%.5f",
+            "f8"
+        ],
+        "xic":[
+            "x coordinate on CCD chip after image-subtraction frame warp",
+            "%.3f",
+            "f8"
+        ],
+        "yic":[
+            "y coordinate on CCD chip after image-subtraction frame warp",
+            "%.3f",
+            "f8"
+        ],
+        "irm":[
+            "image subtraction fit magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "ire":[
+            "image subtraction fit magnitude error in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "irq":[
+            "image subtraction fit magnitude quality flag for aperture %s",
+            "%s",
+            "U20"
+        ],
+        "iep":[
+            "image subtraction EPD magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "itf":[
+            "image subtraction TFA magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ]
+    }
+}
