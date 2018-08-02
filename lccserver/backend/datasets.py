@@ -87,8 +87,6 @@ from multiprocessing import Pool
 from textwrap import indent
 from functools import reduce
 
-from numpy import nan
-
 from . import dbsearch
 dbsearch.set_logger_parent(__name__)
 

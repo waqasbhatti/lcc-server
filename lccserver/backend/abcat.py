@@ -1118,7 +1118,7 @@ def sqlite_collect_lcc_info(
 
         # now test the normalization function
         if normmodule and normfunc:
-            normlcd = normfunc(lcdict)
+            _ = normfunc(lcdict)
             LOGINFO('normalization function tested and works OK')
 
     except Exception as e:

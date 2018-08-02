@@ -107,10 +107,10 @@ to the `xmatch` API endpoints.
 
 #### command-line with `httpie`
 
-`httpie` is a friendlier alternative to the venerable `cURL` program. To install
-it, see: [https://httpie.org](https://httpie.org). The examples below use
-`httpie` to demonstrate how to use the LCC server API, but one can use any other
-comparable program if desired.
+[HTTPie](https://httpie.org) is a friendlier alternative to the venerable `cURL`
+program. See its [docs](https://httpie.org/doc#installation) for how to install
+it. The examples below use HTTPie to demonstrate the LCC server API, but one can
+use any other comparable program if desired.
 
 
 #### Python with `requests`
@@ -118,4 +118,4 @@ comparable program if desired.
 The Python [requests](http://docs.python-requests.org/en/master/) library makes
 HTTP requests from Python code a relatively simple task. To install it, use
 `pip` or `conda`. The examples below show how to talk to the LCC server API
-using this module.
+using this package.
