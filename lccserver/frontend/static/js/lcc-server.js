@@ -1,4 +1,4 @@
-/*global $, jQuery, moment, oboe */
+/*global $, moment, oboe */
 
 /*
 lcc-server.js - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jun 2018
@@ -101,7 +101,7 @@ var lcc_ui = {
         // update the column select boxes
         var column_selectboxes = $('.lcc-column-select');
 
-        column_selectboxes.each(function (e, i) {
+        column_selectboxes.each(function () {
 
             var thisbox = $(this);
 
@@ -122,7 +122,7 @@ var lcc_ui = {
         // update the filter column select boxes
         var filter_selectboxes = $('.lcc-filtercolumn-select');
 
-        filter_selectboxes.each(function (e, i) {
+        filter_selectboxes.each(function () {
 
             var thisbox = $(this);
 
@@ -143,7 +143,7 @@ var lcc_ui = {
         // update the sort column select boxes
         var sort_selectboxes = $('.lcc-sortcolumn-select');
 
-        sort_selectboxes.each(function (e, i) {
+        sort_selectboxes.each(function () {
 
             var thisbox = $(this);
 
@@ -151,7 +151,6 @@ var lcc_ui = {
             thisbox.empty();
 
             var column_ind = 0;
-            var done_with_selected = false;
 
             for (column_ind; column_ind < columns.length; column_ind++) {
 
@@ -230,7 +229,7 @@ var lcc_ui = {
         // bind the change event on lcc-collection-select select boxes
         // everywhere so the list of the columns shown in .lcc-column-select
         // boxes is always up to date
-        $('.lcc-collection-select').on('change', function (evt) {
+        $('.lcc-collection-select').on('change', function () {
 
             var current_val = $(this).val();
             var coll_ind;
@@ -276,7 +275,7 @@ var lcc_ui = {
                 var curr_indexedcols = [];
                 var curr_ftscols = [];
 
-                current_val.forEach(function (elem, ind, arr) {
+                current_val.forEach(function (elem) {
 
                     coll_ind = lcc_ui.collections.db_collection_id.indexOf(elem);
                     curr_columns.push(lcc_ui.collections.columnlist[coll_ind]);
@@ -295,7 +294,7 @@ var lcc_ui = {
                 // next, we'll have to do a reduce operation on the intersection
                 // of all sets of columns available.
                 available_columns = cols
-                    .reduce(function (acc, curr, currind, prev) {
+                    .reduce(function (acc, curr) {
                         var intersect = new Set();
                         for (let elem of acc) {
                             if (curr.has(elem)) {
@@ -315,7 +314,7 @@ var lcc_ui = {
 
                 // reduce to intersection
                 available_indexcols = indexedcols
-                    .reduce(function (acc, curr, currind, prev) {
+                    .reduce(function (acc, curr) {
                         var intersect = new Set();
                         for (let elem of acc) {
                             if (curr.has(elem)) {
@@ -333,7 +332,7 @@ var lcc_ui = {
 
                 // reduce to intersection
                 available_ftscols = ftscols
-                    .reduce(function (acc, curr, currind, prev) {
+                    .reduce(function (acc, curr) {
                         var intersect = new Set();
                         for (let elem of acc) {
                             if (curr.has(elem)) {
@@ -554,9 +553,6 @@ var lcc_ui = {
 
             e.preventDefault();
 
-            var filter_col = $(this).attr('data-colrem');
-            var target = $(this).attr('data-target');
-
             // find our parent
             var thiscard = $(this).parents('.filterbucket-card');
 
@@ -587,14 +583,14 @@ var lcc_ui = {
         // fancy zoom and pan effects for a phased LC tile
         // see https://codepen.io/ccrch/pen/yyaraz
         $('.modal-body')
-            .on('mouseover', '.zoomable-tile', function (evt) {
+            .on('mouseover', '.zoomable-tile', function () {
 
                 $(this).css({'transform': 'scale(1.6)',
                              'z-index':1000});
 
             });
         $('.modal-body')
-            .on('mouseout', '.zoomable-tile', function (evt) {
+            .on('mouseout', '.zoomable-tile', function () {
 
                 $(this).css({'transform': 'scale(1.0)',
                              'z-index':0});
@@ -602,14 +598,14 @@ var lcc_ui = {
             });
 
         $('#objectinfo-container')
-            .on('mouseover', '.zoomable-tile', function (evt) {
+            .on('mouseover', '.zoomable-tile', function () {
 
                 $(this).css({'transform': 'scale(1.6)',
                              'z-index':1000});
 
             });
         $('#objectinfo-container')
-            .on('mouseout', '.zoomable-tile', function (evt) {
+            .on('mouseout', '.zoomable-tile', function () {
 
                 $(this).css({'transform': 'scale(1.0)',
                              'z-index':0});
@@ -664,13 +660,12 @@ var lcc_ui = {
 
         var filterbucket_elem = $('#' + target + '-filterbucket');
         var filterbucket_items = filterbucket_elem.children();
-        var filterbucket_nitems = filterbucket_items.length;
 
         var filters = [];
         var filter_cols = [];
 
         // go through each of the filter items and parse them
-        filterbucket_items.each( function (i, e) {
+        filterbucket_items.each( function (i) {
 
             // get this card's vals
             var col = $(this).attr('data-column');
@@ -893,8 +888,14 @@ var lcc_ui = {
             $('[data-toggle="tooltip"]').tooltip();
 
         }).fail(function (xhr) {
+
             var message = 'could not get list of recent ' +
                 'datasets from the LCC server backend';
+
+            if (xhr.status == 500) {
+                message = 'Something went wrong with the server backend ' +
+                    ' while trying to fetch a list of recent datasets';
+            }
 
             lcc_ui.alert_box(message, 'danger');
 
@@ -967,7 +968,7 @@ var lcc_ui = {
                         '</td>';
 
                     // update the collection select boxes
-                    collection_selectboxes.each(function (e, i) {
+                    collection_selectboxes.each(function () {
 
                         var thisbox = $(this);
 
@@ -1129,6 +1130,11 @@ var lcc_ui = {
         }).fail(function (xhr) {
             var message = 'could not get list of recent ' +
                 'LC collections from the LCC server backend';
+
+            if (xhr.status == 500) {
+                message = 'Something went wrong with the LCC server backend ' +
+                    'while trying to fetch a list of all LC collections';
+            }
 
             lcc_ui.alert_box(message, 'danger');
 
@@ -1576,11 +1582,7 @@ var lcc_search = {
                     }
 
                 })
-                .fail(function (err) {
-
-                    // err has thrown, statusCode, body, jsonBody
-                    console.log(err.statusCode);
-                    console.log(err.body);
+                .fail(function () {
 
                     // stop the blinky!
                     $('#search-notification-icon')
@@ -1959,11 +1961,7 @@ var lcc_search = {
                     }
 
                 })
-                .fail(function (err) {
-
-                    // err has thrown, statusCode, body, jsonBody
-                    console.log(err.statusCode);
-                    console.log(err.body);
+                .fail(function () {
 
                     // stop the blinky!
                     $('#search-notification-icon')
@@ -2321,11 +2319,7 @@ var lcc_search = {
                     }
 
                 })
-                .fail(function (err) {
-
-                    // err has thrown, statusCode, body, jsonBody
-                    console.log(err.statusCode);
-                    console.log(err.body);
+                .fail(function () {
 
                     // stop the blinky!
                     $('#search-notification-icon')
@@ -2683,11 +2677,7 @@ var lcc_search = {
                     }
 
                 })
-                .fail(function (err) {
-
-                    // err has thrown, statusCode, body, jsonBody
-                    console.log(err.statusCode);
-                    console.log(err.body);
+                .fail(function () {
 
                     // stop the blinky!
                     $('#search-notification-icon')
@@ -2880,7 +2870,6 @@ var lcc_datasets = {
 
                 var colind = 0;
                 var columns = data.columns;
-                var collections = data.collections;
                 var coldesc = data.coldesc;
 
                 var coldef_rows = [];
@@ -2960,7 +2949,7 @@ var lcc_datasets = {
                 // make the table header width = to the sum of the widths we
                 // need
                 var table_width = column_widths
-                    .reduce(function (acc, curr, currind, prev ) {
+                    .reduce(function (acc, curr) {
                         return parseInt(acc + curr);
                     });
                 $('#lcc-datatable').width(table_width);
@@ -3119,6 +3108,11 @@ var lcc_datasets = {
 
             var message = 'Could not retrieve the dataset ' +
                 'from the LCC server backend';
+
+            if (xhr.status == 500) {
+                message = 'Something went wrong with the server backend ' +
+                    'while trying to fetch the dataset';
+            }
 
             lcc_ui.alert_box(message, 'danger');
 
@@ -3605,6 +3599,12 @@ var lcc_objectinfo = {
                 '<span class="no-wrap-break">' +
                     '<strong><em>GAIA M<sub>G</sub></em>:</strong> ' +
                     gaiaabsmag +
+                    '</span>'
+            );
+            colorlabel_pairs.push(
+                '<span class="no-wrap-break">' +
+                    '<strong><em>G - K<sub>s</sub></em>:</strong> ' +
+                    gaiakcolor +
                     '</span>'
             );
 
@@ -4098,9 +4098,7 @@ var lcc_objectinfo = {
 
         $.getJSON(geturl, params, function (data) {
 
-            var msg = data.message;
             var result = data.result;
-            var status = data.status;
 
             // render the modal UI
             lcc_objectinfo.render_modal_template(target);
