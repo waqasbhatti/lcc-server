@@ -1,137 +1,137 @@
 /* lcc-server.css - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jul 2018
-LICENSE: MIT. See the LICENSE file for details.
+   LICENSE: MIT. See the LICENSE file for details.
 
-This contains the CSS styles for LCC server.
-*/
+   This contains the CSS styles for LCC server.
+ */
 
 
 /* various text, image, and table styles */
 
 a.tab-link {
-    text-align: center;
-    color: inherit;
+  text-align: center;
+  color: inherit;
 }
 
 table.table-sm {
-    font-size: 14px;
+  font-size: 14px;
 }
 
 
 span.fts-col {
-    color: #d95f02;
-    font-weight: bold;
+  color: #d95f02;
+  font-weight: bold;
 }
 
 span.kdtree-col {
-    color: #7570b3;
-    font-weight: bold;
+  color: #7570b3;
+  font-weight: bold;
 }
 
 thead.center-head {
-    text-align: center;
+  text-align: center;
 }
 
 
 .lc-collection-overview {
-    max-height: 480px;
-    overflow-y: auto;
+  max-height: 480px;
+  overflow-y: auto;
 }
 
 .search-controls {
-    min-height: 480px;
+  min-height: 480px;
 }
 
 .icon-svg {
-    width: 36px;
-    height: auto;
+  width: 36px;
+  height: auto;
 }
 
 .table-icon-svg {
-    width: 24px;
-    height: auto;
+  width: 24px;
+  height: auto;
 }
 
 
 .icon-logo {
-    width: 36px;
-    height: auto;
+  width: 36px;
+  height: auto;
 }
 
 
 .top-margin-row {
-    margin-top: 3rem;
+  margin-top: 3rem;
 }
 
 span.pop-span {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 code {
-    color: #636363;
+  color: #636363;
 }
 
 .datatable-container {
-    overflow-x: auto;
-    overflow-y: auto;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 .lcc-filterbucket {
-    height: 17.575em;
-    overflow-y: auto;
+  height: 17.575em;
+  overflow-y: auto;
 }
 
 .filterbucket-card {
-    font-size: small;
-    background: #fff3cd;
+  font-size: small;
+  background: #fff3cd;
 }
 
 .lcc-filtercolumn-select {
-    font-size: small;
+  font-size: small;
 }
 
 /* styles for the objectinfo modal  */
 
 .modal-dialog {
-    max-width: 960px;
+  max-width: 960px;
 }
 
 .modal-toprow {
-    height: 300px;
+  height: 300px;
 }
 
 .objectinfo-table {
-    font-size: 12px;
+  font-size: 12px;
 }
 
 .objectinfo-table td, .objectinfo-table th {
-    padding: 0.3rem;
-    vertical-align: middle;
+  padding: 0.3rem;
+  vertical-align: middle;
 }
 
 .no-wrap-break {
-    white-space: nowrap;
+  white-space: nowrap;
 }
 
 canvas#finderchart {
-    width: 300px;
+  width: 300px;
 }
 
 .magseriesplot {
-    width: 500px;
-    height: auto;
+  width: 500px;
+  height: auto;
 }
 
 td > .badge {
-    padding: 0.4em;
+  padding: 0.4em;
 }
 
 
 .zoomable-tile {
-    transition: 0.2s ease-out;
-    -webkit-transition: 0.2s ease-out;
-    position: relative;
-    top: 0;
-    left: 0;
+  transition: 0.2s ease-out;
+  -webkit-transition: 0.2s ease-out;
+  position: relative;
+  top: 0;
+  left: 0;
 }
 
 
@@ -139,37 +139,37 @@ td > .badge {
 /* from http://tristen.ca/tablesort/demo/ */
 
 th[role=columnheader]:not(.no-sort) {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 th[role=columnheader]:not(.no-sort):after {
-    content: '';
-    float: right;
-    margin-top: 7px;
-    border-width: 0 4px 4px;
-    border-style: solid;
-    border-color: #404040 transparent;
-    visibility: hidden;
-    opacity: 0;
-    -ms-user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
+  content: '';
+  float: right;
+  margin-top: 7px;
+  border-width: 0 4px 4px;
+  border-style: solid;
+  border-color: #404040 transparent;
+  visibility: hidden;
+  opacity: 0;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
 
 th[aria-sort=ascending]:not(.no-sort):after {
-    border-bottom: none;
-    border-width: 4px 4px 0;
+  border-bottom: none;
+  border-width: 4px 4px 0;
 }
 
 th[aria-sort]:not(.no-sort):after {
-    visibility: visible;
-    opacity: 0.4;
+  visibility: visible;
+  opacity: 0.4;
 }
 
 th[role=columnheader]:not(.no-sort):hover:after {
-    visibility: visible;
-    opacity: 1;
+  visibility: visible;
+  opacity: 1;
 }
 
 
@@ -217,23 +217,23 @@ details.no-details:not([open]) summary {
 /* styles for docs pages */
 
 .lcc-breadcrumb {
-    background: #fff;
-    font-size: 2.5rem;
-    padding-left: 0px;
+  background: #fff;
+  font-size: 2.5rem;
+  padding-left: 0px;
 }
 
 .toc {
-    border-radius: .5rem!important;
-    background-color: #f8f9fa!important;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
+  border-radius: .5rem!important;
+  background-color: #f8f9fa!important;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .toc > ul {
-    margin-bottom: 0px;
+  margin-bottom: 0px;
 }
 
 .codehilite {
-    background-color: #f8f9fa!important;
-    border-radius: .5rem!important;
+  background-color: #f8f9fa!important;
+  border-radius: .5rem!important;
 }
