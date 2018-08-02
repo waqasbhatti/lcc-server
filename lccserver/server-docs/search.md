@@ -23,16 +23,23 @@ server.
   </figcaption>
 </figure>
 
-
 ## Choose a search query type
 
 ## Enter search criteria
 
 ## Pick collections to search in (optional)
 
-## Select columns to retrieve (optional)
+## Set up column retrieval and filters (optional)
 
-## Add filters on database columns (optional)
+<figure class="figure">
+  <img src="/server-static/lcc-server-search-column-filters.png"
+       class="figure-img img-fluid"
+       alt="Column retrieval and filter selection">
+  <figcaption class="figure-caption text-center">
+    Column retrieval and filter selection
+  </figcaption>
+</figure>
+
 
 ## Execute the query
 
@@ -47,3 +54,12 @@ server.
 
 
 ## See the results
+
+<figure class="figure">
+  <img src="/server-static/lcc-server-search-recent-datasets.png"
+       class="figure-img img-fluid"
+       alt="The recent datasets tab">
+  <figcaption class="figure-caption text-center">
+    The recent datasets tab
+  </figcaption>
+</figure>

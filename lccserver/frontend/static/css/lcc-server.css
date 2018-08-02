@@ -237,11 +237,3 @@ details.no-details:not([open]) summary {
     background-color: #f8f9fa!important;
     border-radius: .5rem!important;
 }
-
-/* .markdown-docs img { */
-/*     width: 100%; */
-/*     height: auto; */
-/*     display: block; */
-/*     margin-top: 1rem; */
-/*     margin-bottom: 1rem; */
-/* } */
