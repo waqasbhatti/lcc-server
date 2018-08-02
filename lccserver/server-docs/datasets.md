@@ -37,9 +37,18 @@ seconds, so you can switch away to other tasks (and even run more queries in the
 mean time). Once the search backend notifies the dataset's page of its task
 completion, the dataset's status will change to "complete". The data table will
 be populated with object rows given the columns requested from the database. If
-there are more than 3000 matches for a query, only the first 3000 will be
+there are more than 3,000 matches for a query, only the first 3,000 will be
 rendered in the data table to keep the browser responsive. In this case, you can
-download the full data table CSV and slice and dice it as needed offline.
+download the full data table CSV and slice and dice it as needed
+offline.
+
+Queries that return more than 20,000 matches will not produce a light curve ZIP
+file because it would take too long and take up too much space on the server. If
+this happens, the data table CSV file will still be generated and will contain
+links to each object's light curve file for individual download if needed, in
+additional to the columns requested in the query. It's usally better to try to
+refine your query in this case to get a smaller set of matching objects that
+are more relevant, rather than trying to sift through a large number of them.
 
 <figure class="figure">
   <img src="/server-static/lcc-server-dataset-query-info.png"

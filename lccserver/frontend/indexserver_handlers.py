@@ -247,8 +247,8 @@ class APIAuthHandler(tornado.web.RequestHandler):
 
         except itsdangerous.SignatureExpired:
 
-            LOGGER.error('API key "%s" from %s has expired' %
-                         (key, self.request.remote_ip))
+            LOGGER.exception('API key "%s" from %s has expired' %
+                             (key, self.request.remote_ip))
 
             if 'X-Real-Host' in self.request.headers:
                 self.req_hostname = self.request.headers['X-Real-Host']
@@ -273,8 +273,8 @@ class APIAuthHandler(tornado.web.RequestHandler):
 
         except itsdangerous.BadSignature:
 
-            LOGGER.error('API key "%s" from %s did not pass verification' %
-                         (key, self.request.remote_ip))
+            LOGGER.exception('API key "%s" from %s did not pass verification' %
+                             (key, self.request.remote_ip))
 
             retdict = {
                 'status':'failed',
@@ -383,7 +383,12 @@ def doc_render_worker(docpage,
         extensions=['markdown.extensions.extra',
                     'markdown.extensions.codehilite',
                     'markdown.extensions.toc',
-                    'markdown.extensions.tables']
+                    'markdown.extensions.tables'],
+        extension_configs={
+            'markdown.extensions.codehilite':{
+                'guess_lang': False
+            }
+        }
     )
 
     return doc_html, page_title
@@ -424,6 +429,17 @@ class DocsHandler(tornado.web.RequestHandler):
         # this is the site-specific documentation index
         self.site_docindex = sitedocs
 
+        # this generates the server url for use in documentation
+        if 'X-Real-Host' in self.request.headers:
+            self.req_hostname = self.request.headers['X-Real-Host']
+        else:
+            self.req_hostname = self.request.host
+
+        self.server_url = "%s://%s" % (
+            self.request.protocol,
+            self.req_hostname,
+        )
+
 
     @gen.coroutine
     def get(self, docpage):
@@ -454,6 +470,10 @@ class DocsHandler(tornado.web.RequestHandler):
                     self.site_docindex
                 )
 
+                # this is because the rendering doesn't seem to figure out that
+                # there's a template tag left in. FIXME: figure out how to do
+                # this cleanly
+                rendered = rendered.replace('{{ server_url }}',self.server_url)
                 self.render('docs-page.html',
                             page_title=page_title,
                             page_content=rendered)
