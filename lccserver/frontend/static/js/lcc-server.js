@@ -10,16 +10,6 @@ This contains JS to drive the LCC server interface.
 
 var lcc_ui = {
 
-    // this holds intervals for lazy background checking
-    intervals: {},
-
-    // this holds previous sort column values for add/removing them from the col
-    // retrieval list
-    prev_sort_cols: {},
-
-    // this holds the currently active filters per search type
-    active_filter_cols: {},
-
     // debounce function to slow down mindless clicking on buttons the backend
     // APIs can probably handle it, but it just wastes time/resources taken
     // straight from: https://davidwalsh.name/essential-javascript-functions
@@ -4073,9 +4063,7 @@ var lcc_objectinfo = {
                 "<p>Period-finding for general stellar variability " +
                     "has not been run on this object, either " +
                     "because it didn't look like a variable star, " +
-                    "or it was not a likely exoplanet transit candidate. " +
-                    "It's also possible that we haven't gotten " +
-                    "around to it just yet. " +
+                    "or we haven't gotten around to it just yet. " +
                     "The light curve is available for download " +
                     "if you'd like to give it a go.</p>"
             );
