@@ -101,7 +101,6 @@ class APIKeyHandler(tornado.web.RequestHandler):
         self.fernet = fernet
 
 
-
     @gen.coroutine
     def get(self):
         '''This doesn't actually run the query.

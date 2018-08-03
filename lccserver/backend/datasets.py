@@ -345,7 +345,6 @@ def sqlite_new_dataset(basedir,
 
     dataset['lclist'] = dataset_lclist
 
-
     # write the pickle to the datasets directory
     with gzip.open(dataset_fpath,'wb') as outfd:
         pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)

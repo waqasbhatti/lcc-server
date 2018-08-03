@@ -6,10 +6,12 @@ server.
 ## Start here
 
 <figure class="figure">
-<img src="/server-static/lcc-server-search-conesearch.png"
-     class="figure-img img-fluid"
-     alt="The LCC server search interface">
-<figcaption class="figure-caption text-center">The LCC server search interface</figcaption>
+  <img src="/server-static/lcc-server-search-conesearch.png"
+       class="figure-img img-fluid"
+       alt="The LCC server search interface">
+  <figcaption class="figure-caption text-center">
+    The LCC server search interface
+  </figcaption>
 </figure>
 
 ## See available light curve collections

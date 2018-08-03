@@ -6,6 +6,16 @@ filtering the matching objects by various database columns.
 
 ## The web interface
 
+<figure class="figure">
+  <img src="/server-static/lcc-server-search-conesearch.png"
+       class="figure-img img-fluid"
+       alt="The LCC server search interface">
+  <figcaption class="figure-caption text-center">
+    The LCC server search interface
+  </figcaption>
+</figure>
+
+
 ### Input
 
 ### Executing the query
