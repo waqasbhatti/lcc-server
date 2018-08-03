@@ -1,4 +1,4 @@
-/*global $, moment, oboe */
+/*global $, moment, oboe, setTimeout, clearTimeout, Image */
 
 /*
   lcc-server.js - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jun 2018
@@ -730,16 +730,8 @@ var lcc_ui = {
 
                     // product download links
                     var dataset_fpath = result[rowind]['dataset_fpath'];
-                    var dataset_shasum = result[rowind]['dataset_shasum'];
-
+                    var dataset_csv = result[rowind]['dataset_csv'];
                     var lczip_fpath = result[rowind]['lczip_fpath'];
-                    var lczip_shasum = result[rowind]['lczip_shasum'];
-
-                    var pfzip_fpath = result[rowind]['pfzip_fpath'];
-                    var pfzip_shasum = result[rowind]['pfzip_shasum'];
-
-                    var cpzip_fpath = result[rowind]['cpzip_fpath'];
-                    var cpzip_shasum = result[rowind]['cpzip_shasum'];
 
                     // last updated
                     var lastupdated = result[rowind]['last_updated'];
@@ -778,18 +770,22 @@ var lcc_ui = {
                     // Products column
                     //
                     var dataset_download = '';
+                    var csv_download = '';
                     var lczip_download = '';
-                    var pfzip_download = '';
-                    var cpzip_download = '';
 
                     if (dataset_fpath != null) {
                         dataset_download = '<a download rel="nofollow" ' +
                             'href="' + dataset_fpath +
                             '" title="download search results pickle">' +
                             'dataset pickle' +
-                            '</a> <span data-toggle="tooltip" title="' +
-                            dataset_shasum + '">' +
-                            '[SHA256]</span>';
+                            '</a>';
+                    }
+                    if (dataset_csv != null) {
+                        csv_download = '<a download rel="nofollow" ' +
+                            'href="' + dataset_csv +
+                            '" title="download search results CSV">' +
+                            'dataset CSV' +
+                            '</a>';
                     }
 
                     if (lczip_fpath != null) {
@@ -797,37 +793,14 @@ var lcc_ui = {
                             'href="' + lczip_fpath +
                             '" title="download light curves ZIP">' +
                             'light curve ZIP' +
-                            '</a> <span data-toggle="tooltip" title="' +
-                            lczip_shasum + '">' +
-                            '[SHA256]</span>';
-                    }
-
-                    if (pfzip_fpath != null) {
-                        pfzip_download = '<a download rel="nofollow" ' +
-                            'href="' + pfzip_fpath +
-                            '" title="download period-finding results ZIP">' +
-                            'period-finding result pickles ZIP' +
-                            '</a> <span data-toggle="tooltip" title="' +
-                            pfzip_shasum + '">' +
-                            '[SHA256]</span>';
-                    }
-
-                    if (cpzip_fpath != null) {
-                        cpzip_download = '<a download rel="nofollow" ' +
-                            'href="' + cpzip_fpath +
-                            '" title="download checkplot pickles ZIP">' +
-                            'checkplot pickles ZIP' +
-                            '</a> <span data-toggle="tooltip" title="' +
-                            cpzip_shasum + '">' +
-                            '[SHA256]</span>';
+                            '</a>';
                     }
 
                     // format the column
                     var table_downloadlinks = '<td>' +
                         dataset_download + '<br>' +
-                        lczip_download + '<br>' +
-                        pfzip_download + '<br>' +
-                        cpzip_download + '</td>';
+                        csv_download + '<br>' +
+                        lczip_download + '</td>';
 
 
                     //
@@ -1975,15 +1948,17 @@ var lcc_datasets = {
                                           '</span>');
 
                 // 4 and 5. searchtype and searchargs
-                $('#dataset-searchargs').html('<details><summary>' +
-                                              data.searchtype
-                                              .replace('sqlite_','')
-                                              .replace('postgres_','') +
-                                              '</summary><pre>' +
-                                              JSON.stringify(data.searchargs,
-                                                             null,
-                                                             2) +
-                                              '</pre></detail>');
+                $('#dataset-searchargs').html(
+                    '<details><summary>' +
+                        data.searchtype
+                        .replace('sqlite_','')
+                        .replace('postgres_','') +
+                        '</summary><pre>' +
+                        JSON.stringify(data.searchargs,
+                                       null,
+                                       2) +
+                        '</pre></detail>'
+                );
 
                 // 6. collections
                 $('#dataset-collections').html( data.collections.join(', '));
@@ -1992,28 +1967,24 @@ var lcc_datasets = {
                 $('#dataset-setpickle')
                     .html('<a download ref="nofollow" href="' +
                           data.dataset_pickle + '">download file</a>');
-                // 8. picklesha
-                $('#dataset-picklesha')
-                    .html('SHA256: <code>' + data.dataset_shasum + '</code>');
 
                 // 9. setcsv
                 $('#dataset-setcsv')
                     .html('<a download ref="nofollow" href="' +
                           data.dataset_csv + '">download file</a>');
-                // 10. csvsha
-                $('#dataset-csvsha')
-                    .html('SHA256: <code>' + data.csv_shasum + '</code>');
 
 
                 // 11. nobjects
                 if ('rowstatus' in data) {
-                    $('#dataset-nobjects').html(data.nobjects +
-                                                ' (' +
-                                                data.rowstatus +
-                                                ' &mdash; see the ' +
-                                                '<a download ref="nofollow" href="' +
-                                                data.dataset_csv + '">dataset CSV</a>' +
-                                                ' for complete table)');
+                    $('#dataset-nobjects').html(
+                        data.nobjects +
+                            ' (' +
+                            data.rowstatus +
+                            ' &mdash; see the ' +
+                            '<a download ref="nofollow" href="' +
+                            data.dataset_csv + '">dataset CSV</a>' +
+                            ' for complete table)'
+                    );
                 }
                 else {
                     $('#dataset-nobjects').html(data.nobjects);
@@ -2025,13 +1996,9 @@ var lcc_datasets = {
                     $('#dataset-lczip')
                         .html('<a download ref="nofollow" href="' +
                               data.lczip + '">download file</a>');
-                    // 13. lcsha
-                    $('#dataset-lcsha')
-                        .html('SHA256: <code>' + data.lczip_shasum + '</code>');
                 }
                 else {
                     $('#dataset-lczip').html('not available');
-                    $('#dataset-lcsha').empty();
                 }
 
                 if (data.pfzip != null) {
@@ -2039,17 +2006,11 @@ var lcc_datasets = {
                     $('#dataset-pfzip')
                         .html('<a download ref="nofollow" href="' +
                               data.pfzip + '">download file</a>');
-                    // 15. pfsha
-                    $('#dataset-pfsha')
-                        .html('SHA256: <code>' + data.pfzip_shasum + '</code>');
                 }
                 else {
                     // 14. pfzip
                     $('#dataset-pfzip')
                         .html('not available');
-                    // 15. pfsha
-                    $('#dataset-pfsha')
-                        .empty();
                 }
 
                 if (data.cpzip != null) {
@@ -2057,18 +2018,12 @@ var lcc_datasets = {
                     $('#dataset-cpzip')
                         .html('<a download ref="nofollow" href="' +
                               data.cpzip + '">download file</a>');
-                    // 17. cpsha
-                    $('#dataset-cpsha')
-                        .html('SHA256: <code>' + data.cpzip_shasum + '</code>');
 
                 }
                 else {
                     // 18. cpzip
                     $('#dataset-cpzip')
                         .html('not available');
-                    // 19. cpsha
-                    $('#dataset-cpsha')
-                        .empty();
                 }
 
 

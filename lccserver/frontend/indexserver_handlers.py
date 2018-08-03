@@ -614,7 +614,9 @@ class DatasetListHandler(tornado.web.RequestHandler):
         dataset_info = yield self.executor.submit(
             datasets.sqlite_list_datasets,
             self.basedir,
-            nrecent=nrecent
+            nrecent=nrecent,
+            require_status='complete',
+            require_ispublic=True
         )
 
         # we'll have to censor stuff here as well
@@ -635,6 +637,15 @@ class DatasetListHandler(tornado.web.RequestHandler):
                     dataset_fpath = None
 
                 try:
+                    dataset_csv = dataset['dataset_csv']
+                    dataset_csv = dataset_csv.replace(
+                        os.path.join(self.basedir,'datasets'),
+                        '/d'
+                    )
+                except:
+                    dataset_csv = None
+
+                try:
                     lczip_fpath = dataset['lczip_fpath']
                     lczip_fpath = lczip_fpath.replace(
                         os.path.join(self.basedir,'products'),
@@ -643,29 +654,10 @@ class DatasetListHandler(tornado.web.RequestHandler):
                 except:
                     lczip_fpath = None
 
-                try:
-                    cpzip_fpath = dataset['cpzip_fpath']
-                    cpzip_fpath = cpzip_fpath.replace(
-                        os.path.join(self.basedir,'products'),
-                        '/p'
-                    )
-                except:
-                    cpzip_fpath = None
-
-                try:
-                    pfzip_fpath = dataset['pfzip_fpath']
-                    pfzip_fpath = pfzip_fpath.replace(
-                        os.path.join(self.basedir,'products'),
-                        '/p'
-                    )
-                except:
-                    pfzip_fpath = None
-
                 # update this listing
                 dataset['dataset_fpath'] = dataset_fpath
+                dataset['dataset_csv'] = dataset_csv
                 dataset['lczip_fpath'] = lczip_fpath
-                dataset['cpzip_fpath'] = cpzip_fpath
-                dataset['pfzip_fpath'] = pfzip_fpath
 
                 dataset_list.append(dataset)
 

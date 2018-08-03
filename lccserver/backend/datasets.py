@@ -82,7 +82,6 @@ import secrets
 import gzip
 from zipfile import ZipFile
 import json
-import subprocess
 from multiprocessing import Pool
 from textwrap import indent
 from functools import reduce
@@ -99,8 +98,13 @@ abcat.set_logger_parent(__name__)
 #########################################
 
 SQLITE_DATASET_CREATE = '''\
--- make the main table
+-- think about adding some more useful columns
+-- user_sessionid -> salted hash of the user's session token
+-- user_metadata_json -> info from user (e.g. who the dataset is shared with)
+-- objectid_list  -> list of all object IDs in this dataset (for dataset FTS)
+-- convex_hull_polygon -> for queries like "all datasets in this sky region"
 
+-- this is the main table
 create table lcc_datasets (
   setid text not null,
   created_on datetime not null,
@@ -109,7 +113,6 @@ create table lcc_datasets (
   status text not null,
   is_public integer,
   lczip_cachekey text,
-  dataset_shasum text,
   queried_collections text,
   query_type text,
   query_params text,
@@ -119,11 +122,16 @@ create table lcc_datasets (
   primary key (setid)
 );
 
--- reversed time lookup fast index
-create index updated_time_idx on lcc_datasets (last_updated desc);
+-- reversed and forward time lookup fast indexes
+create index fwd_time_idx on lcc_datasets (last_updated asc);
+create index rev_time_idx on lcc_datasets (last_updated desc);
 
 -- index on the dataset cache key
 create index lczip_cachekey_idx on lcc_datasets (lczip_cachekey);
+
+-- index on the ispublic item
+create index ispublic_idx on lcc_datasets (is_public);
+
 
 -- set the WAL mode on
 pragma journal_mode = wal;
@@ -333,18 +341,6 @@ def sqlite_new_dataset(basedir,
     LOGINFO('wrote dataset pickle for search results to %s, setid: %s' %
             (dataset_fpath, setid))
 
-    # generate the SHA256 sum for the written file
-    try:
-        p = subprocess.run('sha256sum %s' % dataset_fpath,
-                           shell=True, timeout=60.0,
-                           stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        shasum = p.stdout.decode().split()[0]
-
-    except Exception as e:
-
-        LOGWARNING('could not calculate SHA256 sum for %s' % dataset_fpath)
-        shasum = 'warning-no-sha256sum-available'
-
     # open the datasets database
     datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
     db = sqlite3.connect(
@@ -357,7 +353,7 @@ def sqlite_new_dataset(basedir,
     query = ("update lcc_datasets set "
              "name = ?, description = ?, "
              "last_updated = ?, nobjects = ?, "
-             "status = ?, dataset_shasum = ?, is_public = ?, "
+             "status = ?, is_public = ?, "
              "queried_collections = ?, query_type = ?, query_params = ? "
              "where setid = ?")
 
@@ -367,7 +363,6 @@ def sqlite_new_dataset(basedir,
         datetime.utcnow().isoformat(),
         total_nmatches,
         'in progress',
-        shasum,
         1 if ispublic else 0,
         ', '.join(collections),
         searchtype,
@@ -477,8 +472,11 @@ def sqlite_make_dataset_lczip(basedir,
         )
         cur = db.cursor()
 
+        # this will fetch the original set LC zip if there are multiple links to
+        # it for many datasets
         cur.execute("select setid, lczip_cachekey from lcc_datasets where "
-                    "lczip_cachekey = ?", (dataset_lczip_cachekey,))
+                    "lczip_cachekey = ? order by last_updated asc limit 1",
+                    (dataset_lczip_cachekey,))
 
         row = cur.fetchone()
         db.close()
@@ -732,9 +730,7 @@ def sqlite_list_datasets(basedir,
     status
     is_public
     dataset_fpath
-    dataset_shasum
     lczip_fpath
-    lczip_shasum
     name
     description
     citation
@@ -761,7 +757,6 @@ def sqlite_list_datasets(basedir,
     cur = db.cursor()
 
     query = ("select setid, created_on, last_updated, nobjects, is_public, "
-             "dataset_shasum, "
              "name, description, citation, "
              "queried_collections, query_type, query_params from "
              "lcc_datasets where status = ? {public_cond} "
@@ -907,7 +902,6 @@ def sqlite_get_dataset(basedir,
                 'searchtype':None,
                 'searchargs':None,
                 'lczip':None,
-                'dataset_shasum':None,
                 'dataset_csv':None,
                 'collections':None,
                 'result':None,
@@ -943,8 +937,8 @@ def sqlite_get_dataset(basedir,
         'lczip':dataset['lczipfpath'],
     }
 
-    query = ("select created_on, last_updated, nobjects, status, "
-             "dataset_shasum from lcc_datasets where setid = ?")
+    query = ("select created_on, last_updated, nobjects, status "
+             "from lcc_datasets where setid = ?")
     params = (dataset['setid'],)
     cur.execute(query, params)
     row = cur.fetchone()
@@ -955,7 +949,6 @@ def sqlite_get_dataset(basedir,
     returndict['last_updated'] = row[1]
     returndict['nobjects'] = row[2]
     returndict['status'] = row[3]
-    returndict['dataset_shasum'] = row[4]
 
     # the results are per-collection
     returndict['collections'] = dataset['collections']
