@@ -86,6 +86,7 @@ import subprocess
 from multiprocessing import Pool
 from textwrap import indent
 from functools import reduce
+import hashlib
 
 from . import dbsearch
 dbsearch.set_logger_parent(__name__)
@@ -107,9 +108,7 @@ create table lcc_datasets (
   nobjects integer not null,
   status text not null,
   is_public integer,
-  lczip_shasum text,
-  cpzip_shasum text,
-  pfzip_shasum text,
+  lczip_cachekey text,
   dataset_shasum text,
   queried_collections text,
   query_type text,
@@ -122,6 +121,9 @@ create table lcc_datasets (
 
 -- reversed time lookup fast index
 create index updated_time_idx on lcc_datasets (last_updated desc);
+
+-- index on the dataset cache key
+create index lczip_cachekey_idx on lcc_datasets (lczip_cachekey);
 
 -- set the WAL mode on
 pragma journal_mode = wal;
@@ -230,9 +232,7 @@ def sqlite_new_dataset(basedir,
      'searchargs': the args dict from the search result dict,
      'success': the boolean from the search result dict
      'message': the message from the search result dict,
-     'lczipfpath': the path to the light curve ZIP in basedir/products/,
-     later: 'cpzipfpath': path to the checkplot ZIP in basedir/products,
-     later: 'pfzipfpath': path to the periodfinding ZIP in basedir/products,}
+     'lczipfpath': the path to the light curve ZIP in basedir/products/}
 
 
     '''
@@ -322,28 +322,9 @@ def sqlite_new_dataset(basedir,
     lczip_fname = 'lightcurves-%s.zip' % setid
     lczip_fpath = os.path.join(productdir, lczip_fname)
 
-    # generate the name of the cpzipfile
-    cpzip_fname = 'checkplots-%s.zip' % setid
-    cpzip_fpath = os.path.join(productdir, cpzip_fname)
-
-    # generate the name of the pfzipfile
-    pfzip_fname = 'pfresults-%s.zip' % setid
-    pfzip_fpath = os.path.join(productdir, pfzip_fname)
-
     # put these into the dataset dict
     dataset['lczipfpath'] = lczip_fpath
-    dataset['cpzipfpath'] = cpzip_fpath
-    dataset['pfzipfpath'] = pfzip_fpath
 
-    # get the list of all light curve files for this dataset
-    dataset_lclist = []
-
-    for collection in collections:
-
-        thiscoll_lclist = [x['db_lcfname'] for x in result[collection]]
-        dataset_lclist.extend(thiscoll_lclist)
-
-    dataset['lclist'] = dataset_lclist
 
     # write the pickle to the datasets directory
     with gzip.open(dataset_fpath,'wb') as outfd:
@@ -433,6 +414,19 @@ def csvlc_convert_worker(task):
 
 
 
+def generate_lczip_cachekey(lczip_lclist):
+    '''
+    This generates the cache key for an LCZIP based on its LC list.
+
+    '''
+
+    sorted_lclist_json = json.dumps(lczip_lclist)
+    cachekey = hashlib.sha256(sorted_lclist_json.encode()).hexdigest()
+
+    return cachekey
+
+
+
 def sqlite_make_dataset_lczip(basedir,
                               setid,
                               converter_processes=4,
@@ -447,6 +441,7 @@ def sqlite_make_dataset_lczip(basedir,
     '''
 
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
 
     # look in the datasetdir for the dataset pickle
     dataset_fpath = os.path.join(datasetdir, 'dataset-%s.pkl.gz' % setid)
@@ -456,229 +451,239 @@ def sqlite_make_dataset_lczip(basedir,
         with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
-        dataset_lclist = []
 
-        # we'll do this by collection
-        for collection in dataset['collections']:
+        # get the list of original format light curves for this dataset
+        # we'll use these as the basis of the cache key
+        dataset_original_lclist = []
 
-            # load the format description
-            lcformatdesc = dataset['lcformatdesc'][collection]
-            lcformatdict = abcat.get_lcformat_description(
-                lcformatdesc
-            )
-            convertopts = {'csvlc_version':converter_csvlc_version,
-                           'comment_char':converter_comment_char,
-                           'column_separator':converter_column_separator,
-                           'skip_converted':converter_skip_converted}
+        for coll in dataset['collections']:
 
-            collection_lclist = [
-                x['db_lcfname'] for x in dataset['result'][collection]
+            thiscoll_lclist = [
+                x['db_lcfname'] for x in dataset['result'][coll]
             ]
+            dataset_original_lclist.extend(thiscoll_lclist)
 
-            # we'll use this to form CSV filenames
-            collection_objectidlist = [
-                x['db_oid'] for x in dataset['result'][collection]
-            ]
+        dataset_original_lclist = sorted(dataset_original_lclist)
+        dataset_lczip_cachekey = generate_lczip_cachekey(
+            dataset_original_lclist
+        )
 
-            # handle the lcdir override if present
-            if override_lcdir and os.path.exists(override_lcdir):
-                collection_lclist = [
-                    os.path.join(override_lcdir,
-                                 os.path.basename(x))
-                    for x in collection_lclist
-                ]
-
-            # now, we'll convert these light curves in parallel
-            pool = Pool(converter_processes)
-            tasks = [(x, y, lcformatdict, convertopts) for x,y in
-                     zip(collection_lclist, collection_objectidlist)]
-            results = pool.map(csvlc_convert_worker, tasks)
-            pool.close()
-            pool.join()
-
-            #
-            # link the generated CSV LCs to the output directory
-            #
-
-            # get this collection's output LC directory under the LCC basedir
-            # basedir/csvlcs/<collection>/lightcurves/<lcfname>
-            thiscoll_lcdir = os.path.join(
-                basedir,
-                'csvlcs',
-                os.path.dirname(lcformatdesc).split('/')[-1],
-            )
-
-            if os.path.exists(thiscoll_lcdir):
-                for rind, rlc in enumerate(results):
-                    outpath = os.path.abspath(
-                        os.path.join(thiscoll_lcdir,
-                                     os.path.basename(rlc))
-                    )
-                    if os.path.exists(outpath):
-                        LOGWARNING(
-                            'not linking CSVLC: %s to %s because '
-                            ' it exists already' % (rlc, outpath)
-                        )
-                    elif os.path.exists(rlc):
-
-                        LOGINFO(
-                            'linking CSVLC: %s -> %s OK' %
-                            (rlc, outpath)
-                        )
-                        os.symlink(rlc, outpath)
-
-                    else:
-
-                        LOGWARNING(
-                            '%s probably does not '
-                            'exist, skipping linking...' % rlc
-                        )
-                        # the LC won't exist, but that's fine, we'll
-                        # catch it later down below
-
-                    # put the output path into the actual results list
-                    results[rind] = outpath
-
-
-            # update this collection's light curve list
-            for olc, nlc, dsrow in zip(collection_lclist,
-                                       results,
-                                       dataset['result'][collection]):
-
-                # make sure we don't include broken or missing LCs
-                if os.path.exists(nlc):
-                    dsrow['db_lcfname'] = nlc
-                    if 'lcfname' in dsrow:
-                        dsrow['db_lcfname'] = nlc
-                else:
-                    dsrow['db_lcfname'] = None
-                    if 'lcfname' in dsrow:
-                        dsrow['db_lcfname'] = None
-
-
-            # update the global LC list
-            dataset_lclist.extend(results)
-
-        # we'll need to update the dataset pickle to reflect the new LC
-        # locations
-        dataset['lclist'] = dataset_lclist
-
-        # write the changes to the pickle and update the SHASUM
-        with gzip.open(dataset_fpath,'wb') as outfd:
-            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
-
-        try:
-
-            p = subprocess.run('sha256sum %s' % dataset_fpath,
-                               shell=True,
-                               timeout=60.0,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-            shasum = p.stdout.decode().split()[0]
-
-        except Exception as e:
-
-            LOGWARNING('could not calculate SHA256 sum for %s' %
-                       dataset_fpath)
-            shasum = 'warning-no-sha256sum-available'
-
-        # update the database with the new SHASUM
-        datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+        # check the cachekey against the database to see if a dataset with
+        # identical LCs has already been collected
         db = sqlite3.connect(
             datasets_dbf,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
         cur = db.cursor()
 
-        # generate the entry in the lcc-datasets.sqlite table and commit it
-        query = ("update lcc_datasets set "
-                 "last_updated = ?, dataset_shasum = ? where setid = ?")
+        cur.execute("select setid, lczip_cachekey from lcc_datasets where "
+                    "lczip_cachekey = ?", (dataset_lczip_cachekey,))
 
-        params = (datetime.utcnow().isoformat(), shasum, setid)
-        cur.execute(query, params)
-        db.commit()
+        row = cur.fetchone()
         db.close()
 
+        # if LCs corresponding to the ones included in this dataset are found in
+        # another dataset, then we'll symlink that dataset's LC ZIP to
+        # datasets/dataset-[this setid].zip, and call it a day
+        skip_lc_collection = False
 
-        #
-        # FINALLY, CARRY OUT THE ZIP OPERATION
-        #
-        zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
+        if row and len(row) > 0:
 
-        # get the expected name of the output zipfile
-        lczip_fpath = dataset['lczipfpath']
+            other_setid, other_dataset_cachekey = row
+            other_lczip = os.path.join(basedir,
+                                       'products',
+                                       'lightcurves-%s.zip' % other_setid)
 
-        LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
-                (len(dataset_lclist), lczip_fpath, setid))
+            if os.path.exists(other_lczip):
 
-        # set up the zipfile
-        with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
-            for lcf in dataset_lclist:
-                if os.path.exists(lcf):
-                    outzip.write(lcf, os.path.basename(lcf))
-                else:
-                    zipfile_lclist[os.path.basename(lcf)] = 'missing'
+                # we'll remove the current dataset LC zip in favor of the other
+                # one every time
+                if os.path.exists(dataset['lczipfpath']):
+                    LOGWARNING('overwriting existing symlink %s, '
+                               'which points to actual file: %s' %
+                               (dataset['lczipfpath'],
+                                os.path.abspath(other_lczip)))
+                    os.remove(dataset['lczipfpath'])
 
-            # add the manifest to the zipfile
-            outzip.writestr('lczip-manifest.json',
-                            json.dumps(zipfile_lclist,
-                                       ensure_ascii=True,
-                                       indent=2))
+                os.symlink(os.path.abspath(other_lczip),
+                           dataset['lczipfpath'])
+                skip_lc_collection = True
 
-        LOGINFO('done, zip written successfully.')
+            else:
 
-        # check the size of the output file
-        # if it's more than 250 MB, skip the sha256
-        zipf_size = os.stat(lczip_fpath).st_size/(1024*1024)
-        if zipf_size > 250.0:
-            LOGWARNING('LC ZIP: %s (%s) is too '
-                       'large for SHA256 sum, skipping...' %
-                       (lczip_fpath, zipf_size))
-            shasum = ('warning-size-%iMB-sha256sum-would-take-too-long' %
-                      zipf_size)
+                skip_lc_collection = False
+
+        # only collect LCs if we have to, we'll use the already generated link
+        # if we have the same LCs collected already somewhere else
+        if not skip_lc_collection:
+
+            LOGINFO('no cached LC zip found for dataset: %s, regenerating...' %
+                    setid)
+
+            dataset_lclist = []
+
+            # we'll do this by collection
+            for collection in dataset['collections']:
+
+                # load the format description
+                lcformatdesc = dataset['lcformatdesc'][collection]
+                lcformatdict = abcat.get_lcformat_description(
+                    lcformatdesc
+                )
+                convertopts = {'csvlc_version':converter_csvlc_version,
+                               'comment_char':converter_comment_char,
+                               'column_separator':converter_column_separator,
+                               'skip_converted':converter_skip_converted}
+
+                collection_lclist = [
+                    x['db_lcfname'] for x in dataset['result'][collection]
+                ]
+
+                # we'll use this to form CSV filenames
+                collection_objectidlist = [
+                    x['db_oid'] for x in dataset['result'][collection]
+                ]
+
+                # handle the lcdir override if present
+                if override_lcdir and os.path.exists(override_lcdir):
+                    collection_lclist = [
+                        os.path.join(override_lcdir,
+                                     os.path.basename(x))
+                        for x in collection_lclist
+                    ]
+
+                # now, we'll convert these light curves in parallel
+                pool = Pool(converter_processes)
+                tasks = [(x, y, lcformatdict, convertopts) for x,y in
+                         zip(collection_lclist, collection_objectidlist)]
+                results = pool.map(csvlc_convert_worker, tasks)
+                pool.close()
+                pool.join()
+
+                #
+                # link the generated CSV LCs to the output directory
+                #
+
+                # get this collection's output LC directory under the LCC
+                # basedir basedir/csvlcs/<collection>/lightcurves/<lcfname>
+                thiscoll_lcdir = os.path.join(
+                    basedir,
+                    'csvlcs',
+                    os.path.dirname(lcformatdesc).split('/')[-1],
+                )
+
+                if os.path.exists(thiscoll_lcdir):
+                    for rind, rlc in enumerate(results):
+                        outpath = os.path.abspath(
+                            os.path.join(thiscoll_lcdir,
+                                         os.path.basename(rlc))
+                        )
+                        if os.path.exists(outpath):
+                            LOGWARNING(
+                                'not linking CSVLC: %s to %s because '
+                                ' it exists already' % (rlc, outpath)
+                            )
+                        elif os.path.exists(rlc):
+
+                            LOGINFO(
+                                'linking CSVLC: %s -> %s OK' %
+                                (rlc, outpath)
+                            )
+                            os.symlink(os.path.abspath(rlc), outpath)
+
+                        else:
+
+                            LOGWARNING(
+                                '%s probably does not '
+                                'exist, skipping linking...' % rlc
+                            )
+                            # the LC won't exist, but that's fine, we'll
+                            # catch it later down below
+
+                        # put the output path into the actual results list
+                        results[rind] = outpath
+
+
+                # update this collection's light curve list
+                for olc, nlc, dsrow in zip(collection_lclist,
+                                           results,
+                                           dataset['result'][collection]):
+
+                    # make sure we don't include broken or missing LCs
+                    if os.path.exists(nlc):
+                        dsrow['db_lcfname'] = nlc
+                        if 'lcfname' in dsrow:
+                            dsrow['db_lcfname'] = nlc
+                    else:
+                        dsrow['db_lcfname'] = None
+                        if 'lcfname' in dsrow:
+                            dsrow['db_lcfname'] = None
+
+
+                # update the global LC list
+                dataset_lclist.extend(results)
+
+            #
+            # FINALLY, CARRY OUT THE ZIP OPERATION (IF NEEDED)
+            #
+            zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
+
+            # get the expected name of the output zipfile
+            lczip_fpath = dataset['lczipfpath']
+
+            LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
+                    (len(dataset_lclist), lczip_fpath, setid))
+
+            # set up the zipfile
+            with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
+                for lcf in dataset_lclist:
+                    if os.path.exists(lcf):
+                        outzip.write(lcf, os.path.basename(lcf))
+                    else:
+                        zipfile_lclist[os.path.basename(lcf)] = 'missing'
+
+                # add the manifest to the zipfile
+                outzip.writestr('lczip-manifest.json',
+                                json.dumps(zipfile_lclist,
+                                           ensure_ascii=True,
+                                           indent=2))
+
+            LOGINFO('done, zip written successfully.')
 
         else:
 
-            try:
+            LOGINFO("re-using identical LC collected "
+                    "ZIP from dataset: %s at %s, "
+                    "symlinked to this dataset's LC ZIP: %s" %
+                    (other_setid, other_lczip, dataset['lczipfpath']))
 
-                p = subprocess.run('sha256sum %s' % lczip_fpath,
-                                   shell=True, timeout=60.0,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
-                shasum = p.stdout.decode().split()[0]
 
-            except Exception as e:
-
-                LOGWARNING('could not calculate SHA256 sum for %s' %
-                           lczip_fpath)
-                shasum = 'warning-sha256sum-failed-or-timed-out'
-
-        # open the datasets database
-        datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+        # generate the entry in the lcc-datasets.sqlite table and commit it
+        # once we get to this point, the dataset is finally considered complete
         db = sqlite3.connect(
             datasets_dbf,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
         cur = db.cursor()
 
-        # generate the entry in the lcc-datasets.sqlite table and commit it
-        # once we get to this point, the dataset is finally considered complete
         query = ("update lcc_datasets set status = ?, "
-                 "last_updated = ?, lczip_shasum = ? where setid = ?")
+                 "last_updated = ?, lczip_cachekey = ? where setid = ?")
 
-        params = ('complete', datetime.utcnow().isoformat(), shasum, setid)
+        params = ('complete',
+                  datetime.utcnow().isoformat(),
+                  dataset_lczip_cachekey,
+                  setid)
         cur.execute(query, params)
         db.commit()
         db.close()
 
         LOGINFO('updated entry for setid: %s with LC zip SHASUM' % setid)
-        return lczip_fpath
+        return dataset['lczipfpath']
 
     else:
 
         LOGERROR('setid: %s, dataset pickle expected at %s does not exist!' %
                  (setid, dataset_fpath))
-        db.close()
         return None
 
 
@@ -690,9 +695,6 @@ def sqlite_remove_dataset(basedir, setid):
 
     '''
 
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
-
-
 
 # LATER
 def sqlite_update_dataset(basedir, setid, updatedict):
@@ -700,8 +702,6 @@ def sqlite_update_dataset(basedir, setid, updatedict):
     This updates a dataset.
 
     '''
-
-    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
 
 
 
@@ -906,14 +906,8 @@ def sqlite_get_dataset(basedir,
                 'searchtype':None,
                 'searchargs':None,
                 'lczip':None,
-                'cpzip':None,
-                'pfzip':None,
-                'lczip_shasum':None,
-                'pfzip_shasum':None,
-                'cpzip_shasum':None,
                 'dataset_shasum':None,
                 'dataset_csv':None,
-                'csv_shasum':None,
                 'collections':None,
                 'result':None,
             }
@@ -946,13 +940,10 @@ def sqlite_get_dataset(basedir,
         'searchtype':dataset['searchtype'],
         'searchargs':dataset['searchargs'],
         'lczip':dataset['lczipfpath'],
-        'cpzip':dataset['cpzipfpath'],
-        'pfzip':dataset['pfzipfpath'],
     }
 
     query = ("select created_on, last_updated, nobjects, status, "
-             "lczip_shasum, cpzip_shasum, pfzip_shasum, dataset_shasum "
-             "from lcc_datasets where setid = ?")
+             "dataset_shasum from lcc_datasets where setid = ?")
     params = (dataset['setid'],)
     cur.execute(query, params)
     row = cur.fetchone()
@@ -963,10 +954,7 @@ def sqlite_get_dataset(basedir,
     returndict['last_updated'] = row[1]
     returndict['nobjects'] = row[2]
     returndict['status'] = row[3]
-    returndict['lczip_shasum'] = row[4]
-    returndict['cpzip_shasum'] = row[5]
-    returndict['pfzip_shasum'] = row[6]
-    returndict['dataset_shasum'] = row[7]
+    returndict['dataset_shasum'] = row[4]
 
     # the results are per-collection
     returndict['collections'] = dataset['collections']
@@ -991,24 +979,9 @@ def sqlite_get_dataset(basedir,
         )
         returndict['dataset_csv'] = csv
 
-        # get the SHASUM of the CSV
-        try:
-            p = subprocess.run('sha256sum %s' % csv,
-                               shell=True, timeout=60.0,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-            shasum = p.stdout.decode().split()[0]
-            returndict['csv_shasum'] = shasum
-
-        except Exception as e:
-
-            LOGWARNING('could not calculate SHA256 sum for %s' % csv)
-            shasum = 'warning-no-sha256sum-available'
-            returndict['csv_shasum'] = shasum
 
     else:
         returndict['dataset_csv'] = None
-        returndict['csv_shasum'] = None
 
     # if we're told to force complete the dataset, do so here
     if forcecomplete and returndict['status'] != 'complete':
@@ -1031,10 +1004,6 @@ def sqlite_get_dataset(basedir,
 
         if not os.path.exists(returndict['lczip']):
             returndict['lczip'] = None
-        if not os.path.exists(returndict['cpzip']):
-            returndict['cpzip'] = None
-        if not os.path.exists(returndict['pfzip']):
-            returndict['pfzip'] = None
 
         # blank out the original LCs
         # FIXME: FIXME: FIXME: why are we doing this?
