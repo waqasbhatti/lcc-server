@@ -434,7 +434,8 @@ def sqlite_make_dataset_lczip(basedir,
                               converter_comment_char='#',
                               converter_column_separator=',',
                               converter_skip_converted=True,
-                              override_lcdir=None):
+                              override_lcdir=None,
+                              max_dataset_lcs=20000):
     '''
     This makes a zip file for the light curves in the dataset.
 
@@ -628,27 +629,35 @@ def sqlite_make_dataset_lczip(basedir,
             #
             zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
 
-            # get the expected name of the output zipfile
-            lczip_fpath = dataset['lczipfpath']
+            if len(dataset_lclist) > max_dataset_lcs:
 
-            LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
-                    (len(dataset_lclist), lczip_fpath, setid))
+                LOGERROR('LCS in dataset: %s > max_dataset_lcs: %s, '
+                         'not making a zip file' % (len(dataset_lclist),
+                                                    max_dataset_lcs))
 
-            # set up the zipfile
-            with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
-                for lcf in dataset_lclist:
-                    if os.path.exists(lcf):
-                        outzip.write(lcf, os.path.basename(lcf))
-                    else:
-                        zipfile_lclist[os.path.basename(lcf)] = 'missing'
+            else:
 
-                # add the manifest to the zipfile
-                outzip.writestr('lczip-manifest.json',
-                                json.dumps(zipfile_lclist,
-                                           ensure_ascii=True,
-                                           indent=2))
+                # get the expected name of the output zipfile
+                lczip_fpath = dataset['lczipfpath']
 
-            LOGINFO('done, zip written successfully.')
+                LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
+                        (len(dataset_lclist), lczip_fpath, setid))
+
+                # set up the zipfile
+                with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
+                    for lcf in dataset_lclist:
+                        if os.path.exists(lcf):
+                            outzip.write(lcf, os.path.basename(lcf))
+                        else:
+                            zipfile_lclist[os.path.basename(lcf)] = 'missing'
+
+                    # add the manifest to the zipfile
+                    outzip.writestr('lczip-manifest.json',
+                                    json.dumps(zipfile_lclist,
+                                               ensure_ascii=True,
+                                               indent=2))
+
+                LOGINFO('done, zip written successfully.')
 
         else:
 
@@ -752,7 +761,7 @@ def sqlite_list_datasets(basedir,
     cur = db.cursor()
 
     query = ("select setid, created_on, last_updated, nobjects, is_public, "
-             "dataset_shasum, lczip_shasum, cpzip_shasum, pfzip_shasum, "
+             "dataset_shasum, "
              "name, description, citation, "
              "queried_collections, query_type, query_params from "
              "lcc_datasets where status = ? {public_cond} "
@@ -783,14 +792,11 @@ def sqlite_list_datasets(basedir,
             dataset_pickle = os.path.join(
                 basedir,'datasets','dataset-%s.pkl.gz' % row['setid']
             )
+            dataset_csv = os.path.join(
+                basedir,'datasets','dataset-%s.csv' % row['setid']
+            )
             dataset_lczip = os.path.join(
                 basedir,'products','lightcurves-%s.zip' % row['setid']
-            )
-            dataset_cpzip = os.path.join(
-                basedir,'products','checkplots-%s.zip' % row['setid']
-            )
-            dataset_pfzip = os.path.join(
-                basedir,'products','pfresults-%s.zip' % row['setid']
             )
 
             if os.path.exists(dataset_pickle):
@@ -798,20 +804,15 @@ def sqlite_list_datasets(basedir,
             else:
                 row['dataset_fpath'] = None
 
+            if os.path.exists(dataset_csv):
+                row['dataset_csv'] = dataset_csv
+            else:
+                row['dataset_csv'] = None
+
             if os.path.exists(dataset_lczip):
                 row['lczip_fpath'] = dataset_lczip
             else:
                 row['lczip_fpath'] = None
-
-            if os.path.exists(dataset_cpzip):
-                row['cpzip_fpath'] = dataset_cpzip
-            else:
-                row['cpzip_fpath'] = None
-
-            if os.path.exists(dataset_pfzip):
-                row['pfzip_fpath'] = dataset_pfzip
-            else:
-                row['pfzip_fpath'] = None
 
         # this is the returndict
         returndict = {
@@ -1041,7 +1042,7 @@ def sqlite_get_dataset(basedir,
 def generate_dataset_tablerows(
         basedir,
         in_dataset,
-        giveupafter=3001,
+        giveupafter=3000,
         headeronly=False,
         strformat=False,
 ):
