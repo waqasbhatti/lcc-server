@@ -1070,6 +1070,7 @@ def generate_dataset_tablerows(
         giveupafter=3000,
         headeronly=False,
         strformat=False,
+        datarows_bypass_cache=False,
 ):
     '''This generates row elements useful for direct insert into a HTML table.
 
@@ -1078,6 +1079,60 @@ def generate_dataset_tablerows(
     '''
 
     setid = in_dataset['setid']
+
+
+    # check the cache first
+    cached_dataset_header = os.path.join(basedir,
+                                         'datasets',
+                                         'dataset-%s-header.json' % setid)
+    cached_dataset_tablerows_strformat = os.path.join(
+        basedir,
+        'datasets',
+        'dataset-%s-rows-strformat-limit-%s.json' % (setid, giveupafter)
+    )
+    cached_dataset_tablerows = os.path.join(
+        basedir,
+        'datasets',
+        'dataset-%s-rows-limit-%s.json' % (setid, giveupafter)
+    )
+
+    # the cached header is always used if available
+    if os.path.exists(cached_dataset_header):
+
+        with open(cached_dataset_header,'rb') as infd:
+            header = json.load(infd)
+
+            if headeronly:
+                LOGINFO('returning cached header for dataset: %s' % setid)
+                return header
+
+    # we'll also use the cached strformat if requested
+    if (strformat and (not datarows_bypass_cache) and
+        (os.path.exists(cached_dataset_tablerows_strformat))):
+
+        with open(cached_dataset_tablerows_strformat,'rb') as infd:
+            table_rows = json.load(infd)
+
+        LOGINFO('returning cached header and '
+                'strformat table rows for dataset: %s' % setid)
+        return header, table_rows
+
+    # if strformat is not requested and we're still allowed to return items from
+    # the cache if they exist, then do so here
+    elif ((not strformat) and (not datarows_bypass_cache) and
+          (os.path.exists(cached_dataset_tablerows))):
+
+        with open(cached_dataset_tablerows,'rb') as infd:
+            table_rows = json.load(infd)
+
+        LOGINFO('returning cached header and '
+                'raw table rows for dataset: %s' % setid)
+        return header, table_rows
+
+    #
+    # otherwise, we're not allowed to bypass the cache, so proceed to the actual
+    # processing
+    #
 
     # we'll get the common columns across all collections
     xcolumns = []
@@ -1151,6 +1206,10 @@ def generate_dataset_tablerows(
         'dtype':'U60',
         'format':'%s',
     }
+
+    # write this new header to a JSON that can be cached
+    with open(cached_dataset_header,'wb') as outfd:
+        json.dump(header, outfd)
 
     if headeronly:
         return header
@@ -1244,6 +1303,19 @@ def generate_dataset_tablerows(
             nitems = nitems + 1
 
 
+    # now that we're done with the table rows, dump them to JSON as appropriate
+    if strformat:
+        with open(cached_dataset_tablerows_strformat,'wb') as outfd:
+            json.dump(table_rows, outfd)
+
+    else:
+
+        with open(cached_dataset_tablerows,'wb') as outfd:
+            json.dump(table_rows, outfd)
+
+    #
+    # at the end, return our requested items
+    #
     return header, table_rows
 
 
