@@ -1208,7 +1208,7 @@ def generate_dataset_tablerows(
     }
 
     # write this new header to a JSON that can be cached
-    with open(cached_dataset_header,'wb') as outfd:
+    with open(cached_dataset_header,'w') as outfd:
         json.dump(header, outfd)
 
     if headeronly:
@@ -1305,12 +1305,12 @@ def generate_dataset_tablerows(
 
     # now that we're done with the table rows, dump them to JSON as appropriate
     if strformat:
-        with open(cached_dataset_tablerows_strformat,'wb') as outfd:
+        with open(cached_dataset_tablerows_strformat,'w') as outfd:
             json.dump(table_rows, outfd)
 
     else:
 
-        with open(cached_dataset_tablerows,'wb') as outfd:
+        with open(cached_dataset_tablerows,'w') as outfd:
             json.dump(table_rows, outfd)
 
     #
