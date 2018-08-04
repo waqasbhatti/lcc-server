@@ -237,15 +237,8 @@ class DatasetHandler(tornado.web.RequestHandler):
                     'name':None,
                     'desc':None,
                     'dataset_pickle':None,
-                    'dataset_shasum':None,
                     'dataset_csv':None,
-                    'csv_shasum':None,
                     'lczip':None,
-                    'lczip_shasum':None,
-                    'cpzip':None,
-                    'cpzip_shasum':None,
-                    'pfzip':None,
-                    'pfzip_shasum':None
                 }
 
                 dsjson = json.dumps(jsondict)
@@ -277,15 +270,10 @@ class DatasetHandler(tornado.web.RequestHandler):
                             setid=setid,
                             header=header,
                             setpickle=None,
-                            setpickle_shasum=None,
                             setcsv=None,
                             setcsv_shasum=None,
                             lczip=None,
-                            lczip_shasum=None,
-                            pfzip=None,
-                            pfzip_shasum=None,
-                            cpzip=None,
-                            cpzip_shasum=None)
+                            pfzip=None)
 
                 raise tornado.web.Finish()
 
@@ -318,26 +306,6 @@ class DatasetHandler(tornado.web.RequestHandler):
                 ds['lczip'] = None
 
 
-            if os.path.exists(ds['pfzip']):
-                dataset_pfzip = ds['pfzip'].replace(os.path.join(self.basedir,
-                                                                 'products'),
-                                                    '/p')
-                ds['pfzip'] = dataset_pfzip
-            else:
-                dataset_pfzip = None
-                ds['pfzip'] = None
-
-
-            if os.path.exists(ds['cpzip']):
-                dataset_cpzip = ds['cpzip'].replace(os.path.join(self.basedir,
-                                                                 'products'),
-                                                    '/p')
-                ds['cpzip'] = dataset_cpzip
-            else:
-                dataset_cpzip = None
-                ds['cpzip'] = None
-
-
             # check if there are too many rows in the dataset and don't return
             # data if there more than 3000 rows
             if ds['nobjects'] > 3000:
@@ -351,25 +319,19 @@ class DatasetHandler(tornado.web.RequestHandler):
                     jsondict, datarows = yield self.executor.submit(
                         datasets.generate_dataset_tablerows,
                         self.basedir, ds,
-                        strformat=strformat
+                        strformat=strformat,
+                        giveupafter=3000
                     )
 
                     LOGGER.info('returning JSON for %s' % setid)
 
                     jsondict.update({
-                        'rows':datarows[:3000],
+                        'rows':datarows,
                         'name':ds['name'],
                         'desc':ds['desc'],
                         'dataset_pickle':dataset_pickle,
-                        'dataset_shasum':ds['dataset_shasum'],
                         'dataset_csv':dataset_csv,
-                        'csv_shasum':ds['csv_shasum'],
                         'lczip':ds['lczip'],
-                        'lczip_shasum':ds['lczip_shasum'],
-                        'cpzip':ds['cpzip'],
-                        'cpzip_shasum':ds['cpzip_shasum'],
-                        'pfzip':ds['pfzip'],
-                        'pfzip_shasum':ds['pfzip_shasum'],
                         'rowstatus':'showing only the top 3000 rows'
                     })
 
@@ -394,15 +356,8 @@ class DatasetHandler(tornado.web.RequestHandler):
                                 setid=setid,
                                 header=header,
                                 setpickle=dataset_pickle,
-                                setpickle_shasum=ds['dataset_shasum'],
                                 setcsv=dataset_csv,
-                                setcsv_shasum=ds['csv_shasum'],
-                                lczip=ds['lczip'],
-                                lczip_shasum=ds['lczip_shasum'],
-                                pfzip=dataset_pfzip,
-                                pfzip_shasum=ds['pfzip_shasum'],
-                                cpzip=dataset_cpzip,
-                                cpzip_shasum=ds['cpzip_shasum'])
+                                lczip=ds['lczip'])
 
 
             # if there are less than 3000 objects, show all of them
@@ -425,15 +380,8 @@ class DatasetHandler(tornado.web.RequestHandler):
                         'name':ds['name'],
                         'desc':ds['desc'],
                         'dataset_pickle':dataset_pickle,
-                        'dataset_shasum':ds['dataset_shasum'],
                         'dataset_csv':dataset_csv,
-                        'csv_shasum':ds['csv_shasum'],
                         'lczip':ds['lczip'],
-                        'lczip_shasum':ds['lczip_shasum'],
-                        'cpzip':ds['cpzip'],
-                        'cpzip_shasum':ds['cpzip_shasum'],
-                        'pfzip':ds['pfzip'],
-                        'pfzip_shasum':ds['pfzip_shasum'],
                         'rowstatus':'showing all rows',
                     })
 
@@ -459,15 +407,8 @@ class DatasetHandler(tornado.web.RequestHandler):
                                 setid=setid,
                                 header=header,
                                 setpickle=dataset_pickle,
-                                setpickle_shasum=ds['dataset_shasum'],
                                 setcsv=dataset_csv,
-                                setcsv_shasum=ds['csv_shasum'],
-                                lczip=ds['lczip'],
-                                lczip_shasum=ds['lczip_shasum'],
-                                pfzip=dataset_pfzip,
-                                pfzip_shasum=ds['pfzip_shasum'],
-                                cpzip=dataset_cpzip,
-                                cpzip_shasum=ds['cpzip_shasum'])
+                                lczip=ds['lczip'])
 
         # if we somehow get here, everything is broken
         else:

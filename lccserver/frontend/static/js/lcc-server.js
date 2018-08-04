@@ -1187,11 +1187,13 @@ var lcc_search = {
             return true;
         }
         else {
-            lcc_ui.alert_box('Some cross-match input lines ' +
-                             'were invalid and have been commented out. ' +
-                             'See the messages below or ' +
-                             'click Search to continue with any remaining input.',
-                             'secondary');
+            lcc_ui.alert_box(
+                'Some cross-match input lines ' +
+                    'were invalid and have been commented out. ' +
+                    'See the messages below or ' +
+                    'click Search to continue with any remaining input.',
+                'secondary'
+            );
             $(target).val(msgs.join('\n'));
             return false;
         }
@@ -1482,6 +1484,7 @@ var lcc_search = {
         return nrun;
     },
 
+
     do_xmatch: function () {
 
         var proceed_step1 = false;
@@ -1574,11 +1577,11 @@ var lcc_search = {
 
             // we'll use oboe to fire the query and listen on events that fire
             // when we detect a 'message' key in the JSON
-            nrun = this.run_search_query(posturl,
-                                         'POST',
-                                         'xmatch',
-                                         ispublic,
-                                         nrun);
+            nrun = lcc_search.run_search_query(posturl,
+                                               'POST',
+                                               'xmatch',
+                                               ispublic,
+                                               nrun);
 
         }
         else {
@@ -1687,11 +1690,11 @@ var lcc_search = {
                                        '</span>');
 
             // use the run_search_query to hit the backend
-            nrun = this.run_search_query(geturl,
-                                         'GET',
-                                         'columnsearch',
-                                         ispublic,
-                                         nrun);
+            nrun = lcc_search.run_search_query(geturl,
+                                               'GET',
+                                               'columnsearch',
+                                               ispublic,
+                                               nrun);
 
 
         }
@@ -1779,11 +1782,11 @@ var lcc_search = {
                                        '</span>');
 
             // use the run_search_query function to hit the backend
-            nrun = this.run_search_query(geturl,
-                                         'GET',
-                                         'ftsquery',
-                                         ispublic,
-                                         nrun);
+            nrun = lcc_search.run_search_query(geturl,
+                                               'GET',
+                                               'ftsquery',
+                                               ispublic,
+                                               nrun);
 
         }
         else {
@@ -1870,11 +1873,11 @@ var lcc_search = {
                                        '</span>');
 
             // use the run_search_query function to hit the backend
-            nrun = this.run_search_query(geturl,
-                                         'GET',
-                                         'conesearch',
-                                         ispublic,
-                                         nrun);
+            nrun = lcc_search.run_search_query(geturl,
+                                               'GET',
+                                               'conesearch',
+                                               ispublic,
+                                               nrun);
 
         }
         else {
@@ -1891,6 +1894,185 @@ var lcc_search = {
 
 // this contains functions to deal with rendering datasets
 var lcc_datasets = {
+
+    // these are set so that one doesn't need to redo rendering after the
+    // dataset loads
+    table_rendered: false,
+    columdefs_rendered: false,
+
+    // this renders the column definitions when they're received from the
+    // backend
+    render_column_definitions: function (data) {
+
+        var colind = 0;
+        var columns = data.columns;
+        var coldesc = data.coldesc;
+
+        var coldef_rows = [];
+
+        // the first column of the table holds controls for getting
+        // object info. add this column first
+        $('#lcc-datatable-header').append(
+            '<th width="40"></th>'
+        );
+
+        // these are used to calculate the full table width
+        var column_widths = [40];
+        var thiscol_width = null;
+
+        // generate the column names and descriptions, put them into the
+        // column definitions table, and also append them to the header
+        // row of the data table
+
+        let colind_objectid = 0;
+        let colind_collection = columns.length - 1;
+        let colind_lcfname = 0;
+
+        for (colind; colind < columns.length; colind++) {
+
+            var this_col = columns[colind];
+            if (this_col == 'db_oid') {
+                colind_objectid = colind;
+            }
+            if (this_col == 'collection') {
+                colind_collection = colind;
+            }
+            if (this_col == 'db_lcfname') {
+                colind_lcfname = colind;
+            }
+
+            var this_title = coldesc[this_col]['title'];
+            var this_desc = coldesc[this_col]['desc'];
+            var this_dtype = coldesc[this_col]['dtype'].replace('<','');
+
+            // add the columndef
+            var this_row = '<tr>' +
+                '<td width="100"><code>' + this_col + '</code></td>' +
+                '<td width="150">' + this_title + '</td>' +
+                '<td width="350">' + this_desc + '</td>' +
+                '<td width="100"><code>' +
+                this_dtype +
+                '</code>' +
+                '</td>' +
+                '</tr>';
+            coldef_rows.push(this_row);
+
+            // calculate the width of the header cells
+            if (this_dtype == 'f8') {
+                thiscol_width = 100;
+            }
+            else if (this_dtype == 'i8') {
+                thiscol_width = 80;
+            }
+            else if (this_dtype.indexOf('U') != -1) {
+                thiscol_width = parseInt(this_dtype.replace('U',''))*12;
+                if (thiscol_width > 400) {
+                    thiscol_width = 400;
+                }
+            }
+            else {
+                thiscol_width = 100;
+            }
+            column_widths.push(thiscol_width);
+
+            // add the column names to the table header
+            $('#lcc-datatable-header').append(
+                '<th width="'+ thiscol_width + '">' + this_col + '</th>'
+            );
+
+        }
+
+        // make the table header width = to the sum of the widths we
+        // need
+        var table_width = column_widths
+            .reduce(function (acc, curr) {
+                return parseInt(acc + curr);
+            });
+        $('#lcc-datatable').width(table_width);
+
+        // finish up the column defs and write them to the table
+        coldef_rows = coldef_rows.join('');
+        $('#table-datarows').html(coldef_rows);
+
+        return [colind_objectid, colind_collection, colind_lcfname];
+    },
+
+
+    // this renders the datatable rows as soon as they're received from the
+    // backend
+    render_datatable_rows: function (data,
+                                     colind_objectid,
+                                     colind_collection,
+                                     colind_lcfname) {
+        var rowind = 0;
+        var datarows_elem = $('#lcc-datatable-datarows');
+
+        // clear the table first
+        datarows_elem.empty();
+
+        // check if there are too many rows
+        // if so, only draw the first 3000
+        var max_rows = data.rows.length;
+        if (data.rows.length > 3000) {
+            max_rows = 3000;
+        }
+
+        var objectentry_firstcol = '';
+        var thisrow = null;
+        var thisrow_lclink = null;
+
+        for (rowind; rowind < max_rows; rowind++) {
+
+            // get this object's db_oid and collection. we'll use these
+            // to set up the links to checkplot info on-demand in the
+            // first column of the table
+
+            thisrow = data.rows[rowind];
+
+            // get this row's light curve if available
+            thisrow_lclink = $(thisrow[colind_lcfname]);
+            if (thisrow_lclink.text().indexOf('unavailable') != -1) {
+                thisrow_lclink = thisrow_lclink.text();
+            }
+            else {
+                thisrow_lclink = thisrow_lclink.attr('href');
+            }
+
+            objectentry_firstcol = '<a href="#" role="button" ' +
+                'data-toggle="modal" data-target="#objectinfo-modal"' +
+                'title="get available object information" ' +
+                'data-objectid="' + thisrow[colind_objectid] + '" ' +
+                'data-collection="' + thisrow[colind_collection] + '" ' +
+                'data-lcfname="' + thisrow_lclink + '" ' +
+                'class="btn btn-link btn-sm objectinfo-link">' +
+                '<img class="table-icon-svg" ' +
+                'src="/static/images/twotone-assistant-24px.svg"></a>';
+            thisrow.splice(0,0,objectentry_firstcol);
+
+            datarows_elem.append(
+                '<tr><td>' +
+                    data.rows[rowind].join('</td><td>') +
+                    '</td></tr>'
+            );
+
+        }
+
+        // make the table div bottom stick to the bottom of the
+        // container so we can have a scrollbar at the bottom
+
+        // calculate the offset
+        var datacontainer_offset =
+            $('.datatable-container').offset().top;
+
+        $('.datatable-container').height($(window).height() -
+                                         datacontainer_offset - 5);
+
+        // set the height appropriately
+        $('.dataset-table')
+            .height($('.datatable-container').height());
+
+    },
+
 
     // this function gets the dataset from the backend and enters a refresh loop
     // if the response indicates the dataset isn't available yet.  if the
@@ -1996,34 +2178,9 @@ var lcc_datasets = {
                     $('#dataset-lczip')
                         .html('<a download ref="nofollow" href="' +
                               data.lczip + '">download file</a>');
-                }
+               }
                 else {
                     $('#dataset-lczip').html('not available');
-                }
-
-                if (data.pfzip != null) {
-                    // 14. pfzip
-                    $('#dataset-pfzip')
-                        .html('<a download ref="nofollow" href="' +
-                              data.pfzip + '">download file</a>');
-                }
-                else {
-                    // 14. pfzip
-                    $('#dataset-pfzip')
-                        .html('not available');
-                }
-
-                if (data.cpzip != null) {
-                    // 16. cpzip
-                    $('#dataset-cpzip')
-                        .html('<a download ref="nofollow" href="' +
-                              data.cpzip + '">download file</a>');
-
-                }
-                else {
-                    // 18. cpzip
-                    $('#dataset-cpzip')
-                        .html('not available');
                 }
 
 
@@ -2031,170 +2188,23 @@ var lcc_datasets = {
                 // fill in the column descriptions //
                 /////////////////////////////////////
 
-                var colind = 0;
-                var columns = data.columns;
-                var coldesc = data.coldesc;
-
-                var coldef_rows = [];
-
-                // the first column of the table holds controls for getting
-                // object info. add this column first
-                $('#lcc-datatable-header').append(
-                    '<th width="40"></th>'
-                );
-
-                // these are used to calculate the full table width
-                var column_widths = [40];
-                var thiscol_width = null;
-
-                // generate the column names and descriptions, put them into the
-                // column definitions table, and also append them to the header
-                // row of the data table
-
-                var colind_objectid = 0;
-                var colind_collection = columns.length - 1;
-                var colind_lcfname = 0;
-
-                for (colind; colind < columns.length; colind++) {
-
-                    var this_col = columns[colind];
-                    if (this_col == 'db_oid') {
-                        colind_objectid = colind;
-                    }
-                    if (this_col == 'collection') {
-                        colind_collection = colind;
-                    }
-                    if (this_col == 'db_lcfname') {
-                        colind_lcfname = colind;
-                    }
-
-                    var this_title = coldesc[this_col]['title'];
-                    var this_desc = coldesc[this_col]['desc'];
-                    var this_dtype = coldesc[this_col]['dtype'].replace('<','');
-
-                    // add the columndef
-                    var this_row = '<tr>' +
-                        '<td width="100"><code>' + this_col + '</code></td>' +
-                        '<td width="150">' + this_title + '</td>' +
-                        '<td width="350">' + this_desc + '</td>' +
-                        '<td width="100"><code>' +
-                        this_dtype +
-                        '</code>' +
-                        '</td>' +
-                        '</tr>';
-                    coldef_rows.push(this_row);
-
-                    // calculate the width of the header cells
-                    if (this_dtype == 'f8') {
-                        thiscol_width = 100;
-                    }
-                    else if (this_dtype == 'i8') {
-                        thiscol_width = 80;
-                    }
-                    else if (this_dtype.indexOf('U') != -1) {
-                        thiscol_width = parseInt(this_dtype.replace('U',''))*12;
-                        if (thiscol_width > 400) {
-                            thiscol_width = 400;
-                        }
-                    }
-                    else {
-                        thiscol_width = 100;
-                    }
-                    column_widths.push(thiscol_width);
-
-                    // add the column names to the table header
-                    $('#lcc-datatable-header').append(
-                        '<th width="'+ thiscol_width + '">' + this_col + '</th>'
-                    );
-
-                }
-
-                // make the table header width = to the sum of the widths we
-                // need
-                var table_width = column_widths
-                    .reduce(function (acc, curr) {
-                        return parseInt(acc + curr);
-                    });
-                $('#lcc-datatable').width(table_width);
-
-                // finish up the column defs and write them to the table
-                coldef_rows = coldef_rows.join('');
-                $('#table-datarows').html(coldef_rows);
+                var [colind_objectid,
+                     colind_collection,
+                     colind_lcfname] =
+                    lcc_datasets.render_column_definitions(data);
 
                 ////////////////////////////////////////
                 // finally, fill in the dataset table //
                 ////////////////////////////////////////
 
-                var rowind = 0;
-                var datarows_elem = $('#lcc-datatable-datarows');
-
-                // clear the table first
-                datarows_elem.empty();
-
-                // check if there are too many rows
-                // if so, only draw the first 3000
-                var max_rows = data.rows.length;
-                if (data.rows.length > 3000) {
-                    max_rows = 3000;
-                }
-
-                var objectentry_firstcol = '';
-                var thisrow = null;
-                var thisrow_lclink = null;
-
-                for (rowind; rowind < max_rows; rowind++) {
-
-                    // get this object's db_oid and collection. we'll use these
-                    // to set up the links to checkplot info on-demand in the
-                    // first column of the table
-
-                    thisrow = data.rows[rowind];
-
-                    // get this row's light curve if available
-                    thisrow_lclink = $(thisrow[colind_lcfname]);
-                    if (thisrow_lclink.text().indexOf('unavailable') != -1) {
-                        thisrow_lclink = thisrow_lclink.text();
-                    }
-                    else {
-                        thisrow_lclink = thisrow_lclink.attr('href');
-                    }
-
-                    objectentry_firstcol = '<a href="#" role="button" ' +
-                        'data-toggle="modal" data-target="#objectinfo-modal"' +
-                        'title="get available object information" ' +
-                        'data-objectid="' + thisrow[colind_objectid] + '" ' +
-                        'data-collection="' + thisrow[colind_collection] + '" ' +
-                        'data-lcfname="' + thisrow_lclink + '" ' +
-                        'class="btn btn-link btn-sm objectinfo-link">' +
-                        '<img class="table-icon-svg" ' +
-                        'src="/static/images/twotone-assistant-24px.svg"></a>';
-                    thisrow.splice(0,0,objectentry_firstcol);
-
-                    datarows_elem.append(
-                        '<tr><td>' +
-                            data.rows[rowind].join('</td><td>') +
-                            '</td></tr>'
-                    );
-
-                }
+                lcc_datasets.render_datatable_rows(data,
+                                                   colind_objectid,
+                                                   colind_collection,
+                                                   colind_lcfname);
 
                 // clear out the loading indicators at the end
                 $('#setload-icon').empty();
                 $('#setload-indicator').empty();
-
-                // make the table div bottom stick to the bottom of the window
-                // so we can have a scrollbar at the bottom
-
-                // calculate the offset
-                var datacontainer_offset = $('.datatable-container').offset().top;
-
-                $('.datatable-container').height($(window).height() -
-                                                 datacontainer_offset - 5);
-
-                // make the table div bottom stick to the bottom of the container
-                // so we can have a scrollbar at the bottom
-                $('.dataset-table')
-                    .height($('.datatable-container').height());
 
             }
 
@@ -2256,7 +2266,7 @@ var lcc_datasets = {
             else {
 
                 var message = 'Could not retrieve the dataset ' +
-                    'from the LCC server backend';
+                    'from the LCC server backend.';
 
                 lcc_ui.alert_box(message, 'danger');
 
@@ -2270,11 +2280,11 @@ var lcc_datasets = {
         }).fail(function (xhr) {
 
             var message = 'Could not retrieve the dataset ' +
-                'from the LCC server backend';
+                'from the LCC server backend.';
 
             if (xhr.status == 500) {
                 message = 'Something went wrong with the server backend ' +
-                    'while trying to fetch the dataset';
+                    'while trying to fetch the dataset.';
             }
 
             lcc_ui.alert_box(message, 'danger');

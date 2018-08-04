@@ -109,10 +109,8 @@
                   <th width="200">dataset pickle</th>
                   {% if setpickle is not None %}
                   <td id="dataset-setpickle"><a rel="nofollow" href="{{ setpickle }}">download file</a></td>
-                  <td id="dataset-picklesha">SHA256: <code>{{ setpickle_shasum }}</code></td>
                   {% else %}
                   <td id="dataset-setpickle">not available yet...</a></td>
-                  <td id="dataset-picklesha"></td>
                   {% end %}
                 </tr>
 
@@ -120,10 +118,8 @@
                   <th width="200">dataset table CSV</th>
                   {% if setcsv is not None %}
                   <td id="dataset-setcsv"><a rel="nofollow" href="{{ setcsv }}">download file</a></td>
-                  <td id="dataset-csvsha">SHA256: <code>{{ setcsv_shasum }}</code></td>
                   {% else %}
                   <td id="dataset-setcsv">not available yet...</td>
-                  <td id="dataset-csvsha"></td>
                   {% end %}
                 </tr>
 
@@ -131,32 +127,8 @@
                   <th width="200">light curves ZIP</th>
                   {% if lczip is not None %}
                   <td id="dataset-lczip"><a rel="nofollow" href="{{ lczip }}">download file</a></td>
-                  <td id="dataset-lcsha">SHA256: <code>{{ lczip_shasum }}</code></td>
                   {% else %}
                   <td id="dataset-lczip">not available yet...</td>
-                  <td id="dataset-lcsha"></td>
-                  {% end %}
-                </tr>
-
-                <tr>
-                  <th width="200">checkplot pickles ZIP</th>
-                  {% if cpzip is not None %}
-                  <td id="dataset-cpczip"><a rel="nofollow" href="{{ cpzip }}">download file</a></td>
-                  <td id="dataset-cpsha">SHA256: <code>{{ cpzip_shasum }}</code></td>
-                  {% else %}
-                  <td id="dataset-cpzip">not available yet...</td>
-                  <td id="dataset-cpsha"></code></td>
-                  {% end %}
-                </tr>
-
-                <tr>
-                  <th width="200">period-finding results ZIP</th>
-                  {% if pfzip is not None %}
-                  <td id="dataset-pfzip"><a rel="nofollow" href="{{ pfzip }}">download file</a></td>
-                  <td id="dataset-pfsha">SHA256: <code>{{ pfzip_shasum }}</code></td>
-                  {% else %}
-                  <td id="dataset-pfzip">not available yet...</td>
-                  <td id="dataset-pfsha"></code></td>
                   {% end %}
                 </tr>
 

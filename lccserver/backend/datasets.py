@@ -510,6 +510,38 @@ def sqlite_make_dataset_lczip(basedir,
 
             else:
 
+                # FIXME: LC conversion from original format -> CSV LCs is
+                # currently triggered if the ZIP doesn't exist. This means that
+                # the process for converting original format LCs to CSV LCs in
+                # the basedir/csvlcs/[collection] directory will kick off even
+                # if there are more than 20,000 light curves requested for this
+                # dataset. Normally, this should be a fast operation because
+                # we'll have converted all of the original format LCs beforehand
+                # and linked them into the csvlcs directory, but if this is not
+                # the case, then this operation will continue for a long time
+                # and block the 'complete' status of the accompanying
+                # dataset.
+
+                # What should we do about this? We could set skip_lc_collection
+                # to True below, but that risks leaving some light curves in an
+                # unconverted state if this wasn't done before hand. If we do
+                # set skip_lc_collection = True below, then we should also send
+                # some sort of warning back to the calling function that
+                # indicates that we gave up instead of collecting LCs.
+
+                # I think the only decent option here is to keep
+                # skip_lc_collection False in this pathological case. When the
+                # user comes back to the dataset page after a long time,
+                # everything should be OK because there were too many objects to
+                # collect LCs for, but the relevant CSVs and data table rows
+                # will have the correct links to individual LCs and should be
+                # OK.
+
+                # Actually, the problem becomes hugely apparent if the query
+                # itself goes to the background instead of just the LC
+                # zipping. We'll fix this in searchserver_handlers, so it uses
+                # the same logic as the timeout for the > 20k LCs problem.
+
                 skip_lc_collection = False
 
         # only collect LCs if we have to, we'll use the already generated link

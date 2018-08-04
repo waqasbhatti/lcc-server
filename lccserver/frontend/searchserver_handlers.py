@@ -656,7 +656,9 @@ class BackgroundQueryMixin(object):
                 self.finish()
 
 
-        # if we timeout, then initiate background processing
+        #
+        # if the query itself times out, then continue in the background
+        #
         except gen.TimeoutError as e:
 
             LOGGER.warning('search for setid: %s took too long, '
@@ -690,6 +692,12 @@ class BackgroundQueryMixin(object):
 
             if self.query_result is not None:
 
+                collections = self.query_result['databases']
+                nrows = sum(self.query_result[x]['nmatches']
+                            for x in collections)
+                LOGGER.info('background query for setid: %s finished, '
+                            'objects found: %s ' % (self.setid, nrows))
+
                 # Q3. make the dataset pickle and finish dataset row in the
                 # DB
                 dspkl_setid = yield self.executor.submit(
@@ -701,28 +709,48 @@ class BackgroundQueryMixin(object):
                     ispublic=self.result_ispublic
                 )
 
-                # Q4. collect light curve ZIP files
-                lczip = yield self.executor.submit(
-                    datasets.sqlite_make_dataset_lczip,
-                    self.basedir,
-                    dspkl_setid,
-                    override_lcdir=self.uselcdir  # useful when testing LCC
-                    # server
-                )
+                # only collect the LCs into a pickle if the user requested
+                # less than 20000 light curves. generating bigger ones is
+                # something we'll handle later
+                if nrows > 20000:
 
-                # Q5. load the dataset to make sure it looks OK and
-                # automatically generate the CSV for it
-                setdict = yield self.executor.submit(
-                    datasets.sqlite_get_dataset,
-                    self.basedir,
-                    dspkl_setid,
-                )
+                    # early-collect the dataset to generate its CSV
+                    setdict = yield self.executor.submit(
+                        datasets.sqlite_get_dataset,
+                        self.basedir,
+                        dspkl_setid,
+                        forcecomplete=True
+                    )
 
-                collections = self.query_result['databases']
-                nrows = sum(self.query_result[x]['nmatches']
-                            for x in collections)
-                LOGGER.info('background query for setid: %s finished, '
-                            'objects found: %s ' % (self.setid, nrows))
+                    LOGGER.warning(
+                        '> 20k LCs requested for zipping in the '
+                        'background, will not do so, forcing set: %s to '
+                        '"complete" status' % dspkl_setid
+                    )
+
+                # if there are less than 20k rows, we will generate an LC zip
+                else:
+
+                    # Q4. collect light curve ZIP files
+                    lczip = yield self.executor.submit(
+                        datasets.sqlite_make_dataset_lczip,
+                        self.basedir,
+                        dspkl_setid,
+                        override_lcdir=self.uselcdir  # useful when testing LCC
+                        # server
+                    )
+
+                    # Q5. load the dataset to make sure it looks OK and
+                    # automatically generate the CSV for it
+                    setdict = yield self.executor.submit(
+                        datasets.sqlite_get_dataset,
+                        self.basedir,
+                        dspkl_setid,
+                    )
+
+                    LOGGER.warning('background LC zip for '
+                                   'background query: %s completed OK' %
+                                   dspkl_setid)
 
             else:
 
