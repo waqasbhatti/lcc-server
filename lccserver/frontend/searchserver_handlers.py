@@ -1805,11 +1805,19 @@ class XMatchHandler(tornado.web.RequestHandler,
             raise tornado.web.Finish()
 
         # debugging
-        LOGGER.info('request arguments: %r' % self.request.arguments)
+        LOGGER.info('request arguments: %r' % self.request.body_arguments)
+
+        # the request body is application/json, so we need to deserialize the
+        # body to get what we want
+        xmq = self.get_body_argument('xmq')
+        xmd = self.get_body_argument('xmd')
+
+        LOGGER.info(xmq)
+        LOGGER.info(xmd)
 
         # REQUIRED: xmatch specifications and xmatch distance
-        xmq = self.get_argument('xmq')
-        xmd = self.get_argument('xmdistarc',default='3.0')
+        # xmq = self.get_argument('xmq')
+        # xmd = self.get_argument('xmdistarc',default='3.0')
         parsed_xmq, parsed_xmd = parse_xmatch_input(xmq, xmd)
 
         # return early if we can't parse the input data
@@ -1833,7 +1841,7 @@ class XMatchHandler(tornado.web.RequestHandler,
                 self.req_hostname = self.request.host
 
             # REQUIRED: extraconditions
-            extraconditions = self.get_argument('filters', default=None)
+            extraconditions = self.get_body_argument('filters', default=None)
             if extraconditions is not None:
 
                 extraconditions = xhtml_escape(squeeze(extraconditions))
@@ -1870,12 +1878,12 @@ class XMatchHandler(tornado.web.RequestHandler,
 
             # OPTIONAL: result_ispublic
             self.result_ispublic = (
-                True if int(xhtml_escape(self.get_argument('result_ispublic')))
+                True if int(xhtml_escape(self.get_body_argument('result_ispublic')))
                 else False
             )
 
             # OPTIONAL: columns
-            getcolumns = self.get_arguments('columns[]')
+            getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
                 getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
@@ -1883,7 +1891,7 @@ class XMatchHandler(tornado.web.RequestHandler,
                 getcolumns = None
 
             # OPTIONAL: collections
-            lcclist = self.get_arguments('collections[]')
+            lcclist = self.get_body_arguments('collections[]')
 
             if lcclist is not None:
 

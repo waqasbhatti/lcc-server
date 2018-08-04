@@ -1203,13 +1203,42 @@ var lcc_search = {
 
     // this runs the query and deals with the results
     run_search_query: function (url,
+                                data,
                                 method,
                                 target,
                                 ispublic,
                                 nrun) {
 
-        oboe({url: url, method: method})
-            .node('{message}', function (msgdata) {
+        var oboe_options;
+
+        if (method == 'POST') {
+
+            // encode the data into form-urlencoded and put it into the body
+            var headers = {'Content-Type': 'application/x-www-form-urlencoded',
+                           'X-Xsrftoken': data._xsrf};
+            var body = $.param(data);
+
+            oboe_options = {
+                url: url,
+                method: 'POST',
+                headers: headers,
+                body: body
+            };
+
+        }
+
+        else {
+
+            var params = $.param(data);
+            oboe_options = {
+                url: url + '?' + params,
+                method: 'GET',
+            };
+
+        }
+
+        // fire the request
+        oboe(oboe_options).node('{message}', function (msgdata) {
 
                 var status_color = '';
 
@@ -1553,9 +1582,6 @@ var lcc_search = {
                           columns: columns,
                           filters: filters};
 
-        postparams = $.param(postparams);
-        posturl = posturl + '?' + postparams;
-
         if (proceed_step1 && proceed_step2) {
 
             // disable the submit button until we return
@@ -1578,6 +1604,7 @@ var lcc_search = {
             // we'll use oboe to fire the query and listen on events that fire
             // when we detect a 'message' key in the JSON
             nrun = lcc_search.run_search_query(posturl,
+                                               postparams,
                                                'POST',
                                                'xmatch',
                                                ispublic,
@@ -1668,9 +1695,6 @@ var lcc_search = {
                          sortcol: sortcol,
                          sortorder: sortorder};
 
-        getparams = $.param(getparams);
-        geturl = geturl + '?' + getparams;
-
         if (proceed) {
 
             // disable the submit button until we return
@@ -1691,6 +1715,7 @@ var lcc_search = {
 
             // use the run_search_query to hit the backend
             nrun = lcc_search.run_search_query(geturl,
+                                               getparams,
                                                'GET',
                                                'columnsearch',
                                                ispublic,
@@ -1759,10 +1784,6 @@ var lcc_search = {
                          columns: columns,
                          filters: filters};
 
-
-        getparams = $.param(getparams);
-        geturl = geturl + '?' + getparams;
-
         if (proceed) {
 
             // disable the submit button until we return
@@ -1783,6 +1804,7 @@ var lcc_search = {
 
             // use the run_search_query function to hit the backend
             nrun = lcc_search.run_search_query(geturl,
+                                               getparams,
                                                'GET',
                                                'ftsquery',
                                                ispublic,
@@ -1850,10 +1872,6 @@ var lcc_search = {
                          columns: columns,
                          filters: filters};
 
-
-        getparams = $.param(getparams);
-        geturl = geturl + '?' + getparams;
-
         if (proceed) {
 
             // disable the submit button until we return
@@ -1874,6 +1892,7 @@ var lcc_search = {
 
             // use the run_search_query function to hit the backend
             nrun = lcc_search.run_search_query(geturl,
+                                               getparams,
                                                'GET',
                                                'conesearch',
                                                ispublic,
