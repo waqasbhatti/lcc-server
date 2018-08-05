@@ -1807,9 +1807,6 @@ class XMatchHandler(tornado.web.RequestHandler,
         # debugging
         LOGGER.info('request arguments: %r' % self.request.body_arguments)
 
-        # the request body is application/json, so we need to deserialize the
-        # body to get what we want
-
         # REQUIRED: xmatch specifications and xmatch distance
         xmq = self.get_body_argument('xmq')
         xmd = self.get_body_argument('xmd')
