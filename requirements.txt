@@ -6,11 +6,7 @@ matplotlib
 requests
 tqdm
 markdown
-pymdown-extensions
 pygments
-psutil
 itsdangerous
-passlib
-bleach
 cryptography
 astrobase>=0.3.16
