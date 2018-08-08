@@ -18,9 +18,71 @@ filtering the matching objects by various database columns.
 
 ### Input
 
-### Executing the query
+The cone-search service is used to query the LCC server collection databases for
+objects that fall within a specified radius of the provided central
+coordinates. The service requires a central coordinate specification string,
+along with an optional search radius in arcminutes, using any of the formats
+below.
+
+```
+HH:MM:SS[.ssss] [+-]DD:MM:SS.ssss [DD.dddd]
+HH MM SS[.ssss] [+-]DD MM SS.ssss [DD.dddd]
+DDD[.dddd] [+-]DDD[.ddd] [DD.ddd]
+```
+
+The maximum search radius is 60 arcminutes or 1 degree.
+
+The cone-search service also takes several optional inputs. These include:
+
+1. **Collection to search in:** specified using the select control in the
+   top-left portion of the cone-search tab. Multiple collections can be selected
+   by holding either the <kbd>Ctrl</kbd> or the <kbd>Cmd</kbd> buttons when
+   clicking on the options in the control. By default, the service will search
+   all collections available on the LCC server until it finds a match. Results
+   will always be returned with the name of the collection any matches were
+   found in.
+
+2. **Columns to retrieve:** specified using the select control in the
+   bottom-left portion of the cone-search tab. This select control will update
+   automatically to present only the columns available in *all* of the
+   collections that are selected to search in. The service will return the
+   `objectid`, `ra`, and `decl` columns for any matches by default, so these
+   don't need to be selected. Specify any additional columns to retrieve by
+   selecting them in this control, holding either the <kbd>Ctrl</kbd> or the
+   <kbd>Cmd</kbd> when clicking on the options to select multiple columns.
+
+3. **Filters on database columns:** specified using the controls just under the
+   main coordinates input box. First choose a column to filter on using the left
+   select control, then choose the operator to use from the center select
+   control, and finally type the value to filter on in the input box on the
+   right. Hit <kbd>Enter</kbd> or click on the **+** button to add the filter to
+   the list of active filters. After the first filter is added, you can add an
+   arbitrary number of additional filters, specifying the logical method to use
+   (`AND`/`OR`) to chain them. This effectively builds up a `WHERE` SQL clause
+   that will be applied to the objects that match the initial coordinate search
+   specification.
+
+Execute the cone-search query by clicking on the **Search** button or just by
+hitting <kbd>Enter</kbd> once you're done typing into the main coordinate input
+box. The query will enter the run-queue and begin executing as soon as
+possible. If it does not finish within 30 seconds, either because the query
+itself took too long or if the light curve collection for the matching objects
+took too long, it will be sent to a background queue. You will be informed of
+the URL where the results of the query will appear as a *dataset*. From the
+dataset page associated with this query, you can view and download the table (as
+CSV) generated based on the columns specified and download light curves
+(individually or in a collected ZIP file) of all matching objects.
 
 ### Examples
+
+Search for any objects within 15 arcminutes of the coordinates (&alpha;,
+&delta;) = (290.0,45.0):
+
+Search for objects within 60 arciminutes of the coordinates (&alpha;, &delta;) =
+(290.0,45.0), but restrict the query to just the `hatnet_keplerfield`
+collection, return the columns: `sdssr`, `propermotion`, `jmag_kmag_color`, and
+return only objects that match the condition: `(sdssr < 13.0) and
+(propermotion > 50.0)`:
 
 
 ## The API
