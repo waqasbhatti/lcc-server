@@ -75,14 +75,32 @@ CSV) generated based on the columns specified and download light curves
 
 ### Examples
 
-Search for any objects within 15 arcminutes of the coordinates (&alpha;,
-&delta;) = (290.0,45.0):
+**Example 1**: Search for any objects within 15 arcminutes of the coordinates
+(&alpha;, &delta;) = (290.0,45.0):
 
-Search for objects within 60 arciminutes of the coordinates (&alpha;, &delta;) =
-(290.0,45.0), but restrict the query to just the `hatnet_keplerfield`
-collection, return the columns: `sdssr`, `propermotion`, `jmag_kmag_color`, and
-return only objects that match the condition: `(sdssr < 13.0) and
-(propermotion > 50.0)`:
+<figure class="figure">
+  <img src="/server-static/lcc-server-conesearch-example1.png"
+       class="figure-img img-fluid"
+       alt="Cone search query example 1 input">
+  <figcaption class="figure-caption text-center">
+    Cone search query example 1 input
+  </figcaption>
+</figure>
+
+**Example 2**: Search for objects within 60 arciminutes of the coordinates
+(&alpha;, &delta;) = (290.0,45.0), but restrict the query to just the
+`hatnet_keplerfield` collection, return the columns: `sdssg`, `sdssr`, `sdssi`,
+`propermotion` and return only objects that match the condition: `(sdssr < 13.0)
+and (propermotion > 50.0)`:
+
+<figure class="figure">
+  <img src="/server-static/lcc-server-conesearch-example2.png"
+       class="figure-img img-fluid"
+       alt="Cone search query example 2 input">
+  <figcaption class="figure-caption text-center">
+    Cone search query example 2 input
+  </figcaption>
+</figure>
 
 
 ## The API
