@@ -38,7 +38,7 @@ described in the table below.
 
 Parameter          | Required | Default | Description
 ------------------ | -------- | ------- | -----------
-`xmq`              | **yes**  |         | A string containing the object names, right ascensions, and declinations of the objects to cross-match to the collections on the LCC server. The object name, RA, Dec rows should be separated by line-feed characters: `\n` Object coordinates can be in decimal or sexagesimal format. Object names should not have spaces, because these are used to separate object names, RA, and declination for each object row.
+`xmq`              | **yes**  |         | A string containing the object names, right ascensions, and declinations of the objects to cross-match to the collections on the LCC server. The object name, RA, Dec rows should be separated by line-feed characters: `\n`. Object coordinates can be in decimal or sexagesimal format. Object names should not have spaces, because these are used to separate object names, RA, and declination for each object row.
 `xmd`              | **yes**  | 3.0     | The maximum distance in arcseconds to use for cross-matching. If multiple objects match to an input object within the match radius, duplicate rows for that object will be returned in the output containing all database matches sorted in increasing order of distance.
 `result_ispublic`  | **no**   | `1`     | `1` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `0` means the resulting dataset will only be accessible to people who know its URL.
 `collections`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
