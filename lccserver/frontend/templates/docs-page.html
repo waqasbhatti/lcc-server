@@ -17,7 +17,7 @@
   </div>
 
   <div class="row justify-content-center markdown-docs">
-    <div class="col-8">
+    <div class="col-9">
       {% raw page_content %}
     </div>
   </div>
@@ -36,11 +36,10 @@ $(document).ready(function() {
 // make tables look a bit better
 $('table').addClass('table table-sm table-striped');
 $('table thead').addClass('thead-dark');
+$('table > thead > tr > th:nth-child(1)').attr('width',150);
 
 // add fancy shadows for TOC
 $('.toc').addClass('shadow p-3 mb-5 bg-white rounded');
-
-// wrap the images in figures and make them center-aligned
 
 // make the syntax hilite bits look a bit better
 $('pre').addClass('p-2');

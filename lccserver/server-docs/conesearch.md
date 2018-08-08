@@ -9,9 +9,9 @@ filtering the matching objects by various database columns.
 <figure class="figure">
   <img src="/server-static/lcc-server-search-conesearch.png"
        class="figure-img img-fluid"
-       alt="The LCC server search interface">
+       alt="The cone-search query form">
   <figcaption class="figure-caption text-center">
-    The LCC server search interface
+    The cone-search query form
   </figcaption>
 </figure>
 
@@ -38,11 +38,12 @@ described in the table below.
 
 Parameter          | Required | Default | Description
 ------------------ | -------- | ------- | -----------
-`coords`           | **yes**  |         |
-`result_ispublic`  | **no**   | `1`     |
-`collections`      | **no**   | `null`  |
-`columns`          | **no**   | `null`  |
-`filters`          | **no**   | `null`  |
+`coords`           | **yes**  |         | The center coordinates and search radius as specified previously. These can be in either decimal or sexagesimal format. The search radius is in arcminutes and is optional.
+`result_ispublic`  | **no**   | `1`     | `1` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `0` means the resulting dataset will only be accessible to people who know its URL.
+`collections`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
+`columns`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
+`filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results.
+
 
 ### Results
 
