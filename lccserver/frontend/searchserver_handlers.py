@@ -531,7 +531,7 @@ class BackgroundQueryMixin(object):
                             "status":"running",
                             "result":{
                                 "setid":dspkl_setid,
-                                "lczip":'/p%s' % os.path.basename(lczip)
+                                "lczip":'/p/%s' % os.path.basename(lczip)
                             },
                             "time":'%sZ' % datetime.utcnow().isoformat()
                         }
