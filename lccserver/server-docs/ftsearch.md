@@ -17,31 +17,25 @@ optionally filtering the matching objects by database column values.
 
 ### Input
 
-The cone-search query service requires a central coordinate specification
-string, along with an optional search radius in arcminutes, using any of the
-formats below.
+The full-text-search query service requires a text string to search for in the
+full-text-indexed columns of the LCC server databases. These columns will be
+listed in the right-most column of the full-text-search tab, and will change as
+appropriate for the combination of collections you intend to search in.
 
-```
-HH:MM:SS[.ssss] [+-]DD:MM:SS.ssss [DD.dddd]
-HH MM SS[.ssss] [+-]DD MM SS.ssss [DD.dddd]
-DDD[.dddd] [+-]DDD[.ddd] [DD.ddd]
-```
-
-The maximum search radius is 60 arcminutes or 1 degree.
-
-The cone-search service also takes several optional inputs. These include:
+The full-text-search query service also takes several optional inputs. These
+include:
 
 1. **Collection to search in:** specified using the select control in the
-   top-left portion of the cone-search tab. Multiple collections can be selected
-   by holding <kbd>Ctrl</kbd> (Linux/Windows) or <kbd>Cmd</kbd> (MacOS) when
-   clicking on the options in the control. By default, the service will search
-   all collections available on the LCC server until it finds a match. Results
-   will always be returned with the name of the collection any matches were
-   found in.
+   top-left portion of the full-text-search tab. Multiple collections can be
+   selected by holding <kbd>Ctrl</kbd> (Linux/Windows) or <kbd>Cmd</kbd> (MacOS)
+   when clicking on the options in the control. By default, the service will
+   search all collections available on the LCC server until it finds a
+   match. Results will always be returned with the name of the collection any
+   matches were found in.
 
 2. **Columns to retrieve:** specified using the select control in the
-   bottom-left portion of the cone-search tab. This select control will update
-   automatically to present only the columns available in *all* of the
+   bottom-left portion of the full-text-search tab. This select control will
+   update automatically to present only the columns available in *all* of the
    collections that are selected to search in. The service will return the
    `objectid`, `ra`, and `decl` columns for any matches by default, so these
    don't need to be selected. Specify any additional columns to retrieve by
@@ -50,27 +44,26 @@ The cone-search service also takes several optional inputs. These include:
    columns.
 
 3. **Filters on database columns:** specified using the controls just under the
-   main coordinates input box. First, choose a column to filter on using the
-   left select control, then choose the operator to use from the middle select
-   control, and finally type the value to filter on in the input box on the
-   right. Hit <kbd>Enter</kbd> or click on the **+** button to add the filter to
-   the list of active filters. After the first filter is added, you can add an
-   arbitrary number of additional filters, specifying the logical method to use
+   main input box. First, choose a column to filter on using the left select
+   control, then choose the operator to use from the middle select control, and
+   finally type the value to filter on in the input box on the right. Hit
+   <kbd>Enter</kbd> or click on the **+** button to add the filter to the list
+   of active filters. After the first filter is added, you can add an arbitrary
+   number of additional filters, specifying the logical method to use
    (`AND`/`OR`) to chain them. This effectively builds up a `WHERE` SQL clause
    that will be applied to the objects that match the initial coordinate search
    specification.
 
-Execute the cone-search query by clicking on the **Search** button or just by
-hitting <kbd>Enter</kbd> once you're done typing into the main coordinate input
-box. The query will enter the run-queue and begin executing as soon as
-possible. If it does not finish within 30 seconds, either because the query
-itself took too long or if the light curve collection for the matching objects
-took too long, it will be sent to a background queue. In either case, you will
-be informed of the permanent URL where the results of the query will appear as a
-*dataset*. From the dataset page associated with this query, you can view and
-download a data table CSV file generated based on the columns specified. You may
-also download light curves (individually or in a collected ZIP file) of all
-matching objects.
+Execute the full-text-search query by clicking on the **Search** button or just
+by hitting <kbd>Enter</kbd> once you're done typing into the input box. The
+query will enter the run-queue and begin executing as soon as possible. If it
+does not finish within 30 seconds, either because the query itself took too long
+or if the light curve collection for the matching objects took too long, it will
+be sent to a background queue. In either case, you will be informed of the
+permanent URL where the results of the query will appear as a *dataset*. From
+the dataset page associated with this query, you can view and download a data
+table CSV file generated based on the columns specified. You may also download
+light curves (individually or in a collected ZIP file) of all matching objects.
 
 
 ### Examples
@@ -132,7 +125,7 @@ Parameter          | Required | Default | Description
 Run the query from Example 1 above, using [HTTPie](https://httpie.org)[^1]:
 
 ```
-$ http --stream GET {{ server_url }} ftstext=='ASAS' result_ispublic=='1'
+$ http --stream GET {{ server_url }}/api/ftsquery ftstext=='ASAS' result_ispublic=='1'
 ```
 
 Run the query from Example 2 above, using the Python
@@ -148,7 +141,7 @@ params = {'ftstext':'ASAS',
           'result_ispublic':1}
 
 # this is the URL to hit
-url = '{{ server_url }}/api/ftsearch'
+url = '{{ server_url }}/api/ftsquery'
 
 # fire the request
 resp = requests.get(url, params)
