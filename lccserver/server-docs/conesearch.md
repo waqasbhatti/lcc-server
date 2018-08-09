@@ -111,7 +111,9 @@ The cone search query service accepts HTTP requests to its endpoint:
 GET {{ server_url }}/api/conesearch
 ```
 
-### Parameters and Results
+See the general [API page](/docs/api) for how to handle the responses from the query service.
+
+### Parameters
 
 The search query arguments are encoded as URL query string parameters as
 described in the table below.
@@ -122,7 +124,7 @@ Parameter          | Required | Default | Description
 `result_ispublic`  | **no**   | `1`     | `1` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `0` means the resulting dataset will only be accessible to people who know its URL.
 `collections`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
 `columns`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
-`filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results.
+`filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results. You will have to use special codes for mathematical operators since non-text symbols are automatically stripped from the query input:<br>&lt; &rarr; `lt`<br> &gt; &rarr; `gt`<br> &le; &rarr; `le`<br> &ge; &rarr; `ge`<br> = &rarr; `eq`<br> &ne; &rarr; `ne`<br> contains &rarr; `ct`
 
 Results are returned as described in the [API docs](/docs/api).
 
@@ -131,14 +133,59 @@ Results are returned as described in the [API docs](/docs/api).
 
 Run the query from Example 1 above, using [HTTPie](https://httpie.org)[^1]:
 
-```
-
+```bash
+$ http --stream GET {{ server_url }} coords=='290.0 45.0 15.0' result_ispublic=='1'
 ```
 
 Run the query from Example 2 above, using the Python
 [Requests](http://docs.python-requests.org/en/master/)[^2] package:
 
+```python
+import requests, json
 
+# build up the params
+params = {'coords':'290.0 45.0 60.0',
+          'collections':['hatnet_keplerfield'],
+          'columns':['sdssg','sdssr','sdssi','propermotion'],
+          'filters':'(sdssr lt 13.0) and (propermotion gt 50.0)',
+          'result_ispublic':1}
+
+# this is the URL to hit
+url = '{{ server_url }}/api/conesearch'
+
+# fire the request
+resp = requests.get(url, params)
+print(resp.status_code)
+
+# parse the line-delimited JSON
+textlines = resp.text.split('\n')[:-1]  # the last line is empty so remove it
+jsonlines = [json.loads(x) for x in textlines]
+
+# get the status and URL of the dataset created as a result of our query
+# the last item in the list of JSON strings tells us what happened
+query_status = jsonlines[-1]['status']
+dataset_seturl = jsonlines[-1]['result']['seturl'] if query_status == 'ok' else None
+
+if dataset_seturl:
+
+    # can now get the dataset as JSON if needed
+    resp = requests.get(dataset_seturl,{'json':1,'strformat':1})
+    print(resp.status_code)
+
+    # this is now a Python dict
+    dataset = resp.json()
+
+    # these are links to the dataset products - add {{ server_url }} to the front
+    # of these to make a full URL that you can simply wget or use requests again.
+    print(dataset['dataset_csv'])
+    print(dataset['lczip'])
+
+    # these are the columns of the dataset table
+    print(dataset['columns'])
+
+    # these are the rows of the dataset table (up to 3000 - the CSV contains everything)
+    print(dataset['rows'])
+```
 
 [^1]: HTTPie is a friendlier alternative to the venerable `cURL`
 program. See its [docs](https://httpie.org/doc#installation) for how to install

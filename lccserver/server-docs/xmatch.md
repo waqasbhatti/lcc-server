@@ -46,12 +46,6 @@ Parameter          | Required | Default | Description
 `filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results.
 
 
-### Results
-
-
-### API key required
-
-
 ### Examples
 
 #### command-line with `httpie`
