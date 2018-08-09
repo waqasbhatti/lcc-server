@@ -122,8 +122,8 @@ Parameter          | Required | Default | Description
 ------------------ | -------- | ------- | -----------
 `coords`           | **yes**  |         | The center coordinates and search radius as specified previously. These can be in either decimal or sexagesimal format. The search radius is in arcminutes and is optional.
 `result_ispublic`  | **no**   | `1`     | `1` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `0` means the resulting dataset will only be accessible to people who know its URL.
-`collections`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
-`columns`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
+`collections[]`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
+`columns[]`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
 `filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results. You will have to use special codes for mathematical operators since non-text symbols are automatically stripped from the query input:<br>&lt; &rarr; `lt`<br> &gt; &rarr; `gt`<br> &le; &rarr; `le`<br> &ge; &rarr; `ge`<br> = &rarr; `eq`<br> &ne; &rarr; `ne`<br> contains &rarr; `ct`
 
 Results are returned as described in the [API docs](/docs/api).
@@ -145,8 +145,8 @@ import requests, json
 
 # build up the params
 params = {'coords':'290.0 45.0 60.0',
-          'collections':['hatnet_keplerfield'],
-          'columns':['sdssg','sdssr','sdssi','propermotion'],
+          'collections[]':['hatnet_keplerfield'],
+          'columns[]':['sdssg','sdssr','sdssi','propermotion'],
           'filters':'(sdssr lt 13.0) and (propermotion gt 50.0)',
           'result_ispublic':1}
 
