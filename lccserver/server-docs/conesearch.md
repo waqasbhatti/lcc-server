@@ -75,7 +75,7 @@ matching objects.
 
 ### Examples
 
-**Example 1**: Search for any objects within 15 arcminutes of the coordinates
+**Example 1:** Search for any objects within 15 arcminutes of the coordinates
 (&alpha;, &delta;) = (290.0,45.0):
 
 <figure class="figure">
@@ -87,7 +87,7 @@ matching objects.
   </figcaption>
 </figure>
 
-**Example 2**: Search for objects within 60 arcminutes of the coordinates
+**Example 2:** Search for objects within 60 arcminutes of the coordinates
 (&alpha;, &delta;) = (290.0,45.0), but restrict the query to just the
 `hatnet_keplerfield` collection, return the columns: `sdssg`, `sdssr`, `sdssi`,
 `propermotion`, and return only objects that match the condition: `(sdssr < 13.0)
@@ -126,14 +126,12 @@ Parameter          | Required | Default | Description
 `columns[]`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
 `filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results. You will have to use special codes for mathematical operators since non-text symbols are automatically stripped from the query input:<br>&lt; &rarr; `lt`<br> &gt; &rarr; `gt`<br> &le; &rarr; `le`<br> &ge; &rarr; `ge`<br> = &rarr; `eq`<br> &ne; &rarr; `ne`<br> contains &rarr; `ct`
 
-Results are returned as described in the [API docs](/docs/api).
-
 
 ### Examples
 
 Run the query from Example 1 above, using [HTTPie](https://httpie.org)[^1]:
 
-```bash
+```
 $ http --stream GET {{ server_url }} coords=='290.0 45.0 15.0' result_ispublic=='1'
 ```
 
