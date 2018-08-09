@@ -98,7 +98,7 @@ contains 'RR')`:
 
 ## The API
 
-The cone search query function accepts HTTP requests to its endpoint:
+The full-text-search service accepts HTTP requests to its endpoint:
 
 ```
 GET {{ server_url }}/api/ftsquery

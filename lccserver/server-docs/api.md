@@ -51,6 +51,18 @@ An example of a query that did not match any items:
 {"status": "failed", "result": {"setid": "M1aMW0PUkIw", "nobjects": 0}, "message": "Query <code>M1aMW0PUkIw<\/code> failed. No matching objects were found", "time": "2018-08-09T01:29:46.863618Z"}
 ```
 
+An example of a query that will return more than 20,000 objects. The LCC server
+will return immediately after the query finishes running and will not attempt to
+generate a ZIP file collecting all of the light curve files for the matching
+objects.
+
+```json
+{"message": "query in run-queue. executing with set ID: FOkEGSTvMmw...", "status": "queued", "result": {"setid": "FOkEGSTvMmw", "api_service": "columnsearch", "api_args": {"conditions": "(sdssr < 12.0)", "sortcol": "sdssr", "sortorder": "asc", "result_ispublic": true, "collections": null, "getcolumns": ["sdssr"]}}, "time": "2018-08-09T01:17:52.904297Z"}
+{"message": "query finished OK. objects matched: 50011, building dataset...", "status": "running", "result": {"setid": "FOkEGSTvMmw", "nobjects": 50011}, "time": "2018-08-09T01:17:53.654130Z"}
+{"message": "Dataset pickle generation complete. There are more than 20,000 light curves to collect so we won't generate a ZIP file. See http://localhost:12500/set/FOkEGSTvMmw for dataset object lists and a CSV when the query completes.", "status": "background", "result": {"setid": "FOkEGSTvMmw", "seturl": "{{ server_url }}/set/FOkEGSTvMmw"}, "time": "2018-08-09T01:17:55.349453Z"}
+```
+
+
 ## Collections, datasets, and object information
 
 Service | Method and URL | Parameters | API key | Response
