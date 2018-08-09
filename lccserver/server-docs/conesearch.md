@@ -1,4 +1,4 @@
-This page describes how to use the cone search query function of the LCC server
+This page describes how to use the cone search query service of the LCC server
 to search for a collection of objects in a specified sky region, and optionally
 filtering the matching objects by various database columns.
 
@@ -18,11 +18,9 @@ filtering the matching objects by various database columns.
 
 ### Input
 
-The cone-search service is used to query the LCC server collection databases for
-objects that fall within a specified radius of the provided central
-coordinates. The service requires a central coordinate specification string,
-along with an optional search radius in arcminutes, using any of the formats
-below.
+The cone-search query service requires a central coordinate specification
+string, along with an optional search radius in arcminutes, using any of the
+formats below.
 
 ```
 HH:MM:SS[.ssss] [+-]DD:MM:SS.ssss [DD.dddd]
@@ -36,7 +34,7 @@ The cone-search service also takes several optional inputs. These include:
 
 1. **Collection to search in:** specified using the select control in the
    top-left portion of the cone-search tab. Multiple collections can be selected
-   by holding either the <kbd>Ctrl</kbd> or the <kbd>Cmd</kbd> buttons when
+   by holding <kbd>Ctrl</kbd> (Linux/Windows) or <kbd>Cmd</kbd> (MacOS) when
    clicking on the options in the control. By default, the service will search
    all collections available on the LCC server until it finds a match. Results
    will always be returned with the name of the collection any matches were
@@ -48,12 +46,13 @@ The cone-search service also takes several optional inputs. These include:
    collections that are selected to search in. The service will return the
    `objectid`, `ra`, and `decl` columns for any matches by default, so these
    don't need to be selected. Specify any additional columns to retrieve by
-   selecting them in this control, holding either the <kbd>Ctrl</kbd> or the
-   <kbd>Cmd</kbd> when clicking on the options to select multiple columns.
+   selecting them in this control, holding <kbd>Ctrl</kbd> (Linux/Windows) or
+   <kbd>Cmd</kbd> (MacOS) when clicking on the options to select multiple
+   columns.
 
 3. **Filters on database columns:** specified using the controls just under the
-   main coordinates input box. First choose a column to filter on using the left
-   select control, then choose the operator to use from the center select
+   main coordinates input box. First, choose a column to filter on using the
+   left select control, then choose the operator to use from the middle select
    control, and finally type the value to filter on in the input box on the
    right. Hit <kbd>Enter</kbd> or click on the **+** button to add the filter to
    the list of active filters. After the first filter is added, you can add an
@@ -67,11 +66,12 @@ hitting <kbd>Enter</kbd> once you're done typing into the main coordinate input
 box. The query will enter the run-queue and begin executing as soon as
 possible. If it does not finish within 30 seconds, either because the query
 itself took too long or if the light curve collection for the matching objects
-took too long, it will be sent to a background queue. You will be informed of
-the URL where the results of the query will appear as a *dataset*. From the
-dataset page associated with this query, you can view and download the table (as
-CSV) generated based on the columns specified and download light curves
-(individually or in a collected ZIP file) of all matching objects.
+took too long, it will be sent to a background queue. In either case, you will
+be informed of the permanent URL where the results of the query will appear as a
+*dataset*. From the dataset page associated with this query, you can view and
+download a data table CSV file generated based on the columns specified. You may
+also download light curves (individually or in a collected ZIP file) of all
+matching objects.
 
 ### Examples
 
@@ -87,10 +87,10 @@ CSV) generated based on the columns specified and download light curves
   </figcaption>
 </figure>
 
-**Example 2**: Search for objects within 60 arciminutes of the coordinates
+**Example 2**: Search for objects within 60 arcminutes of the coordinates
 (&alpha;, &delta;) = (290.0,45.0), but restrict the query to just the
 `hatnet_keplerfield` collection, return the columns: `sdssg`, `sdssr`, `sdssi`,
-`propermotion` and return only objects that match the condition: `(sdssr < 13.0)
+`propermotion`, and return only objects that match the condition: `(sdssr < 13.0)
 and (propermotion > 50.0)`:
 
 <figure class="figure">
@@ -105,13 +105,13 @@ and (propermotion > 50.0)`:
 
 ## The API
 
-The cone search query function accepts HTTP requests to its endpoint:
+The cone search query service accepts HTTP requests to its endpoint:
 
 ```
 GET {{ server_url }}/api/conesearch
 ```
 
-### Parameters
+### Parameters and Results
 
 The search query arguments are encoded as URL query string parameters as
 described in the table below.
@@ -124,23 +124,24 @@ Parameter          | Required | Default | Description
 `columns`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
 `filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results.
 
-
-### Results
+Results are returned as described in the [API docs](/docs/api).
 
 
 ### Examples
 
-#### command-line with `httpie`
+Run the query from Example 1 above, using [HTTPie](https://httpie.org)[^1]:
 
-[HTTPie](https://httpie.org) is a friendlier alternative to the venerable `cURL`
+```
+
+```
+
+Run the query from Example 2 above, using the Python
+[Requests](http://docs.python-requests.org/en/master/)[^2] package:
+
+
+
+[^1]: HTTPie is a friendlier alternative to the venerable `cURL`
 program. See its [docs](https://httpie.org/doc#installation) for how to install
-it. The examples below use HTTPie to demonstrate the LCC server API, but one can
-use any other comparable program if desired.
-
-
-#### Python with `requests`
-
-The Python [requests](http://docs.python-requests.org/en/master/) library makes
-HTTP requests from Python code a relatively simple task. To install it, use
-`pip` or `conda`. The examples below show how to talk to the LCC server API
-using this package.
+it.
+[^2]: The Requests package makes HTTP requests from Python code a relatively simple
+task. To install it, use `pip` or `conda`.

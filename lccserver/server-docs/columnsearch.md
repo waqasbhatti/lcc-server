@@ -20,6 +20,18 @@ can return results sorted by a column in ascending or descending order.
 
 ### Executing the query
 
+An example for a query that will return more than 20,000 objects. The LCC server
+will return immediately after the query finishes running and will not attempt to
+generate a ZIP file collecting all of the light curves files for the matching
+objects.
+
+```
+{"message": "query in run-queue. executing with set ID: FOkEGSTvMmw...", "status": "queued", "result": {"setid": "FOkEGSTvMmw", "api_service": "columnsearch", "api_args": {"conditions": "(sdssr < 12.0)", "sortcol": "sdssr", "sortorder": "asc", "result_ispublic": true, "collections": null, "getcolumns": ["sdssr"]}}, "time": "2018-08-09T01:17:52.904297Z"}
+{"message": "query finished OK. objects matched: 50011, building dataset...", "status": "running", "result": {"setid": "FOkEGSTvMmw", "nobjects": 50011}, "time": "2018-08-09T01:17:53.654130Z"}
+{"message": "Dataset pickle generation complete. There are more than 20,000 light curves to collect so we won't generate a ZIP file. See http://localhost:12500/set/FOkEGSTvMmw for dataset object lists and a CSV when the query completes.", "status": "background", "result": {"setid": "FOkEGSTvMmw", "seturl": "http://localhost:12500/set/FOkEGSTvMmw"}, "time": "2018-08-09T01:17:55.349453Z"}
+```
+
+
 ### Examples
 
 

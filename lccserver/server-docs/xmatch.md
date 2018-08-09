@@ -51,67 +51,6 @@ Parameter          | Required | Default | Description
 
 ### API key required
 
-The `xmatch` API requires a token provided as part of the HTTP header. To get an
-API key token valid for 24 hours, perform an HTTP `GET` request to:
-
-```
-{{ server_url }}/api/key
-```
-
-This will return a JSON formatted object with the key to use, e.g.:
-
-```
-{
-    "message": "key expires: 2018-08-03T16:06:36.684957Z",
-    "result": {
-        "key": "eyJpcCI6IjEyNy4wLjAuMSIsInZlciI6MSwidG9rZW4iOiJteE55dVhOUkZicmFoQSIsImV4cGlyeSI6IjIwMTgtMDgtMDNUMTY6MDY6MzYuNjg0OTU3WiJ9.DkS9jA.DXngAj-NToG-9qdGbP2QcoMQzFw"
-    },
-    "status": "ok"
-}
-```
-
-Use the value of the `result.key` item in the HTTP headers of any subsequent
-`POST` requests to the `xmatch` API endpoint. This is of the form:
-
-```
-Authorization: Bearer [API key token]
-```
-
-See the examples below for how to put the key into HTTP request headers.
-
-You can check if your API key is still valid by performing an HTTP `GET` request
-to:
-
-```
-{{ server_url }}/api/auth?key=[API key token]
-
-```
-
-If your key passes verification, then it's good to use:
-
-```
-{
-    "message": "API key verified successfully. Expires: 2018-08-03T16:06:36.684957Z",
-    "result": {
-        "expiry": "2018-08-03T16:06:36.684957Z"
-    },
-    "status": "ok"
-}
-```
-
-If it fails:
-
-```
-{
-    "message": "API key could not be verified or has expired.",
-    "result": null,
-    "status": "failed"
-}
-```
-
-Then you can simply request a new key and continue with your previous requests
-to the `xmatch` API endpoints.
-
 
 ### Examples
 

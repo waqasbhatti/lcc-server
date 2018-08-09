@@ -6,5 +6,6 @@
     "columnsearch": "Searching in database collection columns",
     "xmatch": "Cross-matching to uploaded object lists",
     "datasets": "Datasets and products of search results",
+    "api": "LCC server API description and usage",
     "acknowledgments": "Open source code, data, and service acknowledgments"
 }
