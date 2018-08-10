@@ -141,7 +141,8 @@ class APIKeyHandler(tornado.web.RequestHandler):
         retdict = {
             'status':'ok',
             'message':'key expires: %s' % key['expiry'],
-            'result':{'key': signed}
+            'result':{'key': signed,
+                      'expires':expires}
         }
 
         self.write(retdict)
@@ -238,7 +239,7 @@ class APIAuthHandler(tornado.web.RequestHandler):
                         'message':('API key verified successfully. '
                                    'Expires: %s' %
                                    uns['expiry']),
-                        'result':{'expiry':uns['expiry']},
+                        'result':{'expires':uns['expiry']},
                     }
 
                     self.write(retdict)

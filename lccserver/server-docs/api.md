@@ -240,7 +240,7 @@ If your key passes verification, then it's good to use:
 {
     "message": "API key verified successfully. Expires: 2018-08-03T16:06:36.684957Z",
     "result": {
-        "expiry": "2018-08-03T16:06:36.684957Z"
+        "expires": "2018-08-03T16:06:36.684957Z"
     },
     "status": "ok"
 }
