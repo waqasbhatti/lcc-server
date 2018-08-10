@@ -107,7 +107,9 @@ The cross-match service accepts HTTP requests to its endpoint:
 POST {{ server_url }}/api/xmatch
 ```
 
-See the general [API page](/docs/api) for how to handle the responses from the query service.
+See the general [API page](/docs/api) for how to handle the responses from the
+query service. The cross-match service requires an API key; see the [API key
+docs](/docs/api#api-keys) for how to request and use these.
 
 
 ### Parameters
