@@ -132,7 +132,7 @@ Parameter          | Required | Default | Description
 Run the query from Example 1 above, using [HTTPie](https://httpie.org)[^1]:
 
 ```
-$ http --stream GET {{ server_url }} coords=='290.0 45.0 15.0' result_ispublic=='1'
+$ http --stream GET {{ server_url }}/api/conesearch coords=='290.0 45.0 15.0' result_ispublic=='1'
 ```
 
 Run the query from Example 2 above, using the Python

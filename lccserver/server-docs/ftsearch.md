@@ -81,10 +81,10 @@ name or description:
 </figure>
 
 
-**Example 2:** Search for any objects that "ASAS" somewhere in their object name
-or description, retrieve the columns `sdssr`, `propermotion`, `ndet`, and return
-only objects that match the condition: `(ndet > 10000) and (simbad_best_objtype
-contains 'RR')`:
+**Example 2:** Search for any objects that have "ASAS" somewhere in their object
+name or description, retrieve the columns `sdssr`, `propermotion`, `ndet`, and
+return only objects that match the condition: `(ndet > 10000) and
+(simbad_best_objtype contains 'RR')`:
 
 <figure class="figure">
   <img src="/server-static/lcc-server-ftsearch-example2.png"
