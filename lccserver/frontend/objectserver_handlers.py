@@ -318,7 +318,7 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
                  'key':self.cpkey}
             )
 
-            client = AsyncHTTPClient()
+            client = AsyncHTTPClient(force_instance=True)
             resp = yield client.fetch(req_url, raise_error=False)
 
             if resp.code != 200:
@@ -353,6 +353,7 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
                     '[NaN','[null'
                 )
             )
+            client.close()
 
             self.write(rettext)
             self.finish()
