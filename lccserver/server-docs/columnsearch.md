@@ -110,8 +110,8 @@ Parameter          | Required | Default | Description
 `sortcol`          | **yes**  | `sdssr` | The column to sort the results by. This is set to `sdssr` by default if this column is present in the collections being searched. If `sdssr` is not present, `sortcol` will be set to `objectid` by default if not specified otherwise.
 `sortorder`        | **yes**  | `asc`   | The sort order to return the results in. This is set to ascending values by default: `asc`. The only other option is descending sort order: `desc`.
 `result_ispublic`  | **no**   | `1`     | `1` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `0` means the resulting dataset will only be accessible to people who know its URL.
-`collections`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
-`columns`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
+`collections[]`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
+`columns[]`          | **no**   | `null`  | Columns to retrieve. The database object names, right ascensions, and declinations are returned automatically. Columns used for filtering and sorting are **NOT** returned automatically (this is a convenience for the browser UI only). Specify them here if you want to see them in the output.
 
 
 ### Examples

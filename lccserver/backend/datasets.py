@@ -1271,6 +1271,7 @@ def generate_dataset_tablerows(
 
                 for col in final_cols[:-1]:
 
+                    # reformat the downloadable LC link
                     if col in ('lcfname', 'db_lcfname'):
                         if entry[col] is not None:
                             row.append(
@@ -1289,7 +1290,11 @@ def generate_dataset_tablerows(
                         elif 'i' in colform and entry[col] is None:
                             row.append('-9999')
                         else:
-                            row.append(colform % entry[col])
+                            thisr = colform % entry[col]
+                            # replace any pipe characters with commas
+                            # to save us from broken CSVs
+                            thisr = thisr.replace('|',', ')
+                            row.append(thisr)
 
             # otherwise, we can just return the row for this entry
             else:
