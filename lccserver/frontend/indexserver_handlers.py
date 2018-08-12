@@ -387,7 +387,10 @@ def doc_render_worker(docpage,
         extension_configs={
             'markdown.extensions.codehilite':{
                 'guess_lang': False
-            }
+            },
+            'markdown.extensions.toc':{
+                'permalink': True
+            },
         }
     )
 
