@@ -6,7 +6,7 @@ server.
 ## Start here
 
 <figure class="figure">
-  <img src="/server-static/lcc-server-search-conesearch.png"
+  <img src="/server-static/lcc-server-search-overview.png"
        class="figure-img img-fluid"
        alt="The LCC server search interface">
   <figcaption class="figure-caption text-center">
