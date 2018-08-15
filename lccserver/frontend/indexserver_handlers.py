@@ -370,6 +370,10 @@ def doc_render_worker(docpage,
         doc_md_file = os.path.join(basedir,'docs',
                                    '%s.md' % docpage)
 
+    # if the doc page is not found in either index, then it doesn't exist
+    else:
+        return None, None
+
     LOGGER.info('opening %s for docs page: %s...' % (doc_md_file, docpage))
 
     # we'll open in 'r' mode since we want unicode for markdown
@@ -444,6 +448,7 @@ class DocsHandler(tornado.web.RequestHandler):
         )
 
 
+    @tornado.web.removeslash
     @gen.coroutine
     def get(self, docpage):
         '''This handles GET requests for docs
@@ -456,8 +461,6 @@ class DocsHandler(tornado.web.RequestHandler):
                         page_title="Documentation index",
                         serverdocs=self.server_docindex,
                         sitedocs=self.site_docindex)
-
-
 
         # get a specific documentation page
         elif docpage and len(docpage) > 0:
@@ -473,14 +476,27 @@ class DocsHandler(tornado.web.RequestHandler):
                     self.site_docindex
                 )
 
-                # this is because the rendering doesn't seem to figure out that
-                # there's a template tag left in. FIXME: figure out how to do
-                # this cleanly
-                rendered = rendered.replace('{{ server_url }}',self.server_url)
-                self.render('docs-page.html',
-                            page_title=page_title,
-                            page_content=rendered)
+                if rendered and page_title:
 
+                    # this is because the rendering doesn't seem to figure out
+                    # that there's a template tag left in. FIXME: figure out how
+                    # to do this cleanly
+                    rendered = rendered.replace('{{ server_url }}',
+                                                self.server_url)
+                    self.render('docs-page.html',
+                                page_title=page_title,
+                                page_content=rendered)
+
+                else:
+
+                    self.set_status(404)
+
+                    self.render(
+                        'errorpage.html',
+                        page_title='404 - no docs available',
+                        error_message=('Could not find a docs page '
+                                       'for the requested item.')
+                    )
 
             except Exception as e:
 

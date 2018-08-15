@@ -460,7 +460,8 @@ def main():
           'basedir':BASEDIR}),
 
         # docs page index and other subdirs, renders markdown to HTML
-        (r'/docs/?(\S*)',
+        # (r'/docs/?(\S*)',
+        (r'/docs/?(.*)/*',
          ih.DocsHandler,
          {'currentdir':CURRENTDIR,
           'templatepath':TEMPLATEPATH,
@@ -469,7 +470,6 @@ def main():
           'basedir':BASEDIR,
           'serverdocs':SERVER_DOCINDEX,
           'sitedocs':SITE_DOCINDEX}),
-
 
         ###################################
         ## STATIC FILE DOWNLOAD HANDLERS ##
