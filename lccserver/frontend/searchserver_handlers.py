@@ -1811,7 +1811,10 @@ class XMatchHandler(tornado.web.RequestHandler,
         xmq = self.get_body_argument('xmq')
         xmd = self.get_body_argument('xmd')
 
-        parsed_xmq, parsed_xmd = parse_xmatch_input(xmq, xmd)
+        parsed_xmq, parsed_xmd = yield self.executor.submit(
+            parse_xmatch_input,
+            xmq, xmd,
+        )
 
         # return early if we can't parse the input data
         if not parsed_xmq or not parsed_xmd:
