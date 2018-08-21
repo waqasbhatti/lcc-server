@@ -38,6 +38,11 @@ class PyTest(TestCommand):
         sys.exit(errno)
 
 
+# set up the cmdclass
+cmdclass = versioneer.get_cmdclass()
+cmdclass['test'] = PyTest
+
+
 def readme():
     with open('README.rst') as f:
         return f.read()
@@ -69,7 +74,7 @@ EXTRAS_REQUIRE = {
 setup(
     name='lccserver',
     version=__version__,
-    cmdclass=versioneer.get_cmdclass(),
+    cmdclass=cmdclass,
     description=('A light curve collection server framework.'),
     long_description=readme(),
     classifiers=[
@@ -89,12 +94,9 @@ setup(
     install_requires=INSTALL_REQUIRES,
     # extras_require=EXTRAS_REQUIRE,
     tests_require=['pytest',],
-    cmdclass={'test':PyTest},
     entry_points={
         'console_scripts':[
             'indexserver=lccserver.frontend.indexserver:main',
-            # 'searchserver=lccserver.frontend.searchserver:main',
-            # 'lcserver=lccserver.frontend.lcserver:main',
         ],
     },
     include_package_data=True,
