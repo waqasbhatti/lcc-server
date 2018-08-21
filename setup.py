@@ -8,7 +8,8 @@ Stolen from http://python-packaging.readthedocs.io/en/latest/everything.html and
 modified by me.
 
 '''
-__version__ = '0.0.1'
+import versioneer
+__version__ = versioneer.get_version()
 
 import sys
 from setuptools import setup, find_packages
@@ -51,11 +52,7 @@ INSTALL_REQUIRES = [
     'tqdm',
     'markdown',
     'pygments',
-#    'pymdown-extensions',
-#    'psutil',
     'itsdangerous',
-#    'passlib',
-#    'bleach',
     'cryptography',
     'astrobase>=0.3.16',
 ]
@@ -72,6 +69,7 @@ EXTRAS_REQUIRE = {
 setup(
     name='lccserver',
     version=__version__,
+    cmdclass=versioneer.get_cmdclass(),
     description=('A light curve collection server framework.'),
     long_description=readme(),
     classifiers=[

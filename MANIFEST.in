@@ -3,3 +3,5 @@ recursive-include lccserver/frontend/static *
 include LICENSE
 include README.rst
 recursive-include tests *.py
+include versioneer.py
+include lccserver/_version.py
