@@ -7,8 +7,7 @@ documentation page.
 
 ## API Python client
 
-Much of the API is implemented as simple functions in a single-file Python module:
-[lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py). This doesn't depend on anything other than the Python standard library, so can be dropped in anywhere it's needed.
+A client for the API is implemented as simple functions in a single-file Python module: [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py). This doesn't depend on anything other than the Python standard library, so can be dropped in anywhere it's needed.
 
 
 ## Search query services
