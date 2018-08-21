@@ -60,3 +60,6 @@ frontend:
 - [jQuery](https://jquery.com)
 - [oboe.js](http://oboejs.com/)
 - [moment.js](http://momentjs.com/)
+
+The icons used are from the Google [Material Design
+Icons](https://material.io/tools/icons/?style=baseline) project.

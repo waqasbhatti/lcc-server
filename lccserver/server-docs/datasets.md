@@ -46,7 +46,7 @@ Queries that return more than 20,000 matches will not produce a light curve ZIP
 file because it would take too long and take up too much space on the server. If
 this happens, the data table CSV file will still be generated and will contain
 links to each object's light curve file for individual download if needed, in
-additional to the columns requested in the query. It's usally better to try to
+additional to the columns requested in the query. It's usually better to try to
 refine your query in this case to get a smaller set of matching objects that
 are more relevant, rather than trying to sift through a large number of them.
 
