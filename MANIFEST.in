@@ -1,8 +1,17 @@
-global-exclude *.pkl
-global-exclude __pycache__
-recursive-include lccserver/frontend *
+recursive-include lccserver/frontend/templates *.html
+recursive-include lccserver/frontend/static *.js
+recursive-include lccserver/frontend/static *.css
+recursive-include lccserver/frontend/static/images *
+recursive-include lccserver/server-docs *
+
 include LICENSE
 include README.md
+
 recursive-include tests *.py
 include versioneer.py
 include lccserver/_version.py
+
+global-exclude *.pkl
+global-exclude *.pyc
+global-exclude .DS_Store
+global-exclude *.map
