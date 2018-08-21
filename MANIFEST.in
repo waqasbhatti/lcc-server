@@ -1,7 +1,8 @@
 global-exclude *.pkl
-recursive-include lccserver/frontend/static *
+global-exclude __pycache__
+recursive-include lccserver/frontend *
 include LICENSE
-include README.rst
+include README.md
 recursive-include tests *.py
 include versioneer.py
 include lccserver/_version.py
