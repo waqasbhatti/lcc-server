@@ -400,7 +400,7 @@ def doc_render_worker(docpage,
                 'guess_lang': False
             },
             'markdown.extensions.toc':{
-                'permalink': True
+                'anchorlink': True
             },
         }
     )
