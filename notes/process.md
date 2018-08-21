@@ -122,5 +122,3 @@ lccserver.objectsearch.abcat.objectinfo_to_sqlite(
   the DML and generate the correct numpy/sqlite statements for selecting things,
   while keeping in mind that no writing to the database is allowed. maybe break
   this out into a separate astrotap-server project
-
-- document search state machine
