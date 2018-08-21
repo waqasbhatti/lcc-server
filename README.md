@@ -5,12 +5,12 @@ forms the basis for the [HAT data server](https://data.hatsurveys.org).
 
 At the moment, it includes the following functionality:
 
-- collection of light curves from various projects into a single format
+- collection of light curves from various projects into a single output format
 
 - HTTP API for searching over multiple light curve collections by:
-  - filtering on any light curve column and object properties, e.g. objectid,
-    mag, variability type, periods, etc.
-  - cone-search near coordinates
+  - filtering on database columns of object properties, e.g. objectid,
+    mag, variability type, variability indices, etc.
+  - cone-search near specified coordinates
   - cross-matching to uploaded object list with objectid, ra, decl
   - full-text search on object names, descriptions, etc.
 
@@ -27,10 +27,8 @@ To install the latest version from Github:
 
 ```bash
 $ git clone https://github.com/waqasbhatti/lcc-server
-$ cd astrobase
-$ python setup.py install
-$ # or use pip install . to install requirements automatically
-$ # or use pip install -e . to install in develop mode along with requirements
+$ cd lcc-server
+$ pip install -e .
 ```
 
 ## License
