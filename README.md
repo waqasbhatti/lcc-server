@@ -23,7 +23,15 @@ At the moment, it includes the following functionality:
 
 ## Installation
 
-This package is available on PyPI:
+**NOTE:** Python >= 3.6 is required. Use of a virtualenv is recommended;
+something like this will work well:
+
+```bash
+$ python3 -m venv lcc
+$ source lcc/bin/activate
+```
+
+This package is available on PyPI. Install it with the virtualenv activated:
 
 ```bash
 $ pip install numpy  # to set up Fortran bindings for dependencies
@@ -36,6 +44,14 @@ To install the latest version from Github:
 $ git clone https://github.com/waqasbhatti/lcc-server
 $ cd lcc-server
 $ pip install -e .
+```
+
+If you're on Linux or MacOS, you can install the
+[uvloop](https://github.com/MagicStack/uvloop) package to optionally speed up
+some of the eventloop bits:
+
+```bash
+$ pip install uvloop
 ```
 
 Some post-installation setup is required to begin serving light curves. In

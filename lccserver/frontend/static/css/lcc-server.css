@@ -251,6 +251,11 @@ a.toclink:hover:after, a.toclink:focus:after {
   content: ' \00B6';
 }
 
+blockquote.blockquote {
+  margin-left: 1.5rem;
+  font-size: 1rem;
+}
+
 /* footer styles */
 
 footer {

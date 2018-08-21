@@ -23,13 +23,10 @@ All search services follow the same basic scheme:
    server will search all collections by default. To see the available
    collections and descriptions of their database columns, click on the
    <strong>Collections</strong> tab.
-
 2. Choose columns to retrieve. Object names, RA, Dec, and light curve download
    links for all matched objects will be returned by default so there is no need
    to specify them here.
-
 3. Add database column filters on the matched objects. This step is optional.
-
 4. Type in the query coordinates or text as appropriate.
 
 Hitting the search button will start the query immediately. All queries run
