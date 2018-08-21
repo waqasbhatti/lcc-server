@@ -35,7 +35,7 @@ This package is available on PyPI. Install it with the virtualenv activated:
 
 ```bash
 $ pip install numpy  # to set up Fortran bindings for dependencies
-$ pip install lccserver
+$ pip install lccserver  # add --pre to install unstable versions
 ```
 
 To install the latest version from Github:
