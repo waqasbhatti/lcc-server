@@ -77,14 +77,58 @@ import itsdangerous
 ## LOCAL IMPORTS ##
 ###################
 
+from .. import __version__
 from ..backend import datasets
 datasets.set_logger_parent(__name__)
 from ..backend import dbsearch
 
 
 #####################
-## HANDLER CLASSES ##
+## MAIN INDEX PAGE ##
 #####################
+
+class IndexHandler(tornado.web.RequestHandler):
+    '''This handles the index page.
+
+    This page shows the current project.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   templatepath,
+                   assetpath,
+                   executor,
+                   basedir,
+                   siteinfo):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.executor = executor
+        self.basedir = basedir
+        self.siteinfo = siteinfo
+
+    def get(self):
+        '''This handles GET requests to the index page.
+
+        '''
+
+        self.render(
+            'index.html',
+            page_title='LCC Server',
+            lccserver_version=__version__,
+            siteinfo=self.siteinfo
+        )
+
+
+######################
+## API KEY HANDLERS ##
+######################
 
 class APIKeyHandler(tornado.web.RequestHandler):
     '''This handles API key generation
@@ -304,43 +348,6 @@ class APIAuthHandler(tornado.web.RequestHandler):
             self.finish()
 
 
-
-class IndexHandler(tornado.web.RequestHandler):
-    '''This handles the index page.
-
-    This page shows the current project.
-
-    '''
-
-    def initialize(self,
-                   currentdir,
-                   templatepath,
-                   assetpath,
-                   executor,
-                   basedir):
-        '''
-        handles initial setup.
-
-        '''
-
-        self.currentdir = currentdir
-        self.templatepath = templatepath
-        self.assetpath = assetpath
-        self.executor = executor
-        self.basedir = basedir
-
-
-    def get(self):
-        '''This handles GET requests to the index page.
-
-        '''
-
-        self.render(
-            'index.html',
-            page_title='LCC Server',
-        )
-
-
 #########################################
 ## DOCS HANDLING FUNCTIONS AND CLASSES ##
 #########################################
@@ -414,7 +421,8 @@ class DocsHandler(tornado.web.RequestHandler):
                    executor,
                    basedir,
                    serverdocs,
-                   sitedocs):
+                   sitedocs,
+                   siteinfo):
         '''
         handles initial setup.
 
@@ -425,6 +433,7 @@ class DocsHandler(tornado.web.RequestHandler):
         self.assetpath = assetpath
         self.executor = executor
         self.basedir = basedir
+        self.siteinfo = siteinfo
 
         #
         # these are the doc index JSONs parsed into dicts
@@ -460,7 +469,9 @@ class DocsHandler(tornado.web.RequestHandler):
             self.render('docs-index.html',
                         page_title="Documentation index",
                         serverdocs=self.server_docindex,
-                        sitedocs=self.site_docindex)
+                        sitedocs=self.site_docindex,
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo)
 
         # get a specific documentation page
         elif docpage and len(docpage) > 0:
@@ -485,7 +496,9 @@ class DocsHandler(tornado.web.RequestHandler):
                                                 self.server_url)
                     self.render('docs-page.html',
                                 page_title=page_title,
-                                page_content=rendered)
+                                page_content=rendered,
+                                lccserver_version=__version__,
+                                siteinfo=self.siteinfo)
 
                 else:
 
@@ -495,7 +508,9 @@ class DocsHandler(tornado.web.RequestHandler):
                         'errorpage.html',
                         page_title='404 - no docs available',
                         error_message=('Could not find a docs page '
-                                       'for the requested item.')
+                                       'for the requested item.'),
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo
                     )
 
             except Exception as e:
@@ -507,7 +522,9 @@ class DocsHandler(tornado.web.RequestHandler):
                     'errorpage.html',
                     page_title='404 - no docs available',
                     error_message=('Could not find a docs page '
-                                   'for the requested item.')
+                                   'for the requested item.'),
+                    lccserver_version=__version__,
+                    siteinfo=self.siteinfo
                 )
 
 

@@ -5,7 +5,6 @@
 License: MIT - see the LICENSE file for the full text.
 
 '''
-
 #############
 ## LOGGING ##
 #############
@@ -386,11 +385,12 @@ def main():
     else:
         LOGGER.setLevel(logging.INFO)
 
-    ################################
-    ## SET THE GLOBAL API VERSION ##
-    ################################
+    ####################################
+    ## SET THE GLOBAL VERSION STRINGS ##
+    ####################################
 
     APIVERSION = 1
+
 
     ###################
     ## SET UP CONFIG ##
@@ -421,6 +421,13 @@ def main():
     SITE_STATIC = os.path.join(SITE_DOCSPATH,'static')
     with open(os.path.join(SITE_DOCSPATH, 'doc-index.json'),'r') as infd:
         SITE_DOCINDEX = json.load(infd)
+
+    #
+    # site specific info
+    #
+    siteinfojson = os.path.join(BASEDIR, 'site-info.json')
+    with open(siteinfojson,'r') as infd:
+        SITEINFO = json.load(infd)
 
     #
     # server docs
@@ -457,7 +464,8 @@ def main():
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'siteinfo':SITEINFO}),
 
         # docs page index and other subdirs, renders markdown to HTML
         # (r'/docs/?(\S*)',
@@ -469,7 +477,8 @@ def main():
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'serverdocs':SERVER_DOCINDEX,
-          'sitedocs':SITE_DOCINDEX}),
+          'sitedocs':SITE_DOCINDEX,
+          'siteinfo':SITEINFO}),
 
         ###################################
         ## STATIC FILE DOWNLOAD HANDLERS ##
@@ -619,7 +628,9 @@ def main():
           'assetpath':ASSETPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'signer':SIGNER, 'fernet':FERNET}),
+          'signer':SIGNER,
+          'fernet':FERNET,
+          'siteinfo':SITEINFO}),
 
         # this just shows all datasets in a big table
         (r'/datasets',
@@ -628,7 +639,8 @@ def main():
           'templatepath':TEMPLATEPATH,
           'assetpath':ASSETPATH,
           'executor':EXECUTOR,
-          'basedir':BASEDIR}),
+          'basedir':BASEDIR,
+          'siteinfo':SITEINFO}),
 
 
         ################################################
@@ -661,7 +673,8 @@ def main():
           'signer':SIGNER,
           'fernet':FERNET,
           'cpsharedkey':CPKEY,
-          'cpaddress':CPADDR}),
+          'cpaddress':CPADDR,
+          'siteinfo':SITEINFO}),
 
     ]
 

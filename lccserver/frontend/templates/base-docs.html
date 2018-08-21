@@ -68,6 +68,31 @@
     </div>
     {% end %}
 
+    <footer class="text-muted">
+      <div class="container-fluid" >
+        <div class="row" >
+          <div class="col" >
+            <hr>
+          </div>
+        </div>
+        <div class="row justify-content-between p-3">
+          <div class="col-3" >
+            <ul class="list-unstyled" >
+              <li><a href="https://github.com/waqasbhatti/lcc-server" >LCC Server</a> &mdash; <a href="/docs" >Docs</a></li>
+              <li>v{{ lccserver_version }}</li>
+            </ul>
+          </div>
+          <div class="col-3" >
+            <ul class="list-unstyled" >
+              <li><strong><a href="{{ siteinfo['project_link'] }}">{{ siteinfo['project'] }}</a></strong> &mdash; <a href="/docs/citation" >Citing data</a></li>
+              <li><a href="{{ siteinfo['department_link'] }}">{{ siteinfo['department'] }}</a></li>
+              <li><a href="{{ siteinfo['institution_link'] }}"><img src="{{ siteinfo['institution_logo'] }}" alt="{{ siteinfo['institution'] }}"> </a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </footer>
+
     <!-- bootstrap scripts -->
     <script src="{{ static_url('js/jquery.min.js') }}"></script>
     <script src="{{ static_url('js/popper.min.js') }}"></script>

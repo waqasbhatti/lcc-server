@@ -50,6 +50,7 @@ class FrontendEncoder(json.JSONEncoder):
 # tornado.web.RequestHandler.write(dict) is called.
 json._default_encoder = FrontendEncoder()
 
+
 #############
 ## LOGGING ##
 #############
@@ -57,10 +58,6 @@ json._default_encoder = FrontendEncoder()
 # get a logger
 LOGGER = logging.getLogger(__name__)
 
-
-#####################
-## TORNADO IMPORTS ##
-#####################
 
 #####################
 ## TORNADO IMPORTS ##
@@ -77,6 +74,12 @@ from tornado import gen
 from tornado.httpclient import AsyncHTTPClient
 from urllib.parse import urlencode
 
+
+###################
+## LOCAL IMPORTS ##
+###################
+
+from .. import __version__
 
 
 ###################################################
@@ -150,7 +153,8 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
                    signer,
                    fernet,
                    cpsharedkey,
-                   cpaddress):
+                   cpaddress,
+                   siteinfo):
         '''
         handles initial setup.
 
@@ -166,7 +170,7 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
         self.fernet = fernet
         self.cpkey = cpsharedkey
         self.cpaddr = cpaddress
-
+        self.siteinfo = siteinfo
 
 
     @gen.coroutine
@@ -192,7 +196,9 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
                 'objectinfo-async.html',
                 page_title='LCC server object info',
                 collection=collection,
-                objectid=objectid
+                objectid=objectid,
+                lccserver_version=__version__,
+                siteinfo=self.siteinfo
             )
 
         except Exception as e:
@@ -200,7 +206,9 @@ class ObjectInfoPageHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.render('errorpage.html',
                         page_title='400 - object request not valid',
-                        error_message='Could not parse your object request.')
+                        error_message='Could not parse your object request.',
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo)
 
 
 

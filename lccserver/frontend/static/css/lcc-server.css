@@ -237,3 +237,23 @@ details.no-details:not([open]) summary {
   background-color: #f8f9fa!important;
   border-radius: .5rem!important;
 }
+
+
+/* footer styles */
+
+footer {
+  margin-top: 1rem;
+  font-size: 85%;
+}
+
+footer a {
+  color: inherit;
+}
+
+footer a:hover, footer a:focus {
+  color: #222;
+}
+
+footer img {
+  width: 200px;
+}

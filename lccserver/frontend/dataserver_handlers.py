@@ -73,6 +73,7 @@ from tornado import gen
 ## LOCAL IMPORTS ##
 ###################
 
+from .. import __version__
 from ..backend import dbsearch
 dbsearch.set_logger_parent(__name__)
 from ..backend import datasets
@@ -97,7 +98,8 @@ class DatasetHandler(tornado.web.RequestHandler):
                    executor,
                    basedir,
                    signer,
-                   fernet):
+                   fernet,
+                   siteinfo):
         '''
         handles initial setup.
 
@@ -110,7 +112,9 @@ class DatasetHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.signer = signer
-        self.fernet = fernet
+        self.fernet = fernet,
+        self.siteinfo = siteinfo
+
 
 
     @gen.coroutine
@@ -155,7 +159,9 @@ class DatasetHandler(tornado.web.RequestHandler):
 
                 self.render('errorpage.html',
                             error_message=message,
-                            page_title='404 - no dataset by that name exists')
+                            page_title='404 - no dataset by that name exists',
+                            lccserver_version=__version__,
+                            siteinfo=self.siteinfo)
 
 
         #
@@ -191,7 +197,9 @@ class DatasetHandler(tornado.web.RequestHandler):
 
                 self.render('errorpage.html',
                             error_message=message,
-                            page_title='404 - Dataset %s not found' % setid)
+                            page_title='404 - Dataset %s not found' % setid,
+                            lccserver_version=__version__,
+                            siteinfo=self.siteinfo)
 
 
         # next, if the dataset is returned but status is 'broken'
@@ -213,7 +221,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                 self.render('errorpage.html',
                             error_message=message,
                             page_title=('404 - Dataset %s missing or broken' %
-                                        setid))
+                                        setid),
+                            lccserver_version=__version__,
+                            siteinfo=self.siteinfo)
 
         # next, if the dataset is returned but status is 'in progress'
         elif ds is not None and ds['status'] == 'in progress':
@@ -273,7 +283,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                             setcsv=None,
                             setcsv_shasum=None,
                             lczip=None,
-                            pfzip=None)
+                            pfzip=None,
+                            lccserver_version=__version__,
+                            siteinfo=self.siteinfo)
 
                 raise tornado.web.Finish()
 
@@ -357,7 +369,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                                 header=header,
                                 setpickle=dataset_pickle,
                                 setcsv=dataset_csv,
-                                lczip=ds['lczip'])
+                                lczip=ds['lczip'],
+                                lccserver_version=__version__,
+                                siteinfo=self.siteinfo)
 
 
             # if there are less than 3000 objects, show all of them
@@ -408,7 +422,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                                 header=header,
                                 setpickle=dataset_pickle,
                                 setcsv=dataset_csv,
-                                lczip=ds['lczip'])
+                                lczip=ds['lczip'],
+                                lccserver_version=__version__,
+                                siteinfo=self.siteinfo)
 
         # if we somehow get here, everything is broken
         else:
@@ -428,7 +444,9 @@ class DatasetHandler(tornado.web.RequestHandler):
 
                 self.render('errorpage.html',
                             error_message=message,
-                            page_title='404 - no dataset by that name exists')
+                            page_title='404 - no dataset by that name exists',
+                            lccserver_version=__version__,
+                            siteinfo=self.siteinfo)
 
 
 
@@ -506,6 +524,8 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
         self.write(returndict)
         self.finish()
 
+
+
 #############################
 ## DATASET LISTING HANDLER ##
 #############################
@@ -521,7 +541,8 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
                    templatepath,
                    assetpath,
                    executor,
-                   basedir):
+                   basedir,
+                   siteinfo):
         '''
         handles initial setup.
 
@@ -532,6 +553,7 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
         self.assetpath = assetpath
         self.executor = executor
         self.basedir = basedir
+        self.siteinfo = siteinfo
 
 
     @gen.coroutine
@@ -541,4 +563,6 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
         '''
 
         self.render('dataset-list.html',
-                    page_title='All datasets')
+                    page_title='All datasets',
+                    lccserver_version=__version__,
+                    siteinfo=self.siteinfo)
