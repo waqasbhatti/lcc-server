@@ -18,4 +18,22 @@ At the moment, it includes the following functionality:
   results from searches, and generating output zip bundles containing search
   results and all matching light curves
 
-- HTTP API for detailed information per object
+- HTTP API for detailed information per object, including light curve plots,
+  external catalog info, and period-finding results plus phased LCs if available
+
+## Installation
+
+To install the latest version from Github:
+
+```bash
+$ git clone https://github.com/waqasbhatti/lcc-server
+$ cd astrobase
+$ python setup.py install
+$ # or use pip install . to install requirements automatically
+$ # or use pip install -e . to install in develop mode along with requirements
+```
+
+## License
+
+LCC-Server is provided under the MIT License. See the LICENSE file for the full
+text.
