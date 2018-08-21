@@ -23,6 +23,13 @@ At the moment, it includes the following functionality:
 
 ## Installation
 
+This package is available on PyPI:
+
+```bash
+$ pip install numpy  # to set up Fortran bindings for dependencies
+$ pip install lccserver
+```
+
 To install the latest version from Github:
 
 ```bash
@@ -30,6 +37,10 @@ $ git clone https://github.com/waqasbhatti/lcc-server
 $ cd lcc-server
 $ pip install -e .
 ```
+
+Some post-installation setup is required to begin serving light curves. In
+particular, you will need to set up a base directory where LCC-Server can work
+from and various sub-directories. Notes on this TBD...
 
 ## License
 
