@@ -723,13 +723,18 @@ def sqlite_make_dataset_lczip(basedir,
                 # update the output filename
                 for dsrow in dataset['result'][collection]:
 
-                    dsrow['db_lcfname'] = os.path.join(thiscoll_lcdir,
-                                                       '%s-csvlc.gz' %
-                                                       dsrow['db_oid'])
-                    if 'lcfname' in dsrow:
-                        dsrow['lcfname'] = os.path.join(thiscoll_lcdir,
-                                                        '%s-csvlc.gz' %
-                                                        dsrow['db_oid'])
+                    if dsrow['db_lcfname']:
+                        dsrow['db_lcfname'] = os.path.join(thiscoll_lcdir,
+                                                           '%s-csvlc.gz' %
+                                                           dsrow['db_oid'])
+                        if 'lcfname' in dsrow:
+                            dsrow['lcfname'] = os.path.join(thiscoll_lcdir,
+                                                            '%s-csvlc.gz' %
+                                                            dsrow['db_oid'])
+                    else:
+                        dsrow['db_lcfname'] = None
+                        if 'lcfname' in dsrow:
+                            dsrow['lcfname'] = None
 
             #
             # update the dataset pickle with the new light curve locations
