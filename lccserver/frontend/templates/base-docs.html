@@ -83,7 +83,11 @@
             <ul class="list-unstyled" >
               <li><strong><a href="{{ siteinfo['project_link'] }}">{{ siteinfo['project'] }}</a></strong> &mdash; <a href="/docs/citation" >Citing data</a></li>
               <li><a href="{{ siteinfo['department_link'] }}">{{ siteinfo['department'] }}</a></li>
-              <li><a href="{{ siteinfo['institution_link'] }}"><img src="{{ siteinfo['institution_logo'] }}" alt="{{ siteinfo['institution'] }}"> </a></li>
+              {% if siteinfo['institution_logo'] %}
+              <li><a href="{{ siteinfo['institution_link'] }}"><img src="{{ siteinfo['institution_logo'] }}" alt="{{ siteinfo['institution'] }}"></a></li>
+              {% else %}
+              <li><a href="{{ siteinfo['institution_link'] }}">{{ siteinfo['institution'] }}</a></li>
+              {% end %}
             </ul>
           </div>
         </div>
