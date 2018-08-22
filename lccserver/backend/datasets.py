@@ -483,7 +483,7 @@ def sqlite_make_dataset_lczip(basedir,
 
         # if LCs corresponding to the ones included in this dataset are found in
         # another dataset, then we'll symlink that dataset's LC ZIP to
-        # datasets/dataset-[this setid].zip, and call it a day
+        # products/lightcurves-[this setid].zip, and call it a day
         skip_lc_collection = False
 
         if row and len(row) > 0:
@@ -655,6 +655,13 @@ def sqlite_make_dataset_lczip(basedir,
                 dataset_lclist.extend(results)
 
             #
+            # update the dataset pickle with the new light curve locations
+            #
+            with gzip.open(dataset_fpath,'wb') as outfd:
+                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+            LOGINFO('updated dataset pickle after LC collection completed')
+
+            #
             # FINALLY, CARRY OUT THE ZIP OPERATION (IF NEEDED)
             #
             zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
@@ -716,7 +723,7 @@ def sqlite_make_dataset_lczip(basedir,
         db.commit()
         db.close()
 
-        LOGINFO('updated entry for setid: %s with LC zip SHASUM' % setid)
+        LOGINFO('updated entry for setid: %s with LC zip cachekey' % setid)
         return dataset['lczipfpath']
 
     else:
@@ -1251,7 +1258,7 @@ def generate_dataset_tablerows(
                 else:
                     entry['db_lcfname'] = None
 
-            if 'lcfname' in entry:
+            elif 'lcfname' in entry:
 
                 if (entry['lcfname'] is not None and
                     os.path.exists(entry['lcfname'])):
