@@ -644,11 +644,11 @@ def sqlite_make_dataset_lczip(basedir,
                     if os.path.exists(nlc):
                         dsrow['db_lcfname'] = nlc
                         if 'lcfname' in dsrow:
-                            dsrow['db_lcfname'] = nlc
+                            dsrow['lcfname'] = nlc
                     else:
                         dsrow['db_lcfname'] = None
                         if 'lcfname' in dsrow:
-                            dsrow['db_lcfname'] = None
+                            dsrow['lcfname'] = None
 
 
                 # update the global LC list
@@ -666,12 +666,14 @@ def sqlite_make_dataset_lczip(basedir,
             #
             zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
 
+            # if there are too many LCs to collect, bail out
             if len(dataset_lclist) > max_dataset_lcs:
 
                 LOGERROR('LCS in dataset: %s > max_dataset_lcs: %s, '
                          'not making a zip file' % (len(dataset_lclist),
                                                     max_dataset_lcs))
 
+            # otherwise, run the collection
             else:
 
                 # get the expected name of the output zipfile
@@ -696,6 +698,9 @@ def sqlite_make_dataset_lczip(basedir,
 
                 LOGINFO('done, zip written successfully.')
 
+
+        # if we don't need to collect LCs, then we can just re-use the other
+        # dataset's LC ZIP
         else:
 
             LOGINFO("re-using identical LC collected "
@@ -703,6 +708,39 @@ def sqlite_make_dataset_lczip(basedir,
                     "symlinked to this dataset's LC ZIP: %s" %
                     (other_setid, other_lczip, dataset['lczipfpath']))
 
+            # update the final LC locations in this case as well
+            for collection in dataset['collections']:
+
+                lcformatdesc = dataset['lcformatdesc'][collection]
+                # get this collection's output LC directory under the LCC
+                # basedir basedir/csvlcs/<collection>/lightcurves/<lcfname>
+                thiscoll_lcdir = os.path.join(
+                    basedir,
+                    'csvlcs',
+                    os.path.dirname(lcformatdesc).split('/')[-1],
+                )
+
+                # update the output filename
+                for dsrow in dataset['result'][collection]:
+
+                    dsrow['db_lcfname'] = os.path.join(thiscoll_lcdir,
+                                                       '%s-csvlc.gz' %
+                                                       dsrow['db_oid'])
+                    if 'lcfname' in dsrow:
+                        dsrow['lcfname'] = os.path.join(thiscoll_lcdir,
+                                                        '%s-csvlc.gz' %
+                                                        dsrow['db_oid'])
+
+            #
+            # update the dataset pickle with the new light curve locations
+            #
+            with gzip.open(dataset_fpath,'wb') as outfd:
+                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+            LOGINFO('updated dataset pickle after LC collection completed')
+
+        #
+        # done with collecting light curves
+        #
 
         # generate the entry in the lcc-datasets.sqlite table and commit it
         # once we get to this point, the dataset is finally considered complete
