@@ -31,7 +31,8 @@ $ python3 -m venv lcc
 $ source lcc/bin/activate
 ```
 
-This package is available on PyPI. Install it with the virtualenv activated:
+This package is [available on PyPI](https://pypi.org/project/lccserver). Install
+it with the virtualenv activated:
 
 ```bash
 $ pip install numpy  # to set up Fortran bindings for dependencies
