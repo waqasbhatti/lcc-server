@@ -1,0 +1,102 @@
+{
+    "lc_formatkey": "short-key-for-lcformat",
+    "lc_fileglob": "*-fileglob.lc* to recognize LC files in a directory",
+    "lc_readermodule": "module.to.read.lc or /path/to/module/to/read/lc.py",
+    "lc_readerfunc": "function_to_read_lc_into_an_lcdict",
+    "lc_normalizemodule": "module.to.normalize.lc or /path/to/module/to/normalize/lc.py or 'null'",
+    "lc_normalizefunc": "function_to_normalize_lcdict_in_place or 'null'",
+    "unaffiliated_cols": [
+        "time",
+        "framenumber",
+        "othercol",
+        "anothercol",
+        "more_lcdict_columns_not_related_to_per_aperture_measurements"
+    ],
+    "mag_apertures":[
+        "photometric_aperture_label_1",
+        "photometric_aperture_label_2",
+        "photometric_aperture_label_3"
+    ],
+    "aperture_joiner":"character_to_join_per_aperture_cols_and_aperture_label",
+    "per_aperture_cols":[
+        "raw_mag",
+        "raw_mag_err",
+        "raw_mag_flag",
+        "another_per_aperture_column",
+        "more_per_aperture_affiliated_columns_in_lcdict"
+    ],
+    "metadata_keys":{
+        "objectid":[
+            "object ID",
+            "%s",
+            "str"
+        ],
+        "objectinfo.ra":[
+            "RA [deg]",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.decl":[
+            "Dec [deg]",
+            "%.7f",
+            "float"
+        ],
+        "objectinfo.more_objectinfo_keys":[
+            "Key title",
+            "Python string formatter (%s, %.5f, %i, etc.)",
+            "Python type (str, float, int, etc.)"
+        ],
+        "first_level_object_metadata_from_lcdict":[
+            "Key title",
+            "Python string formatter (%s, %.5f, %i, etc.)",
+            "Python type (str, float, int, etc.)"
+        ],
+        "second_level_in_lcdict.object_metadata_key":[
+            "Key title",
+            "Python string formatter (%s, %.5f, %i, etc.)",
+            "Python type (str, float, int, etc.)"
+        ]
+    },
+    "column_keys": {
+        "time":[
+            "time of observation in Reduced Julian date (JD = 2400000.0 + RJD)",
+            "%.7f",
+            "f8"
+        ],
+        "framenumber":[
+            "camera frame serial number",
+            "%i",
+            "i8"
+        ],
+        "othercol":[
+            "column description",
+            "Python string formatter (%s, %.5f, %i, etc.) to generate CSV str",
+            "Numpy dtype (U20, i8, f8, etc.)"
+        ],
+        "anothercol":[
+            "column description",
+            "Python string formatter (%s, %.5f, %i, etc.) to generate CSV str",
+            "Numpy dtype (U20, i8, f8, etc.)"
+        ],
+        "raw_mag":[
+            "aperture photometry raw instrumental magnitude in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "raw_mag_err":[
+            "aperture photometry raw instrumental mag error in aperture %s",
+            "%.5f",
+            "f8"
+        ],
+        "raw_mag_flag":[
+            "aperture photometry raw instrumental mag quality flag, aperture %s",
+            "%s",
+            "U20"
+        ],
+        "another_per_aperture_column":[
+            "column description, a '%s' is replaced with label from mag_apertures key",
+            "Python string formatter (%s, %.5f, %i, etc.) to generate CSV str",
+            "Numpy dtype (U20, i8, f8, etc.)"
+        ]
+    }
+}
