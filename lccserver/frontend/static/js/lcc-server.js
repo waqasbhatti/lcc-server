@@ -2057,7 +2057,7 @@ var lcc_datasets = {
                 thisrow_lclink = thisrow_lclink.attr('href');
             }
 
-            objectentry_firstcol = '<a href="#" role="button" ' +
+            objectentry_firstcol = '<a href="#" rel="nofollow" role="button" ' +
                 'data-toggle="modal" data-target="#objectinfo-modal"' +
                 'title="get available object information" ' +
                 'data-objectid="' + thisrow[colind_objectid] + '" ' +
@@ -2070,7 +2070,8 @@ var lcc_datasets = {
 
             datarows_elem.append(
                 '<tr><td>' +
-                    data.rows[rowind].join('</td><td>') +
+                    data.rows[rowind].join('</td><td>')
+                    .replace('href','rel="nofollow" href') +
                     '</td></tr>'
             );
 
@@ -2166,12 +2167,12 @@ var lcc_datasets = {
 
                 // 7. setpickle
                 $('#dataset-setpickle')
-                    .html('<a download ref="nofollow" href="' +
+                    .html('<a download rel="nofollow" href="' +
                           data.dataset_pickle + '">download file</a>');
 
                 // 9. setcsv
                 $('#dataset-setcsv')
-                    .html('<a download ref="nofollow" href="' +
+                    .html('<a download rel="nofollow" href="' +
                           data.dataset_csv + '">download file</a>');
 
 
@@ -2182,7 +2183,7 @@ var lcc_datasets = {
                             ' (' +
                             data.rowstatus +
                             ' &mdash; see the ' +
-                            '<a download ref="nofollow" href="' +
+                            '<a download rel="nofollow" href="' +
                             data.dataset_csv + '">dataset CSV</a>' +
                             ' for complete table)'
                     );
@@ -2195,7 +2196,7 @@ var lcc_datasets = {
                 if (data.lczip != null && data.lczip != undefined) {
                     // 12. lczip
                     $('#dataset-lczip')
-                        .html('<a download ref="nofollow" href="' +
+                        .html('<a download rel="nofollow" href="' +
                               data.lczip + '">download file</a>');
                }
                 else {
