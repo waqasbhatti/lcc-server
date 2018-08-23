@@ -50,7 +50,6 @@ def readme():
 INSTALL_REQUIRES = [
     'numpy',
     'scipy',
-    'astropy',
     'matplotlib',
     'tornado',
     'requests',
@@ -98,6 +97,7 @@ setup(
     entry_points={
         'console_scripts':[
             'indexserver=lccserver.frontend.indexserver:main',
+            'lcc-server=lccserver.cli:main',
         ],
     },
     include_package_data=True,
