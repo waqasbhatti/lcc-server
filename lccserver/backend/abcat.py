@@ -1333,9 +1333,9 @@ def get_lcformat_description(descpath):
 
 
     # this is the final metadata dict
-
     returndict = {
         'formatkey':formatkey,
+        'fileglob':formatdesc['lc_fileglob'],
         'readerfunc':readerfunc,
         'normfunc':normfunc,
         'columns':column_info,
@@ -1374,27 +1374,57 @@ def convert_to_csvlc(lcfile,
 
     '''
 
-    # the filename
-    outfile = '%s-csvlc.gz' % objectid
-
-    # we'll put the CSV LC in the same place as the original LC
-    outpath = os.path.join(os.path.dirname(lcfile), outfile)
-
-    # if we're supposed to skip an existing file, do so here
-    if skip_converted and os.path.exists(outpath):
-        LOGWARNING('%s exists already and skip_converted = True, skipping...' %
-                   outpath)
-        return outpath
-
-    # use the lcformat_dict to read (and normalize) the lcdict
+    # use the lcformat_dict to get the reader and normalization functions
     readerfunc = lcformat_dict['readerfunc']
     normfunc = lcformat_dict['normfunc']
 
-    lcdict = readerfunc(lcfile)
+    # if the object is not None, we can return early without trying to read the
+    # original format LC if the output file exists already and skip_converted =
+    # True
+    if objectid is not None:
 
+        # the filename
+        outfile = '%s-csvlc.gz' % objectid
+
+        # we'll put the CSV LC in the same place as the original LC
+        outpath = os.path.join(os.path.dirname(lcfile), outfile)
+
+        # if we're supposed to skip an existing file, do so here
+        if skip_converted and os.path.exists(outpath):
+            LOGWARNING(
+                '%s exists already and skip_converted = True, skipping...' %
+                outpath
+            )
+            return outpath
+
+    # now read in the light curve
+    lcdict = readerfunc(lcfile)
     if isinstance(lcdict, (tuple, list)) and isinstance(lcdict[0], dict):
         lcdict = lcdict[0]
 
+    # at this point, we can get the objectid from the lcdict directly if it's
+    # None, generate the output filepath, check if it exists, and return early
+    # if skip_converted = True
+    if objectid is None:
+
+        objectid = lcdict['objectid']
+
+        # the filename
+        outfile = '%s-csvlc.gz' % objectid
+
+        # we'll put the CSV LC in the same place as the original LC
+        outpath = os.path.join(os.path.dirname(lcfile), outfile)
+
+        # if we're supposed to skip an existing file, do so here
+        if skip_converted and os.path.exists(outpath):
+            LOGWARNING(
+                '%s exists already and skip_converted = True, skipping...' %
+                outpath
+            )
+            return outpath
+
+
+    # normalize the lcdict if we have to
     if normfunc:
         lcdict = normfunc(lcdict)
 
