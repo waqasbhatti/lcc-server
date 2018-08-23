@@ -87,7 +87,6 @@ def LOGEXCEPTION(message):
 import os.path
 import shutil
 import json
-import pickle
 
 
 
@@ -205,7 +204,7 @@ def prepare_basedir(basedir,
 
         # write site-json to the basedir
         with open(os.path.join(basedir,'site-info.json'),'w') as outfd:
-            json.dump(siteinfo, outfd)
+            json.dump(siteinfo, outfd, indent=2)
 
         LOGINFO('created site-info.json: %s' %
                 os.path.join(basedir,'site-info.json'))
@@ -224,7 +223,7 @@ def prepare_basedir(basedir,
                     "lcformat": "Light curve columns and metadata description"}
 
         with open(os.path.join(basedir,'docs','doc-index.json'),'w') as outfd:
-            json.dump(docindex, outfd)
+            json.dump(docindex, outfd, indent=2)
 
         with open(os.path.join(basedir,'docs','citation.md'),'w') as outfd:
             outfd.write(
@@ -246,3 +245,137 @@ def prepare_basedir(basedir,
 #################################
 ## GENERATING LCC SERVER FILES ##
 #################################
+
+def new_collection_directories(basedir,
+                               collection_id,
+                               lightcurve_dir=None,
+                               checkplot_dir=None,
+                               pfresult_dir=None):
+    '''This just adds a new collection's subdirs to the basedir.
+
+    Links the lightcurves subdir to basedir/csvlcs/collection_id
+
+    Also generates a stub lcformat-description.json in the collection subdir and
+    links it to basedir/lccjsons/collection_id/lcformat-description.json.
+
+    '''
+
+    if os.path.exists(os.path.join(basedir, collection_id)):
+
+        LOGERROR('directory: %s for '
+                 'collection: %s already exists, not touching it' %
+                 (os.path.join(basedir,collection_id), collection_id))
+        return None
+
+    else:
+
+        os.mkdir(os.path.join(basedir,collection_id))
+
+        #
+        # 1. make the checkplots subdir
+        #
+        if checkplot_dir and os.path.exists(checkplot_dir):
+
+            os.symlink(os.path.abspath(checkplot_dir),
+                       os.path.join(basedir,collection_id, 'checkplots'))
+            LOGINFO('linked provided checkplot '
+                    'directory: %s for collection: %s to %s' %
+                    (os.path.abspath(checkplot_dir),
+                     collection_id,
+                     os.path.join(basedir,collection_id, 'checkplots')))
+
+        else:
+            LOGWARNING('no existing checkplot '
+                       'directory for collection: %s, making a new one at: %s' %
+                       (collection_id,
+                        os.path.join(basedir,collection_id, 'checkplots')))
+            os.mkdir(os.path.join(basedir,collection_id, 'checkplots'))
+
+        #
+        # 2. make the pfresults subdir
+        #
+        if pfresult_dir and os.path.exists(pfresult_dir):
+
+            os.symlink(os.path.abspath(pfresult_dir),
+                       os.path.join(basedir,collection_id, 'pfresults'))
+            LOGINFO('linked provided pfresult '
+                    'directory: %s for collection: %s to %s' %
+                    (os.path.abspath(pfresult_dir),
+                     collection_id,
+                     os.path.join(basedir,collection_id, 'pfresults')))
+
+        else:
+            LOGWARNING('no existing pfresult '
+                       'directory for collection: %s, making a new one at: %s' %
+                       (collection_id,
+                        os.path.join(basedir,collection_id, 'pfresults')))
+            os.mkdir(os.path.join(basedir,collection_id, 'pfresults'))
+
+
+        #
+        # 3. make the light curve subdir
+        #
+        if lightcurve_dir and os.path.exists(lightcurve_dir):
+
+            os.symlink(os.path.abspath(lightcurve_dir),
+                       os.path.join(basedir,collection_id, 'lightcurves'))
+            LOGINFO('linked provided lightcurve '
+                    'directory: %s for collection: %s to %s' %
+                    (os.path.abspath(lightcurve_dir),
+                     collection_id,
+                     os.path.join(basedir,collection_id, 'lightcurves')))
+
+        else:
+            LOGWARNING('no existing lightcurve '
+                       'directory for collection: %s, making a new one at: %s' %
+                       (collection_id,
+                        os.path.join(basedir,collection_id, 'lightcurves')))
+            os.mkdir(os.path.join(basedir,collection_id, 'lightcurves'))
+
+        # symlink this light curve dir to basedir/csvlcs/collection_id
+        os.symlink(os.path.abspath(os.path.join(basedir,
+                                                collection_id,
+                                                'lightcurves')),
+                   os.path.join(basedir, 'csvlcs', collection_id))
+
+        # generate a stub lcformat-description.json file in the
+        # basedir/collection_id directory
+        lcformat_json_stub = os.path.join(os.path.dirname(__file__),
+                                          'backend',
+                                          'lcformat-jsons',
+                                          'lcformat-description.json')
+        shutil.copy(lcformat_json_stub, os.path.join(basedir, collection_id))
+
+        # symlink this to lccjsons/collection_id/lcformat-description.json
+        os.makedirs(os.path.join(basedir,'lccjsons',collection_id))
+        os.symlink(os.path.abspath(os.path.join(basedir,
+                                                collection_id,
+                                                'lcformat-description.json')),
+                   os.path.join(basedir,
+                                'lccjsons',
+                                collection_id,
+                                'lcformat-description.json'))
+
+        # tell the user they need to fill this file in
+        LOGINFO(
+            'generated a stub lcformat-description.json file at: %s' %
+            os.path.join(basedir, collection_id, 'lcformat-description.json')
+        )
+        LOGINFO('please fill this out using the instructions within so '
+                'LCC server can read your original format light curves '
+                'and convert them to common LCC CSVLC format')
+
+        #
+        # return the finished LC collection directory at the end
+        #
+        return os.path.join(basedir, collection_id)
+
+
+
+def generate_augmented_lclist_catalog(basedir,
+                                      collection_id,
+                                      lclist_pkl):
+    '''This generates a lclist-catalog.pkl file containing extra info from
+    checkplots.
+
+    '''
