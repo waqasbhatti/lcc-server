@@ -87,7 +87,16 @@ def LOGEXCEPTION(message):
 import os.path
 import shutil
 import json
+import glob
 
+import multiprocessing as mp
+NCPUS = mp.cpu_count()
+
+from .backend import abcat
+from .backend import datasets
+
+datasets.set_logger_parent(__name__)
+abcat.set_logger_parent(__name__)
 
 
 #######################
@@ -242,9 +251,9 @@ def prepare_basedir(basedir,
 
 
 
-#################################
-## GENERATING LCC SERVER FILES ##
-#################################
+###################################
+## PREPPING FOR AN LC COLLECTION ##
+###################################
 
 def new_collection_directories(basedir,
                                collection_id,
@@ -372,6 +381,133 @@ def new_collection_directories(basedir,
 
 
 
+def convert_original_lightcurves(basedir,
+                                 collection_id,
+                                 original_lcdir=None,
+                                 convert_workers=NCPUS,
+                                 csvlc_version=1,
+                                 comment_char='#',
+                                 column_separator=',',
+                                 skip_converted=False):
+    '''This converts original format light curves to the common LCC CSV format.
+
+    This is optional since the LCC server can do this conversion on-the-fly if
+    necessary, but this slows down LC zip operations if people request large
+    numbers of light curves.
+
+    If original_lcdir is not None, this will be used as the source of the light
+    curves. If it is None, we'll assume that the lightcurves to convert are
+    present in the basedir/collection_id/lightcurves directory already.
+
+    The light curves will be read using the module and function specified in the
+    basedir/collection_id/lcformat-description.json file. Next, they will be
+    normalized using the module and function specified in the
+    basedir/collection_id/lcformat-description.json file. Finally, the
+    conversion will take place and put the output light curves into the
+    basedir/lc_collection/lightcurves directory.
+
+    convert_workers controls the number of parallel workers used to convert
+    the light curves.
+
+    csvlc_version, comment_char, column_separator, skip_converted control the
+    CSV LC output and are passed directly to abcat.convert_to_csvlc.
+
+    '''
+
+    # make sure we have a filled out lcformat-description.json for this
+    # collection
+    lcformjson = os.path.join(basedir,
+                              collection_id,
+                              'lcformat-description.json')
+
+    if not os.path.exists(lcformjson):
+        LOGERROR("no lcformat-description.json "
+                 "file found for collection: %s in dir: %s, "
+                 "can't continue" %
+                 (collection_id, os.path.join(basedir, collection_id)))
+        return None
+
+    else:
+
+        try:
+
+            lcformatdict = abcat.get_lcformat_description(lcformjson)
+
+        except Exception as e:
+
+            LOGEXCEPTION("lcformat-description.json "
+                         "could not be loaded, can't continue")
+            return None
+
+        # now that we have the lcformatdict, we can start processing the light
+        # curves
+
+        if original_lcdir and os.path.exists(original_lcdir):
+            input_lcdir = original_lcdir
+        else:
+            input_lcdir = os.path.join(basedir, collection_id, 'lightcurves')
+
+        # list the light curves using the fileglob for this LC format
+        input_lclist = glob.glob(
+            os.path.join(input_lcdir, lcformatdict['fileglob'])
+        )
+
+        if len(input_lclist) == 0:
+
+            LOGERROR("no light curves found for LC format: %s, "
+                     "collection: %s in input LC dir: %s "
+                     "(using glob: '%s') , can't continue" %
+                     (lcformatdict['formatkey'],
+                      collection_id,
+                      input_lcdir,
+                      lcformatdict['fileglob']))
+            return None
+
+        converter_options = {'csvlc_version':csvlc_version,
+                             'comment_char':comment_char,
+                             'column_separator':column_separator,
+                             'skip_converted':skip_converted}
+
+        tasks = [(x, y, lcformatdict, converter_options) for x, y in
+                 zip(input_lclist, (None for x in input_lclist))]
+
+        # do the conversion
+        LOGINFO('converting light curves...')
+        pool = mp.Pool(convert_workers)
+        results = pool.map(datasets.csvlc_convert_worker, tasks)
+        pool.close()
+        pool.join()
+        LOGINFO('LC conversion complete')
+
+        # if the original_lcdir != basedir/collection_id/lightcurves, then
+        # symlink the output CSVs to that directory
+        if os.path.abspath(original_lcdir) != os.path.abspath(basedir,
+                                                              collection_id,
+                                                              'lightcurves'):
+
+            LOGINFO(
+                'symlinking output light curves to '
+                'collection lightcurves dir: %s...' %
+                os.path.join(basedir, collection_id, 'lightcurves')
+            )
+
+            for lc in results:
+                os.symlink(os.path.abspath(lc),
+                           os.path.join(basedir,
+                                        collection_id,
+                                        'lightcurves',
+                                        os.path.basename(lc)))
+
+            LOGINFO('symlinking complete.')
+
+        return results
+
+
+
+################################################
+## GENERATING PER LC COLLECTION INFO CATALOGS ##
+################################################
+
 def generate_augmented_lclist_catalog(basedir,
                                       collection_id,
                                       lclist_pkl):
@@ -379,3 +515,84 @@ def generate_augmented_lclist_catalog(basedir,
     checkplots.
 
     '''
+
+
+
+def generate_catalog_kdtree(basedir,
+                            collection_id,
+                            lclist_pkl):
+    '''This generates the kd-tree pickle for spatial searches.
+
+    '''
+
+
+
+def generate_catalog_database(basedir,
+                              collection_id,
+                              augcat_pkl):
+    '''This generates the objectinfo-catalog.sqlite database.
+
+    '''
+
+
+
+##########################################
+## GENERATING LCC SERVER ROOT DATABASES ##
+##########################################
+
+def new_lcc_index_db(basedir):
+    '''
+    This generates an lcc-index DB in the basedir.
+
+    '''
+
+
+
+def new_lcc_datasets_db(basedir):
+    '''
+    This generates an lcc-datasets DB in the basedir.
+
+    '''
+
+
+
+def add_collection_to_lcc_index(basedir,
+                                collection_id,
+                                collection_metadata=None):
+    '''
+    This adds an LC collection to the index DB.
+
+    '''
+
+
+
+def remove_collection_from_lcc_index(basedir,
+                                     collection_id,
+                                     remove_files=False):
+    '''
+    This removes an LC collection from the index DB.
+
+    Optionally removes the files as well.
+
+    '''
+
+
+
+##############
+## CLI MAIN ##
+##############
+
+def main():
+    '''
+    This drives the CLI.
+
+    '''
+
+
+
+##############################
+## DIRECT EXECUTION SUPPORT ##
+##############################
+
+if __name__ == '__main__':
+    main()
