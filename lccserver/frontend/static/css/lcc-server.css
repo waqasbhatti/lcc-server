@@ -89,6 +89,10 @@ code {
   font-size: small;
 }
 
+.card-header {
+    padding: 0.25rem 0.5rem;
+}
+
 /* styles for the objectinfo modal  */
 
 .modal-dialog {
