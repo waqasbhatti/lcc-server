@@ -88,16 +88,21 @@ import os.path
 import shutil
 import json
 import glob
+import sqlite3
 
 import multiprocessing as mp
 NCPUS = mp.cpu_count()
 
+import numpy as np
+
 from .backend import abcat
 from .backend import datasets
+from astrobase import lcproc
+
 
 datasets.set_logger_parent(__name__)
 abcat.set_logger_parent(__name__)
-
+lcproc.set_logger_parent(__name__)
 
 #######################
 ## PREPARING BASEDIR ##
@@ -208,7 +213,7 @@ def prepare_basedir(basedir,
         # link target
         else:
 
-            siteinfo["institution_link"] = None
+            siteinfo["institution_logo"] = None
 
 
         # write site-json to the basedir
@@ -306,19 +311,19 @@ def new_collection_directories(basedir,
         if pfresult_dir and os.path.exists(pfresult_dir):
 
             os.symlink(os.path.abspath(pfresult_dir),
-                       os.path.join(basedir,collection_id, 'pfresults'))
+                       os.path.join(basedir,collection_id, 'periodfinding'))
             LOGINFO('linked provided pfresult '
                     'directory: %s for collection: %s to %s' %
                     (os.path.abspath(pfresult_dir),
                      collection_id,
-                     os.path.join(basedir,collection_id, 'pfresults')))
+                     os.path.join(basedir,collection_id, 'periodfinding')))
 
         else:
             LOGWARNING('no existing pfresult '
                        'directory for collection: %s, making a new one at: %s' %
                        (collection_id,
-                        os.path.join(basedir,collection_id, 'pfresults')))
-            os.mkdir(os.path.join(basedir,collection_id, 'pfresults'))
+                        os.path.join(basedir,collection_id, 'periodfinding')))
+            os.mkdir(os.path.join(basedir,collection_id, 'periodfinding'))
 
 
         #
@@ -509,31 +514,333 @@ def convert_original_lightcurves(basedir,
 ## GENERATING PER LC COLLECTION INFO CATALOGS ##
 ################################################
 
-def generate_augmented_lclist_catalog(basedir,
-                                      collection_id,
-                                      lclist_pkl):
+def generate_augmented_lclist_catalog(
+        basedir,
+        collection_id,
+        lclist_pkl,
+        magcol,
+        checkplot_glob='checkplot-*.pkl*',
+        nworkers=NCPUS,
+        infokeys=[
+            # key, dtype, first level, overwrite=T|append=F, None sub, nan sub
+            ('comments',
+             np.unicode_, False, True, '', ''),
+            ('objectinfo.objecttags',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.twomassid',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.bmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.vmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.rmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.imag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.jmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.hmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.kmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.sdssu',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.sdssg',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.sdssr',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.sdssi',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.sdssz',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_bmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_vmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_rmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_imag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_jmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_hmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_kmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_sdssu',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_sdssg',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_sdssr',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_sdssi',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.dered_sdssz',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_bmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_vmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_rmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_imag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_jmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_hmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_kmag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_sdssu',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_sdssg',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_sdssr',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_sdssi',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.extinction_sdssz',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.color_classes',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.pmra',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.pmdecl',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.propermotion',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.rpmj',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.gl',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.gb',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.gaia_status',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.gaia_ids.0',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.gaiamag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.gaia_parallax',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.gaia_parallax_err',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.abs_gaiamag',
+             np.float_, True, True, np.nan, np.nan),
+            ('objectinfo.simbad_best_mainid',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.simbad_best_objtype',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.simbad_best_allids',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.simbad_best_distarcsec',
+             np.float_, True, True, np.nan, np.nan),
+            ('varinfo.vartags',
+             np.unicode_, False, True, '', ''),
+            ('varinfo.varperiod',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.varepoch',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.varisperiodic',
+             np.int_, False, True, 0, 0),
+            ('varinfo.objectisvar',
+             np.int_, False, True, 0, 0),
+            ('varinfo.features.median',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.mad',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.stdev',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.mag_iqr',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.skew',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.kurtosis',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.stetsonj',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.stetsonk',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.eta_normal',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.linear_fit_slope',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.magnitude_ratio',
+             np.float_, False, True, np.nan, np.nan),
+            ('varinfo.features.beyond1std',
+             np.float_, False, True, np.nan, np.nan)
+        ]
+):
     '''This generates a lclist-catalog.pkl file containing extra info from
     checkplots.
 
+    basedir is the base directory for the LCC server
+
+    collection_id is the directory name of the collection you want to process
+
+    lclist_pkl is the path to the original list catalog pickle created for the
+    light curves in the collection using astrobase.lcproc.make_lclist
+
+    magcol is the LC magnitude column being used in the checkplots' feature
+    keys. This will be added as a prefix to the infokeys.
+
+    nworkers sets the number of parallel workers to use when gathering info from
+    the checkplots.
+
+    infokeys is a list of key specs to extract from each checkplot. the provided
+    list is a good default and should contain the most useful keys from
+    checkplots generated using astrobase.checkplot.checkplot_pickle or
+    astrobase.lcproc.runcp.
+
+    key specs are tuples of the form:
+
+    (key, dtype, first level, overwrite=T|append=F, None sub, nan sub)
+
+    where:
+
+    key -> the name of dict key to extract from the checkplot dict. this can be
+           a single key, e.g. 'comments' to extract checkplot_dict['comments'],
+           or a multiple level key, e.g. 'varinfo.features.stetsonj' to extract
+           checkplot_dict['varinfo']['features']['stetsonj']. For multi-level
+           keys, the last item will be used as the canonical name of the key
+           when writing it to output catalog_pickle_dict['objects'].
+
+    dtype -> the numpy dtype for the value of the key
+
+    first level -> True means the key is not associated with the provided
+                   magcol. if this is False, the output key string in the
+                   catalog_pickle_dict['objects'] will be 'magcol.key'. This
+                   allows you to run this function multiple times with different
+                   magcols and add in info that may differ between them,
+                   e.g. adding in aep_000.varinfo.varperiod and
+                   atf_000.varinfo.varperiod for period-finding run on the
+                   magcols aep_000 and atf_000 separately.
+
+    overwrite_append -> currently unused. used to set if the key should
+                        overwrite an existing key of the same name in the output
+                        catalog_pickle_dict['objects']. This is currently True
+                        for all keys.
+
+    None sub -> what to use to substitute a None value in the key. We use this
+                so we can turn the output catalog_pickle_dict into a numpy array
+                of a single dtype so we can index it more efficiently.
+
+    nan sub -> what to use to substitute a nan value in the key. We use this
+               so we can turn the output catalog_pickle_dict into a numpy array
+               of a single dtype so we can index it more efficiently.
+
     '''
+
+    # get the basedir/collection_id/checkplots directory
+    cpdir = os.path.join(basedir, collection_id, 'checkplots')
+
+    # check if there are any checkplots in there
+    cplist = glob.glob(os.path.join(cpdir, checkplot_glob))
+
+    # use lcproc.add_cpinfo_to_lclist with LC format info to update the catalog
+    # write to basedir/collection_id/lclist-catalog.pkl
+    augcat = lcproc.add_cpinfo_to_lclist(
+        cplist,
+        lclist_pkl,
+        magcol,
+        os.path.join(basedir, collection_id, 'lclist-catalog.pkl'),
+        infokeys=infokeys,
+        nworkers=nworkers
+    )
+
+    return augcat
 
 
 
 def generate_catalog_kdtree(basedir,
-                            collection_id,
-                            lclist_pkl):
+                            collection_id):
     '''This generates the kd-tree pickle for spatial searches.
 
     '''
 
+    # get basedir/collection_id/lclist-catalog.pkl
+    lclist_catalog_pickle = os.path.join(basedir,
+                                         collection_id,
+                                         'lclist-catalog.pkl')
+
+    # pull out the kdtree and write to basedir/collection_id/catalog-kdtree.pkl
+    return abcat.kdtree_from_lclist(lclist_catalog_pickle,
+                                    os.path.join(basedir,
+                                                 collection_id,
+                                                 'catalog-kdtree.pkl'))
 
 
-def generate_catalog_database(basedir,
-                              collection_id,
-                              augcat_pkl):
+def generate_catalog_database(
+        basedir,
+        collection_id,
+        collection_info={
+            'name':'Example LC Collection',
+            'desc':'This is an example light curve collection.',
+            'project':'LCC-Server Example Project',
+            'datarelease':1,
+            'citation':'Your citation goes here (2018)',
+            'ispublic':True
+        },
+        colinfo=None,
+        indexcols=None,
+        ftsindexcols=None
+):
     '''This generates the objectinfo-catalog.sqlite database.
 
+    basedir is the base directory of the LCC server
+
+    collection_id is the directory name of the LC collection we're working on.
+
+    collection_info is a dict that MUST have the keys listed in the
+    example. replace these values with those appropriate for your LC collection.
+
+    If colinfo is not None, it should be either a dict or JSON with elements
+    that are of the form:
+
+    'column_name':{
+        'title':'column title',
+        'dtype':numpy dtype of the column,
+        'format':string format specifier for this column,
+        'description':'a long description of the column',
+        'index': True if this should be indexed, False otherwise,
+        'ftsindex': True if this should be full-text-search indexed, or False
+    }
+
+    where column_name should be each column in the augcatpkl file. Any column
+    that doesn't have a key in colinfo won't have any extra information
+    associated with it.
+
+    If colinfo is not provided (i.e. is None by default), this function will use
+    the column definitions provided in lccserver.abcat.COLUMN_INFO and
+    lccserver.abcat.COMPOSITE_COLUMN_INFO. These are fairly extensive and should
+    cover all of the data that the upstream astrobase tools can generate for
+    object information in checkplots.
+
+    indexcols and ftsindexcols are custom lists of columns to index in the
+    output SQLite database. Normally, these aren't needed, because you'll
+    specify all of the info in the colinfo kwarg.
+
     '''
+
+    # get basedir/collection_id/lclist-catalog.pkl
+    lclist_catalog_pickle = os.path.join(basedir,
+                                         collection_id,
+                                         'lclist-catalog.pkl')
+
+    # write the catalog-objectinfo.sqlite DB to basedir/collection_id
+    return abcat.objectinfo_to_sqlite(
+        lclist_catalog_pickle,
+        os.path.join(basedir, collection_id, 'catalog-objectinfo.sqlite'),
+        lcset_name=collection_info['name'],
+        lcset_desc=collection_info['desc'],
+        lcset_project=collection_info['project'],
+        lcset_datarelease=collection_info['datarelease'],
+        lcset_citation=collection_info['citation'],
+        lcset_ispublic=collection_info['ispublic'],
+        colinfo=colinfo,
+        indexcols=indexcols,
+        ftsindexcols=ftsindexcols
+    )
 
 
 
@@ -547,6 +854,8 @@ def new_lcc_index_db(basedir):
 
     '''
 
+    return abcat.sqlite_make_lcc_index_db(basedir)
+
 
 
 def new_lcc_datasets_db(basedir):
@@ -555,15 +864,25 @@ def new_lcc_datasets_db(basedir):
 
     '''
 
+    return datasets.sqlite_datasets_db_create(basedir)
+
 
 
 def add_collection_to_lcc_index(basedir,
                                 collection_id,
-                                collection_metadata=None):
+                                raiseonfail=False):
     '''
     This adds an LC collection to the index DB.
 
+    basedir is the base directory of the LCC server
+
+    collection_id is the directory name of the LC collection we're working on.
+
     '''
+
+    return abcat.sqlite_collect_lcc_info(basedir,
+                                         collection_id,
+                                         raiseonfail=raiseonfail)
 
 
 
@@ -576,6 +895,38 @@ def remove_collection_from_lcc_index(basedir,
     Optionally removes the files as well.
 
     '''
+    # find the root DB
+    lccdb = os.path.join(basedir, 'lcc-index.sqlite')
+
+    database = sqlite3.connect(
+        lccdb,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cursor = database.cursor()
+
+    query = 'delete from lcc_index where collection_id = ?'
+    params = (collection_id,)
+
+    cursor.execute(query, params)
+    database.commit()
+
+    query = 'select from lcc_index where collection_id = ?'
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+
+    if len(rows) == 0:
+        LOGINFO('deleted collection: %s from index DB: %s' % (collection_id,
+                                                              lccdb))
+    database.close()
+
+    if remove_files:
+
+        LOGWARNING('removing files for '
+                   'collection: %s in basedir: %s' % (collection_id,
+                                                      basedir))
+        shutil.rmtree(os.path.abspath(os.path.join(basedir, collection_id)))
+        LOGWARNING('removed directory tree: %s' %
+                   (os.path.abspath(os.path.join(basedir, collection_id))))
 
 
 

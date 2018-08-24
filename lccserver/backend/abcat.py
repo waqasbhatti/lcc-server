@@ -903,6 +903,26 @@ insert or replace into lcc_index (
 '''
 
 
+def sqlite_make_lcc_index_db(lcc_basedir):
+    '''
+    This just makes the lcc-index.sqlite file in the DB.
+
+    '''
+    # find the root DB
+    lccdb = os.path.join(lcc_basedir, 'lcc-index.sqlite')
+
+    database = sqlite3.connect(
+        lccdb,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    cursor = database.cursor()
+
+    cursor.executescript(SQLITE_LCC_CREATE)
+    database.commit()
+
+    return lccdb
+
+
 
 def sqlite_collect_lcc_info(
         lcc_basedir,
