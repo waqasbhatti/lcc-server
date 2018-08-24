@@ -1472,9 +1472,6 @@ def convert_to_csvlc(lcfile,
     metajson = indent(json.dumps(meta, indent=2), '%s ' % comment_char)
     coljson = indent(json.dumps(columns, indent=2), '%s ' % comment_char)
 
-    # the final format string for each column line
-    line_formstr = '%s\n' % ('%s' % column_separator).join(line_formstr)
-
     # now, put together everything
     with gzip.open(outpath, 'wb') as outfd:
 
@@ -1501,10 +1498,22 @@ def convert_to_csvlc(lcfile,
 
         for lineind in range(nlines):
 
-            thisline = [
-                lcdict[x][lineind] for x in available_keys
-            ]
-            formline = line_formstr % tuple(thisline)
+            thisline = []
+            for x in available_keys:
+
+                # we need to check if any col vals conflict with the specified
+                # formatter. in this case, we'll turn the formatter into %s so
+                # we don't fail here. this usually comes up if nan is provided
+                # as a value to %i
+                try:
+                    thisline.append(
+                        lcformat_dict['columns'][x]['format'] %
+                        lcdict[x][lineind]
+                    )
+                except:
+                    thisline.append(str(lcdict[x][lineind]))
+
+            formline = '%s\n' % ('%s' % column_separator).join(thisline)
             outfd.write(formline.encode())
 
     return outpath

@@ -477,13 +477,14 @@ def convert_original_lightcurves(basedir,
         results = pool.map(datasets.csvlc_convert_worker, tasks)
         pool.close()
         pool.join()
-        LOGINFO('LC conversion complete')
+        LOGINFO('LC conversion complete.')
 
         # if the original_lcdir != basedir/collection_id/lightcurves, then
         # symlink the output CSVs to that directory
-        if os.path.abspath(original_lcdir) != os.path.abspath(basedir,
-                                                              collection_id,
-                                                              'lightcurves'):
+        if (original_lcdir and
+            os.path.abspath(original_lcdir) != os.path.abspath(basedir,
+                                                               collection_id,
+                                                               'lightcurves')):
 
             LOGINFO(
                 'symlinking output light curves to '
