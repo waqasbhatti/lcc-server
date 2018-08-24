@@ -1172,7 +1172,7 @@ def main():
 
         collection_id = input(
             'Collection identifier '
-            '[default: my-new-collection]'
+            '[default: my-new-collection] '
         )
         if not collection_id or len(collection_id.strip()) == 0:
             collection_id = 'my-new-collection'
@@ -1190,13 +1190,13 @@ def main():
             )
 
         lightcurve_dir = input(
-            'Original light curves directory [default: None]'
+            'Original light curves directory [default: None] '
         )
         if not lightcurve_dir or len(lightcurve_dir.strip()) == 0:
             lightcurve_dir = None
 
         checkplot_dir = input('Original checkplot pickles '
-                              'directory [default: None]')
+                              'directory [default: None] ')
         if not checkplot_dir or len(checkplot_dir.strip()) == 0:
             checkplot_dir = None
 
@@ -1360,6 +1360,15 @@ def main():
         else:
 
             print("Skipping conversion. ")
+            ret = input(
+                "Please copy or symlink your original format "
+                "light curves into this LC collection's "
+                "lightcurves directory:\n\n"
+                "%s \n\n"
+                "We'll wait here until you're done. "
+                "[hit Enter to continue]" %
+                os.path.abspath(os.path.join(collection_dir, 'lightcurves'))
+            )
 
         #
         # next, we'll set up the lclist.pkl file
