@@ -1228,7 +1228,7 @@ def main():
                 print('Everything checks out!')
 
             except:
-                print("Could not validate your lcformat-description.json file")
+                print("Could not validate your lcformat-description.json file!")
                 raise
 
             collection_dir = os.path.join(args.basedir,
@@ -1299,7 +1299,7 @@ def main():
 
                 except:
                     print("Could not validate your "
-                          "lcformat-description.json file")
+                          "lcformat-description.json file!")
                     raise
 
             # if we don't want to edit right now, drop out
@@ -1328,6 +1328,16 @@ def main():
         # the next step is to ask if we can reform the original LCs to the
         # common LCC CSV format
         #
+        ret = input(
+            "Please copy or symlink your original format "
+            "light curves into this LC collection's "
+            "lightcurves directory:\n\n"
+            "%s \n\n"
+            "We'll wait here until you're done. "
+            "[hit Enter to continue]" %
+            os.path.abspath(os.path.join(collection_dir, 'lightcurves'))
+        )
+
         convertlcs = input(
             "The LCC server can convert your original format LCs "
             "to the common LCC CSV format as they are "
@@ -1337,16 +1347,6 @@ def main():
             "light curves to LCC CSV format now? [y/N] "
         )
         if convertlcs.strip().lower() == 'y':
-
-            ret = input(
-                "Please copy or symlink your original format "
-                "light curves into this LC collection's "
-                "lightcurves directory:\n\n"
-                "%s \n\n"
-                "We'll wait here until you're done. "
-                "[hit Enter to continue]" %
-                os.path.abspath(os.path.join(collection_dir, 'lightcurves'))
-            )
 
             print('Launching conversion tasks. This might take a while...')
 
@@ -1360,15 +1360,6 @@ def main():
         else:
 
             print("Skipping conversion. ")
-            ret = input(
-                "Please copy or symlink your original format "
-                "light curves into this LC collection's "
-                "lightcurves directory:\n\n"
-                "%s \n\n"
-                "We'll wait here until you're done. "
-                "[hit Enter to continue]" %
-                os.path.abspath(os.path.join(collection_dir, 'lightcurves'))
-            )
 
         #
         # next, we'll set up the lclist.pkl file
@@ -1406,10 +1397,17 @@ def main():
 
         # ask which timecol, magcol, errcol the user wants to use
         while not timecol or len(timecol.strip()) == 0:
+
             timecol = input(
                 "\nWhich key in the lcdict do you want to use "
                 "for the time column? "
             )
+            if ((not timecol) or
+                (len(timecol.strip()) == 0) or
+                (timecol not in lc_keys)):
+                print("The provided timecol: %s "
+                      "isn't present in lcdict keys." % timecol)
+                timecol = None
 
         # ask which magcol, magcol, errcol the user wants to use
         while not magcol or len(magcol.strip()) == 0:
@@ -1417,6 +1415,12 @@ def main():
                 "Which key in the lcdict do you want to use "
                 "for the mag column? "
             )
+            if ((not magcol) or
+                (len(magcol.strip()) == 0) or
+                (magcol not in lc_keys)):
+                print("The provided magcol: %s "
+                      "isn't present in lcdict keys." % magcol)
+                magcol = None
 
         # ask which errcol, magcol, errcol the user wants to use
         while not errcol or len(errcol.strip()) == 0:
@@ -1424,8 +1428,15 @@ def main():
                 "Which key in the lcdict do you want to use "
                 "for the err column? "
             )
+            if ((not errcol) or
+                (len(errcol.strip()) == 0) or
+                (errcol not in lc_keys)):
+                print("The provided errcol: %s "
+                      "isn't present in lcdict keys." % errcol)
+                errcol = None
 
-        print('Generating a light curve list pickle...')
+        print('Generating a light curve list pickle using magcol: %s...' %
+              magcol)
 
         lcproc.register_custom_lcformat(
             lcform['formatkey'],
@@ -1480,7 +1491,7 @@ def main():
         else:
 
             print('Found %s checkplot pickles. '
-                  'Generating object catalog pickle and kd-tree...' %
+                  'Generating augmented object catalog pickle and kd-tree...' %
                   len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))))
 
             augcat_pkl = generate_augmented_lclist_catalog(
@@ -1536,7 +1547,7 @@ def main():
             False
 
         # launch the user's editor to edit this LCC's description
-        print("We'll launch your editor to edit the description "
+        print("We'll now launch your editor to edit the description "
               "for this collection. You can use Markdown here.")
 
         # get the user's editor
@@ -1581,7 +1592,8 @@ def main():
                              'project':lcc_project,
                              'datarelease':lcc_datarelease,
                              'citation':lcc_citation,
-                             'ispublic':lcc_ispublic})
+                             'ispublic':lcc_ispublic}
+        )
 
         print("Adding this collection to the LCC server's index...")
         catindex = add_collection_to_lcc_index(args.basedir,
@@ -1592,6 +1604,12 @@ def main():
               'using the command below:\n')
         print('%s --basedir %s run-server' % (aparser.prog,
                                               args.basedir))
+
+        print('\nYou can start an IPython shell to explore this LC collection '
+              'using the command below:\n')
+        print('%s --basedir %s shell' % (aparser.prog,
+                                         args.basedir))
+
         sys.exit(0)
 
     elif args.command == 'del-collection':
