@@ -327,7 +327,8 @@ SQLITE_DISALLOWED_STRINGS = ['object_is_public',
                              'update',
                              'insert',
                              'alter',
-                             'create']
+                             'create',
+                             ';']
 
 
 def validate_sqlite_filters(filterstring,
