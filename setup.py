@@ -48,6 +48,7 @@ def readme():
         return f.read()
 
 INSTALL_REQUIRES = [
+    'ipython',
     'numpy',
     'scipy',
     'matplotlib',

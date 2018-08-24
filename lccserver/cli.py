@@ -23,6 +23,13 @@ run-server          -> runs an instance of the LCC server to provide
                        the main search interface and a backing instance
                        of the checkplotserver for serving objectinfo
 
+shell               -> starts an IPython shell in the context of the specified
+                       LCC server base directory. this is useful for debugging
+                       and running queries directly using the
+                       lccserver.backend.datasets.py and
+                       lccserver.backend.dbsearch.py modules
+
+
 and options are:
 
 --basedir           -> the base directory to execute all commands from
@@ -949,7 +956,7 @@ def remove_collection_from_lcc_index(basedir,
     cursor.execute(query, params)
     database.commit()
 
-    query = 'select from lcc_index where collection_id = ?'
+    query = 'select collection_id from lcc_index where collection_id = ?'
     cursor.execute(query, params)
     rows = cursor.fetchall()
 
@@ -1022,6 +1029,28 @@ async def start_lccserver(executor):
 ## CLI MAIN ##
 ##############
 
+CMD_HELP = '''COMMAND is one of:
+
+init-basedir        -> Initializes the basedir for the LCC server.
+                       This is an interactive command.
+
+add-collection      -> Adds an LC collection to the LCC server.
+                       This is an interactive command.
+
+del-collection      -> Removes an LC collection from the LCC server
+                       This will ask you for confirmation.
+
+run-server          -> Runs an instance of the LCC server to provide
+                       the main search interface and a backing instance
+                       of the checkplotserver for serving objectinfo.
+
+shell               -> Starts an IPython shell in the context of the specified
+                       LCC server base directory. This is useful for debugging
+                       and running queries directly using the
+                       lccserver.backend.datasets.py and
+                       lccserver.backend.dbsearch.py modules
+'''
+
 def main():
     '''
     This drives the CLI.
@@ -1033,22 +1062,27 @@ def main():
     import readline
 
     aparser = argparse.ArgumentParser(
-        description='LCC server CLI'
+        description='The LCC-Server CLI',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=CMD_HELP
     )
 
     aparser.add_argument('command',
                          choices=['init-basedir',
-                                  'new-collection',
+                                  'add-collection',
                                   'del-collection',
-                                  'run-server'],
+                                  'run-server',
+                                  'shell'],
                          action='store',
                          type=str,
-                         help=('command to run'))
+                         help='COMMAND to run')
 
     aparser.add_argument('--basedir',
                          action='store',
                          type=str,
-                         help=("the base directory to run commands in"),
+                         help=("The base directory to run commands in. "
+                               "This is the current directory by default: "
+                               "%(default)s"),
                          default=os.getcwd())
 
     args = aparser.parse_args()
@@ -1134,7 +1168,7 @@ def main():
         lcc_datasets = new_lcc_datasets_db(args.basedir)
 
 
-    elif args.command == 'new-collection':
+    elif args.command == 'add-collection':
 
         collection_id = input(
             'Collection identifier '
@@ -1276,7 +1310,7 @@ def main():
                     "file.\n\nPlease edit:\n\n%s\n\nto describe "
                     "your original light curve format and run this "
                     "command again:\n\n"
-                    "%s --basedir %s new-collection\n\nUse: %s for "
+                    "%s --basedir %s add-collection\n\nUse: %s for "
                     "the 'Collection identifier' prompt. "
                     "We'll then proceed to the next step."
                     % (os.path.abspath(
@@ -1549,6 +1583,95 @@ def main():
         print('%s --basedir %s run-server' % (aparser.prog,
                                               args.basedir))
         sys.exit(0)
+
+    elif args.command == 'del-collection':
+
+        # find the root DB
+        lccdb = os.path.join(args.basedir, 'lcc-index.sqlite')
+
+        database = sqlite3.connect(
+            lccdb,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        cursor = database.cursor()
+
+        cursor.execute('select collection_id, ispublic, name, nobjects, '
+                       'last_updated from lcc_index order by '
+                       'last_updated desc')
+        rows = cursor.fetchall()
+        database.close()
+
+        print('\nCurrent LC collections:\n')
+        print('%-18.18s %-10.10s %-23.23s %-10.10s %-19.19s' %
+              ('Collection ID','Is Public','Name','Objects','Last Updated'))
+        for row in rows:
+            print('%-18.18s %-10.10s %-23.23s %-10.10s %-19.19s' % row)
+
+        removecoll = input('\nCollection ID to remove: ')
+        if removecoll and len(removecoll.strip()) > 0:
+
+            confirm = input('Removing collection: %s. Proceed? [y/N]' %
+                            removecoll)
+
+            if (confirm and
+                len(confirm.strip()) > 0 and
+                confirm.strip().lower() == 'y'):
+
+                removed = remove_collection_from_lcc_index(
+                    args.basedir,
+                    removecoll
+                )
+
+                print(
+                    'Removed collection: %s from index DB. '
+                    'Files in its LCC server directory:\n\n%s\n\nhave '
+                    'NOT been touched. Remove them to permanently delete '
+                    'this collection.'
+                    % (removecoll,
+                       os.path.abspath(os.path.join(args.basedir, removecoll)))
+                )
+                sys.exit(0)
+
+            else:
+                print('No collection removed.')
+                sys.exit(0)
+
+        else:
+            print('No collection removed.')
+            sys.exit(0)
+
+    elif args.command == 'shell':
+
+        print('Launching an IPython shell '
+              'using LCC-Server base directory context:\n\n%s'
+              % os.path.abspath(args.basedir))
+        from IPython import embed
+
+        # import some useful modules
+        from .backend import abcat
+        from .backend import datasets
+        from .backend import dbsearch
+        import pprint
+        import json
+        import numpy as np
+        import gzip
+        import pickle
+        from importlib import reload
+
+        BASEDIR = os.path.abspath(args.basedir)
+
+        print('\nLCC-Server modules: abcat, datasets, '
+              'dbsearch have been imported automatically.')
+        print('The variable BASEDIR is set to the current base directory.')
+        print("You can call functions with this set, e.g.\n\n"
+              ">>> pprint.pprint(dbsearch."
+              "sqlite_get_collections(BASEDIR)['info'])\n")
+
+        print("Other auto-imported modules include: numpy as np, pickle, gzip, json.")
+        print("The reload() function is available as well.")
+        print("Have fun!")
+
+        embed(display_banner=None)
 
     else:
 
