@@ -991,7 +991,7 @@ async def start_lccserver(executor):
 
     Hit Ctrl+C to stop the server instances.
 
-    This is a bit hacked together. As usual, D. Beazley's PyMOTW was
+    This is a bit hacked together. As usual, D. Hellmann's PyMOTW was
     super-helpful:
 
     https://pymotw.com/3/asyncio/executors.html

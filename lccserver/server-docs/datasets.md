@@ -11,7 +11,7 @@ variability tags, and plots of phased light curves if period-finding was run).
 
 ## Dataset availability after queries
 
-Since all queries in the LCC server framework run asychronously and drop to a
+Since all queries in the LCC server framework run asynchronously and drop to a
 background queue after 30 seconds of "active" time, a dataset may not be
 considered "complete" until all light curves associated with it have been
 collected into a ZIP file. Most queries finish within 30 seconds and when you

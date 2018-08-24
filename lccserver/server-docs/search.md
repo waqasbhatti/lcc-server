@@ -30,7 +30,7 @@ All search services follow the same basic scheme:
 4. Type in the query coordinates or text as appropriate.
 
 Hitting the search button will start the query immediately. All queries run
-asychronously and you will be notified of the progress of and results from your
+asynchronously and you will be notified of the progress of and results from your
 query as it progresses through the execution stages. Clicking on the
 <strong>Queries</strong> tab will show the status of your query:
 

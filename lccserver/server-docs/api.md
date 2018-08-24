@@ -21,7 +21,7 @@ Service | Method and URL | Parameters | API key | Response
 
 ## Streaming search query responses
 
-Query results are returned with `Content-Type: application/json`. The LCC server is an asychronous service, with queries running in the foreground for up to 30 seconds, and then relegated to a background queue after that. The JSON returned is in [newline-delimited format](https://github.com/ndjson/ndjson-spec), with each line descibing the current state of the query. The final line represents the disposition of the query. You may want to use a streaming JSON parser if you want to react to the query stages in real-time: the LCC server itself uses [oboe.js](https://github.com/jimhigson/oboe.js) to handle this process on the frontend; see also [ijson](https://github.com/isagalaev/ijson) for a Python package. Most command-line applications like HTTPie (with the `--stream` flag) and cURL (with the `-N` flag) can handle this as well. You can also simply wait for up to 30 seconds to get the whole stream at once, and parse it later as needed.
+Query results are returned with `Content-Type: application/json`. The LCC server is an asynchronous service, with queries running in the foreground for up to 30 seconds, and then relegated to a background queue after that. The JSON returned is in [newline-delimited format](https://github.com/ndjson/ndjson-spec), with each line describing the current state of the query. The final line represents the disposition of the query. You may want to use a streaming JSON parser if you want to react to the query stages in real-time: the LCC server itself uses [oboe.js](https://github.com/jimhigson/oboe.js) to handle this process on the frontend; see also [ijson](https://github.com/isagalaev/ijson) for a Python package. Most command-line applications like HTTPie (with the `--stream` flag) and cURL (with the `-N` flag) can handle this as well. You can also simply wait for up to 30 seconds to get the whole stream at once, and parse it later as needed.
 
 An example of results from a query that finishes within 30 seconds:
 
@@ -107,7 +107,7 @@ Key | Contents
 `columnjson` | a list of JSON objects containing each collection's column names, titles, descriptions, string formats, and information on their indexed status
 `columnlist` | a list of comma-separated string lists of all column names per collection
 `ftsindexedcols` | a list of comma-separated strings containing the columns that have been indexed for fast text search for each collection
-`indexedcols` | a list of comma-separated strings containin the columns that have been indexed for each collection
+`indexedcols` | a list of comma-separated strings containing the columns that have been indexed for each collection
 `datarelease` | a list of the data release numbers for each collection
 `db_collection_id` | a list of the actual database collection IDs used for each collection
 `description` | a list of descriptions of the light curve collection's contents

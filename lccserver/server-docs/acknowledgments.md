@@ -37,6 +37,7 @@ al](http://adsabs.harvard.edu/abs/2000A%26AS..143....9W).
 The server backend is written in [Python](https://www.python.org) and uses the
 following packages available on [PyPi](https://pypi.org):
 
+- [ipython](http://ipython.org/)
 - [numpy](http://www.numpy.org/)
 - [scipy](http://www.scipy.org)
 - [tornado](http://www.tornadoweb.org/en/stable/)
