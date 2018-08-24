@@ -105,16 +105,18 @@ import shutil
 import json
 import glob
 import sqlite3
-
+import tempfile
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from functools import partial
+import pickle
 
 import multiprocessing as mp
 NCPUS = mp.cpu_count()
 
 import numpy as np
+from tornado.escape import squeeze
 
 #######################
 ## PREPARING BASEDIR ##
@@ -405,7 +407,7 @@ def convert_original_lightcurves(basedir,
                                  csvlc_version=1,
                                  comment_char='#',
                                  column_separator=',',
-                                 skip_converted=False):
+                                 skip_converted=True):
     '''This converts original format light curves to the common LCC CSV format.
 
     This is optional since the LCC server can do this conversion on-the-fly if
@@ -844,6 +846,8 @@ def generate_catalog_database(
     specify all of the info in the colinfo kwarg.
 
     '''
+    from .backend import abcat
+    abcat.set_logger_parent(__name__)
 
     # get basedir/collection_id/lclist-catalog.pkl
     lclist_catalog_pickle = os.path.join(basedir,
@@ -889,6 +893,8 @@ def new_lcc_datasets_db(basedir):
     This generates an lcc-datasets DB in the basedir.
 
     '''
+    from .backend import datasets
+    datasets.set_logger_parent(__name__)
 
     from .backend import abcat
     abcat.set_logger_parent(__name__)
@@ -1064,6 +1070,9 @@ def main():
         finally:
             event_loop.close()
 
+        # go back to the original directory
+        os.chdir(currdir)
+
     elif args.command == 'init-basedir':
 
         site_project = input('Project name [default: Example Project]: ')
@@ -1101,21 +1110,449 @@ def main():
             site_institution_link = "https://example.org"
 
         site_institution_logo = input(
-            'Path to a institution logo image file [default: None]: '
+            'Path to an institution logo image file [default: None]: '
         )
         if not site_institution_logo or len(site_institution_logo.strip()) == 0:
             site_institution_logo = None
 
-        return prepare_basedir(args.basedir,
-                               site_project=site_project,
-                               site_project_link=site_project_link,
-                               site_department=site_department,
-                               site_department_link=site_department_link,
-                               site_institution=site_institution,
-                               site_institution_link=site_institution_link,
-                               site_institution_logo=site_institution_logo)
+        # make the basedir
+        donebasedir = prepare_basedir(
+            args.basedir,
+            site_project=site_project,
+            site_project_link=site_project_link,
+            site_department=site_department,
+            site_department_link=site_department_link,
+            site_institution=site_institution,
+            site_institution_link=site_institution_link,
+            site_institution_logo=site_institution_logo
+        )
+
+        # make the lcc-index.sqlite database
+        lcc_index = new_lcc_index_db(args.basedir)
+
+        # make the lcc-datasets.sqlite database
+        lcc_datasets = new_lcc_datasets_db(args.basedir)
+
+
+    elif args.command == 'new-collection':
+
+        collection_id = input(
+            'Collection identifier '
+            '[default: my-new-collection]'
+        )
+        if not collection_id or len(collection_id.strip()) == 0:
+            collection_id = 'my-new-collection'
+        else:
+            collection_id = squeeze(
+                collection_id
+            ).strip(
+            ).lower(
+            ).replace(
+                '/','-'
+            ).replace(
+                ' ','-'
+            ).replace(
+                '\t','-'
+            )
+
+        lightcurve_dir = input(
+            'Original light curves directory [default: None]'
+        )
+        if not lightcurve_dir or len(lightcurve_dir.strip()) == 0:
+            lightcurve_dir = None
+
+        checkplot_dir = input('Original checkplot pickles '
+                              'directory [default: None]')
+        if not checkplot_dir or len(checkplot_dir.strip()) == 0:
+            checkplot_dir = None
+
+        # this is unused for now
+        pfresult_dir = None
+
+        from .backend import abcat
+        abcat.set_logger_parent(__name__)
+
+        # check if the collection_dir exists already and there's an
+        # lcformat-description.json file in there
+        if os.path.exists(os.path.join(args.basedir,
+                                       collection_id,
+                                       'lcformat-description.json')):
+
+            print('Existing lcformat-description.json found at: %s' %
+                  os.path.join(args.basedir,
+                               collection_id,
+                               'lcformat-description.json'))
+
+            # read in the format description JSON and check if it makes sense
+            try:
+
+                lcform = abcat.get_lcformat_description(
+                    os.path.join(args.basedir,
+                                 collection_id,
+                                 'lcformat-description.json')
+                )
+                print('Everything checks out!')
+
+            except:
+                print("Could not validate your lcformat-description.json file")
+                raise
+
+            collection_dir = os.path.join(args.basedir,
+                                          collection_id)
+
+        # if this doesn't exist, then we'll set up a new directory structure
+        else:
+
+            collection_dir = new_collection_directories(
+                args.basedir,
+                collection_id,
+                lightcurve_dir=lightcurve_dir,
+                checkplot_dir=checkplot_dir,
+                pfresult_dir=pfresult_dir
+            )
+
+            # now, we'll ask the user to edit their lcformat-description.json
+            # file if they agree, we'll launch a subprocess and wait for it to
+            # exit: "$(EDITOR) /path/to/lcformat-description.json"
+            editnow = input(
+                "Do you want to edit this LC collection's "
+                "lcformat-description.json file now? [Y/n] "
+            )
+
+            # if we agree to edit now, launch their editor
+            if editnow.lower() == 'y' or not editnow or len(editnow) == 0:
+
+                # get the user's editor
+                if 'EDITOR' in os.environ:
+                    editor = os.environ['EDITOR']
+                elif 'VISUAL' in os.environ:
+                    editor = os.environ['VISUAL']
+                else:
+                    editor = None
+
+                use_editor = None
+
+                while (not use_editor or len(use_editor.strip()) == 0):
+
+                    ask_editor = input('Editor to use [default: %s]: ' % editor)
+                    if ask_editor:
+                        use_editor = ask_editor
+                    elif ((not ask_editor or len(ask_editor.strip()) == 0) and
+                          editor):
+                        use_editor = editor
+                    else:
+                        use_editor = None
+
+                editor_cmdline = '%s %s' % (
+                    use_editor,
+                    os.path.abspath(
+                        os.path.join(collection_dir,
+                                     'lcformat-description.json')
+                    )
+                )
+
+                subprocess.call(editor_cmdline, shell=True)
+
+                print("Validating your lcformat-description.json file...")
+                try:
+
+                    lcform = abcat.get_lcformat_description(
+                        os.path.join(args.basedir,
+                                     collection_id,
+                                     'lcformat-description.json')
+                    )
+                    print('Everything checks out!')
+
+                except:
+                    print("Could not validate your "
+                          "lcformat-description.json file")
+                    raise
+
+            # if we don't want to edit right now, drop out
+            else:
+
+                print(
+                    "Returning without a validated lcformat-description.json "
+                    "file.\n\nPlease edit:\n\n%s\n\nto describe "
+                    "your original light curve format and run this "
+                    "command again:\n\n"
+                    "%s --basedir %s new-collection\n\nUse: %s for "
+                    "the 'Collection identifier' prompt. "
+                    "We'll then proceed to the next step."
+                    % (os.path.abspath(
+                        os.path.join(
+                            collection_dir,
+                            'lcformat-description.json'
+                        )),
+                       aparser.prog,
+                       args.basedir,
+                       collection_id)
+                )
+                sys.exit(0)
+
+        #
+        # the next step is to ask if we can reform the original LCs to the
+        # common LCC CSV format
+        #
+        convertlcs = input(
+            "The LCC server can convert your original format LCs "
+            "to the common LCC CSV format as they are "
+            "requested in search results, "
+            "but it might slow down your queries. "
+            "Do you want to convert your original format "
+            "light curves to LCC CSV format now? [y/N] "
+        )
+        if convertlcs.strip().lower() == 'y':
+
+            ret = input(
+                "Please copy or symlink your original format "
+                "light curves into this LC collection's "
+                "lightcurves directory:\n\n"
+                "%s \n\n"
+                "We'll wait here until you're done. "
+                "[hit Enter to continue]" %
+                os.path.abspath(os.path.join(collection_dir, 'lightcurves'))
+            )
+
+            print('Launching conversion tasks. This might take a while...')
+
+            converted = convert_original_lightcurves(
+                args.basedir,
+                collection_id
+            )
+
+            print('Done with LC conversion.')
+
+        else:
+
+            print("Skipping conversion. ")
+
+        #
+        # next, we'll set up the lclist.pkl file
+        #
+
+        from astrobase import lcproc
+        lcproc.set_logger_parent(__name__)
+
+        # pick the first LC in the LC dir and read it in using the provided LC
+        # reader function
+        lcdict = lcform['readerfunc'](
+            glob.glob(
+                os.path.abspath(
+                    os.path.join(collection_dir,
+                                 'lightcurves',
+                                 lcform['fileglob'])
+                )
+            )[0]
+        )
+        if isinstance(lcdict, (tuple, list)) and isinstance(lcdict[0], dict):
+            lcdict = lcdict[0]
+
+        if 'columns' in lcdict:
+            lc_keys = lcdict['columns']
+        else:
+            lc_keys = sorted(lcdict.keys())
+
+        print('Your original format light curves '
+              'contain the following keys '
+              'when read into an lcdict:\n')
+        for k in lc_keys:
+            print(k)
+
+        timecol, magcol, errcol = None, None, None
+
+        # ask which timecol, magcol, errcol the user wants to use
+        while not timecol or len(timecol.strip()) == 0:
+            timecol = input(
+                "\nWhich key in the lcdict do you want to use "
+                "for the time column? "
+            )
+
+        # ask which magcol, magcol, errcol the user wants to use
+        while not magcol or len(magcol.strip()) == 0:
+            magcol = input(
+                "Which key in the lcdict do you want to use "
+                "for the mag column? "
+            )
+
+        # ask which errcol, magcol, errcol the user wants to use
+        while not errcol or len(errcol.strip()) == 0:
+            errcol = input(
+                "Which key in the lcdict do you want to use "
+                "for the err column? "
+            )
+
+        print('Generating a light curve list pickle...')
+
+        lcproc.register_custom_lcformat(
+            lcform['formatkey'],
+            lcform['fileglob'],
+            lcform['readerfunc'],
+            [timecol],
+            [magcol],
+            [errcol]
+        )
+
+        lclpkl = lcproc.make_lclist(
+            os.path.join(collection_dir,
+                         'lightcurves'),
+            os.path.join(collection_dir,'lclist.pkl'),
+            lcformat=lcform['formatkey']
+        )
+
+        #
+        # now we'll reform this pickle by adding in checkplot info
+        #
+        print('Done.')
+        input("We will now generate an object catalog pickle "
+              "using the information from checkplot pickles "
+              "you have prepared from these light curves. "
+              "Please copy or symlink your checkplot pickles "
+              "into the directory:\n\n"
+              "%s \n\n"
+              "Note that this is optional, but highly recommended. "
+              "If you don't have any checkplot pickles prepared, "
+              "you can continue anyway, but the only "
+              "columns available for searching will be:\n\n"
+              "objectid, ra, decl, ndet, lcfname\n\n"
+              "We'll wait here until you're done. [hit Enter to continue]" %
+              os.path.abspath(os.path.join(collection_dir,'checkplots')))
+
+        cpdir = os.path.join(collection_dir,'checkplots')
+        if len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))) == 0:
+
+            print('No checkplot pickles found. '
+                  'Generating barebones object catalog pickle and kd-tree...')
+
+            # add the magcols key to the unaugmented catalog
+            with open(lclpkl,'rb') as infd:
+                lcl = pickle.load(infd)
+            lcl['magcols'] = [magcol]
+            with open(lclpkl,'wb') as outfd:
+                pickle.dump(lcl, outfd, pickle.HIGHEST_PROTOCOL)
+
+            shutil.copy(lclpkl, os.path.join(collection_dir,
+                                             'lclist-catalog.pkl'))
+
+        else:
+
+            print('Found %s checkplot pickles. '
+                  'Generating object catalog pickle and kd-tree...')
+
+            augcat_pkl = generate_augmented_lclist_catalog(
+                args.basedir,
+                collection_id,
+                lclpkl,
+                magcol,
+            )
+
+        kdt = generate_catalog_kdtree(args.basedir,
+                                      collection_id)
+
+
+        #
+        # next, we'll ask the user about their collection
+        #
+        lcc_name = input(
+            'Name of this LC collection [default: Example LC collection]: '
+        )
+        if not lcc_name or len(lcc_name.strip()) == 0:
+            lcc_name = 'Example LC collection'
+
+        lcc_project = input(
+            'Project associated with this LC collection '
+            '[default: Example Variable Star Survey]: '
+        )
+        if not lcc_project or len(lcc_project.strip()) == 0:
+            lcc_project = 'Example Variable Star Survey'
+
+        lcc_datarelease = input(
+            'Data release number [default: 1]: '
+        )
+        if not lcc_datarelease or len(lcc_datarelease.strip()) == 0:
+            lcc_datarelease = 1
+        else:
+            lcc_datarelease = int(lcc_datarelease)
+
+        lcc_citation = input(
+            'Citation for this collection '
+            '[default: Me and my friends et al. (2018)]: '
+        )
+        if not lcc_citation or len(lcc_citation.strip()) == 0:
+            lcc_citation = 'Me and my friends et al. (2018)'
+
+        lcc_ispublic = input(
+            'Is this LC collection public? [Y/n]: '
+        )
+        if ((not lcc_ispublic) or
+            (len(lcc_ispublic.strip()) == 0) or
+            (lcc_ispublic.strip().lower() == 'y')):
+            lcc_ispublic = True
+        else:
+            False
+
+        # launch the user's editor to edit this LCC's description
+        print("We'll launch your editor to edit the description "
+              "for this collection. You can use Markdown here.")
+
+        # get the user's editor
+        if 'EDITOR' in os.environ:
+            editor = os.environ['EDITOR']
+        elif 'VISUAL' in os.environ:
+            editor = os.environ['VISUAL']
+        else:
+            editor = None
+
+        use_editor = None
+
+        while (not use_editor or len(use_editor.strip()) == 0):
+
+            ask_editor = input('Editor to use [default: %s]: ' % editor)
+            if ask_editor:
+                use_editor = ask_editor
+            elif ((not ask_editor or len(ask_editor.strip()) == 0) and
+                  editor):
+                use_editor = editor
+            else:
+                use_editor = None
+
+        desc_fd, desc_tempfile = tempfile.mkstemp()
+
+        editor_cmdline = '%s %s' % (
+            use_editor,
+            desc_tempfile
+        )
+        subprocess.call(editor_cmdline, shell=True)
+
+        with open(desc_tempfile,'r') as infd:
+            lcc_desc = infd.read()
+
+        print('Saved LC collection description successfully!')
+        print('Building object database...')
+        catsqlite = generate_catalog_database(
+            args.basedir,
+            collection_id,
+            collection_info={'name':lcc_name,
+                             'desc':lcc_desc,
+                             'project':lcc_project,
+                             'datarelease':lcc_datarelease,
+                             'citation':lcc_citation,
+                             'ispublic':lcc_ispublic})
+
+        print("Adding this collection to the LCC server's index...")
+        catindex = add_collection_to_lcc_index(args.basedir,
+                                               collection_id)
+
+        print('\nAll done!\n')
+        print('You can start an LCC server instance '
+              'using the command below:\n')
+        print('%s --basedir %s run-server' % (aparser.prog,
+                                              args.basedir))
+        sys.exit(0)
 
     else:
+
+        print('Could not understand your command: %s' % args.command)
         sys.exit(0)
 
 

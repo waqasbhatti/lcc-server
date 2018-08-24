@@ -320,7 +320,6 @@ def objectinfo_to_sqlite(augcatpkl,
 
     for col in composite_cols:
 
-
         #
         # actually generate the column
         #
@@ -329,95 +328,100 @@ def objectinfo_to_sqlite(augcatpkl,
         )
         col_op = OPERATORS[col_opstr]
 
-        # this should magically work because of numpy arrays (hopefully)
-        augcat['objects'][col] = col_op(augcat['objects'][col_operand1],
-                                        augcat['objects'][col_operand2])
-        augcat['columns'].append(col)
-        LOGINFO('generated composite column: %s '
-                'using operator: %r on cols: %s and %s' % (col,
-                                                           col_op,
-                                                           col_operand1,
-                                                           col_operand2))
+        try:
 
-        thiscol_name = col.replace('.','_')
-        thiscol_dtype = augcat['objects'][col].dtype
-        colnames.append(thiscol_name)
+            # this should magically work because of numpy arrays (hopefully)
+            augcat['objects'][col] = col_op(augcat['objects'][col_operand1],
+                                            augcat['objects'][col_operand2])
+            augcat['columns'].append(col)
+            LOGINFO('generated composite column: %s '
+                    'using operator: %r on cols: %s and %s' % (col,
+                                                               col_op,
+                                                               col_operand1,
+                                                               col_operand2))
 
-        # set up the default info element
-        defaultcolinfo[thiscol_name] = {'title':None,
-                                        'description':None,
-                                        'dtype':None,
-                                        'format':None,
-                                        'index':False,
-                                        'ftsindex':False}
+            thiscol_name = col.replace('.','_')
+            thiscol_dtype = augcat['objects'][col].dtype
+            colnames.append(thiscol_name)
 
-        colinfo_key = col
+            # set up the default info element
+            defaultcolinfo[thiscol_name] = {'title':None,
+                                            'description':None,
+                                            'dtype':None,
+                                            'format':None,
+                                            'index':False,
+                                            'ftsindex':False}
+
+            colinfo_key = col
 
 
-        #
-        # now go through the various formats
-        #
+            #
+            # now go through the various formats
+            #
 
-        # strings
-        if thiscol_dtype.type is np.str_:
+            # strings
+            if thiscol_dtype.type is np.str_:
 
-            coldefs.append(('%s text' % thiscol_name, str))
+                coldefs.append(('%s text' % thiscol_name, str))
 
-            if colinfo_key in COMPOSITE_COLUMN_INFO:
-                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
-                    colinfo_key
-                ]
+                if colinfo_key in COMPOSITE_COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                        colinfo_key
+                    ]
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%s'
+
+                # this gets the string representation of the numpy dtype
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+
+            # floats
+            elif thiscol_dtype.type is np.float64:
+
+                coldefs.append(('%s double precision' % thiscol_name, float))
+
+                if colinfo_key in COMPOSITE_COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                        colinfo_key
+                    ]
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%.7f'
+
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+
+            # integers
+            elif thiscol_dtype.type is np.int64:
+
+                coldefs.append(('%s integer' % thiscol_name, int))
+
+                if colinfo_key in COMPOSITE_COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                        colinfo_key
+                    ]
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%i'
+
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+
+
+            # everything else is coerced into a string
             else:
-                defaultcolinfo[thiscol_name]['format'] = '%s'
 
-            # this gets the string representation of the numpy dtype
-            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
+                coldefs.append(('%s text' % thiscol_name, str))
 
+                if colinfo_key in COMPOSITE_COLUMN_INFO:
+                    defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
+                        colinfo_key
+                    ]
+                else:
+                    defaultcolinfo[thiscol_name]['format'] = '%s'
 
-        # floats
-        elif thiscol_dtype.type is np.float64:
+                defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
-            coldefs.append(('%s double precision' % thiscol_name, float))
-
-            if colinfo_key in COMPOSITE_COLUMN_INFO:
-                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
-                    colinfo_key
-                ]
-            else:
-                defaultcolinfo[thiscol_name]['format'] = '%.7f'
-
-            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-
-
-        # integers
-        elif thiscol_dtype.type is np.int64:
-
-            coldefs.append(('%s integer' % thiscol_name, int))
-
-            if colinfo_key in COMPOSITE_COLUMN_INFO:
-                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
-                    colinfo_key
-                ]
-            else:
-                defaultcolinfo[thiscol_name]['format'] = '%i'
-
-            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-
-
-        # everything else is coerced into a string
-        else:
-
-            coldefs.append(('%s text' % thiscol_name, str))
-
-            if colinfo_key in COMPOSITE_COLUMN_INFO:
-                defaultcolinfo[thiscol_name] = COMPOSITE_COLUMN_INFO[
-                    colinfo_key
-                ]
-            else:
-                defaultcolinfo[thiscol_name]['format'] = '%s'
-
-            defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-
+        # the operand columns aren't present in the augcat, skip
+        except:
+            pass
 
     # finally, go though the mag affiliated columns, per magcol
 
@@ -561,7 +565,15 @@ def objectinfo_to_sqlite(augcatpkl,
     # now, we'll generate the create statement
 
     # now these are all cols
-    cols = unaffiliated_cols + list(composite_cols) + mag_affil_cols
+    all_available_cols = (unaffiliated_cols +
+                          list(composite_cols) +
+                          mag_affil_cols)
+
+    # test if these cols are all in the augcat
+    cols = []
+    for col in all_available_cols:
+        if col in augcat['objects']:
+            cols.append(col)
 
     column_and_type_list = ', '.join([x[0] for x in coldefs])
     column_list = ', '.join(colnames)
