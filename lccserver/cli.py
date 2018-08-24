@@ -1582,6 +1582,10 @@ def main():
         with open(desc_tempfile,'r') as infd:
             lcc_desc = infd.read()
 
+            # this helps tell the frontend that we're using markdown for the
+            # description
+            lcc_desc = '#!MKD %s' % lcc_desc
+
         print('Saved LC collection description successfully!')
         print('Building object database...')
         catsqlite = generate_catalog_database(

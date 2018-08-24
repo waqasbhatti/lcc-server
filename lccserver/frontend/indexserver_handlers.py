@@ -559,6 +559,14 @@ class CollectionListHandler(tornado.web.RequestHandler):
         self.signer = signer
         self.fernet = fernet
 
+        # this is used to render collection descriptions to HTML
+        self.markdowner = markdown.Markdown(
+            output_format='html5',
+            extensions=['markdown.extensions.extra',
+                        'markdown.extensions.tables'],
+        )
+
+
 
     @gen.coroutine
     def get(self):
@@ -572,6 +580,26 @@ class CollectionListHandler(tornado.web.RequestHandler):
         )
 
         collection_info = collections['info']
+        collection_info['description'] = list(collection_info['description'])
+
+        # get the descriptions and turn them into markdown if needed
+        for collind, coll, desc in zip(
+                range(len(collection_info['collection_id'])),
+                collection_info['collection_id'],
+                collection_info['description']
+        ):
+            if desc.startswith('#!MKD '):
+                try:
+                    desc = self.markdowner.convert(desc[6:])
+                    collection_info['description'][collind] = desc
+                except:
+                    LOGGER.warning('markdown convert failed '
+                                   'for description for collection: %s' %
+                                   coll)
+                    desc = desc[6:]
+                    collection_info['description'][collind] = desc
+                self.markdowner.reset()
+
         all_columns = collections['columns']
         all_indexed_columns = collections['indexedcols']
         all_fts_columns = collections['ftscols']

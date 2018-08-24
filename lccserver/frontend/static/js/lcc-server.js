@@ -948,7 +948,7 @@ var lcc_ui = {
                     //
                     var desc = collections.description[coll_idx];
                     var nobjects = collections.nobjects[coll_idx];
-                    var table_column_desc = '<td width="100">' +
+                    var table_column_desc = '<td width="150">' +
                         desc + '<br><br>Number of objects: <code>' +
                         nobjects +
                         '</code></td>';
@@ -1069,7 +1069,7 @@ var lcc_ui = {
                         table_column_name +
                         table_column_desc +
                         table_column_coords +
-                        '<td width="250"><code>' +
+                        '<td width="200"><code>' +
                         formatted_column_list +
                         '</code></td>' +
                         '</tr>';
