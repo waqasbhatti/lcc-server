@@ -1471,7 +1471,8 @@ def main():
         else:
 
             print('Found %s checkplot pickles. '
-                  'Generating object catalog pickle and kd-tree...')
+                  'Generating object catalog pickle and kd-tree...' %
+                  len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))))
 
             augcat_pkl = generate_augmented_lclist_catalog(
                 args.basedir,
