@@ -10,9 +10,25 @@ lcc-server [options] <command>
 
 where command is one of:
 
-init                -> initializes the basedir for the LCC server
-add-collection      -> adds an LC collection to the LCC server
-remove-collection   -> removes an LC collection from the LCC server
+init-basedir        -> initializes the basedir for the LCC server.
+                       this is an interactive command.
+
+add-collection      -> adds an LC collection to the LCC server.
+                       this is an interactive command.
+
+del-collection      -> removes an LC collection from the LCC server
+                       this will ask you for confirmation.
+
+run-server          -> runs an instance of the LCC server to provide
+                       the main search interface and a backing instance
+                       of the checkplotserver for serving objectinfo
+
+and options are:
+
+--basedir           -> the base directory to execute all commands from
+                       this is the directory where all of the LCC server's
+                       files and directories will be created and where it will
+                       run from when executed.
 
 '''
 
@@ -90,19 +106,15 @@ import json
 import glob
 import sqlite3
 
+import subprocess
+from concurrent.futures import ProcessPoolExecutor
+import asyncio
+from functools import partial
+
 import multiprocessing as mp
 NCPUS = mp.cpu_count()
 
 import numpy as np
-
-from .backend import abcat
-from .backend import datasets
-from astrobase import lcproc
-
-
-datasets.set_logger_parent(__name__)
-abcat.set_logger_parent(__name__)
-lcproc.set_logger_parent(__name__)
 
 #######################
 ## PREPARING BASEDIR ##
@@ -419,6 +431,11 @@ def convert_original_lightcurves(basedir,
 
     '''
 
+    from .backend import abcat
+    from .backend import datasets
+    datasets.set_logger_parent(__name__)
+    abcat.set_logger_parent(__name__)
+
     # make sure we have a filled out lcformat-description.json for this
     # collection
     lcformjson = os.path.join(basedir,
@@ -731,6 +748,9 @@ def generate_augmented_lclist_catalog(
 
     '''
 
+    from astrobase import lcproc
+    lcproc.set_logger_parent(__name__)
+
     # get the basedir/collection_id/checkplots directory
     cpdir = os.path.join(basedir, collection_id, 'checkplots')
 
@@ -757,6 +777,9 @@ def generate_catalog_kdtree(basedir,
     '''This generates the kd-tree pickle for spatial searches.
 
     '''
+
+    from .backend import abcat
+    abcat.set_logger_parent(__name__)
 
     # get basedir/collection_id/lclist-catalog.pkl
     lclist_catalog_pickle = os.path.join(basedir,
@@ -854,6 +877,9 @@ def new_lcc_index_db(basedir):
 
     '''
 
+    from .backend import abcat
+    abcat.set_logger_parent(__name__)
+
     return abcat.sqlite_make_lcc_index_db(basedir)
 
 
@@ -863,6 +889,9 @@ def new_lcc_datasets_db(basedir):
     This generates an lcc-datasets DB in the basedir.
 
     '''
+
+    from .backend import abcat
+    abcat.set_logger_parent(__name__)
 
     return datasets.sqlite_datasets_db_create(basedir)
 
@@ -880,6 +909,9 @@ def add_collection_to_lcc_index(basedir,
 
     '''
 
+    from .backend import abcat
+    abcat.set_logger_parent(__name__)
+
     return abcat.sqlite_collect_lcc_info(basedir,
                                          collection_id,
                                          raiseonfail=raiseonfail)
@@ -895,6 +927,7 @@ def remove_collection_from_lcc_index(basedir,
     Optionally removes the files as well.
 
     '''
+
     # find the root DB
     lccdb = os.path.join(basedir, 'lcc-index.sqlite')
 
@@ -929,6 +962,55 @@ def remove_collection_from_lcc_index(basedir,
                    (os.path.abspath(os.path.join(basedir, collection_id))))
 
 
+########################################
+## STARTING AN INSTANCE OF THE SERVER ##
+########################################
+
+async def start_lccserver(executor):
+    '''This starts the LCC server and a backing instance of checkplotserver.
+
+    This is NOT meant for production, but is useful to make sure everything
+    works correctly or for local browsing of your light curve data.
+
+    All of the log lines from the LCC server instance and the backing
+    checkplotserver instance will go to STDOUT. STDERR will also be directed to
+    STDOUT.
+
+    Hit Ctrl+C to stop the server instances.
+
+    This is a bit hacked together. As usual, D. Beazley's PyMOTW was
+    super-helpful:
+
+    https://pymotw.com/3/asyncio/executors.html
+
+    FIXME: fix spam of errors when we hit Ctrl+C
+
+    '''
+
+    # launch the indexserver
+    loop = asyncio.get_event_loop()
+    tasks = []
+
+    subprocess_call_indexserver = partial(
+        subprocess.call,
+        'indexserver',
+        shell=True
+    )
+    subprocess_call_cpserver = partial(
+        subprocess.call,
+        ('checkplotserver '
+         '--standalone=1 '
+         '--sharedsecret=.lccserver.secret-cpserver'),
+        shell=True
+    )
+
+    tasks.append(loop.run_in_executor(executor, subprocess_call_indexserver))
+    tasks.append(loop.run_in_executor(executor, subprocess_call_cpserver))
+
+    completed, pending = await asyncio.wait(tasks)
+    results = [t.result() for t in completed]
+
+
 
 ##############
 ## CLI MAIN ##
@@ -939,6 +1021,102 @@ def main():
     This drives the CLI.
 
     '''
+
+    import argparse
+    import sys
+    import readline
+
+    aparser = argparse.ArgumentParser(
+        description='LCC server CLI'
+    )
+
+    aparser.add_argument('command',
+                         choices=['init-basedir',
+                                  'new-collection',
+                                  'del-collection',
+                                  'run-server'],
+                         action='store',
+                         type=str,
+                         help=('command to run'))
+
+    aparser.add_argument('--basedir',
+                         action='store',
+                         type=str,
+                         help=("the base directory to run commands in"),
+                         default=os.getcwd())
+
+    args = aparser.parse_args()
+
+    if args.command == 'run-server':
+
+        currdir = os.getcwd()
+
+        if currdir != args.basedir:
+            os.chdir(args.basedir)
+
+        executor = ProcessPoolExecutor()
+        event_loop = asyncio.get_event_loop()
+
+        try:
+            event_loop.run_until_complete(
+                start_lccserver(executor)
+            )
+        finally:
+            event_loop.close()
+
+    elif args.command == 'init-basedir':
+
+        site_project = input('Project name [default: Example Project]: ')
+        if not site_project or len(site_project.strip()) == 0:
+            site_project = "Example Project"
+
+        site_project_link = input(
+            'Project URL [default: https://example.org/astro/project]: '
+        )
+        if not site_project_link or len(site_project_link.strip()) == 0:
+            site_project_link = "https://example.org/astro/project"
+
+        site_department = input(
+            'Department [default: Department of Astronomy]: '
+        )
+        if not site_department or len(site_department.strip()) == 0:
+            site_department = "Department of Astronomy"
+
+        site_department_link = input(
+            'URL for the department [default: https://example.org/astro]: '
+        )
+        if not site_department_link or len(site_department_link.strip()) == 0:
+            site_department_link = "https://example.org/astro"
+
+        site_institution = input(
+            'Institution [default: Example University]: '
+        )
+        if not site_institution or len(site_institution.strip()) == 0:
+            site_institution = "Example University"
+
+        site_institution_link = input(
+            'URL for the institution [default: https://example.org]: '
+        )
+        if not site_institution_link or len(site_institution_link.strip()) == 0:
+            site_institution_link = "https://example.org"
+
+        site_institution_logo = input(
+            'Path to a institution logo image file [default: None]: '
+        )
+        if not site_institution_logo or len(site_institution_logo.strip()) == 0:
+            site_institution_logo = None
+
+        return prepare_basedir(args.basedir,
+                               site_project=site_project,
+                               site_project_link=site_project_link,
+                               site_department=site_department,
+                               site_department_link=site_department_link,
+                               site_institution=site_institution,
+                               site_institution_link=site_institution_link,
+                               site_institution_logo=site_institution_logo)
+
+    else:
+        sys.exit(0)
 
 
 
