@@ -277,7 +277,7 @@ def sqlite_new_dataset(basedir,
         try:
             coll_columns = list(searchresult[coll]['result'][0].keys())
             xcolumns.append(set(coll_columns))
-        except:
+        except Exception as e:
             pass
 
     # xcolumns is now a list of sets of column keys from all collections.
@@ -636,9 +636,8 @@ def sqlite_make_dataset_lczip(basedir,
 
 
                 # update this collection's light curve list
-                for olc, nlc, dsrow in zip(collection_lclist,
-                                           results,
-                                           dataset['result'][collection]):
+                for nlc, dsrow in zip(results,
+                                      dataset['result'][collection]):
 
                     # make sure we don't include broken or missing LCs
                     if os.path.exists(nlc):
@@ -1081,17 +1080,44 @@ def sqlite_get_dataset(basedir,
         if not os.path.exists(returndict['lczip']):
             returndict['lczip'] = None
 
-        # blank out the original LCs
-        # FIXME: FIXME: FIXME: why are we doing this?
-
-        # should let these through to generate_dataset_tablerows even if
+        # link the CSV LCs to the output csvlcs directory if available
+        # this should let these through to generate_dataset_tablerows even if
         # the dataset is forced to completion
-        # for collection in returndict['collections']:
-        #     for row in returndict['result'][collection]['data']:
-        #         if 'db_lcfname' in row:
-        #             row['db_lcfname'] = None
-        #         if 'lcfname' in row:
-        #             row['lcfname'] = None
+        for collection in returndict['collections']:
+            for row in returndict['result'][collection]['data']:
+
+                csvlc_original = os.path.join(basedir,
+                                              collection,
+                                              'lightcurves',
+                                              '%s-csvlc.gz' %
+                                              row['db_oid'])
+                csvlc_link = os.path.join(basedir,
+                                          'csvlcs',
+                                          collection,
+                                          '%s-csvlc.gz' % row['db_oid'])
+
+                if (os.path.exists(csvlc_original) and
+                    not os.path.exists(csvlc_link)):
+
+                    os.symlink(os.path.abspath(csvlc_original),
+                               csvlc_link)
+                    csvlc = csvlc_link
+
+                elif (os.path.exists(csvlc_original) and
+                      os.path.exists(csvlc_link)):
+
+                    csvlc = csvlc_link
+
+                else:
+
+                    csvlc = None
+
+                if 'db_lcfname' in row:
+                    row['db_lcfname'] = csvlc
+
+                if 'lcfname' in row:
+                    row['lcfname'] = csvlc
+
 
         LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
                    (returndict['status'], returndict['setid']))
@@ -1203,7 +1229,7 @@ def generate_dataset_tablerows(
             # specifications
             for cc in coll_columns:
                 colspec[cc] = in_dataset['result'][coll]['columnspec'][cc]
-        except:
+        except Exception as e:
             pass
 
     # xcolumns is now a list of sets of column keys from all collections.
