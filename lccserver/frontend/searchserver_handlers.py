@@ -291,7 +291,8 @@ def parse_objectlist_item(objectline):
 
 def parse_xmatch_input(inputtext, matchradtext,
                        maxradius=30.0,
-                       maxlines=5001):
+                       maxlines=5001,
+                       maxlinelen=280):
     '''
     This tries to parse xmatch input.
 
@@ -318,7 +319,8 @@ def parse_xmatch_input(inputtext, matchradtext,
         LOGGER.error('too many lines to parse')
         return None
 
-    itextlines = [x for x in itextlines if not x.startswith('#')]
+    # here, we'll truncate each line to maxlength
+    itextlines = [x[:maxlinelen] for x in itextlines if not x.startswith('#')]
     parsed_lines = [parse_objectlist_item(x) for x in itextlines]
     oklines = [x for x in parsed_lines if all(x)]
 
