@@ -62,8 +62,6 @@ LOGGER = logging.getLogger(__name__)
 ## TORNADO IMPORTS ##
 #####################
 
-import hmac
-
 import tornado.ioloop
 import tornado.httpserver
 import tornado.web
@@ -1021,9 +1019,6 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
         )
 
 
-
-
-
 #########################
 ## CONE SEARCH HANDLER ##
 #########################
@@ -1137,6 +1132,11 @@ class ConeSearchHandler(tornado.web.RequestHandler,
 
             # REQUIRED: coords
             coordstr = xhtml_escape(self.get_argument('coords'))
+
+            # make sure to truncate to avoid weirdos. clearly, if 280
+            # characters is good enough for Twitter, it's good for us too
+            coordstr = coordstr[:280]
+
             coordok, center_ra, center_decl, radius_deg = parse_coordstring(
                 coordstr
             )
@@ -1246,9 +1246,6 @@ class ConeSearchHandler(tornado.web.RequestHandler,
                      "collections":lcclist,
                      "getcolumns":getcolumns}}
         )
-
-
-
 
 
 #############################
@@ -1367,6 +1364,14 @@ class FTSearchHandler(tornado.web.RequestHandler,
             # REQUIRED: ftstext
             ftstext = xhtml_escape(self.get_argument('ftstext'))
 
+            # make sure the length matches what we want
+            if len(ftstext) < 5:
+                raise Exception("query string is too short: %s < 5" %
+                                len(ftstext))
+            elif len(ftstext) > 1024:
+                raise Exception("query string is too long: %s > 1024" %
+                                len(ftstext))
+
             # get the other arguments for the server
 
             # OPTIONAL: result_ispublic
@@ -1423,8 +1428,15 @@ class FTSearchHandler(tornado.web.RequestHandler,
             retdict = {
                 "status":"failed",
                 "result":None,
-                "message":("ftsearch: one or more of the "
-                           "required args are missing or invalid.")
+                "message":(
+                    "ftsearch: one or more of the "
+                    "required args are missing or invalid. "
+                    "The query string should be at least 5 characters "
+                    "and no more than 1024 characters long. "
+                    "Try using fts_indexed_column:\"query\" for "
+                    "short descriptors "
+                    "(e.g. color_classes:\"RRab\" instead of just \"RRab\")."
+                )
             }
             self.write(retdict)
 
@@ -1437,7 +1449,6 @@ class FTSearchHandler(tornado.web.RequestHandler,
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
         LOGGER.info('extraconditions = %s' % extraconditions)
-
 
         # send the query to the background worker
         yield self.background_query(
