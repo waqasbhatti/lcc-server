@@ -250,7 +250,7 @@ def parse_objectlist_item(objectline):
                 paramsok = False
                 objid, radeg, decldeg = None, None, None
 
-        except:
+        except Exception as e:
             LOGGER.error('could not parse object line: %s' % objectline)
             paramsok = False
             objid, radeg, decldeg = None, None, None
@@ -308,7 +308,7 @@ def parse_xmatch_input(inputtext, matchradtext,
             xmatch_distarcsec = matchrad
         else:
             xmatch_distarcsec = 3.0
-    except:
+    except Exception as e:
         xmatch_distarcsec = 3.0
 
     # FIXME: does this look OK? there seems to be extra backslashes in req args
@@ -347,6 +347,52 @@ def parse_xmatch_input(inputtext, matchradtext,
 
         LOGGER.error('could not parse input xmatch spec')
         return None, None
+
+
+def parse_conditions(conditions, maxlength=1000):
+    '''This parses conditions provided in the query args.
+
+    '''
+    conditions = conditions[:maxlength]
+
+    try:
+        conditions = xhtml_escape(squeeze(conditions))
+
+        # return the "'" character that got escaped
+        conditions = conditions.replace('&#39;',"'")
+
+        # replace the operators with their SQL equivalents
+        farr = conditions.split(' ')
+        farr = ['>' if x == 'gt' else x for x in farr]
+        farr = ['<' if x == 'lt' else x for x in farr]
+        farr = ['>=' if x == 'ge' else x for x in farr]
+        farr = ['<=' if x == 'le' else x for x in farr]
+        farr = ['=' if x == 'eq' else x for x in farr]
+        farr = ['!=' if x == 'ne' else x for x in farr]
+        farr = ['like' if x == 'ct' else x for x in farr]
+
+        LOGGER.info(farr)
+
+        # deal with like operator
+        # FIXME: this is ugly :(
+        for i, x in enumerate(farr):
+            if x == 'like':
+                LOGGER.info(farr[i+1])
+                farrnext = farr[i+1]
+                farrnext_left = farrnext.index("'")
+                farrnext_right = farrnext.rindex("'")
+                farrnext = [a for a in farrnext]
+                farrnext.insert(farrnext_left+1,'%')
+                farrnext.insert(farrnext_right+1,'%')
+                farr[i+1] = ''.join(farrnext)
+
+        conditions = ' '.join(farr)
+        LOGGER.info('conditions = %s' % conditions)
+        return conditions
+
+    except Exception as e:
+        LOGGER.exception('could not parse the filter conditions')
+        return None
 
 
 ###################################################
@@ -877,40 +923,13 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
 
             # REQUIRED: conditions
             conditions = self.get_argument('filters', default=None)
-            if conditions is not None:
 
-                conditions = xhtml_escape(squeeze(conditions))
-
-                # return the "'" character that got escaped
-                conditions = conditions.replace('&#39;',"'")
-
-                # replace the operators with their SQL equivalents
-                farr = conditions.split(' ')
-                farr = ['>' if x == 'gt' else x for x in farr]
-                farr = ['<' if x == 'lt' else x for x in farr]
-                farr = ['>=' if x == 'ge' else x for x in farr]
-                farr = ['<=' if x == 'le' else x for x in farr]
-                farr = ['=' if x == 'eq' else x for x in farr]
-                farr = ['!=' if x == 'ne' else x for x in farr]
-                farr = ['like' if x == 'ct' else x for x in farr]
-
-                LOGGER.info(farr)
-
-                # deal with like operator
-                # FIXME: this is ugly :(
-                for i, x in enumerate(farr):
-                    if x == 'like':
-                        LOGGER.info(farr[i+1])
-                        farrnext = farr[i+1]
-                        farrnext_left = farrnext.index("'")
-                        farrnext_right = farrnext.rindex("'")
-                        farrnext = [a for a in farrnext]
-                        farrnext.insert(farrnext_left+1,'%')
-                        farrnext.insert(farrnext_right+1,'%')
-                        farr[i+1] = ''.join(farrnext)
-
-                conditions = ' '.join(farr)
-                LOGGER.info('conditions = %s' % conditions)
+            # yield when parsing the conditions because they might be huge
+            if conditions:
+                conditions = yield self.executor.submit(
+                    parse_conditions,
+                    conditions
+                )
 
             # get the other arguments for the server
 
@@ -959,16 +978,16 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except:
+        except Exception as e:
 
             LOGGER.exception(
-                'one or more of the required args are missing or invalid'
+                'one or more of the required args are missing or invalid.'
             )
             retdict = {
                 "status":"failed",
                 "result":None,
-                "message":("one or more of the "
-                           "required args are missing or invalid")
+                "message":("columnsearch: one or more of the "
+                           "required args are missing or invalid.")
             }
             self.set_status(400)
             self.write(retdict)
@@ -1165,40 +1184,13 @@ class ConeSearchHandler(tornado.web.RequestHandler,
 
             # OPTIONAL: extraconditions
             extraconditions = self.get_argument('filters', default=None)
-            if extraconditions is not None:
 
-                extraconditions = xhtml_escape(squeeze(extraconditions))
-
-                # return the "'" character that got escaped
-                extraconditions = extraconditions.replace('&#39;',"'")
-
-                # replace the operators with their SQL equivalents
-                farr = extraconditions.split(' ')
-                farr = ['>' if x == 'gt' else x for x in farr]
-                farr = ['<' if x == 'lt' else x for x in farr]
-                farr = ['>=' if x == 'ge' else x for x in farr]
-                farr = ['<=' if x == 'le' else x for x in farr]
-                farr = ['=' if x == 'eq' else x for x in farr]
-                farr = ['!=' if x == 'ne' else x for x in farr]
-                farr = ['like' if x == 'ct' else x for x in farr]
-
-                LOGGER.info(farr)
-
-                # deal with like operator
-                # FIXME: this is ugly :(
-                for i, x in enumerate(farr):
-                    if x == 'like':
-                        LOGGER.info(farr[i+1])
-                        farrnext = farr[i+1]
-                        farrnext_left = farrnext.index("'")
-                        farrnext_right = farrnext.rindex("'")
-                        farrnext = [a for a in farrnext]
-                        farrnext.insert(farrnext_left+1,'%')
-                        farrnext.insert(farrnext_right+1,'%')
-                        farr[i+1] = ''.join(farrnext)
-
-                extraconditions = ' '.join(farr)
-                LOGGER.info('extraconditions = %s' % extraconditions)
+            # yield when parsing the conditions because they might be huge
+            if extraconditions:
+                extraconditions = yield self.executor.submit(
+                    parse_conditions,
+                    extraconditions
+                )
 
             #
             # now we've collected all the parameters for
@@ -1206,7 +1198,7 @@ class ConeSearchHandler(tornado.web.RequestHandler,
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except:
+        except Exception as e:
 
             LOGGER.exception(
                 'one or more of the required args are missing or invalid'
@@ -1214,8 +1206,8 @@ class ConeSearchHandler(tornado.web.RequestHandler,
             retdict = {
                 "status":"failed",
                 "result":None,
-                "message":("one or more of the "
-                           "required args are missing or invalid")
+                "message":("conesearch: one or more of the "
+                           "required args are missing or invalid.")
             }
             self.write(retdict)
 
@@ -1409,38 +1401,13 @@ class FTSearchHandler(tornado.web.RequestHandler,
 
             # OPTIONAL: extraconditions
             extraconditions = self.get_argument('filters', default=None)
-            if extraconditions is not None:
 
-                extraconditions = xhtml_escape(squeeze(extraconditions))
-
-                # return the "'" character that got escaped
-                extraconditions = extraconditions.replace('&#39;',"'")
-
-                # replace the operators with their SQL equivalents
-                farr = extraconditions.split(' ')
-                farr = ['>' if x == 'gt' else x for x in farr]
-                farr = ['<' if x == 'lt' else x for x in farr]
-                farr = ['>=' if x == 'ge' else x for x in farr]
-                farr = ['<=' if x == 'le' else x for x in farr]
-                farr = ['=' if x == 'eq' else x for x in farr]
-                farr = ['!=' if x == 'ne' else x for x in farr]
-                farr = ['like' if x == 'ct' else x for x in farr]
-
-                # deal with like operator
-                # FIXME: this is ugly :(
-                for i, x in enumerate(farr):
-                    if x == 'like':
-                        LOGGER.info(farr[i+1])
-                        farrnext = farr[i+1]
-                        farrnext_left = farrnext.index("'")
-                        farrnext_right = farrnext.rindex("'")
-                        farrnext = [a for a in farrnext]
-                        farrnext.insert(farrnext_left+1,'%')
-                        farrnext.insert(farrnext_right+1,'%')
-                        farr[i+1] = ''.join(farrnext)
-
-                extraconditions = ' '.join(farr)
-                LOGGER.info('extraconditions = %s' % extraconditions)
+            # yield when parsing the conditions because they might be huge
+            if extraconditions:
+                extraconditions = yield self.executor.submit(
+                    parse_conditions,
+                    extraconditions
+                )
 
             #
             # now we've collected all the parameters for
@@ -1448,7 +1415,7 @@ class FTSearchHandler(tornado.web.RequestHandler,
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except:
+        except Exception as e:
 
             LOGGER.exception(
                 'one or more of the required args are missing or invalid'
@@ -1456,8 +1423,8 @@ class FTSearchHandler(tornado.web.RequestHandler,
             retdict = {
                 "status":"failed",
                 "result":None,
-                "message":("one or more of the "
-                           "required args are missing or invalid")
+                "message":("ftsearch: one or more of the "
+                           "required args are missing or invalid.")
             }
             self.write(retdict)
 
@@ -1836,45 +1803,25 @@ class XMatchHandler(tornado.web.RequestHandler,
             else:
                 self.req_hostname = self.request.host
 
-            # REQUIRED: extraconditions
+            # OPTIONAL: extraconditions
             extraconditions = self.get_body_argument('filters', default=None)
-            if extraconditions is not None:
 
-                extraconditions = xhtml_escape(squeeze(extraconditions))
+            # yield when parsing the conditions because they might be huge
+            if extraconditions:
+                extraconditions = yield self.executor.submit(
+                    parse_conditions,
+                    extraconditions
+                )
 
-                # return the "'" character that got escaped
-                extraconditions = extraconditions.replace('&#39;',"'")
-
-                # replace the operators with their SQL equivalents
-                farr = extraconditions.split(' ')
-                farr = ['>' if x == 'gt' else x for x in farr]
-                farr = ['<' if x == 'lt' else x for x in farr]
-                farr = ['>=' if x == 'ge' else x for x in farr]
-                farr = ['<=' if x == 'le' else x for x in farr]
-                farr = ['=' if x == 'eq' else x for x in farr]
-                farr = ['!=' if x == 'ne' else x for x in farr]
-                farr = ['like' if x == 'ct' else x for x in farr]
-
-                # deal with like operator
-                for i, x in enumerate(farr):
-                    if x == 'like':
-                        LOGGER.info(farr[i+1])
-                        farrnext = farr[i+1]
-                        farrnext_left = farrnext.index("'")
-                        farrnext_right = farrnext.rindex("'")
-                        farrnext = [a for a in farrnext]
-                        farrnext.insert(farrnext_left+1,'%')
-                        farrnext.insert(farrnext_right+1,'%')
-                        farr[i+1] = ''.join(farrnext)
-
-                extraconditions = ' '.join(farr)
-                LOGGER.info('extraconditions = %s' % extraconditions)
-
+            #
             # get the other arguments for the server
+            #
 
             # OPTIONAL: result_ispublic
             self.result_ispublic = (
-                True if int(xhtml_escape(self.get_body_argument('result_ispublic')))
+                True if int(xhtml_escape(
+                    self.get_body_argument('result_ispublic'))
+                )
                 else False
             )
 
@@ -1907,16 +1854,16 @@ class XMatchHandler(tornado.web.RequestHandler,
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except:
+        except Exception as e:
 
             LOGGER.exception(
-                'one or more of the required args are missing or invalid'
+                'one or more of the required args are missing or invalid.'
             )
             retdict = {
                 "status":"failed",
                 "result":None,
-                "message":("one or more of the "
-                           "required args are missing or invalid")
+                "message":("xmatch: one or more of the "
+                           "required args are missing or invalid.")
             }
             self.set_status(400)
             self.write(retdict)
@@ -1924,7 +1871,6 @@ class XMatchHandler(tornado.web.RequestHandler,
             # we call this to end the request here (since self.finish() doesn't
             # actually stop executing statements)
             raise tornado.web.Finish()
-
 
         LOGGER.info('********* PARSED ARGS *********')
         LOGGER.info('conditions = %s' % extraconditions)
