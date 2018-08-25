@@ -1177,6 +1177,7 @@ def main():
         if not collection_id or len(collection_id.strip()) == 0:
             collection_id = 'my-new-collection'
         else:
+            # normalize the LC collection ID to our preferred format
             collection_id = squeeze(
                 collection_id
             ).strip(
@@ -1187,6 +1188,8 @@ def main():
                 ' ','-'
             ).replace(
                 '\t','-'
+            ).replace(
+                '_','-'
             )
 
         lightcurve_dir = input(
