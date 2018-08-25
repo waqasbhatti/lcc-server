@@ -1946,6 +1946,10 @@ def sqlite_xmatch_search(basedir,
                 extraconditionstr=extraconditionstr)
             )
 
+            # this handles the case where all queries over all input objects
+            # return nothing so thisq in the for loop below is never populated
+            thisq = q
+
             # for each object ind in the input list that has a possible match,
             # look at the list of matched object inds in the LC collection
             for input_objind, matched_lcc_objind in zip(kdt_matchinds,
@@ -2243,9 +2247,7 @@ def sqlite_xmatch_search(basedir,
                 results[lcc]['columnspec'] = lcc_columnspec
                 results[lcc]['collid'] = lcc_collid
 
-
             except Exception as e:
-
 
                 msg = ('failed to execute query for '
                        'collection: %s, exception: %s' % (lcc, e))
