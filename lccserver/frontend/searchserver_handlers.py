@@ -1136,6 +1136,7 @@ class ConeSearchHandler(tornado.web.RequestHandler,
             # make sure to truncate to avoid weirdos. clearly, if 280
             # characters is good enough for Twitter, it's good for us too
             coordstr = coordstr[:280]
+            coordstr = coordstr.replace('\n','')
 
             coordok, center_ra, center_decl, radius_deg = parse_coordstring(
                 coordstr
@@ -1363,10 +1364,12 @@ class FTSearchHandler(tornado.web.RequestHandler,
 
             # REQUIRED: ftstext
             ftstext = xhtml_escape(self.get_argument('ftstext'))
+            ftstext = ftstext.replace('\n','')
 
             # make sure the length matches what we want
-            if len(ftstext) < 5:
-                raise Exception("query string is too short: %s < 5" %
+            # this should handle attacks like '-' to get our entire DB
+            if len(ftstext) < 8:
+                raise Exception("query string is too short: %s < 8" %
                                 len(ftstext))
             elif len(ftstext) > 1024:
                 raise Exception("query string is too long: %s > 1024" %
@@ -1431,7 +1434,7 @@ class FTSearchHandler(tornado.web.RequestHandler,
                 "message":(
                     "ftsearch: one or more of the "
                     "required args are missing or invalid. "
-                    "The query string should be at least 5 characters "
+                    "The query string should be at least 8 characters "
                     "and no more than 1024 characters long. "
                     "Try using fts_indexed_column:\"query\" for "
                     "short descriptors "
