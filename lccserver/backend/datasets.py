@@ -1044,20 +1044,6 @@ def sqlite_get_dataset(basedir,
                                       'columnspec':dataset['columnspec'][coll],
                                       'collid':dataset['collid'][coll]}
 
-    # make the CSV if told to do so
-    if generatecsv:
-
-        csv = generate_dataset_csv(
-            basedir,
-            returndict,
-            force=forcecsv
-        )
-        returndict['dataset_csv'] = csv
-
-
-    else:
-        returndict['dataset_csv'] = None
-
     # if we're told to force complete the dataset, do so here
     if forcecomplete and returndict['status'] != 'complete':
 
@@ -1086,14 +1072,22 @@ def sqlite_get_dataset(basedir,
         for collection in returndict['collections']:
             for row in returndict['result'][collection]['data']:
 
-                csvlc_original = os.path.join(basedir,
-                                              collection,
+                # NOTE: here we rely on the fact that the collection names
+                # are normalized by the CLI (assuming that's the only way
+                # people generate these collections). The generated collection
+                # IDs never include a '_', so we can safely change from the DB
+                # collection ID which can't have a '-' to a collection ID ==
+                # directory name on disk, which can't have a '_'
+                # this will probably come back to haunt me
+
+                csvlc_original = os.path.join(os.path.abspath(basedir),
+                                              collection.replace('_','-'),
                                               'lightcurves',
                                               '%s-csvlc.gz' %
                                               row['db_oid'])
-                csvlc_link = os.path.join(basedir,
+                csvlc_link = os.path.join(os.path.abspath(basedir),
                                           'csvlcs',
-                                          collection,
+                                          collection.replace('_','-'),
                                           '%s-csvlc.gz' % row['db_oid'])
 
                 if (os.path.exists(csvlc_original) and
@@ -1118,15 +1112,38 @@ def sqlite_get_dataset(basedir,
                 if 'lcfname' in row:
                     row['lcfname'] = csvlc
 
+                # changing the row keys here also automatically changes the
+                # corresponding row key in the original dataset dict
+                # this shouldn't be happening though, because we (attempted to)
+                # make a copy of the dataset row list above (apparently not!)
 
         LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
                    (returndict['status'], returndict['setid']))
+
+        # write the original dataset dict back to the pickle after the
+        # lcfname items have been censored
+        with gzip.open(dataset_fpath,'wb') as outfd:
+            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+        LOGINFO('updated dataset pickle with CSVLC filenames')
 
     elif forcecomplete and returndict['status'] == 'complete':
         LOGERROR('not going to force completion '
                  'for an already complete dataset: %s'
                  % returndict['setid'])
 
+    # make the CSV at the end if told to do so
+    if generatecsv:
+        csv = generate_dataset_csv(
+            basedir,
+            returndict,
+            force=forcecsv,
+        )
+        returndict['dataset_csv'] = csv
+    else:
+        returndict['dataset_csv'] = None
+
+    # if we're returning JSON, do that
     if returnjson:
 
         retjson = json.dumps(returndict)
@@ -1134,8 +1151,8 @@ def sqlite_get_dataset(basedir,
 
         return retjson
 
+    # otherwise, return the usual dict
     else:
-
         return returndict
 
 
@@ -1428,11 +1445,14 @@ def generate_dataset_csv(
     else:
 
         # generate the strformatted table rows using generate_dataset_tablerows
-        header, datarows = generate_dataset_tablerows(basedir,
-                                                      in_dataset,
-                                                      giveupafter=None,
-                                                      headeronly=False,
-                                                      strformat=True)
+        header, datarows = generate_dataset_tablerows(
+            basedir,
+            in_dataset,
+            giveupafter=None,
+            headeronly=False,
+            strformat=True,
+            datarows_bypass_cache=force,
+        )
 
         LOGINFO('generating new CSV for in_dataset: %s' % setid)
 
