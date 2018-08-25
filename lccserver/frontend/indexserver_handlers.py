@@ -588,11 +588,11 @@ class CollectionListHandler(tornado.web.RequestHandler):
                 collection_info['collection_id'],
                 collection_info['description']
         ):
-            if desc.startswith('#!MKD '):
+            if desc and desc.startswith('#!MKD '):
                 try:
                     desc = self.markdowner.convert(desc[6:])
                     collection_info['description'][collind] = desc
-                except:
+                except Exception as e:
                     LOGGER.warning('markdown convert failed '
                                    'for description for collection: %s' %
                                    coll)
@@ -673,7 +673,7 @@ class DatasetListHandler(tornado.web.RequestHandler):
         try:
             nrecent = self.get_argument('nsets')
             nrecent = int(xhtml_escape(nrecent))
-        except:
+        except Exception as e:
             nrecent = 25
 
         dataset_info = yield self.executor.submit(
@@ -698,7 +698,7 @@ class DatasetListHandler(tornado.web.RequestHandler):
                         os.path.join(self.basedir,'datasets'),
                         '/d'
                     )
-                except:
+                except Exception as e:
                     dataset_fpath = None
 
                 try:
@@ -707,7 +707,7 @@ class DatasetListHandler(tornado.web.RequestHandler):
                         os.path.join(self.basedir,'datasets'),
                         '/d'
                     )
-                except:
+                except Exception as e:
                     dataset_csv = None
 
                 try:
@@ -716,7 +716,7 @@ class DatasetListHandler(tornado.web.RequestHandler):
                         os.path.join(self.basedir,'products'),
                         '/p'
                     )
-                except:
+                except Exception as e:
                     lczip_fpath = None
 
                 # update this listing
