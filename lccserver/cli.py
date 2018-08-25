@@ -1346,7 +1346,7 @@ def main():
             "Do you want to convert your original format "
             "light curves to LCC CSV format now? [y/N] "
         )
-        if convertlcs.strip().lower() == 'y':
+        if convertlcs and convertlcs.strip().lower() == 'y':
 
             print('Launching conversion tasks. This might take a while...')
 
@@ -1690,16 +1690,17 @@ def main():
         import pickle
         from importlib import reload
 
-        BASEDIR = os.path.abspath(args.basedir)
+        BD = os.path.abspath(args.basedir)
 
         print('\nLCC-Server modules: abcat, datasets, '
               'dbsearch have been imported automatically.')
-        print('The variable BASEDIR is set to the current base directory.')
+        print('The variable BD is set to the current base directory.')
         print("You can call functions with this set, e.g.\n\n"
               ">>> pprint.pprint(dbsearch."
-              "sqlite_get_collections(BASEDIR)['info'])\n")
+              "sqlite_get_collections(BD)['info'])\n")
 
-        print("Other auto-imported modules include: numpy as np, pickle, gzip, json.")
+        print("Other auto-imported modules "
+              "include: numpy as np, pickle, gzip, json.")
         print("The reload() function is available as well.")
         print("Have fun!")
 
