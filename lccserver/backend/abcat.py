@@ -164,9 +164,13 @@ def objectinfo_to_sqlite(augcatpkl,
                          lcset_ispublic=True,
                          colinfo=None,
                          indexcols=None,
-                         ftsindexcols=None):
+                         ftsindexcols=None,
+                         overwrite_existing=False):
 
     '''This writes the object information to an SQLite file.
+
+    NOTE: This function requires FTS5 to be available in SQLite because we don't
+    want to mess with text-search ranking algorithms to be implemented for FTS4.
 
     lcset_name must be provided. It will be used as name of the DB in several
     frontend LCC server controls. This is a string, e.g. 'HATNet DR0: Kepler
@@ -176,12 +180,6 @@ def objectinfo_to_sqlite(augcatpkl,
     the top-level lcc-collections.sqlite database for all LC collections. These
     can all contain Markdown. The frontend will use these to render HTML
     descriptions, etc.
-
-    This function makes indexes for fast look up by objectid by default and any
-    columns included in indexcols. also makes a full-text search index for any
-    columns in ftsindexcols. If either of these are not provided, will look for
-    and make indices as specified in abcat_columns.COLUMN_INFO and
-    COMPOSITE_COLUMN_INFO.
 
     If colinfo is not None, it should be either a dict or JSON with elements
     that are of the form:
@@ -202,10 +200,27 @@ def objectinfo_to_sqlite(augcatpkl,
     fairly extensive and should cover all of the data that the upstream
     astrobase tools can generate for object information.
 
-    NOTE: This function requires FTS5 to be available in SQLite because we don't
-    want to mess with ranking algorithms to be implemented for FTS4.
+    This function makes indexes for fast look up by objectid by default and any
+    columns included in indexcols. also makes a full-text search index for any
+    columns in ftsindexcols. If either of these are not provided, will look for
+    and make indices as specified in abcat_columns.COLUMN_INFO and
+    COMPOSITE_COLUMN_INFO.
+
+    If overwrite_existing is True, any existing catalog DB in the target
+    directory will be overwritten.
 
     '''
+
+    if os.path.exists(outfile):
+        LOGWARNING('An existing objectinfo catalog DB exists at: %s' % outfile)
+
+    if overwrite_existing and os.path.exists(outfile):
+        LOGWARNING('overwrite_existing = True, removing old DB: %s' % outfile)
+        os.remove(outfile)
+    elif not overwrite_existing and os.path.exists(outfile):
+        LOGWARNING('not overwriting existing catalog DB and returning it')
+        return outfile
+
 
     with open(augcatpkl, 'rb') as infd:
         augcat = pickle.load(infd)

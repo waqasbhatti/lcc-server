@@ -346,7 +346,6 @@ def new_collection_directories(basedir,
                         os.path.join(basedir,collection_id, 'periodfinding')))
             os.mkdir(os.path.join(basedir,collection_id, 'periodfinding'))
 
-
         #
         # 3. make the light curve subdir
         #
@@ -808,7 +807,8 @@ def generate_catalog_database(
         collection_info=None,
         colinfo=None,
         indexcols=None,
-        ftsindexcols=None
+        ftsindexcols=None,
+        overwrite_existing=False,
 ):
     '''This generates the objectinfo-catalog.sqlite database.
 
@@ -845,6 +845,9 @@ def generate_catalog_database(
     output SQLite database. Normally, these aren't needed, because you'll
     specify all of the info in the colinfo kwarg.
 
+    If overwrite_existing is True, any existing catalog DB in the target
+    directory will be overwritten.
+
     '''
     from .backend import abcat
     abcat.set_logger_parent(__name__)
@@ -876,7 +879,8 @@ def generate_catalog_database(
         lcset_ispublic=collection_info['ispublic'],
         colinfo=colinfo,
         indexcols=indexcols,
-        ftsindexcols=ftsindexcols
+        ftsindexcols=ftsindexcols,
+        overwrite_existing=overwrite_existing
     )
 
 
@@ -1063,6 +1067,31 @@ def main():
     import argparse
     import sys
     import readline
+    import glob
+    import pickle
+
+    def completer_func(text, state):
+        """
+        This tries to complete directory and file names.
+
+        adapted from:
+
+        https://gist.github.com/iamatypeofwalrus/5637895#gistcomment-2581493
+        """
+
+        if '~' in text:
+            text = os.path.expanduser('~')
+
+        # autocomplete directories with having a trailing slash
+        if os.path.isdir(text):
+            text += '/'
+
+        return [x for x in glob.glob(text + '*')][state]
+
+    readline.set_completer(completer_func)
+    readline.set_completer_delims('\t')
+    readline.parse_and_bind('tab: complete')
+
 
     aparser = argparse.ArgumentParser(
         description='The LCC-Server CLI',
@@ -1339,7 +1368,7 @@ def main():
             "light curves into this LC collection's "
             "lightcurves directory:\n\n"
             "%s \n\n"
-            "We'll wait here until you're done. "
+            "We'll wait here until you're ready. "
             "[hit Enter to continue]" %
             os.path.abspath(os.path.join(collection_dir, 'lightcurves'))
         )
@@ -1459,6 +1488,9 @@ def main():
             os.path.join(collection_dir,'lclist.pkl'),
             lcformat=lcform['formatkey']
         )
+        with open(lclpkl,'rb') as infd:
+            collection_lcinfo = pickle.load(infd)
+        collection_lclist = collection_lcinfo['objects']['lcfname']
 
         #
         # now we'll reform this pickle by adding in checkplot info
@@ -1472,27 +1504,89 @@ def main():
               "%s \n\n"
               "Note that this is optional, but highly recommended. "
               "If you don't have any checkplot pickles prepared, "
-              "you can continue anyway, but the only "
-              "columns available for searching will be:\n\n"
-              "objectid, ra, decl, ndet, lcfname\n\n"
-              "We'll wait here until you're done. [hit Enter to continue]" %
+              "we can prepare checkplot pickles "
+              "automatically from your light curves.\n\n"
+              "We'll wait here until you're ready. [hit Enter to continue]" %
               os.path.abspath(os.path.join(collection_dir,'checkplots')))
 
         cpdir = os.path.join(collection_dir,'checkplots')
+
         if len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))) == 0:
 
-            print('No checkplot pickles found. '
-                  'Generating barebones object catalog pickle and kd-tree...')
+            # Here, we can optionally generate checkplot pickles in 'fast'
+            # mode. these will contain:
+            # - finder chart with timeout of 5 seconds
+            # - variability features
+            # - colors, dereddening, and color classes
+            # - GAIA info with timeout of 5 seconds
+            # - just the magseries plot
 
-            # add the magcols key to the unaugmented catalog
-            with open(lclpkl,'rb') as infd:
-                lcl = pickle.load(infd)
-            lcl['magcols'] = [magcol]
-            with open(lclpkl,'wb') as outfd:
-                pickle.dump(lcl, outfd, pickle.HIGHEST_PROTOCOL)
+            print("Do you want to generate "
+                  "checkplot pickles for "
+                  "your light curves? These will contain the "
+                  "following information:\n")
+            print("finder chart, variability features, colors "
+                  "(if mags available in LC objectinfo), "
+                  "color features (if mags available in LC objectinfo), "
+                  "GAIA and SIMBAD cross-match info\n")
+            print("Calls to external services such as "
+                  "GAIA, 2MASS DUST, SIMBAD, and "
+                  "NASA SkyView will run using a hard 10 second timeout.\n")
+            cpmake = input('Generate checkplot pickles [y/N]: ')
 
-            shutil.copy(lclpkl, os.path.join(collection_dir,
-                                             'lclist-catalog.pkl'))
+            if (cpmake and
+                len(cpmake.strip()) > 0 and
+                cpmake.lower().strip() == 'y'):
+
+                print('Generating checkplot pickles. This may take a while...')
+
+                # here, we have to initialize networking in the main thread
+                # before forking for MacOS. see:
+                # https://bugs.python.org/issue30385#msg293958
+                # if this doesn't work, Python will segfault.
+                # the workaround noted in the report is to launch
+                # lcc-server like so:
+                # env no_proxy='*' lcc-server add-collection
+                if sys.platform == 'darwin':
+                    import requests
+                    requests.get('http://captive.apple.com/hotspot-detect.html')
+
+                lcproc.parallel_cp(
+                    [None for x in collection_lclist],
+                    cpdir,
+                    os.path.join(collection_dir, 'lightcurves'),
+                    fast_mode=True,
+                    lcfnamelist=collection_lclist,
+                    lclistpkl=lclpkl,
+                    minobservations=49,
+                    lcformat=lcform['formatkey']
+                )
+
+                print('Done.\n'
+                      'Generating augmented object '
+                      'catalog pickle and kd-tree...')
+                augcat_pkl = generate_augmented_lclist_catalog(
+                    args.basedir,
+                    collection_id,
+                    lclpkl,
+                    magcol,
+                )
+
+            else:
+
+                print('No checkplot pickles found. '
+                      'Generating bare-bones object '
+                      'catalog pickle and kd-tree...')
+
+                # add the magcols key to the unaugmented catalog
+                with open(lclpkl,'rb') as infd:
+                    lcl = pickle.load(infd)
+                lcl['magcols'] = [magcol]
+                with open(lclpkl,'wb') as outfd:
+                    pickle.dump(lcl, outfd, pickle.HIGHEST_PROTOCOL)
+
+                shutil.copy(lclpkl, os.path.join(collection_dir,
+                                                 'lclist-catalog.pkl'))
 
         else:
 
@@ -1507,9 +1601,9 @@ def main():
                 magcol,
             )
 
+        # generate the kd-tree pickle for fast spatial searches
         kdt = generate_catalog_kdtree(args.basedir,
                                       collection_id)
-
 
         #
         # next, we'll ask the user about their collection
@@ -1608,6 +1702,22 @@ def main():
         print("Adding this collection to the LCC server's index...")
         catindex = add_collection_to_lcc_index(args.basedir,
                                                collection_id)
+
+        # we need to generate a tiny dataset so the LCC-server doesn't complain
+        # that it can't find any existing datasets
+        print('\nDone.\n')
+        print('Running a quick search to test your '
+              'LCC-Server installation...\n')
+
+        from lccserver.backend import dbsearch, datasets
+        res = dbsearch.sqlite_kdtree_conesearch(args.basedir,
+                                                lcdict['objectinfo']['ra'],
+                                                lcdict['objectinfo']['decl'],
+                                                5.0)
+        setid, dt = datasets.sqlite_prepare_dataset(args.basedir)
+        setid = datasets.sqlite_new_dataset('.', setid, dt, res)
+        lcz = datasets.sqlite_make_dataset_lczip(args.basedir,setid)
+        ds = datasets.sqlite_get_dataset('.', setid)
 
         print('\nAll done!\n')
         print('You can start an LCC server instance '
