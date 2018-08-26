@@ -420,7 +420,7 @@ def objectinfo_to_sqlite(augcatpkl,
                 defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
         # the operand columns aren't present in the augcat, skip
-        except:
+        except Exception as e:
             pass
 
     # finally, go though the mag affiliated columns, per magcol
@@ -650,7 +650,7 @@ def objectinfo_to_sqlite(augcatpkl,
 
         try:
             overridecolinfo = json.loads(colinfo)
-        except:
+        except Exception as e:
             LOGERROR('could not understand colinfo argument, skipping...')
             overridecolinfo = None
 
@@ -1472,7 +1472,7 @@ def convert_to_csvlc(lcfile,
                 'val':val,
                 'desc':thismetainfo['desc'],
             }
-        except:
+        except Exception as e:
             pass
 
     # extract the column info
@@ -1542,7 +1542,7 @@ def convert_to_csvlc(lcfile,
                         lcformat_dict['columns'][x]['format'] %
                         lcdict[x][lineind]
                     )
-                except:
+                except Exception as e:
                     thisline.append(str(lcdict[x][lineind]))
 
             formline = '%s\n' % ('%s' % column_separator).join(thisline)

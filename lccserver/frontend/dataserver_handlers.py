@@ -126,7 +126,7 @@ class DatasetHandler(tornado.web.RequestHandler):
         try:
             returnjson = xhtml_escape(self.get_argument('json',default='0'))
             returnjson = True if returnjson == '1' else False
-        except:
+        except Exception as e:
             returnjson = False
 
         if returnjson:
@@ -136,7 +136,7 @@ class DatasetHandler(tornado.web.RequestHandler):
                 strformat = xhtml_escape(self.get_argument('strformat',
                                                            default='0'))
                 strformat = True if strformat == '1' else False
-            except:
+            except Exception as e:
                 strformat = False
 
         else:

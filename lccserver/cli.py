@@ -547,7 +547,7 @@ def generate_augmented_lclist_catalog(
         magcol,
         checkplot_glob='checkplot-*.pkl*',
         nworkers=NCPUS,
-        infokeys=[
+        infokeys=(
             # key, dtype, first level, overwrite=T|append=F, None sub, nan sub
             ('comments',
              np.unicode_, False, True, '', ''),
@@ -695,7 +695,7 @@ def generate_augmented_lclist_catalog(
              np.float_, False, True, np.nan, np.nan),
             ('varinfo.features.beyond1std',
              np.float_, False, True, np.nan, np.nan)
-        ]
+        )
 ):
     '''This generates a lclist-catalog.pkl file containing extra info from
     checkplots.
@@ -773,7 +773,7 @@ def generate_augmented_lclist_catalog(
         lclist_pkl,
         magcol,
         os.path.join(basedir, collection_id, 'lclist-catalog.pkl'),
-        infokeys=infokeys,
+        infokeys=list(infokeys),
         nworkers=nworkers
     )
 
@@ -805,14 +805,7 @@ def generate_catalog_kdtree(basedir,
 def generate_catalog_database(
         basedir,
         collection_id,
-        collection_info={
-            'name':'Example LC Collection',
-            'desc':'This is an example light curve collection.',
-            'project':'LCC-Server Example Project',
-            'datarelease':1,
-            'citation':'Your citation goes here (2018)',
-            'ispublic':True
-        },
+        collection_info=None,
         colinfo=None,
         indexcols=None,
         ftsindexcols=None
@@ -855,6 +848,16 @@ def generate_catalog_database(
     '''
     from .backend import abcat
     abcat.set_logger_parent(__name__)
+
+    if collection_info is None:
+        collection_info = {
+            'name':'Example LC Collection',
+            'desc':'This is an example light curve collection.',
+            'project':'LCC-Server Example Project',
+            'datarelease':1,
+            'citation':'Your citation goes here (2018)',
+            'ispublic':True
+        }
 
     # get basedir/collection_id/lclist-catalog.pkl
     lclist_catalog_pickle = os.path.join(basedir,
@@ -1230,7 +1233,7 @@ def main():
                 )
                 print('Everything checks out!')
 
-            except:
+            except Exception as e:
                 print("Could not validate your lcformat-description.json file!")
                 raise
 
@@ -1300,7 +1303,7 @@ def main():
                     )
                     print('Everything checks out!')
 
-                except:
+                except Exception as e:
                     print("Could not validate your "
                           "lcformat-description.json file!")
                     raise
@@ -1690,6 +1693,7 @@ def main():
         import json
         import numpy as np
         import gzip
+        import glob
         import pickle
         from importlib import reload
 

@@ -52,7 +52,7 @@ try:
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     IOLOOP_SPEC = 'uvloop'
-except:
+except Exception as e:
     HAVE_UVLOOP = False
     IOLOOP_SPEC = 'asyncio'
 

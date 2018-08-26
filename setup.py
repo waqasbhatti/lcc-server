@@ -17,6 +17,7 @@ from setuptools import setup, find_packages
 # pytesting stuff and imports copied wholesale from:
 # https://docs.pytest.org/en/latest/goodpractices.html#test-discovery
 from setuptools.command.test import test as TestCommand
+
 class PyTest(TestCommand):
     user_options = [('pytest-args=', 'a', "Arguments to pass to pytest")]
 
