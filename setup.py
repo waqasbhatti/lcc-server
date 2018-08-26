@@ -52,15 +52,14 @@ INSTALL_REQUIRES = [
     'ipython',
     'numpy',
     'scipy',
-    'matplotlib',
-    'tornado',
+    'tornado>=5.0',
     'requests',
     'tqdm',
     'markdown',
     'pygments',
     'itsdangerous',
     'cryptography',
-    'astrobase>=0.3.16',
+    'astrobase>=0.3.18',
 ]
 
 EXTRAS_REQUIRE = {

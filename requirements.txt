@@ -1,12 +1,11 @@
 ipython
 numpy
 scipy
-tornado
-matplotlib
+tornado>=5.0
 requests
 tqdm
 markdown
 pygments
 itsdangerous
 cryptography
-astrobase>=0.3.16
+astrobase>=0.3.18
