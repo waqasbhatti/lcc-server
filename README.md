@@ -14,12 +14,19 @@ At the moment, it includes the following functionality:
   - cross-matching to uploaded object list with objectid, ra, decl
   - full-text search on object names, descriptions, etc.
 
+[![LCC server search interface](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/search-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/search-montage.png)
+
 - HTTP API for generating datasets from search results asychronously, caching
   results from searches, and generating output zip bundles containing search
   results and all matching light curves
 
+[![LCC server results display](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/results-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/results-montage.png)
+
 - HTTP API for detailed information per object, including light curve plots,
   external catalog info, and period-finding results plus phased LCs if available
+
+[![LCC server object info](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/objectinfo-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/objectinfo-montage.png)
+
 
 ## Installation
 
