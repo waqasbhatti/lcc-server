@@ -1126,7 +1126,7 @@ def main():
         if currdir != args.basedir:
             os.chdir(args.basedir)
 
-        executor = ProcessPoolExecutor()
+        executor = ProcessPoolExecutor(max_workers=2)
         event_loop = asyncio.get_event_loop()
 
         try:
@@ -1403,72 +1403,89 @@ def main():
         from astrobase import lcproc
         lcproc.set_logger_parent(__name__)
 
-        # pick the first LC in the LC dir and read it in using the provided LC
-        # reader function
-        lcdict = lcform['readerfunc'](
-            glob.glob(
-                os.path.abspath(
-                    os.path.join(collection_dir,
-                                 'lightcurves',
-                                 lcform['fileglob'])
+        try:
+
+            # pick the first LC in the LC dir and read it in using the provided
+            # LC reader function
+            lcdict = lcform['readerfunc'](
+                glob.glob(
+                    os.path.abspath(
+                        os.path.join(collection_dir,
+                                     'lightcurves',
+                                     lcform['fileglob'])
+                    )
+                )[0]
+            )
+            if (isinstance(lcdict, (tuple, list)) and
+                isinstance(lcdict[0], dict)):
+                lcdict = lcdict[0]
+
+            if 'columns' in lcdict:
+                lc_keys = lcdict['columns']
+            else:
+                lc_keys = sorted(lcdict.keys())
+
+            print('Your original format light curves '
+                  'contain the following keys '
+                  'when read into an lcdict:\n')
+            for k in lc_keys:
+                print(k)
+
+            timecol, magcol, errcol = None, None, None
+
+            # ask which timecol, magcol, errcol the user wants to use
+            while not timecol or len(timecol.strip()) == 0:
+
+                timecol = input(
+                    "\nWhich key in the lcdict do you want to use "
+                    "for the time column? "
                 )
-            )[0]
-        )
-        if isinstance(lcdict, (tuple, list)) and isinstance(lcdict[0], dict):
-            lcdict = lcdict[0]
+                if ((not timecol) or
+                    (len(timecol.strip()) == 0) or
+                    (timecol not in lc_keys)):
+                    print("The provided timecol: %s "
+                          "isn't present in lcdict keys." % timecol)
+                    timecol = None
 
-        if 'columns' in lcdict:
-            lc_keys = lcdict['columns']
-        else:
-            lc_keys = sorted(lcdict.keys())
+            # ask which magcol, magcol, errcol the user wants to use
+            while not magcol or len(magcol.strip()) == 0:
+                magcol = input(
+                    "Which key in the lcdict do you want to use "
+                    "for the mag column? "
+                )
+                if ((not magcol) or
+                    (len(magcol.strip()) == 0) or
+                    (magcol not in lc_keys)):
+                    print("The provided magcol: %s "
+                          "isn't present in lcdict keys." % magcol)
+                    magcol = None
 
-        print('Your original format light curves '
-              'contain the following keys '
-              'when read into an lcdict:\n')
-        for k in lc_keys:
-            print(k)
+            # ask which errcol, magcol, errcol the user wants to use
+            while not errcol or len(errcol.strip()) == 0:
+                errcol = input(
+                    "Which key in the lcdict do you want to use "
+                    "for the err column? "
+                )
+                if ((not errcol) or
+                    (len(errcol.strip()) == 0) or
+                    (errcol not in lc_keys)):
+                    print("The provided errcol: %s "
+                          "isn't present in lcdict keys." % errcol)
+                    errcol = None
 
-        timecol, magcol, errcol = None, None, None
+        # we can't proceed without doing an LC read test
+        except Exception as e:
 
-        # ask which timecol, magcol, errcol the user wants to use
-        while not timecol or len(timecol.strip()) == 0:
-
-            timecol = input(
-                "\nWhich key in the lcdict do you want to use "
-                "for the time column? "
-            )
-            if ((not timecol) or
-                (len(timecol.strip()) == 0) or
-                (timecol not in lc_keys)):
-                print("The provided timecol: %s "
-                      "isn't present in lcdict keys." % timecol)
-                timecol = None
-
-        # ask which magcol, magcol, errcol the user wants to use
-        while not magcol or len(magcol.strip()) == 0:
-            magcol = input(
-                "Which key in the lcdict do you want to use "
-                "for the mag column? "
-            )
-            if ((not magcol) or
-                (len(magcol.strip()) == 0) or
-                (magcol not in lc_keys)):
-                print("The provided magcol: %s "
-                      "isn't present in lcdict keys." % magcol)
-                magcol = None
-
-        # ask which errcol, magcol, errcol the user wants to use
-        while not errcol or len(errcol.strip()) == 0:
-            errcol = input(
-                "Which key in the lcdict do you want to use "
-                "for the err column? "
-            )
-            if ((not errcol) or
-                (len(errcol.strip()) == 0) or
-                (errcol not in lc_keys)):
-                print("The provided errcol: %s "
-                      "isn't present in lcdict keys." % errcol)
-                errcol = None
+            print("Could not run a light curve read test using LCs "
+                  "in %s.\n" % os.path.join(collection_dir,
+                                            'lightcurves'))
+            print("This may indicate an issue with your LC reader "
+                  "function or there are no LCs in the "
+                  "lightcurves directory.\n")
+            LOGEXCEPTION('Exception raised was:\n')
+            print("\nOnce this is fixed, call lcc-server again:\n")
+            print("lcc-server --basedir %s add-collection" % args.basedir)
+            sys.exit(1)
 
         print('Generating a light curve list pickle using magcol: %s...' %
               magcol)
