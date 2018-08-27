@@ -74,8 +74,8 @@ install LCC-Server. This will be in your `$PATH` as [`lcc-server`](https://githu
 A Jupyter notebook walkthough using this CLI to stand up an LCC-Server instance,
 with example light curves, can be found in the **astrobase-notebooks** repo:
 [lcc-server-setup.ipynb](https://github.com/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb). This
-is also available in the docs directory in this repository in Markdown format:
-[lcc-server-setup.md](docs/lcc-server-setup.md).
+is also available in the docs directory in the Github repository in Markdown format:
+[lcc-server-setup.md](https://github.com/waqasbhatti/lcc-server/blob/master/docs/lcc-server-setup.md).
 
 - Documentation for how to use the server for searching LC collections is hosted
 at the HAT data server instance: https://data.hatsurveys.org/docs.
@@ -84,7 +84,8 @@ at the HAT data server instance: https://data.hatsurveys.org/docs.
   repository: [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py).
 
 These docs are automatically generated from the
-[server-docs](lccserver/server-docs) directory in this repository.
+[server-docs](https://github.com/waqasbhatti/lcc-server/blob/master/server-docs)
+directory in the git repository.
 
 
 ## License
