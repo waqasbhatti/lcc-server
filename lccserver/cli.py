@@ -498,7 +498,7 @@ def convert_original_lightcurves(basedir,
                              'column_separator':column_separator,
                              'skip_converted':skip_converted}
 
-        tasks = [(x, y, lcformatdict, converter_options) for x, y in
+        tasks = [(x, y, lcformjson, converter_options) for x, y in
                  zip(input_lclist, (None for x in input_lclist))]
 
         # do the conversion
@@ -1746,9 +1746,9 @@ def main():
                                                 lcdict['objectinfo']['decl'],
                                                 5.0)
         setid, dt = datasets.sqlite_prepare_dataset(args.basedir)
-        setid = datasets.sqlite_new_dataset('.', setid, dt, res)
-        lcz = datasets.sqlite_make_dataset_lczip(args.basedir,setid)
-        ds = datasets.sqlite_get_dataset('.', setid)
+        setid = datasets.sqlite_new_dataset(args.basedir, setid, dt, res)
+        lcz = datasets.sqlite_make_dataset_lczip(args.basedir, setid)
+        ds = datasets.sqlite_get_dataset(args.basedir, setid)
 
         print('\nAll done!\n')
         print('You can start an LCC server instance '

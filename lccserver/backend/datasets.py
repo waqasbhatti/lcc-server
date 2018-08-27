@@ -391,8 +391,9 @@ def csvlc_convert_worker(task):
 
     '''
 
-    lcfile, objectid, formatdict, convertin_opts = task
+    lcfile, objectid, formatjson, convertin_opts = task
     convertopts = convertin_opts.copy()
+    formatdict = abcat.get_lcformat_description(formatjson)
 
     try:
         csvlc = abcat.convert_to_csvlc(lcfile,
@@ -558,9 +559,6 @@ def sqlite_make_dataset_lczip(basedir,
 
                 # load the format description
                 lcformatdesc = dataset['lcformatdesc'][collection]
-                lcformatdict = abcat.get_lcformat_description(
-                    lcformatdesc
-                )
                 convertopts = {'csvlc_version':converter_csvlc_version,
                                'comment_char':converter_comment_char,
                                'column_separator':converter_column_separator,
@@ -585,7 +583,7 @@ def sqlite_make_dataset_lczip(basedir,
 
                 # now, we'll convert these light curves in parallel
                 pool = Pool(converter_processes)
-                tasks = [(x, y, lcformatdict, convertopts) for x,y in
+                tasks = [(x, y, lcformatdesc, convertopts) for x,y in
                          zip(collection_lclist, collection_objectidlist)]
                 results = pool.map(csvlc_convert_worker, tasks)
                 pool.close()
