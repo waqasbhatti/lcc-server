@@ -6,7 +6,7 @@
     "lc_readerfunc_kwargs": {"extra": "kwargs", "for": "readerfunc", "or": null},
     "lc_normalizemodule": "module.to.normalize.lc or /path/to/module/to/normalize/lc.py or null",
     "lc_normalizefunc": "function_to_normalize_lcdict_in_place or null",
-    "lc_readerfunc_kwargs": {"extra": "kwargs", "for": "normfunc", "or": null},
+    "lc_normalizefunc_kwargs": {"extra": "kwargs", "for": "normfunc", "or": null},
     "unaffiliated_cols": [
         "time",
         "framenumber",
