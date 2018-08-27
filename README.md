@@ -84,8 +84,7 @@ at the HAT data server instance: https://data.hatsurveys.org/docs.
   repository: [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py).
 
 These docs are automatically generated from the
-[server-docs](https://github.com/waqasbhatti/lcc-server/blob/master/server-docs)
-directory in the git repository.
+[server-docs](https://github.com/waqasbhatti/lcc-server/tree/master/lccserver/server-docs) directory in the git repository.
 
 
 ## License
