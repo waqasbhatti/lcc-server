@@ -62,9 +62,30 @@ some of the eventloop bits:
 $ pip install uvloop
 ```
 
+## Using the server
+
 Some post-installation setup is required to begin serving light curves. In
 particular, you will need to set up a base directory where LCC-Server can work
-from and various sub-directories. Notes on this TBD...
+from and various sub-directories.
+
+To make this process easier, there's an interactive CLI available when you
+install LCC-Server. This will be in your `$PATH` as [`lcc-server`](https://github.com/waqasbhatti/lcc-server/blob/master/lccserver/cli.py).
+
+A Jupyter notebook walkthough using this CLI to stand up an LCC-Server instance,
+with example light curves, can be found in the **astrobase-notebooks** repo:
+[lcc-server-setup.ipynb](https://github.com/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb). This
+is also available in the docs directory in this repository in Markdown format:
+[lcc-server-setup.md](docs/lcc-server-setup.md).
+
+- Documentation for how to use the server for searching LC collections is hosted
+at the HAT data server instance: https://data.hatsurveys.org/docs.
+- The HTTP API is documented at: https://data.hatsurveys.org/docs/api.
+- A standalone Python module API client is available in the astrobase
+  repository: [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py).
+
+These docs are automatically generated from the
+[server-docs](lccserver/server-docs) directory in this repository.
+
 
 ## License
 
