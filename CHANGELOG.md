@@ -1,3 +1,15 @@
+# v0.1.2
+
+## Fixes
+
+- cli, backend: fixed operations that were actually broken, but were working
+  because we weren't testing them right.
+
+## Changes:
+
+- docs: removed useless markdown version of Jupyter notebook walk-through.
+
+
 # v0.1.1
 
 ## Fixes
