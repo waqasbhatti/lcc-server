@@ -858,6 +858,310 @@ def check_extmodule(module, formatkey):
     return importedok
 
 
+##################################################
+## FUNCTIONS THAT DEAL WITH LIGHT CURVE FORMATS ##
+##################################################
+
+def dict_get(datadict, keylist):
+    '''
+    This gets the requested key by walking the datadict.
+
+    '''
+    return reduce(getitem, keylist, datadict)
+
+
+
+def get_lcformat_description(descpath):
+    '''
+    This reads the lcformat column description file and returns a dict.
+
+    The description file is a JSON located under the collection's
+    collection_id directory/lcformat-description.json.
+
+    '''
+    # read the JSON
+    with open(descpath,'rb') as infd:
+
+        formatdesc = json.load(infd)
+        formatkey = formatdesc['lc_formatkey']
+
+    # 1. generate the metadata info dict
+    metadata_info = {}
+
+    for key in formatdesc['metadata_keys']:
+
+        desc, textform, caster = formatdesc['metadata_keys'][key]
+
+        deref_key = key.split('.')
+
+        thiskey_info = {'deref': deref_key,
+                        'desc': desc,
+                        'format': textform,
+                        'caster': caster}
+        metadata_info[key] = thiskey_info
+
+
+    # 2. get the column info
+    column_info = {}
+    column_keys = []
+
+    # 2a. first, get the unaffiliated columns
+    for key in formatdesc['unaffiliated_cols']:
+
+        desc, textform, dtype = formatdesc['column_keys'][key]
+
+        column_info[key] = {'desc':desc,
+                            'format':textform,
+                            'dtype':dtype}
+        column_keys.append(key)
+
+    # 2b. next, get the per magnitude columns
+    apertures = formatdesc['mag_apertures']
+    aperturejoiner = formatdesc['aperture_joiner']
+
+    for key in formatdesc['per_aperture_cols']:
+
+        for ap in apertures:
+
+            fullkey = '%s%s%s' % (key, aperturejoiner, ap)
+            desc, textform, dtype = formatdesc['column_keys'][key]
+            desc = desc % ap
+
+            column_info[fullkey] = {'desc':desc,
+                                    'format':textform,
+                                    'dtype':dtype}
+            column_keys.append(fullkey)
+
+
+    # 3. load the reader module and get the reader and normalize functions
+    reader_module_name = formatdesc['lc_readermodule']
+    reader_func_name = formatdesc['lc_readerfunc']
+    reader_func_kwargs = formatdesc['lc_readerfunc_kwargs']
+
+    norm_module_name = formatdesc['lc_normalizemodule']
+    norm_func_name = formatdesc['lc_normalizefunc']
+    norm_func_kwargs = formatdesc['lc_normalizefunc_kwargs']
+
+    # see if we can import the reader module
+    readermodule = check_extmodule(reader_module_name, formatkey)
+
+    if norm_module_name:
+        normmodule = check_extmodule(norm_module_name, formatkey)
+    else:
+        normmodule = None
+
+    # then, get the function we need to read the lightcurve
+    readerfunc_in = getattr(readermodule, reader_func_name)
+
+    if norm_module_name and norm_func_name:
+        normfunc_in = getattr(normmodule, norm_func_name)
+    else:
+        normfunc_in = None
+
+    # add in any optional kwargs that need to be there for readerfunc
+    if isinstance(reader_func_kwargs, dict):
+        readerfunc = partial(readerfunc_in, **reader_func_kwargs)
+    else:
+        readerfunc = readerfunc_in
+
+    # add in any optional kwargs that need to be there for normfunc
+    if normfunc_in is not None:
+        if isinstance(norm_func_kwargs, dict):
+            normfunc = partial(normfunc_in, **norm_func_kwargs)
+        else:
+            normfunc = normfunc_in
+    else:
+        normfunc = None
+
+    # this is the final metadata dict
+    returndict = {
+        'formatkey':formatkey,
+        'fileglob':formatdesc['lc_fileglob'],
+        'readermodule':readermodule,
+        'normmodule':normmodule,
+        'readerfunc':readerfunc,
+        'normfunc':normfunc,
+        'columns':column_info,
+        'colkeys':column_keys,
+        'metadata':metadata_info
+    }
+
+    return returndict
+
+
+
+def convert_to_csvlc(lcfile,
+                     objectid,
+                     lcformat_dict,
+                     csvlc_version=1,
+                     comment_char='#',
+                     column_separator=',',
+                     skip_converted=False):
+    '''This converts any readable LC to a common-format CSV LC.
+
+    The first 3 lines of the file are always:
+
+    LCC-CSVLC-<csvlc_version>
+    <comment_char>
+    <column_separator>
+
+    The next lines are offset with comment_char and are JSON formatted
+    descriptions of: (i) the object metadata, (ii) the column info. Finally, we
+    have the columns separated with column_separator.
+
+    so reader functions can recognize it automatically (like
+    astrobase.hatsurveys.hatlc.py).
+
+    This will normalize the light curve as specified in the
+    lcformat-description.json file.
+
+    '''
+
+    # use the lcformat_dict to get the reader and normalization functions
+    readerfunc = lcformat_dict['readerfunc']
+    normfunc = lcformat_dict['normfunc']
+
+    # if the object is not None, we can return early without trying to read the
+    # original format LC if the output file exists already and skip_converted =
+    # True
+    if objectid is not None:
+
+        # the filename
+        outfile = '%s-csvlc.gz' % objectid
+
+        # we'll put the CSV LC in the same place as the original LC
+        outpath = os.path.join(os.path.dirname(lcfile), outfile)
+
+        # if we're supposed to skip an existing file, do so here
+        if skip_converted and os.path.exists(outpath):
+            LOGWARNING(
+                '%s exists already and skip_converted = True, skipping...' %
+                outpath
+            )
+            return outpath
+
+    # now read in the light curve
+    lcdict = readerfunc(lcfile)
+    if isinstance(lcdict, (tuple, list)) and isinstance(lcdict[0], dict):
+        lcdict = lcdict[0]
+
+    # at this point, we can get the objectid from the lcdict directly if it's
+    # None, generate the output filepath, check if it exists, and return early
+    # if skip_converted = True
+    if objectid is None:
+
+        objectid = lcdict['objectid']
+
+        # the filename
+        outfile = '%s-csvlc.gz' % objectid
+
+        # we'll put the CSV LC in the same place as the original LC
+        outpath = os.path.join(os.path.dirname(lcfile), outfile)
+
+        # if we're supposed to skip an existing file, do so here
+        if skip_converted and os.path.exists(outpath):
+            LOGWARNING(
+                '%s exists already and skip_converted = True, skipping...' %
+                outpath
+            )
+            return outpath
+
+
+    # normalize the lcdict if we have to
+    if normfunc:
+        lcdict = normfunc(lcdict)
+
+    # extract the metadata keys
+    meta = {}
+
+    for key in lcformat_dict['metadata']:
+
+        try:
+            thismetainfo = lcformat_dict['metadata'][key]
+            val = dict_get(lcdict, thismetainfo['deref'])
+            meta[thismetainfo['deref'][-1]] = {
+                'val':val,
+                'desc':thismetainfo['desc'],
+            }
+        except Exception as e:
+            pass
+
+    # extract the column info
+    columns = {}
+
+    # generate the format string for each line
+    line_formstr = []
+
+    available_keys = []
+    ki = 0
+
+    for key in lcformat_dict['colkeys']:
+
+        if key in lcdict:
+
+            thiscolinfo = lcformat_dict['columns'][key]
+
+            line_formstr.append(thiscolinfo['format'])
+
+            columns[key] = {
+                'colnum': ki,
+                'dtype':thiscolinfo['dtype'],
+                'desc':thiscolinfo['desc']
+            }
+            available_keys.append(key)
+            ki = ki + 1
+
+    # generate the header bits
+    metajson = indent(json.dumps(meta, indent=2), '%s ' % comment_char)
+    coljson = indent(json.dumps(columns, indent=2), '%s ' % comment_char)
+
+    # now, put together everything
+    with gzip.open(outpath, 'wb') as outfd:
+
+        # first, write the format spec
+        outfd.write(('LCC-CSVLC-V%s\n' % csvlc_version).encode())
+        outfd.write(('%s\n' % comment_char).encode())
+        outfd.write(('%s\n' % column_separator).encode())
+
+        # second, write the metadata JSON
+        outfd.write(('%s OBJECT METADATA\n' % comment_char).encode())
+        outfd.write(('%s\n' % metajson).encode())
+        outfd.write(('%s\n' % (comment_char,)).encode())
+
+        # third, write the column JSON
+        outfd.write(('%s COLUMN DEFINITIONS\n' % comment_char).encode())
+        outfd.write(('%s\n' % coljson).encode())
+
+        # finally, prepare to write the LC columns
+        outfd.write(('%s\n' % (comment_char,)).encode())
+        outfd.write(('%s LIGHTCURVE\n' % comment_char).encode())
+
+        # last, write the columns themselves
+        nlines = len(lcdict[lcformat_dict['colkeys'][0]])
+
+        for lineind in range(nlines):
+
+            thisline = []
+            for x in available_keys:
+
+                # we need to check if any col vals conflict with the specified
+                # formatter. in this case, we'll turn the formatter into %s so
+                # we don't fail here. this usually comes up if nan is provided
+                # as a value to %i
+                try:
+                    thisline.append(
+                        lcformat_dict['columns'][x]['format'] %
+                        lcdict[x][lineind]
+                    )
+                except Exception as e:
+                    thisline.append(str(lcdict[x][lineind]))
+
+            formline = '%s\n' % ('%s' % column_separator).join(thisline)
+            outfd.write(formline.encode())
+
+    return outpath
+
+
 
 ##############################################
 ## COLLECTING METADATA ABOUT LC COLLECTIONS ##
@@ -1112,36 +1416,13 @@ def sqlite_collect_lcc_info(
     # 2. check if we can successfully import the lcformat reader func
     try:
 
-
-        # read the lcformat-description.json file to get the reader module,
-        # reader function, normalization module, and normalization function
-
-        with open(lcformat_desc_path,'rb') as infd:
-            lcformat_dict = json.load(infd)
-
-        lcformat_key = lcformat_dict['lc_formatkey']
-        lcformat_fileglob = lcformat_dict['lc_fileglob']
-        lcformat_reader_module = lcformat_dict['lc_readermodule']
-        lcformat_reader_function = lcformat_dict['lc_readerfunc']
-        lcformat_norm_module = lcformat_dict['lc_normalizemodule']
-        lcformat_norm_function = lcformat_dict['lc_normalizefunc']
-
-        # see if we can import the reader module
-        readermodule = check_extmodule(lcformat_reader_module,
-                                       lcformat_key)
-
-        if lcformat_norm_module:
-            normmodule = check_extmodule(lcformat_norm_module, lcformat_key)
-        else:
-            normmodule = None
-
-        # then, get the function we need to read the lightcurve
-        readerfunc = getattr(readermodule, lcformat_reader_function)
-
-        if lcformat_norm_function:
-            normfunc = getattr(normmodule, lcformat_norm_function)
-        else:
-            normfunc = None
+        # read the lcformat-description.json file to get the reader function
+        lcformat_dict = get_lcformat_description(lcformat_desc_path)
+        readerfunc = lcformat_dict['readerfunc']
+        normmodule = lcformat_dict['normmodule']
+        normfunc = lcformat_dict['normfunc']
+        lcformat_fileglob = lcformat_dict['fileglob']
+        lcformat_key = lcformat_dict['formatkey']
 
         # use the lcformat_fileglob to find light curves in the LC dir
         lcformat_lcfiles = glob.glob(os.path.join(lightcurves_dir_path,
@@ -1279,309 +1560,6 @@ def sqlite_collect_lcc_info(
             raise
         else:
             return None
-
-
-
-##################################################
-## FUNCTIONS THAT DEAL WITH LIGHT CURVE FORMATS ##
-##################################################
-
-def dict_get(datadict, keylist):
-    '''
-    This gets the requested key by walking the datadict.
-
-    '''
-    return reduce(getitem, keylist, datadict)
-
-
-
-def get_lcformat_description(descpath):
-    '''
-    This reads the lcformat column description file and returns a dict.
-
-    The description file is a JSON located under the collection's
-    collection_id directory/lcformat-description.json.
-
-    '''
-    # read the JSON
-    with open(descpath,'rb') as infd:
-
-        formatdesc = json.load(infd)
-        formatkey = formatdesc['lc_formatkey']
-
-    # 1. generate the metadata info dict
-    metadata_info = {}
-
-    for key in formatdesc['metadata_keys']:
-
-        desc, textform, caster = formatdesc['metadata_keys'][key]
-
-        deref_key = key.split('.')
-
-        thiskey_info = {'deref': deref_key,
-                        'desc': desc,
-                        'format': textform,
-                        'caster': caster}
-        metadata_info[key] = thiskey_info
-
-
-    # 2. get the column info
-    column_info = {}
-    column_keys = []
-
-    # 2a. first, get the unaffiliated columns
-    for key in formatdesc['unaffiliated_cols']:
-
-        desc, textform, dtype = formatdesc['column_keys'][key]
-
-        column_info[key] = {'desc':desc,
-                            'format':textform,
-                            'dtype':dtype}
-        column_keys.append(key)
-
-    # 2b. next, get the per magnitude columns
-    apertures = formatdesc['mag_apertures']
-    aperturejoiner = formatdesc['aperture_joiner']
-
-    for key in formatdesc['per_aperture_cols']:
-
-        for ap in apertures:
-
-            fullkey = '%s%s%s' % (key, aperturejoiner, ap)
-            desc, textform, dtype = formatdesc['column_keys'][key]
-            desc = desc % ap
-
-            column_info[fullkey] = {'desc':desc,
-                                    'format':textform,
-                                    'dtype':dtype}
-            column_keys.append(fullkey)
-
-
-    # 3. load the reader module and get the reader and normalize functions
-    reader_module_name = formatdesc['lc_readermodule']
-    reader_func_name = formatdesc['lc_readerfunc']
-    reader_func_kwargs = formatdesc['lc_readerfunc_kwargs']
-
-    norm_module_name = formatdesc['lc_normalizemodule']
-    norm_func_name = formatdesc['lc_normalizefunc']
-    norm_func_kwargs = formatdesc['lc_normalizefunc_kwargs']
-
-    # see if we can import the reader module
-    readermodule = check_extmodule(reader_module_name, formatkey)
-
-    if norm_module_name:
-        normmodule = check_extmodule(norm_module_name, formatkey)
-    else:
-        normmodule = None
-
-    # then, get the function we need to read the lightcurve
-    readerfunc_in = getattr(readermodule, reader_func_name)
-
-    if norm_module_name and norm_func_name:
-        normfunc_in = getattr(normmodule, norm_func_name)
-    else:
-        normfunc_in = None
-
-    # add in any optional kwargs that need to be there for readerfunc
-    if isinstance(reader_func_kwargs, dict):
-        readerfunc = partial(readerfunc_in, **reader_func_kwargs)
-    else:
-        readerfunc = readerfunc_in
-
-    # add in any optional kwargs that need to be there for normfunc
-    if normfunc_in is not None:
-        if isinstance(norm_func_kwargs, dict):
-            normfunc = partial(normfunc_in, **norm_func_kwargs)
-        else:
-            normfunc = normfunc_in
-    else:
-        normfunc = None
-
-    # this is the final metadata dict
-    returndict = {
-        'formatkey':formatkey,
-        'fileglob':formatdesc['lc_fileglob'],
-        'readerfunc':readerfunc,
-        'normfunc':normfunc,
-        'columns':column_info,
-        'colkeys':column_keys,
-        'metadata':metadata_info
-    }
-
-    return returndict
-
-
-
-def convert_to_csvlc(lcfile,
-                     objectid,
-                     lcformat_dict,
-                     csvlc_version=1,
-                     comment_char='#',
-                     column_separator=',',
-                     skip_converted=False):
-    '''This converts any readable LC to a common-format CSV LC.
-
-    The first 3 lines of the file are always:
-
-    LCC-CSVLC-<csvlc_version>
-    <comment_char>
-    <column_separator>
-
-    The next lines are offset with comment_char and are JSON formatted
-    descriptions of: (i) the object metadata, (ii) the column info. Finally, we
-    have the columns separated with column_separator.
-
-    so reader functions can recognize it automatically (like
-    astrobase.hatsurveys.hatlc.py).
-
-    This will normalize the light curve as specified in the
-    lcformat-description.json file.
-
-    '''
-
-    # use the lcformat_dict to get the reader and normalization functions
-    readerfunc = lcformat_dict['readerfunc']
-    normfunc = lcformat_dict['normfunc']
-
-    # if the object is not None, we can return early without trying to read the
-    # original format LC if the output file exists already and skip_converted =
-    # True
-    if objectid is not None:
-
-        # the filename
-        outfile = '%s-csvlc.gz' % objectid
-
-        # we'll put the CSV LC in the same place as the original LC
-        outpath = os.path.join(os.path.dirname(lcfile), outfile)
-
-        # if we're supposed to skip an existing file, do so here
-        if skip_converted and os.path.exists(outpath):
-            LOGWARNING(
-                '%s exists already and skip_converted = True, skipping...' %
-                outpath
-            )
-            return outpath
-
-    # now read in the light curve
-    lcdict = readerfunc(lcfile)
-    if isinstance(lcdict, (tuple, list)) and isinstance(lcdict[0], dict):
-        lcdict = lcdict[0]
-
-    # at this point, we can get the objectid from the lcdict directly if it's
-    # None, generate the output filepath, check if it exists, and return early
-    # if skip_converted = True
-    if objectid is None:
-
-        objectid = lcdict['objectid']
-
-        # the filename
-        outfile = '%s-csvlc.gz' % objectid
-
-        # we'll put the CSV LC in the same place as the original LC
-        outpath = os.path.join(os.path.dirname(lcfile), outfile)
-
-        # if we're supposed to skip an existing file, do so here
-        if skip_converted and os.path.exists(outpath):
-            LOGWARNING(
-                '%s exists already and skip_converted = True, skipping...' %
-                outpath
-            )
-            return outpath
-
-
-    # normalize the lcdict if we have to
-    if normfunc:
-        lcdict = normfunc(lcdict)
-
-    # extract the metadata keys
-    meta = {}
-
-    for key in lcformat_dict['metadata']:
-
-        try:
-            thismetainfo = lcformat_dict['metadata'][key]
-            val = dict_get(lcdict, thismetainfo['deref'])
-            meta[thismetainfo['deref'][-1]] = {
-                'val':val,
-                'desc':thismetainfo['desc'],
-            }
-        except Exception as e:
-            pass
-
-    # extract the column info
-    columns = {}
-
-    # generate the format string for each line
-    line_formstr = []
-
-    available_keys = []
-    ki = 0
-
-    for key in lcformat_dict['colkeys']:
-
-        if key in lcdict:
-
-            thiscolinfo = lcformat_dict['columns'][key]
-
-            line_formstr.append(thiscolinfo['format'])
-
-            columns[key] = {
-                'colnum': ki,
-                'dtype':thiscolinfo['dtype'],
-                'desc':thiscolinfo['desc']
-            }
-            available_keys.append(key)
-            ki = ki + 1
-
-    # generate the header bits
-    metajson = indent(json.dumps(meta, indent=2), '%s ' % comment_char)
-    coljson = indent(json.dumps(columns, indent=2), '%s ' % comment_char)
-
-    # now, put together everything
-    with gzip.open(outpath, 'wb') as outfd:
-
-        # first, write the format spec
-        outfd.write(('LCC-CSVLC-V%s\n' % csvlc_version).encode())
-        outfd.write(('%s\n' % comment_char).encode())
-        outfd.write(('%s\n' % column_separator).encode())
-
-        # second, write the metadata JSON
-        outfd.write(('%s OBJECT METADATA\n' % comment_char).encode())
-        outfd.write(('%s\n' % metajson).encode())
-        outfd.write(('%s\n' % (comment_char,)).encode())
-
-        # third, write the column JSON
-        outfd.write(('%s COLUMN DEFINITIONS\n' % comment_char).encode())
-        outfd.write(('%s\n' % coljson).encode())
-
-        # finally, prepare to write the LC columns
-        outfd.write(('%s\n' % (comment_char,)).encode())
-        outfd.write(('%s LIGHTCURVE\n' % comment_char).encode())
-
-        # last, write the columns themselves
-        nlines = len(lcdict[lcformat_dict['colkeys'][0]])
-
-        for lineind in range(nlines):
-
-            thisline = []
-            for x in available_keys:
-
-                # we need to check if any col vals conflict with the specified
-                # formatter. in this case, we'll turn the formatter into %s so
-                # we don't fail here. this usually comes up if nan is provided
-                # as a value to %i
-                try:
-                    thisline.append(
-                        lcformat_dict['columns'][x]['format'] %
-                        lcdict[x][lineind]
-                    )
-                except Exception as e:
-                    thisline.append(str(lcdict[x][lineind]))
-
-            formline = '%s\n' % ('%s' % column_separator).join(thisline)
-            outfd.write(formline.encode())
-
-    return outpath
 
 
 
