@@ -91,6 +91,7 @@ from operator import getitem
 from textwrap import indent
 import gzip
 import operator
+from functools import partial
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -1359,8 +1360,11 @@ def get_lcformat_description(descpath):
     # 3. load the reader module and get the reader and normalize functions
     reader_module_name = formatdesc['lc_readermodule']
     reader_func_name = formatdesc['lc_readerfunc']
+    reader_func_kwargs = formatdesc['lc_readerfunc_kwargs']
+
     norm_module_name = formatdesc['lc_normalizemodule']
     norm_func_name = formatdesc['lc_normalizefunc']
+    norm_func_kwargs = formatdesc['lc_normalizefunc_kwargs']
 
     # see if we can import the reader module
     readermodule = check_extmodule(reader_module_name, formatkey)
@@ -1371,13 +1375,27 @@ def get_lcformat_description(descpath):
         normmodule = None
 
     # then, get the function we need to read the lightcurve
-    readerfunc = getattr(readermodule, reader_func_name)
+    readerfunc_in = getattr(readermodule, reader_func_name)
 
     if norm_module_name and norm_func_name:
-        normfunc = getattr(normmodule, norm_func_name)
+        normfunc_in = getattr(normmodule, norm_func_name)
+    else:
+        normfunc_in = None
+
+    # add in any optional kwargs that need to be there for readerfunc
+    if isinstance(reader_func_kwargs, dict):
+        readerfunc = partial(readerfunc_in, **reader_func_kwargs)
+    else:
+        readerfunc = readerfunc_in
+
+    # add in any optional kwargs that need to be there for normfunc
+    if normfunc_in is not None:
+        if isinstance(norm_func_kwargs, dict):
+            normfunc = partial(normfunc_in, **norm_func_kwargs)
+        else:
+            normfunc = normfunc_in
     else:
         normfunc = None
-
 
     # this is the final metadata dict
     returndict = {

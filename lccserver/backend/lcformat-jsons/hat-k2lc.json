@@ -3,8 +3,10 @@
     "lc_fileglob": "*-k2lc.csv.gz",
     "lc_readermodule": "astrobase.hatsurveys.k2hat",
     "lc_readerfunc": "read_csv_lightcurve",
+    "lc_readerfunc_kwargs": null,
     "lc_normalizemodule": null,
     "lc_normalizefunc": null,
+    "lc_normalizefunc_kwargs": null,
     "unaffiliated_cols": [
         "bjd",
         "bgv",

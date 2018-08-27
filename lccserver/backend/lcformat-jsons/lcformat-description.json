@@ -3,8 +3,10 @@
     "lc_fileglob": "*-fileglob.lc* to recognize LC files in a directory",
     "lc_readermodule": "module.to.read.lc or /path/to/module/to/read/lc.py",
     "lc_readerfunc": "function_to_read_lc_into_an_lcdict",
-    "lc_normalizemodule": "module.to.normalize.lc or /path/to/module/to/normalize/lc.py or 'null'",
-    "lc_normalizefunc": "function_to_normalize_lcdict_in_place or 'null'",
+    "lc_readerfunc_kwargs": {"extra": "kwargs", "for": "readerfunc", "or": null},
+    "lc_normalizemodule": "module.to.normalize.lc or /path/to/module/to/normalize/lc.py or null",
+    "lc_normalizefunc": "function_to_normalize_lcdict_in_place or null",
+    "lc_readerfunc_kwargs": {"extra": "kwargs", "for": "normfunc", "or": null},
     "unaffiliated_cols": [
         "time",
         "framenumber",
@@ -15,7 +17,8 @@
     "mag_apertures":[
         "photometric_aperture_label_1",
         "photometric_aperture_label_2",
-        "photometric_aperture_label_3"
+        "photometric_aperture_label_3",
+        "other_photometric_aperture_labels...",
     ],
     "aperture_joiner":"character_to_join_per_aperture_cols_and_aperture_label",
     "per_aperture_cols":[
@@ -23,7 +26,7 @@
         "raw_mag_err",
         "raw_mag_flag",
         "another_per_aperture_column",
-        "more_per_aperture_affiliated_columns_in_lcdict"
+        "more_per_aperture_affiliated_columns_in_lcdict..."
     ],
     "metadata_keys":{
         "objectid":[

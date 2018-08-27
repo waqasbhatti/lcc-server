@@ -3,8 +3,10 @@
     "lc_fileglob": "*-hatlc.sqlite.gz",
     "lc_readermodule": "astrobase.hatsurveys.hatlc",
     "lc_readerfunc": "read_and_filter_sqlitecurve",
+    "lc_readerfunc_kwargs": {"quiet": true},
     "lc_normalizemodule": "astrobase.hatsurveys.hatlc",
     "lc_normalizefunc": "normalize_lcdict_byinst",
+    "lc_normalizefunc_kwargs": {"quiet": true},
     "unaffiliated_cols": [
         "rjd",
         "bjd",
