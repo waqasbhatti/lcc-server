@@ -1070,7 +1070,7 @@ def main():
     import glob
     import pickle
 
-    def completer_func(text, state):
+    def completer_func_directories(text, state):
         """
         This tries to complete directory and file names.
 
@@ -1088,10 +1088,9 @@ def main():
 
         return [x for x in glob.glob(text + '*')][state]
 
-    readline.set_completer(completer_func)
+    readline.set_completer(completer_func_directories)
     readline.set_completer_delims('\t')
     readline.parse_and_bind('tab: complete')
-
 
     aparser = argparse.ArgumentParser(
         description='The LCC-Server CLI',
@@ -1425,6 +1424,18 @@ def main():
             else:
                 lc_keys = sorted(lcdict.keys())
 
+            # attempt to complete lcdict column keys
+            def completer_func_cols(text, state):
+                """
+                This tries to complete lcdict column keys.
+
+                """
+                return [x for x in lc_keys if x.startswith(text)][state]
+
+            readline.set_completer(completer_func_cols)
+            readline.set_completer_delims('\t')
+            readline.parse_and_bind('tab: complete')
+
             print('Your original format light curves '
                   'contain the following keys '
                   'when read into an lcdict:\n')
@@ -1472,6 +1483,9 @@ def main():
                     print("The provided errcol: %s "
                           "isn't present in lcdict keys." % errcol)
                     errcol = None
+
+            # turn off the completer
+            readline.set_completer()
 
         # we can't proceed without doing an LC read test
         except Exception as e:
