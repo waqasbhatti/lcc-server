@@ -74,7 +74,7 @@ install LCC-Server. This will be in your `$PATH` as [`lcc-server`](https://githu
 A Jupyter notebook walkthough using this CLI to stand up an LCC-Server instance,
 with example light curves, can be found in the **astrobase-notebooks** repo:
 [lcc-server-setup.ipynb](https://github.com/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)
-([Jupyter nbviewer link](https://nbviewer.jupyter.org/github/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb).
+([Jupyter nbviewer link](https://nbviewer.jupyter.org/github/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)).
 
 - Documentation for how to use the server for searching LC collections is hosted
 at the HAT data server instance: https://data.hatsurveys.org/docs.
