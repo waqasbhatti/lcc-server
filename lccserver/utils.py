@@ -104,7 +104,6 @@ if sys.version_info[:2] < (3,7):
         # call the original worker to finish this
         concurrent.futures.process._process_worker(call_queue, result_queue)
 
-
     # ProcessPoolExecutor that can accept initializer and initialargs.
     # This is super-useful for running database connections in a background
     # process. This was added to Python 3.7:

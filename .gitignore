@@ -40,3 +40,4 @@ _*.c
 .cache
 notebooks/nb-data/test*.*
 .DS_Store
+.pytest_cache/*
