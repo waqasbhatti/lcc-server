@@ -5,16 +5,16 @@
 
 __author__ = 'Brian Quinlan (brian@sweetapp.com)'
 
-from concurrent.futures._base import (FIRST_COMPLETED,
-                                      FIRST_EXCEPTION,
-                                      ALL_COMPLETED,
-                                      CancelledError,
-                                      TimeoutError,
-                                      BrokenExecutor,
-                                      Future,
-                                      Executor,
-                                      wait,
-                                      as_completed)
+from lccserver.external.futures37._base import (FIRST_COMPLETED,
+                                                FIRST_EXCEPTION,
+                                                ALL_COMPLETED,
+                                                CancelledError,
+                                                TimeoutError,
+                                                BrokenExecutor,
+                                                Future,
+                                                Executor,
+                                                wait,
+                                                as_completed)
 
 __all__ = (
     'FIRST_COMPLETED',
