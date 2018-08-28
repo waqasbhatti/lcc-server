@@ -76,16 +76,8 @@ def LOGEXCEPTION(message):
 ## IMPORTS ##
 #############
 
-import sys
-
-# if we're on < 3.6, return the 3.7 ProcessPoolExecutor
-if sys.version_info[:2] < (3,7):
-
-    # get our local copied version of Py37 ProcessPoolExecutor
-    from lccserver.external.futures37.process import ProcessPoolExecutor
-    ProcExecutor = ProcessPoolExecutor
-
-# if we're on 3.7, return the usual executor
-else:
-    from concurrent.futures import ProcessPoolExecutor
-    ProcExecutor = ProcessPoolExecutor
+# Use our custom ProcessPoolExecutor. This comes with a built-in finalizer
+# function in addition to the initializer and initargs kwargs added in the
+# Python 3.7 version. Should work in Python < 3.7 as well.
+from lccserver.external.futures37.process import ProcessPoolExecutor
+ProcExecutor = ProcessPoolExecutor
