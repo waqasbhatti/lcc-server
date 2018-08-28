@@ -6,33 +6,35 @@ License: MIT - see the LICENSE file for the full text.
 
 This contains the CLI implementation for the LCC server.
 
-lcc-server [options] <command>
+lcc-server [options] COMMAND
 
-where command is one of:
+where COMMAND is one of:
 
-init-basedir        -> initializes the basedir for the LCC server.
-                       this is an interactive command.
+init-basedir        -> Initializes the basedir for the LCC server.
+                       This is an interactive command.
 
-add-collection      -> adds an LC collection to the LCC server.
-                       this is an interactive command.
+add-collection      -> Adds a new LC collection to the LCC server.
+                       This is an interactive command.
 
-del-collection      -> removes an LC collection from the LCC server
-                       this will ask you for confirmation.
+edit-collection     -> Edits an existing LC collection.
+                       This is an interactive command.
 
-run-server          -> runs an instance of the LCC server to provide
+del-collection      -> Removes an LC collection from the LCC server
+                       This will ask you for confirmation.
+
+run-server          -> Runs an instance of the LCC server to provide
                        the main search interface and a backing instance
                        of the checkplotserver for serving objectinfo
 
-shell               -> starts an IPython shell in the context of the specified
-                       LCC server base directory. this is useful for debugging
+shell               -> Starts an IPython shell in the context of the specified
+                       LCC server base directory. This is useful for debugging
                        and running queries directly using the
                        lccserver.backend.datasets.py and
                        lccserver.backend.dbsearch.py modules
 
-
 and options are:
 
---basedir           -> the base directory to execute all commands from
+--basedir           -> The base directory to execute all commands from
                        this is the directory where all of the LCC server's
                        files and directories will be created and where it will
                        run from when executed.
@@ -1044,6 +1046,9 @@ init-basedir        -> Initializes the basedir for the LCC server.
 add-collection      -> Adds an LC collection to the LCC server.
                        This is an interactive command.
 
+edit-collection     -> Edits an existing LC collection.
+                       This is an interactive command.
+
 del-collection      -> Removes an LC collection from the LCC server
                        This will ask you for confirmation.
 
@@ -1101,6 +1106,7 @@ def main():
     aparser.add_argument('command',
                          choices=['init-basedir',
                                   'add-collection',
+                                  'edit-collection',
                                   'del-collection',
                                   'run-server',
                                   'shell'],
@@ -1718,6 +1724,8 @@ def main():
             lcc_desc = '#!MKD %s' % lcc_desc
 
         print('Saved LC collection description successfully!')
+        os.remove(desc_tempfile)
+
         print('Building object database...')
         catsqlite = generate_catalog_database(
             args.basedir,
@@ -1763,6 +1771,175 @@ def main():
 
         sys.exit(0)
 
+    elif args.command == 'edit-collection':
+
+        # find the root DB
+        lccdb = os.path.join(args.basedir, 'lcc-index.sqlite')
+
+        database = sqlite3.connect(
+            lccdb,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        cursor = database.cursor()
+
+        cursor.execute('select collection_id, ispublic, name, nobjects, '
+                       'last_updated from lcc_index order by '
+                       'last_updated desc')
+        rows = cursor.fetchall()
+
+        collection_list = [x[0] for x in rows]
+
+        # add an autocompleter for collection lookup
+        def collection_autocompleter(text, state):
+            return [x for x in collection_list if x.startswith(text)][state]
+
+        readline.set_completer(collection_autocompleter)
+        readline.set_completer_delims('\t')
+        readline.parse_and_bind('tab: complete')
+
+        print('\nCurrent LC collections:\n')
+        print('%-18.18s %-10.10s %-23.23s %-10.10s %-19.19s' %
+              ('Collection ID','Is Public','Name','Objects','Last Updated'))
+        for row in rows:
+            print('%-18.18s %-10.10s %-23.23s %-10.10s %-19.19s' % row)
+
+        edit_coll = None
+
+        while not edit_coll:
+
+            collinput = input('\nCollection ID to edit: ')
+
+            if (collinput is not None and
+                len(collinput.strip()) > 0 and
+                collinput in collection_list):
+
+                edit_coll = collinput.strip()
+
+
+            else:
+                print('Unknown collection: %s' % collinput)
+                edit_coll = None
+
+        # now that we have a collection to edit, get its info
+        # the ONLY fields that are editable are:
+        # - name, description, project, citation, ispublic, datarelease
+        query = ("select name, project, datarelease, "
+                 "citation, ispublic, description "
+                 "from lcc_index where collection_id = ?")
+        params = (edit_coll,)
+        cursor.execute(query, params)
+        row = cursor.fetchone()
+
+        #
+        # go into the interactive loop starting the edit for this collection
+        #
+        lcc_name = input(
+            'Name of this LC collection [current: %s]: ' % row[0]
+        )
+        if not lcc_name or len(lcc_name.strip()) == 0:
+            lcc_name = row[0]
+
+        lcc_project = input(
+            'Project associated with this LC collection '
+            '[current: %s]: ' % row[1]
+        )
+        if not lcc_project or len(lcc_project.strip()) == 0:
+            lcc_project = row[1]
+
+        lcc_datarelease = input(
+            'Data release number [current: %s]: ' % row[2]
+        )
+        if not lcc_datarelease or len(lcc_datarelease.strip()) == 0:
+            lcc_datarelease = int(row[2])
+        else:
+            lcc_datarelease = int(lcc_datarelease)
+
+        lcc_citation = input(
+            'Citation for this collection '
+            '[current: %s]: ' % row[3]
+        )
+        if not lcc_citation or len(lcc_citation.strip()) == 0:
+            lcc_citation = row[3]
+
+        ispublic_str = 'y' if row[4] else 'n'
+        lcc_ispublic = input(
+            'Is this LC collection public? [current: %s]: ' % ispublic_str
+        )
+        if ((not lcc_ispublic) or
+            (len(lcc_ispublic.strip()) == 0) or
+            (lcc_ispublic.strip().lower() == 'y')):
+            lcc_ispublic = True
+        else:
+            False
+
+        # launch the user's editor to edit this LCC's description
+        print("We'll now launch your editor to edit the description "
+              "for this collection. You can use Markdown here.")
+
+        # get the user's editor
+        if 'EDITOR' in os.environ:
+            editor = os.environ['EDITOR']
+        elif 'VISUAL' in os.environ:
+            editor = os.environ['VISUAL']
+        else:
+            editor = None
+
+        use_editor = None
+
+        while (not use_editor or len(use_editor.strip()) == 0):
+
+            ask_editor = input('Editor to use [default: %s]: ' % editor)
+            if ask_editor:
+                use_editor = ask_editor
+            elif ((not ask_editor or len(ask_editor.strip()) == 0) and
+                  editor):
+                use_editor = editor
+            else:
+                use_editor = None
+
+        desc_fd, desc_tempfile = tempfile.mkstemp()
+
+        # fill in the existing description
+        with open(desc_fd, 'w') as outfd:
+            # don't write the #!MKD label to the editor
+            outfd.write(row[5][6:])
+
+        editor_cmdline = '%s %s' % (
+            use_editor,
+            desc_tempfile
+        )
+        subprocess.call(editor_cmdline, shell=True)
+
+        with open(desc_tempfile,'r') as infd:
+            lcc_desc = infd.read()
+
+            # this helps tell the frontend that we're using markdown for the
+            # description
+            lcc_desc = '#!MKD %s' % lcc_desc
+
+        # write the new stuff to the database
+        query = ("update lcc_index set "
+                 "name = ?, project = ?, datarelease = ?, "
+                 "citation = ?, ispublic = ?, description = ?, "
+                 "last_updated = ? "
+                 "where collection_id = ?")
+        params = (lcc_name,
+                  lcc_project,
+                  lcc_datarelease,
+                  lcc_citation,
+                  1 if lcc_ispublic else 0,
+                  lcc_desc,
+                  datetime.utcnow().isoformat(),
+                  edit_coll)
+        cursor.execute(query, params)
+        database.commit()
+
+        print('Saved new LC collection metadata successfully!')
+        os.remove(desc_tempfile)
+        database.close()
+        sys.exit(0)
+
+
     elif args.command == 'del-collection':
 
         # find the root DB
@@ -1779,6 +1956,14 @@ def main():
                        'last_updated desc')
         rows = cursor.fetchall()
         database.close()
+
+        # add an autocompleter for collection lookup
+        def collection_autocompleter(text, state):
+            return [x[0] for x in rows if x.startswith(text)][state]
+
+        readline.set_completer(collection_autocompleter)
+        readline.set_completer_delims('\t')
+        readline.parse_and_bind('tab: complete')
 
         print('\nCurrent LC collections:\n')
         print('%-18.18s %-10.10s %-23.23s %-10.10s %-19.19s' %
