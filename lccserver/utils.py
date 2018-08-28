@@ -82,7 +82,7 @@ import sys
 if sys.version_info[:2] < (3,7):
 
     # get our local copied version of Py37 ProcessPoolExecutor
-    from lccserver.external.futures37 import ProcessPoolExecutor
+    from lccserver.external.futures37.process import ProcessPoolExecutor
     ProcExecutor = ProcessPoolExecutor
 
 # if we're on 3.7, return the usual executor
