@@ -1957,9 +1957,11 @@ def main():
         rows = cursor.fetchall()
         database.close()
 
+        collection_list = [x[0] for x in rows]
+
         # add an autocompleter for collection lookup
         def collection_autocompleter(text, state):
-            return [x[0] for x in rows if x.startswith(text)][state]
+            return [x for x in collection_list if x.startswith(text)][state]
 
         readline.set_completer(collection_autocompleter)
         readline.set_completer_delims('\t')
