@@ -39,7 +39,7 @@ _STATE_TO_DESCRIPTION_MAP = {
 }
 
 # Logger for internal use by the futures package.
-LOGGER = logging.getLogger("concurrent.futures")
+LOGGER = logging.getLogger("futures37")
 
 class Error(Exception):
     """Base class for all future-related exceptions."""
