@@ -201,7 +201,11 @@ def _sendback_result(result_queue, work_id, result=None, exception=None):
         result_queue.put(_ResultItem(work_id, exception=exc))
 
 
-def _process_worker(call_queue, result_queue, initializer, initargs):
+def _process_worker(call_queue,
+                    result_queue,
+                    initializer,
+                    initargs,
+                    finalizer):
     """Evaluates calls from call_queue and places the results in result_queue.
 
     This worker is run in a separate process.
@@ -213,6 +217,7 @@ def _process_worker(call_queue, result_queue, initializer, initargs):
             to by the worker.
         initializer: A callable initializer, or None
         initargs: A tuple of args for the initializer
+        finalizer: A callable that runs when this worker is about to exit
     """
     if initializer is not None:
         try:
@@ -224,9 +229,18 @@ def _process_worker(call_queue, result_queue, initializer, initargs):
             return
     while True:
         call_item = call_queue.get(block=True)
+
+        # If there's a None as the queue item, this is a sentinel from the
+        # management thread that we have no more work items. Prepare to exit.
         if call_item is None:
+
+            # call the finalizer
+            if finalizer is not None:
+                finalizer()
+
             # Wake up queue management thread
             result_queue.put(os.getpid())
+
             return
         try:
             r = call_item.fn(*call_item.args, **call_item.kwargs)
@@ -487,8 +501,12 @@ class BrokenProcessPool(_base.BrokenExecutor):
 
 
 class ProcessPoolExecutor(_base.Executor):
-    def __init__(self, max_workers=None, mp_context=None,
-                 initializer=None, initargs=()):
+    def __init__(self,
+                 max_workers=None,
+                 mp_context=None,
+                 initializer=None,
+                 initargs=(),
+                 finalizer=None):
         """Initializes a new ProcessPoolExecutor instance.
 
         Args:
@@ -498,6 +516,7 @@ class ProcessPoolExecutor(_base.Executor):
             mp_context: A multiprocessing context to launch the workers. This
                 object should provide SimpleQueue, Queue and Process.
             initializer: An callable used to initialize worker processes.
+            finalizer: A callable used right before the worker signals it's done
             initargs: A tuple of arguments to pass to the initializer.
         """
         _check_system_limits()
@@ -518,6 +537,7 @@ class ProcessPoolExecutor(_base.Executor):
             raise TypeError("initializer must be a callable")
         self._initializer = initializer
         self._initargs = initargs
+        self._finalizer = finalizer
 
         # Management thread
         self._queue_management_thread = None
@@ -589,7 +609,9 @@ class ProcessPoolExecutor(_base.Executor):
                 args=(self._call_queue,
                       self._result_queue,
                       self._initializer,
-                      self._initargs))
+                      self._initargs,
+                      self._finalizer)
+            )
             p.start()
             self._processes[p.pid] = p
 
