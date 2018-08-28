@@ -8,7 +8,7 @@ License: MIT - see the LICENSE file for the full text.
 
 
 COLUMN_INFO = {
-    'abs_gaiamag':{
+    'gaia_absmag':{
         'title':'M<sub>G</sub> [mag]',
         'dtype':'f8',
         'format':'%.3f',
