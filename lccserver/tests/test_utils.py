@@ -29,8 +29,8 @@ def worker_func(input_param):
     This sleeps for random seconds between 1 and 3, then returns.
 
     '''
-
-    time.sleep(random.randrange(1,6))
+    global i_am_global
+    time.sleep(random.randrange(1,3))
     return "%s|%s" % (i_am_global, input_param)
 
 
