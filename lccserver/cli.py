@@ -652,7 +652,7 @@ def generate_augmented_lclist_catalog(
              np.float_, True, True, np.nan, np.nan),
             ('objectinfo.gaia_parallax_err',
              np.float_, True, True, np.nan, np.nan),
-            ('objectinfo.abs_gaiamag',
+            ('objectinfo.gaia_absmag',
              np.float_, True, True, np.nan, np.nan),
             ('objectinfo.simbad_best_mainid',
              np.unicode_, True, True, '', ''),
