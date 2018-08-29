@@ -47,11 +47,11 @@ PermissionsAndRoles = Table(
     'permissions_and_roles',
     AUTHDB_META,
     Column('permission_name', String(length=100),
-           ForeignKey('permissions.name'),
-           nullable=False, ondelete="CASCADE"),
+           ForeignKey('permissions.name', ondelete="CASCADE"),
+           nullable=False),
     Column('role_name', String(length=100),
-           ForeignKey('roles.name'),
-           nullable=False, ondelete="CASCADE")
+           ForeignKey('roles.name', ondelete="CASCADE"),
+           nullable=False)
 )
 
 
@@ -187,7 +187,9 @@ permissions = [
 ## UTILITY FUNCTIONS ##
 #######################
 
-def create_auth_db(auth_db_path, echo=False):
+def create_auth_db(auth_db_path,
+                   echo=False,
+                   returnconn=True):
     '''
     This creates the auth DB.
 
@@ -196,7 +198,10 @@ def create_auth_db(auth_db_path, echo=False):
     engine = create_engine('sqlite:///%s' % os.path.abspath(auth_db_path),
                            echo=echo)
     AUTHDB_META.create_all(engine)
-    return engine, AUTHDB_META
+
+    if returnconn:
+        return engine, AUTHDB_META
+
 
 
 
@@ -212,4 +217,4 @@ def get_auth_db(auth_db_path, echo=False):
     meta.bind = engine
     meta.reflect()
 
-    return engine, meta
+    return engine, engine.connect(), meta

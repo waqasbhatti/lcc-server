@@ -100,6 +100,7 @@ setup(
     entry_points={
         'console_scripts':[
             'indexserver=lccserver.frontend.indexserver:main',
+            'authnzerver=lccserver.authnzerver.main:main',
             'lcc-server=lccserver.cli:main',
         ],
     },

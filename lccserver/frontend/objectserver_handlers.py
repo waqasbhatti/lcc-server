@@ -361,6 +361,8 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
                         ', NaN',', null'
                     ).replace(
                         '[NaN','[null'
+                    ).replace(
+                        'NaN]','null]'
                     )
                 )
 

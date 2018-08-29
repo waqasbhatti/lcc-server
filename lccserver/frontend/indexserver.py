@@ -299,8 +299,6 @@ def get_secret_keys(tornado_options, logger):
             outfd.write(FERNETSECRET)
         os.chmod(fernet_secrets, 0o100600)
 
-
-
     # handle the cpserver secret key to encrypt tokens sent out by itsdangerous
     cpserver_secrets = tornado_options.secretfile + '-cpserver'
 
@@ -364,7 +362,11 @@ def get_secret_keys(tornado_options, logger):
                                     salt='lcc-server-api')
     FERNET = Fernet(FERNETSECRET)
 
-    return SESSIONSECRET, SIGNER, FERNET, CPSERVERSECRET
+    return (SESSIONSECRET,
+            FERNETSECRET,
+            CPSERVERSECRET,
+            SIGNER,
+            FERNET)
 
 
 
@@ -408,7 +410,7 @@ def main():
     CURRENTDIR = os.path.abspath(os.getcwd())
 
     # get our secret keys
-    SESSIONSECRET, SIGNER, FERNET, CPKEY = get_secret_keys(
+    SESSIONSECRET, FERNETSECRET, CPKEY, SIGNER, FERNET = get_secret_keys(
         options,
         LOGGER
     )
