@@ -30,7 +30,6 @@ import multiprocessing as mp
 
 
 import tornado.web
-from tornado import gen
 import tornado.ioloop
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -156,7 +155,6 @@ def auth_session_invalidate(payload):
 # this maps request types -> request functions to execute
 #
 request_functions = {
-    'echo':auth_echo,
     'session-add':auth_session_add,
     'session-check':auth_session_check,
     'session-invalidate':auth_session_invalidate,
@@ -170,7 +168,7 @@ request_functions = {
 
 class EchoHandler(tornado.web.RequestHandler):
     '''
-    This just echos back whatever we send.
+    This just echoes back whatever we send.
 
     Useful to see if the encryption is working as intended.
 
@@ -190,7 +188,6 @@ class EchoHandler(tornado.web.RequestHandler):
         self.executor = executor
 
 
-    # @gen.coroutine
     async def post(self):
         '''
         Handles the incoming POST request.
@@ -206,15 +203,19 @@ class EchoHandler(tornado.web.RequestHandler):
         if not payload:
             raise tornado.web.HTTPError(status_code=401)
 
+        if payload['request'] != 'echo':
+            LOGGER.error("this handler can only echo things. "
+                         "invalid request: %s" % payload['request'])
+            raise tornado.web.HTTPError(status_code=400)
+
         # if we successfully got past host and decryption validation, then
         # process the request
         try:
 
             loop = tornado.ioloop.IOLoop.current()
-
             response_dict = await loop.run_in_executor(
                 self.executor,
-                request_functions[payload['request']],
+                auth_echo,
                 payload
             )
 
