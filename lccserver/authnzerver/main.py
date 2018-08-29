@@ -24,12 +24,13 @@ Here's the plan:
 
 The auth server will provide:
 
-- session-add, session-delete, session-check
+- session-new, session-delete, session-exists
 
-- user-add, user-check, user-delete, user-edit (user-add will add an arbitrary
+- user-new, user-check, user-delete, user-edit (user-add will add an arbitrary
   JSON dict to the users table in the auth-db.sqlite file)
 
-- group-add, group-check, group-delete
+- role-new, role-exists, role-delete,
+- role-check-member, role-add-member, role-remove-member
 
 - permissions-add, permissions-delete, permissions-edit, permissions-check for
   permissions rules that can be applied (this should integrate with django-rules
@@ -37,13 +38,8 @@ The auth server will provide:
 
 The auth server will:
 
-- launch background process workers using ProcessPoolExecutor
-
-- run the SQL queries in the background workers (need to figure out how to
-  replicate the functionality of initializers in Py3.7. Maybe use a class as the
-  function object, set up __init__ to launch the SQL connection on the first
-  __call__ based on the provided SQLite file path and use __call__ subsequently
-  to make queries as needed.
+- launch background process workers using lccserver.utils.ProcExecutor
+- run the SQL queries in these background workers
 
 The auth-server message schema (after decryption) is:
 

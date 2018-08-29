@@ -16,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy import create_engine
 
+import sqlite3
 
 ########################
 ## AUTHNZERVER TABLES ##
@@ -62,6 +63,9 @@ Sessions = Table(
     Column('session_key',String(), primary_key=True),
     Column('ip_address', String(length=280), nullable=False),
     Column('client_header', String(length=280), nullable=False),
+    # this can't be null because there always be an anonymous user in the users
+    # table so the anonymous sessions will be tied to that virtual user
+    # FIXME: does this make sense? look at Django to see how they do it.
     Column('user_id', Integer,
            ForeignKey("users.user_id", ondelete="CASCADE"),
            nullable=False),
@@ -201,7 +205,19 @@ def create_auth_db(auth_db_path,
 
     if returnconn:
         return engine, AUTHDB_META
+    else:
+        engine.dispose()
+        del engine
 
+    # at the end, we'll switch the auth DB to WAL mode to make it handle
+    # concurrent operations a bit better
+    db = sqlite3.connect(auth_db_path)
+    cur = db.cursor()
+    cur.executescript(
+        'pragma journal_mode wal; pragma journal_size_limit = 5242880;'
+    )
+    db.commit()
+    db.close()
 
 
 
@@ -218,3 +234,19 @@ def get_auth_db(auth_db_path, echo=False):
     meta.reflect()
 
     return engine, engine.connect(), meta
+
+
+def initial_authdb_inserts(auth_db_path,
+                           echo=False):
+    '''
+    This does initial set up of the auth DB.
+
+    - adds an anonymous user
+    - adds a superuser with:
+      -  userid = UNIX userid
+      - password = random 20 characters)
+    - sets up the initial permissions table
+
+    Returns the superuser userid and password.
+
+    '''

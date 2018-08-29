@@ -31,6 +31,7 @@ import multiprocessing as mp
 
 import tornado.web
 import tornado.ioloop
+from tornado.escape import squeeze
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -130,34 +131,79 @@ def auth_echo(payload):
     return payload
 
 
-def auth_session_add(payload):
+######################
+## SESSION HANDLING ##
+######################
+
+def auth_session_new(payload):
     '''
     This generates a new session token.
 
+    Request payload keys required:
+
+    session_key, ip_address, client_header, user_id, expires, extra_info_json
+
+    Returns:
+
+    a 32 byte session token in base64 from secrets.token_urlsafe(32)
+
     '''
 
 
-def auth_session_check(payload):
+def auth_session_exists(payload):
     '''
-    This checks if session token exists.
+    This checks if the provided session token exists.
+
+    Request payload keys required:
+
+    session_key
+
+    Returns:
+
+    All sessions columns for session_key if token exists and has not expired.
+    None if token has expired. Will also call auth_session_delete.
 
     '''
 
 
-def auth_session_invalidate(payload):
+def auth_session_delete(payload):
     '''
     This removes a session token.
 
+    Request payload keys required:
+
+    session_key
+
+    Returns:
+
+    Deletes the row corresponding to the session_key in the sessions table.
+
     '''
+
+
+###################
+## ROLE HANDLING ##
+###################
+
+
+###################
+## USER HANDLING ##
+###################
+
+
+#########################
+## PERMISSION HANDLING ##
+#########################
+
 
 
 #
 # this maps request types -> request functions to execute
 #
 request_functions = {
-    'session-add':auth_session_add,
-    'session-check':auth_session_check,
-    'session-invalidate':auth_session_invalidate,
+    'session-add':auth_session_new,
+    'session-check':auth_session_exists,
+    'session-invalidate':auth_session_delete,
 }
 
 
@@ -245,8 +291,71 @@ class AuthHandler(tornado.web.RequestHandler):
 
     '''
 
-    def post(self):
+    def initialize(self,
+                   authdb,
+                   fernet_secret,
+                   executor):
+        '''
+        This sets up stuff.
+
+        '''
+
+        self.authdb = authdb
+        self.fernet_secret = fernet_secret
+        self.executor = executor
+
+
+    async def post(self):
         '''
         Handles the incoming POST request.
 
         '''
+
+        ipcheck = check_host(self.request.remote_ip)
+
+        if not ipcheck:
+            raise tornado.web.HTTPError(status_code=400)
+
+        payload = decrypt_request(self.request.body, self.fernet_secret)
+        if not payload:
+            raise tornado.web.HTTPError(status_code=401)
+
+        if payload['request'] == 'echo':
+            LOGGER.error("this handler can't echo things.")
+            raise tornado.web.HTTPError(status_code=400)
+
+        # if we successfully got past host and decryption validation, then
+        # process the request
+        try:
+
+            # get the request ID
+            reqid = payload['reqid']
+            if not reqid or squeeze(reqid.strip()) == '':
+                raise ValueError("no request ID provided")
+
+            # run the function associated with the request type
+            loop = tornado.ioloop.IOLoop.current()
+            response, message = await loop.run_in_executor(
+                self.executor,
+                request_functions[payload['request']],
+                payload
+            )
+
+            response_dict = {"status": "success",
+                             "reqid": reqid,
+                             "response":response,
+                             "message": message}
+
+            encrypted_base64 = encrypt_response(
+                response_dict,
+                self.fernet_secret
+            )
+
+            self.set_header('content-type','text/plain; charset=UTF-8')
+            self.write(encrypted_base64)
+            self.finish()
+
+        except Exception as e:
+
+            LOGGER.exception('failed to understand request')
+            raise tornado.web.HTTPError(status_code=400)
