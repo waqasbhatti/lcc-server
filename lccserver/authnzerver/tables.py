@@ -117,6 +117,7 @@ APIKeys = Table(
     'apikeys',
     AUTHDB_META,
     Column('apikey', String(), primary_key=True, nullable=False),
+    Column('issued', String(), nullable=False, default=datetime.utcnow),
     Column('expires', DateTime(), index=True, nullable=False),
     Column('user_id', Integer(),
            ForeignKey('users.user_id', ondelete="CASCADE"),
