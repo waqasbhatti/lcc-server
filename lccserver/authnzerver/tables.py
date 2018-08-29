@@ -33,6 +33,10 @@ except Exception as e:
 
     utc = UTC()
 
+##########################################
+## AUTHNZERVER TABLES FOR EXTERNAL AUTH ##
+##########################################
+
 from sqlalchemy import (
     Table, Column, Integer, String, Boolean, DateTime, ForeignKey, MetaData
 )
@@ -75,6 +79,22 @@ Users = Table(
            nullable=False)
 )
 
+# the sessions table storing client sessions
+# data_json contains for now: ipaddr, header, apikey if provided,
+# maybe also contains a partition key used to route auth lookups to the correct
+# DB instance (not sure about this, TBD...)
+Sessions = Table(
+    'sessions',
+    metadata,
+    Column('session_key',String(), primary_key=True),
+    Column('data_json', String(), nullable=False),
+    Column('expires', DateTime(), nullable=False),
+)
+
+
+#######################
+## UTILITY FUNCTIONS ##
+#######################
 
 def create_auth_db(auth_db_path, echo=False):
     '''
