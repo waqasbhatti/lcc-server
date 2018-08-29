@@ -409,7 +409,7 @@ def main():
 
     # get our secret keys
     SESSIONSECRET, SIGNER, FERNET, CPKEY = get_secret_keys(
-        tornado.options,
+        options,
         LOGGER
     )
     # get the address of the background checkplotserver instance

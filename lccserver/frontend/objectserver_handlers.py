@@ -346,25 +346,39 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
             self.set_header('Content-Type',
                             'application/json; charset=UTF-8')
 
-            # make sure once again to remove NaNs. do this carefully because
-            # stray nulls can kill base64 encoded images
+            try:
 
-            # first, we'll deserialize to JSON
-            # make sure to replace NaNs only in the right places
-            rettext = resp.body.decode()
-            rettext = (
-                rettext.replace(
-                    ': NaN',': null'
-                ).replace(
-                    ', NaN',', null'
-                ).replace(
-                    '[NaN','[null'
+                # make sure once again to remove NaNs. do this carefully because
+                # stray nulls can kill base64 encoded images
+
+                # first, we'll deserialize to JSON
+                # make sure to replace NaNs only in the right places
+                rettext = resp.body.decode()
+                rettext = (
+                    rettext.replace(
+                        ': NaN',': null'
+                    ).replace(
+                        ', NaN',', null'
+                    ).replace(
+                        '[NaN','[null'
+                    )
                 )
-            )
-            client.close()
 
-            self.write(rettext)
-            self.finish()
+            except AttributeError as e:
+
+                rettext = json.dumps({
+                    'status':'failed',
+                    'message':('could not fetch checkplot for '
+                               'this object, checkplotserver '
+                               'error code: %s' % resp.code),
+                    'result':None
+                })
+
+            finally:
+
+                client.close()
+                self.write(rettext)
+                self.finish()
 
         else:
 
