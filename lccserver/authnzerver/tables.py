@@ -8,88 +8,178 @@ This contains SQLAlchemy models for the authnzerver.
 
 '''
 
-try:
-    from datetime import datetime, timezone
-    utc = timezone.utc
-except Exception as e:
-    from datetime import datetime, timedelta, tzinfo
-
-    # we'll need to instantiate a tzinfo object because py2.7's datetime
-    # doesn't have the super convenient timezone object (seriously)
-    # https://docs.python.org/2/library/datetime.html#datetime.tzinfo.fromutc
-    ZERO = timedelta(0)
-
-    class UTC(tzinfo):
-        """UTC"""
-
-        def utcoffset(self, dt):
-            return ZERO
-
-        def tzname(self, dt):
-            return "UTC"
-
-        def dst(self, dt):
-            return ZERO
-
-    utc = UTC()
-
-##########################################
-## AUTHNZERVER TABLES FOR EXTERNAL AUTH ##
-##########################################
+import os.path
+from datetime import datetime
 
 from sqlalchemy import (
     Table, Column, Integer, String, Boolean, DateTime, ForeignKey, MetaData
 )
 from sqlalchemy import create_engine
 
-metadata = MetaData()
 
+########################
+## AUTHNZERVER TABLES ##
+########################
+
+AUTHDB_META = MetaData()
+
+# the basic permissions table, which lists permissions
 Permissions = Table(
     'permissions',
-    metadata,
+    AUTHDB_META,
     Column('name', String(length=100), primary_key=True, nullable=False),
-    Column('desc', String(length=255), nullable=False)
+    Column('desc', String(length=280), nullable=False)
 )
 
-# FIXME: add many-to-many for permissions foreign keys
-Groups = Table(
-    'groups',
-    metadata,
+
+# this lists all possible roles in the system
+# roles can be things like 'owner' or actual user group names
+Roles = Table(
+    'roles',
+    AUTHDB_META,
     Column('name', String(length=100), primary_key=True, nullable=False),
-    Column('desc', String(length=255), nullable=False)
+    Column('desc', String(length=280), nullable=False)
 )
 
-# FIXME: add many-to-many for permissions foreign keys
+
+# this associates permissions with roles
+PermissionsAndRoles = Table(
+    'permissions_and_roles',
+    AUTHDB_META,
+    Column('permission_name', String(length=100),
+           ForeignKey('permissions.name'),
+           nullable=False, ondelete="CASCADE"),
+    Column('role_name', String(length=100),
+           ForeignKey('roles.name'),
+           nullable=False, ondelete="CASCADE")
+)
+
+
+# the sessions table storing client sessions
+Sessions = Table(
+    'sessions',
+    AUTHDB_META,
+    Column('session_key',String(), primary_key=True),
+    Column('ip_address', String(length=280), nullable=False),
+    Column('client_header', String(length=280), nullable=False),
+    Column('user_id', Integer,
+           ForeignKey("users.user_id", ondelete="CASCADE"),
+           nullable=False),
+    Column('expires', DateTime(), nullable=False, index=True),
+    Column('extra_info_json', String()),
+)
+
+
+# this is the main users table
 Users = Table(
     'users',
-    metadata,
-    Column('uid', Integer(), primary_key=True, nullable=False),
-    Column('email', String(length=255), nullable=False),
+    AUTHDB_META,
+    Column('user_id', Integer(), primary_key=True, nullable=False),
     Column('password', String(), nullable=False),
-    Column('fullname', String(length=255)),
-    Column('is_staff', Boolean(), default=False, nullable=False),
-    Column('is_active', Boolean(), default=False, nullable=False),
-    Column('is_superuser', Boolean(), default=False, nullable=False),
-    Column('lastlogin', DateTime(),
+    Column('full_name', String(length=280), index=True),
+    Column('email', String(length=280), nullable=False, index=True),
+    Column('email_verified',Boolean(), default=False,
+           nullable=False, index=True),
+    Column('emailverify_sent_datetime', DateTime()),
+    Column('is_staff', Boolean(), default=False, nullable=False, index=True),
+    Column('is_active', Boolean(), default=False, nullable=False, index=True),
+    Column('is_superuser', Boolean(), default=False,
+           nullable=False, index=True),
+    Column('last_login', DateTime(),
            default=datetime.utcnow,
            onupdate=datetime.utcnow,
-           nullable=False),
-    Column('created', DateTime(),
+           nullable=False,
+           index=True),
+    Column('created_on', DateTime(),
            default=datetime.utcnow,
+           nullable=False,index=True),
+    Column('user_role', String(length=100),
+           ForeignKey("roles.name"),
+           nullable=False, index=True),
+    Column('user_permissions', String(), nullable=False, index=True)
+)
+
+
+# user preferences - fairly freeform to allow extension
+Preferences = Table(
+    'preferences', AUTHDB_META,
+    Column('pref_id', Integer, primary_key=True),
+    Column('user_id', Integer,
+           ForeignKey("users.user_id", ondelete="CASCADE"),
+           nullable=False),
+    Column('pref_name', String(length=100), nullable=False),
+    Column('pref_value', String(length=280))
+)
+
+
+# API keys that are in use
+APIKeys = Table(
+    'apikeys',
+    AUTHDB_META,
+    Column('apikey', String(), primary_key=True, nullable=False),
+    Column('expires', DateTime(), index=True, nullable=False),
+    Column('user_id', Integer(),
+           ForeignKey('users.user_id', ondelete="CASCADE"),
+           nullable=False),
+    Column('session_key', String(),
+           ForeignKey('sessions.session_key', ondelete="CASCADE"),
            nullable=False)
 )
 
-# the sessions table storing client sessions
-# data_json contains for now: ipaddr, header, apikey if provided,
-# maybe also contains a partition key used to route auth lookups to the correct
-# DB instance (not sure about this, TBD...)
-Sessions = Table(
-    'sessions',
-    metadata,
-    Column('session_key',String(), primary_key=True),
-    Column('data_json', String(), nullable=False),
-    Column('expires', DateTime(), nullable=False),
-)
+
+######################
+## PERMISSIONS LIST ##
+######################
+
+# TODO: add an owner column on each dataset that references the user_id or
+# anonymous.
+
+permissions = [
+    #
+    # user model permissions
+    #
+    'apikeys.can_create',
+    'apikeys.can_change',
+    'apikeys.can_delete',
+    'apikeys.can_view',
+    'preferences.can_create',
+    'preferences.can_change',
+    'preferences.can_delete',
+    'preferences.can_view',
+    # FIXME: add other user permissions
+
+    #
+    # collection permissions
+    #
+    'collection.can_create',
+    'collection.can_edit',
+    'collection.can_delete',
+    'collection.can_view',
+
+    #
+    # dataset permissions
+    #
+    # this is effectively a read-only mode for the server
+    # if people can't create datasets, they can't run searches
+    # so are restricted to only viewing existing datasets
+    'dataset.can_create',
+    'dataset.can_edit',
+    'dataset.can_delete',
+    'dataset.can_view',
+
+    #
+    # object permissions
+    #
+    'object.can_edit',
+    'object.can_view',
+]
+
+
+######################################
+## ROLES AND ASSOCIATED PERMISSIONS ##
+######################################
+
+# FIXME: fill this in
 
 
 #######################
@@ -102,6 +192,23 @@ def create_auth_db(auth_db_path, echo=False):
 
     '''
 
-    engine = create_engine('sqlite:///%s' % auth_db_path, echo=echo)
-    metadata.create_all(engine)
-    return engine
+    engine = create_engine('sqlite:///%s' % os.path.abspath(auth_db_path),
+                           echo=echo)
+    AUTHDB_META.create_all(engine)
+    return engine, AUTHDB_META
+
+
+
+def get_auth_db(auth_db_path, echo=False):
+    '''
+    This just gets a connection to the auth DB.
+
+    '''
+
+    meta = MetaData()
+    engine = create_engine('sqlite:///%s' % os.path.abspath(auth_db_path),
+                           echo=echo)
+    meta.bind = engine
+    meta.reflect()
+
+    return engine, meta
