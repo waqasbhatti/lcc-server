@@ -40,23 +40,6 @@ from sqlalchemy.sql import select
 from . import tables
 
 
-###################
-## DATABASE PREP ##
-###################
-
-def bring_up_authentication_db(authdb, echo=False):
-    '''This connects to and puts the authdb engine and metadata objects
-    into the process' global scope.
-
-    WARNING: WARNING: WARNING: DO NOT USE echo = True unless debugging locally
-    because this will echo sensitive info to the logs.
-
-    '''
-
-    currproc = mp.current_process()
-    return currproc.table_meta.sorted_tables
-
-
 #########################
 ## REQ/RESP VALIDATION ##
 #########################
@@ -129,15 +112,12 @@ def auth_echo(payload):
 
     if not engine:
 
-        LOGGER.info('setting up engine for process: %s' % currproc.name)
         currproc.engine, currproc.connection, currproc.table_meta = (
             tables.get_auth_db(
                 currproc.auth_db_path,
                 echo=False
             )
         )
-    else:
-        LOGGER.info('engine ready for process: %s' % currproc.name)
 
     permissions = currproc.table_meta.tables['permissions']
     s = select([permissions])
@@ -147,6 +127,7 @@ def auth_echo(payload):
     payload['dbtest'] = serializable_result
     result.close()
 
+    LOGGER.info('responding from process: %s' % currproc.name)
     return payload
 
 
@@ -209,8 +190,8 @@ class EchoHandler(tornado.web.RequestHandler):
         self.executor = executor
 
 
-    @gen.coroutine
-    def post(self):
+    # @gen.coroutine
+    async def post(self):
         '''
         Handles the incoming POST request.
 
@@ -229,7 +210,10 @@ class EchoHandler(tornado.web.RequestHandler):
         # process the request
         try:
 
-            response_dict = yield self.executor.submit(
+            loop = tornado.ioloop.IOLoop.current()
+
+            response_dict = await loop.run_in_executor(
+                self.executor,
                 request_functions[payload['request']],
                 payload
             )

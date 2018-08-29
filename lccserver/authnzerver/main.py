@@ -307,6 +307,9 @@ def setup_auth_worker(authdb_path,
     The worker will then open the DB and set up its Fernet instance by itself.
 
     '''
+    # unregister interrupt signals so they don't get to the worker
+    # and the executor can kill them cleanly (hopefully)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     currproc = mp.current_process()
     currproc.auth_db_path = authdb_path
@@ -319,11 +322,21 @@ def close_authentication_database():
     exits.
 
     '''
+
     currproc = mp.current_process()
-    currproc.connection.close()
-    currproc.engine.close()
-    del currproc.connection
-    del currproc.table_meta
+    if getattr(currproc, 'table_meta', None):
+        del currproc.table_meta
+
+    if getattr(currproc, 'connection', None):
+        currproc.connection.close()
+        del currproc.connection
+
+    if getattr(currproc, 'engine', None):
+        currproc.engine.dispose()
+        del currproc.engine
+
+    print('shut down database engine in process: %s' % currproc.name,
+          file=sys.stdout)
 
 
 ##########
@@ -357,25 +370,22 @@ def main():
                     options.authdb)
         create_authentication_database(options.authdb)
 
-    # unregister interrupt signals so they don't get to the workers
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
     #
     # this is the background executor we'll pass over to the handler
     #
-    # executor = ProcExecutor(max_workers=MAXWORKERS,
-    #                         initializer=setup_auth_worker,
-    #                         initargs=(options.authdb,
-    #                                   FERNETSECRET),
-    #                         finalizer=close_authentication_database)
+    executor = ProcExecutor(max_workers=MAXWORKERS,
+                            initializer=setup_auth_worker,
+                            initargs=(options.authdb,
+                                      FERNETSECRET),
+                            finalizer=close_authentication_database)
 
-    from concurrent.futures import ProcessPoolExecutor
-    executor = ProcessPoolExecutor(
-        max_workers=MAXWORKERS,
-        initializer=setup_auth_worker,
-        initargs=(options.authdb,
-                  FERNETSECRET)
-    )
+    # from concurrent.futures import ProcessPoolExecutor
+    # executor = ProcessPoolExecutor(
+    #     max_workers=MAXWORKERS,
+    #     initializer=setup_auth_worker,
+    #     initargs=(options.authdb,
+    #               FERNETSECRET)
+    # )
 
     # we only have one actual endpoint, the other one is for testing
     handlers = [
@@ -443,7 +453,9 @@ def main():
     # start the IOLoop and begin serving requests
     try:
 
-        tornado.ioloop.IOLoop.current().start()
+        loop = tornado.ioloop.IOLoop.current()
+        LOGGER.info(loop)
+        loop.start()
 
     except KeyboardInterrupt:
 
