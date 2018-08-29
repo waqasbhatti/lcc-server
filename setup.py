@@ -60,6 +60,8 @@ INSTALL_REQUIRES = [
     'itsdangerous',
     'cryptography',
     'astrobase>=0.3.18',
+    'SQLAlchemy>=1.2.11',
+    'passlib>=1.7.1',
 ]
 
 EXTRAS_REQUIRE = {
