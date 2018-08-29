@@ -184,6 +184,7 @@ def get_secret_keys(tornado_options, logger):
     This loads and generates secret keys.
 
     """
+
     # handle the session secret to generate coookies and itsdangerous tokens
     # with signatures
     if 'LCC_SESSIONSECRET' in os.environ:
@@ -201,18 +202,18 @@ def get_secret_keys(tornado_options, logger):
             'using SESSIONSECRET from environ["LCC_SESSIONSECRET"]'
         )
 
-    elif os.path.exists(options.secretfile):
+    elif os.path.exists(tornado_options.secretfile):
 
         # check if this file is readable/writeable by user only
-        fileperm = oct(os.stat(options.secretfile)[stat.ST_MODE])
+        fileperm = oct(os.stat(tornado_options.secretfile)[stat.ST_MODE])
 
         if not (fileperm == '0100600' or fileperm == '0o100600'):
             logger.error('incorrect file permissions on %s '
-                         '(needs chmod 600)' % options.secretfile)
+                         '(needs chmod 600)' % tornado_options.secretfile)
             sys.exit(1)
 
 
-        with open(options.secretfile,'r') as infd:
+        with open(tornado_options.secretfile,'r') as infd:
             SESSIONSECRET = infd.read().strip('\n')
 
         if len(SESSIONSECRET) == 0:
@@ -233,16 +234,16 @@ def get_secret_keys(tornado_options, logger):
             'no session secret file found in '
             'current base directory and no LCC_SESSIONSECRET '
             'environment variable found. will make a new session '
-            'secret file in current directory: %s' % options.secretfile
+            'secret file in current directory: %s' % tornado_options.secretfile
         )
         SESSIONSECRET = hashlib.sha512(os.urandom(32)).hexdigest()
-        with open(options.secretfile,'w') as outfd:
+        with open(tornado_options.secretfile,'w') as outfd:
             outfd.write(SESSIONSECRET)
-        os.chmod(options.secretfile, 0o100600)
+        os.chmod(tornado_options.secretfile, 0o100600)
 
 
     # handle the fernet secret key to encrypt tokens sent out by itsdangerous
-    fernet_secrets = options.secretfile + '-fernet'
+    fernet_secrets = tornado_options.secretfile + '-fernet'
 
     if 'LCC_FERNETSECRET' in os.environ:
 
@@ -301,7 +302,7 @@ def get_secret_keys(tornado_options, logger):
 
 
     # handle the cpserver secret key to encrypt tokens sent out by itsdangerous
-    cpserver_secrets = options.secretfile + '-cpserver'
+    cpserver_secrets = tornado_options.secretfile + '-cpserver'
 
     if 'CPSERVER_SHAREDSECRET' in os.environ:
 

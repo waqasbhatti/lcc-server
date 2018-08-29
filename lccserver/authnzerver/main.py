@@ -129,17 +129,21 @@ import tornado.web
 import tornado.options
 from tornado.options import define, options
 
-
 # for generating encrypted token information
 from cryptography.fernet import Fernet
 
+###################
+## LOCAL IMPORTS ##
+###################
+
+from ..frontend.indexserver import get_secret_keys
+from ..utils import ProcExecutor
 
 ##############
 ## HANDLERS ##
 ##############
 
 from . import handlers
-
 
 ###############################
 ### APPLICATION SETUP BELOW ###
@@ -174,4 +178,83 @@ define('backgroundworkers',
        help=('number of background workers to use '),
        type=int)
 
-# TODO: finish this based on the outline
+# basedir is the directory at the root where all LCC collections are stored this
+# contains subdirs for each collection and a lcc-collections.sqlite file that
+# contains info on all collections.
+define('basedir',
+       default=os.getcwd(),
+       help=('The base directory of the light curve collections.'),
+       type=str)
+
+# path to the cookie secrets file
+define('secretfile',
+       default=os.path.join(os.getcwd(), '.lccserver.secret'),
+       help=('The path to a text file containing a strong randomly '
+             'generated token suitable for signing cookies. Will be used as '
+             'the filename basis for files containing a Fernet key for '
+             'API authentication and a shared key for '
+             'checkplotserver as well.'),
+       type=str)
+
+# path to the cookie secrets file
+define('authdb',
+       default=os.path.join(os.getcwd(), '.auth-db.sqlite'),
+       help=("The path to a local SQLite database used for "
+             "storing authentication data. If this doesn't exist, "
+             "it will be created."),
+       type=str)
+
+
+#######################
+## UTILITY FUNCTIONS ##
+#######################
+
+def create_authentication_database(authdb_path):
+    '''
+    This will make a new authentication database.
+
+    '''
+
+
+
+
+
+##########
+## MAIN ##
+##########
+def main():
+
+    # parse the command line
+    tornado.options.parse_command_line()
+
+    DEBUG = True if options.debugmode == 1 else False
+
+    # get a logger
+    LOGGER = logging.getLogger(__name__)
+    if DEBUG:
+        LOGGER.setLevel(logging.DEBUG)
+    else:
+        LOGGER.setLevel(logging.INFO)
+
+
+    ###################
+    ## SET UP CONFIG ##
+    ###################
+
+    MAXWORKERS = options.backgroundworkers
+    CURRENTDIR = os.path.abspath(os.getcwd())
+    BASEDIR = os.path.abspath(options.basedir)
+
+    # get our secret keys
+    SESSIONSECRET, SIGNER, FERNET, CPKEY = get_secret_keys(
+        tornado.options,
+        LOGGER
+    )
+    # get the address of the background checkplotserver instance
+    CPADDR = options.cpaddr
+
+
+    ####################################
+    ## PERSISTENT BACKGROUND EXECUTOR ##
+    ####################################
+    executor = ProcExecutor(max_workers=MAXWORKERS,
