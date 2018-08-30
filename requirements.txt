@@ -1,7 +1,7 @@
 ipython
 numpy
 scipy
-tornado>=5.0
+tornado>=5.1
 requests
 tqdm
 markdown
