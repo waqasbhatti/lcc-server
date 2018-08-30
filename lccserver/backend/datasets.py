@@ -131,9 +131,10 @@ create index rev_time_idx on lcc_datasets (last_updated desc);
 -- index on the dataset cache key
 create index lczip_cachekey_idx on lcc_datasets (lczip_cachekey);
 
--- index on the ispublic item
+-- index on the ispublic, owner, visibility columns
 create index ispublic_idx on lcc_datasets (is_public);
-
+create index owner_idx on lcc_datasets (dataset_owner);
+create index visibility_idx on lcc_datasets (dataset_visibility);
 
 -- set the WAL mode on
 pragma journal_mode = wal;
