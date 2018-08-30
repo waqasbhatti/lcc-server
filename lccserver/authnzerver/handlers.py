@@ -38,6 +38,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.sql import select
 
 from . import tables
+from . import actions
 
 
 #########################
@@ -107,11 +108,8 @@ def auth_echo(payload):
 
     # this checks if the database connection is live
     currproc = mp.current_process()
-
     engine = getattr(currproc, 'engine', None)
-
     if not engine:
-
         currproc.engine, currproc.connection, currproc.table_meta = (
             tables.get_auth_db(
                 currproc.auth_db_path,
@@ -131,79 +129,13 @@ def auth_echo(payload):
     return payload
 
 
-######################
-## SESSION HANDLING ##
-######################
-
-def auth_session_new(payload):
-    '''
-    This generates a new session token.
-
-    Request payload keys required:
-
-    session_key, ip_address, client_header, user_id, expires, extra_info_json
-
-    Returns:
-
-    a 32 byte session token in base64 from secrets.token_urlsafe(32)
-
-    '''
-
-
-def auth_session_exists(payload):
-    '''
-    This checks if the provided session token exists.
-
-    Request payload keys required:
-
-    session_key
-
-    Returns:
-
-    All sessions columns for session_key if token exists and has not expired.
-    None if token has expired. Will also call auth_session_delete.
-
-    '''
-
-
-def auth_session_delete(payload):
-    '''
-    This removes a session token.
-
-    Request payload keys required:
-
-    session_key
-
-    Returns:
-
-    Deletes the row corresponding to the session_key in the sessions table.
-
-    '''
-
-
-###################
-## ROLE HANDLING ##
-###################
-
-
-###################
-## USER HANDLING ##
-###################
-
-
-#########################
-## PERMISSION HANDLING ##
-#########################
-
-
-
 #
 # this maps request types -> request functions to execute
 #
 request_functions = {
-    'session-add':auth_session_new,
-    'session-check':auth_session_exists,
-    'session-invalidate':auth_session_delete,
+    'session-new':actions.auth_session_new,
+    'session-exists':actions.auth_session_exists,
+    'session-delete':actions.auth_session_delete,
 }
 
 
