@@ -48,26 +48,14 @@ def readme():
     with open('README.md') as f:
         return f.read()
 
-INSTALL_REQUIRES = [
-    'ipython',
-    'numpy',
-    'scipy',
-    'tornado>=5.0',
-    'requests',
-    'tqdm',
-    'markdown',
-    'pygments',
-    'itsdangerous',
-    'cryptography',
-    'astrobase>=0.3.18',
-    'SQLAlchemy>=1.2.11',
-    'passlib>=1.7.1',
-]
+# let's be lazy and put requirements in one place
+# what could possibly go wrong?
+with open('requirements.txt') as infd:
+    INSTALL_REQUIRES = [x.strip('\n') for x in infd.readlines()]
 
 EXTRAS_REQUIRE = {
     'postgres':['psycopg2'],
 }
-
 
 ###############
 ## RUN SETUP ##
