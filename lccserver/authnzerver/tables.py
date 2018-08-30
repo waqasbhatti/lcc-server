@@ -9,29 +9,31 @@ This contains SQLAlchemy models for the authnzerver.
 '''
 
 import os.path
-from datetime import datetime
+from datetime import datetime, timedelta
+import sqlite3
+import secrets
 
 from sqlalchemy import (
     Table, Column, Integer, String, Boolean, DateTime, ForeignKey, MetaData
 )
 from sqlalchemy import create_engine
+from passlib.context import CryptContext
 
-import sqlite3
+
+#############################
+## PASSWORD HASHING POLICY ##
+#############################
+
+# https://passlib.readthedocs.io/en/stable/narr/quickstart.html
+password_context = CryptContext(schemes=['argon2','bcrypt'],
+                                deprecated='auto')
+
 
 ########################
 ## AUTHNZERVER TABLES ##
 ########################
 
 AUTHDB_META = MetaData()
-
-# the basic permissions table, which lists permissions
-Permissions = Table(
-    'permissions',
-    AUTHDB_META,
-    Column('name', String(length=100), primary_key=True, nullable=False),
-    Column('desc', String(length=280), nullable=False)
-)
-
 
 # this lists all possible roles in the system
 # roles can be things like 'owner' or actual user group names
@@ -43,32 +45,20 @@ Roles = Table(
 )
 
 
-# this associates permissions with roles
-PermissionsAndRoles = Table(
-    'permissions_and_roles',
-    AUTHDB_META,
-    Column('permission_name', String(length=100),
-           ForeignKey('permissions.name', ondelete="CASCADE"),
-           nullable=False),
-    Column('role_name', String(length=100),
-           ForeignKey('roles.name', ondelete="CASCADE"),
-           nullable=False)
-)
-
-
 # the sessions table storing client sessions
 Sessions = Table(
     'sessions',
     AUTHDB_META,
-    Column('session_key',String(), primary_key=True),
+    Column('session_token',String(), primary_key=True),
     Column('ip_address', String(length=280), nullable=False),
+    # some annoying people send zero-length client-headers
+    # we won't allow them to initiate a session
     Column('client_header', String(length=280), nullable=False),
-    # this can't be null because there always be an anonymous user in the users
-    # table so the anonymous sessions will be tied to that virtual user
-    # FIXME: does this make sense? look at Django to see how they do it.
-    Column('user_id', Integer,
-           ForeignKey("users.user_id", ondelete="CASCADE"),
+    Column('user_id', Integer, ForeignKey("users.user_id", ondelete="CASCADE"),
            nullable=False),
+    Column('created', DateTime(),
+           default=datetime.utcnow,
+           nullable=False, index=True),
     Column('expires', DateTime(), nullable=False, index=True),
     Column('extra_info_json', String()),
 )
@@ -81,26 +71,24 @@ Users = Table(
     Column('user_id', Integer(), primary_key=True, nullable=False),
     Column('password', String(), nullable=False),
     Column('full_name', String(length=280), index=True),
+
     Column('email', String(length=280), nullable=False, index=True),
     Column('email_verified',Boolean(), default=False,
            nullable=False, index=True),
     Column('emailverify_sent_datetime', DateTime()),
-    Column('is_staff', Boolean(), default=False, nullable=False, index=True),
+
     Column('is_active', Boolean(), default=False, nullable=False, index=True),
-    Column('is_superuser', Boolean(), default=False,
-           nullable=False, index=True),
-    Column('last_login', DateTime(),
-           default=datetime.utcnow,
-           onupdate=datetime.utcnow,
-           nullable=False,
-           index=True),
+
+    # these two are separated so we can enforce a rate-limit on login tries
+    Column('last_login_success', DateTime(), index=True),
+    Column('last_login_try', DateTime(), onupdate=datetime.utcnow, index=True),
+
     Column('created_on', DateTime(),
            default=datetime.utcnow,
            nullable=False,index=True),
     Column('user_role', String(length=100),
            ForeignKey("roles.name"),
-           nullable=False, index=True),
-    Column('user_permissions', String(), nullable=False, index=True)
+           nullable=False, index=True)
 )
 
 
@@ -126,8 +114,8 @@ APIKeys = Table(
     Column('user_id', Integer(),
            ForeignKey('users.user_id', ondelete="CASCADE"),
            nullable=False),
-    Column('session_key', String(),
-           ForeignKey('sessions.session_key', ondelete="CASCADE"),
+    Column('session_token', String(),
+           ForeignKey('sessions.session_token', ondelete="CASCADE"),
            nullable=False)
 )
 
@@ -141,8 +129,8 @@ APIKeys = Table(
 # status -> one of 0 -> private, 1 -> shared, 2 -> public
 # scope -> one of 0 -> owned item, 1 -> somebody else's item
 
-# these are the basic permissions
-PERMISSIONS = {
+# these are the basic permissions for roles
+ROLE_PERMISSIONS = {
     'superuser':{
         'owned': {
             'view',
@@ -152,6 +140,7 @@ PERMISSIONS = {
             'make_public',
             'make_private',
             'make_shared',
+            'change_owner',
         },
         'others':{
             'public':{
@@ -159,9 +148,9 @@ PERMISSIONS = {
                 'create',
                 'delete',
                 'edit',
-                'make_public',
                 'make_private',
                 'make_shared',
+                'change_owner',
             },
             'shared':{
                 'view',
@@ -170,7 +159,7 @@ PERMISSIONS = {
                 'edit',
                 'make_public',
                 'make_private',
-                'make_shared',
+                'change_owner',
             },
             'private':{
                 'view',
@@ -178,8 +167,40 @@ PERMISSIONS = {
                 'delete',
                 'edit',
                 'make_public',
+                'make_shared',
+                'change_owner',
+            },
+        }
+    },
+    'staff':{
+        'owned': {
+            'view',
+            'create',
+            'delete',
+            'edit',
+            'make_public',
+            'make_private',
+            'make_shared',
+            'change_owner',
+        },
+        'others':{
+            'public':{
+                'view',
+                'edit',
+                'delete',
                 'make_private',
                 'make_shared',
+                'change_owner',
+            },
+            'shared':{
+                'view',
+                'edit',
+                'make_public',
+                'make_private',
+                'change_owner',
+            },
+            'private':{
+                'view',
             },
         }
     },
@@ -229,7 +250,7 @@ PERMISSIONS = {
 
 # these are intersected with each role's permissions above to form the final set
 # of permissions available for each item
-ITEM_SPECIFIC_PERMISSIONS = {
+ITEM_PERMISSIONS = {
     'object':{
         'valid_permissions':{'view',
                              'create',
@@ -237,6 +258,7 @@ ITEM_SPECIFIC_PERMISSIONS = {
                              'delete',
                              'make_public',
                              'make_shared',
+                             'change_owner',
                              'make_private'},
         'valid_statuses':{'public',
                           'private',
@@ -250,6 +272,7 @@ ITEM_SPECIFIC_PERMISSIONS = {
                              'delete',
                              'make_public',
                              'make_shared',
+                             'change_owner',
                              'make_private'},
         'valid_statuses':{'public',
                           'private',
@@ -262,6 +285,7 @@ ITEM_SPECIFIC_PERMISSIONS = {
                              'edit',
                              'delete',
                              'make_public',
+                             'change_owner',
                              'make_shared',
                              'make_private'},
         'valid_statuses':{'public',
@@ -312,13 +336,13 @@ def get_item_permissions(role_name,
         )
 
     try:
-        target_valid_permissions = ITEM_SPECIFIC_PERMISSIONS[
+        target_valid_permissions = ITEM_PERMISSIONS[
             target_name
         ]['valid_permissions']
-        target_valid_statuses = ITEM_SPECIFIC_PERMISSIONS[
+        target_valid_statuses = ITEM_PERMISSIONS[
             target_name
         ]['valid_statuses']
-        target_invalid_roles = ITEM_SPECIFIC_PERMISSIONS[
+        target_invalid_roles = ITEM_PERMISSIONS[
             target_name
         ]['invalid_roles']
 
@@ -344,13 +368,13 @@ def get_item_permissions(role_name,
         # if this target is owned by the user, then check target owned
         # permissions
         if target_scope == 'owned':
-            role_permissions = PERMISSIONS[role_name][target_scope]
+            role_permissions = ROLE_PERMISSIONS[role_name][target_scope]
 
         # otherwise, the target is not owned by the user, check scope
         # permissions for target status
         else:
             role_permissions = (
-                PERMISSIONS[role_name][target_scope][target_status]
+                ROLE_PERMISSIONS[role_name][target_scope][target_status]
             )
 
         # these are the final available permissions
@@ -421,8 +445,8 @@ def get_auth_db(auth_db_path, echo=False):
     return engine, engine.connect(), meta
 
 
+
 def initial_authdb_inserts(auth_db_path,
-                           permissions_model_json=None,
                            superuser_email=None,
                            superuser_pass=None,
                            echo=False):
@@ -432,9 +456,76 @@ def initial_authdb_inserts(auth_db_path,
     - adds an anonymous user
     - adds a superuser with:
       -  userid = UNIX userid
-      - password = random 20 characters)
+      - password = random 16 bytes)
     - sets up the initial permissions table
 
     Returns the superuser userid and password.
 
     '''
+
+    engine, conn, meta = get_auth_db(auth_db_path,
+                                     echo=echo)
+
+    # get the roles table and fill it in
+    roles = meta.tables['roles']
+    res = conn.execute(roles.insert(),[
+        {'name':'superuser',
+         'desc':'Accounts that can do anything.'},
+        {'name':'staff',
+         'desc':'Users with basic admin privileges.'},
+        {'name':'authenticated',
+         'desc':'Logged in regular users.'},
+        {'name':'anonymous',
+         'desc':'The anonymous user role.'},
+        {'name':'locked',
+         'desc':'An account that has been disabled.'},
+    ])
+    res.close()
+
+    # get the users table
+    users = meta.tables['users']
+
+    # make the superuser account
+    if not superuser_email:
+        superuser_email = '%s@localhost' % os.environ.get('USER',
+                                                          default='superuser')
+    if not superuser_pass:
+        superuser_pass = secrets.token_urlsafe(16)
+        superuser_pass_auto = True
+    else:
+        superuser_pass_auto = False
+
+    hashed_password = password_context.hash(superuser_pass)
+
+    result = conn.execute(
+        users.insert().values([
+            # the superuser
+            {'password':hashed_password,
+             'email':superuser_email,
+             'email_verified':True,
+             'is_staff':True,
+             'is_active':True,
+             'user_role':'superuser',
+             'created_on':datetime.utcnow()},
+            # the anonuser
+            {'password':password_context.hash(secrets.token_urlsafe(32)),
+             'email':'anonuser@localhost',
+             'email_verified':True,
+             'is_staff':False,
+             'is_active':True,
+             'user_role':'anonymous',
+             'created_on':datetime.utcnow()},
+            # the dummyuser to fail passwords for nonexistent users against
+            {'password':password_context.hash(secrets.token_urlsafe(32)),
+             'email':'dummyuser@localhost',
+             'email_verified':True,
+             'is_staff':False,
+             'is_active':False,
+             'user_role':'locked',
+             'created_on':datetime.utcnow()},
+        ])
+    )
+    result.close()
+
+    if superuser_pass_auto:
+        return superuser_email, superuser_pass
