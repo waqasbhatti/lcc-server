@@ -119,6 +119,8 @@ create table lcc_datasets (
   name text,
   description text,
   citation text,
+  dataset_owner integer default 1,
+  dataset_visibility integer default 2,
   primary key (setid)
 );
 

@@ -595,12 +595,12 @@ def objectinfo_to_sqlite(augcatpkl,
     column_list = ', '.join(colnames)
     placeholders = ','.join(['?']*len(cols))
 
-    # this is the final SQL used to create the database this includes an
-    # object_is_public column to add object-level public/private categories. all
-    # of the functions in dbsearch.py can then set to respect this column when
-    # searching.
+    # this is the final SQL used to create the database
+    # object_owner -> userid of the object owner. superuser's ID = 1
+    # object_visibility -> one of 0 -> private, 1 -> shared, 2 -> public
     sqlcreate = ("create table object_catalog ({column_type_list}, "
-                 "object_is_public integer not null default 1, "
+                 "object_owner integer default 1, "
+                 "object_visibility integer default 2, "
                  "primary key (objectid))")
     sqlcreate = sqlcreate.format(column_type_list=column_and_type_list)
 
@@ -723,10 +723,12 @@ def objectinfo_to_sqlite(augcatpkl,
                 cur.execute(sqlindex)
                 indexcols.append(icol)
 
-        # make an index on the object_is_public column
-        # this doesn't show up in the public column or indexes lists
-        cur.execute('create index object_is_public_idx '
-                    'on object_catalog (object_is_public)')
+        # make an index on the object_owner and object_status columns
+        # this doesn't show up in the column or indexes lists
+        cur.execute('create index object_owner_idx '
+                    'on object_catalog (object_owner)')
+        cur.execute('create index object_visibility_idx '
+                    'on object_catalog (object_visibility)')
 
     # create any full-text-search indices we want
     if ftsindexcols:
@@ -1198,6 +1200,8 @@ create table lcc_index (
   datarelease integer default 0,
   last_updated datetime,
   last_indexed datetime,
+  collection_owner integer default 1,
+  collection_visibility integer default 2,
   primary key (collection_id, name, project, datarelease)
 );
 
