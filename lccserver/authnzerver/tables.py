@@ -191,6 +191,11 @@ permissions = [
 ## UTILITY FUNCTIONS ##
 #######################
 
+WAL_MODE_SCRIPT = '''\
+pragma journal_mode = 'wal';
+pragma journal_size_limit = 5242880;
+'''
+
 def create_auth_db(auth_db_path,
                    echo=False,
                    returnconn=True):
@@ -213,9 +218,7 @@ def create_auth_db(auth_db_path,
     # concurrent operations a bit better
     db = sqlite3.connect(auth_db_path)
     cur = db.cursor()
-    cur.executescript(
-        'pragma journal_mode wal; pragma journal_size_limit = 5242880;'
-    )
+    cur.executescript(WAL_MODE_SCRIPT)
     db.commit()
     db.close()
 
@@ -237,6 +240,9 @@ def get_auth_db(auth_db_path, echo=False):
 
 
 def initial_authdb_inserts(auth_db_path,
+                           permissions_model_json=None,
+                           superuser_email=None,
+                           superuser_pass=None,
                            echo=False):
     '''
     This does initial set up of the auth DB.
