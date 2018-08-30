@@ -1,3 +1,15 @@
+# v0.1.3
+
+## New stuff
+
+- added `edit-collection` lcc-server CLI command.
+
+## Fixes
+
+- fixed typo: `abs_gaiamag` should have been `gaia_absmag`. These will now be
+  extracted correctly from the checkplot pickles if present.
+
+
 # v0.1.2
 
 ## Fixes
