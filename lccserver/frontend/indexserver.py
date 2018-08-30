@@ -302,19 +302,19 @@ def get_secret_keys(tornado_options, logger):
     # handle the cpserver secret key to encrypt tokens sent out by itsdangerous
     cpserver_secrets = tornado_options.secretfile + '-cpserver'
 
-    if 'CPSERVER_SHAREDSECRET' in os.environ:
+    if 'LCC_CPSERVERSECRET' in os.environ:
 
-        CPSERVERSECRET = os.environ['CPSERVER_SHAREDSECRET']
+        CPSERVERSECRET = os.environ['LCC_CPSERVERSECRET']
         if len(CPSERVERSECRET) == 0:
 
             logger.error(
-                'CPSERVERSECRET from environ["CPSERVER_SHAREDSECRET"] '
+                'CPSERVERSECRET from environ["LCC_CPSERVERSECRET"] '
                 'is either empty or not valid, will not continue'
             )
             sys.exit(1)
 
         logger.info(
-            'using CPSERVERSECRET from environ["CPSERVER_SHAREDSECRET"]'
+            'using CPSERVERSECRET from environ["LCC_CPSERVERSECRET"]'
         )
 
     elif os.path.exists(cpserver_secrets):
@@ -347,7 +347,7 @@ def get_secret_keys(tornado_options, logger):
 
         logger.warning(
             'no cpserver secret file found in '
-            'current base directory and no CPSERVER_SHAREDSECRET '
+            'current base directory and no LCC_CPSERVERSECRET '
             'environment variable found. will make a new cpserver '
             'secret file in current directory: %s' % cpserver_secrets
         )

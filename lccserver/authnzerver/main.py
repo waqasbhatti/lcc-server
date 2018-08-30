@@ -60,6 +60,7 @@ import tornado.web
 import tornado.options
 from tornado.options import define, options
 import multiprocessing as mp
+import getpass
 
 from cryptography.fernet import Fernet
 
@@ -140,9 +141,10 @@ define('authdb',
 ## UTILITY FUNCTIONS ##
 #######################
 
-def get_secret_key(tornado_options, logger):
+def get_fernet_secret(tornado_options, logger):
     """
-    This loads and generates the required Fernet secret key.
+    This loads and generates the required Fernet secret key:
+
 
     """
     # handle the fernet secret key to encrypt tokens sent out by itsdangerous
@@ -160,7 +162,7 @@ def get_secret_key(tornado_options, logger):
             sys.exit(1)
 
         logger.info(
-            'using FERNETSECRET from environ["LCC_FERNETSECRET"]'
+            'Using FERNETSECRET from environ["LCC_FERNETSECRET"]'
         )
 
     elif os.path.exists(fernet_secrets):
@@ -169,7 +171,7 @@ def get_secret_key(tornado_options, logger):
         fileperm = oct(os.stat(fernet_secrets)[stat.ST_MODE])
 
         if not (fileperm == '0100600' or fileperm == '0o100600'):
-            logger.error('incorrect file permissions on %s '
+            logger.error('Incorrect file permissions on %s '
                          '(needs chmod 600)' % fernet_secrets)
             sys.exit(1)
 
@@ -186,23 +188,164 @@ def get_secret_key(tornado_options, logger):
             sys.exit(1)
 
         logger.info(
-            'using FERNETSECRET from file in current base directory'
+            'Using FERNETSECRET from file in current base directory'
         )
 
     else:
 
         logger.warning(
-            'no fernet secret file found in '
+            'No Fernet secret file found in '
             'current base directory and no LCC_FERNETSECRET '
-            'environment variable found. will make a new fernet '
-            'secret file in current directory: %s' % fernet_secrets
+            'environment variable found.'
         )
+        logger.info('Will make a new Fernet '
+                    'secret file: %s' % fernet_secrets)
+
         FERNETSECRET = Fernet.generate_key()
         with open(fernet_secrets,'wb') as outfd:
             outfd.write(FERNETSECRET)
         os.chmod(fernet_secrets, 0o100600)
 
     return FERNETSECRET
+
+
+
+def get_session_secret(tornado_options, logger):
+    """
+    This loads and generates the required session secret key:
+
+
+    """
+    # handle the session secret key to encrypt tokens sent out by itsdangerous
+    session_secrets = tornado_options.secretfile
+
+    if 'LCC_SESSIONSECRET' in os.environ:
+
+        SESSIONSECRET = os.environ['LCSERVER_SESSIONSECRET']
+        if len(SESSIONSECRET) == 0:
+
+            logger.error(
+                'SESSIONSECRET from environ["LCC_SESSIONSECRET"] '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'Using SESSIONSECRET from environ["LCC_SESSIONSECRET"]'
+        )
+
+    elif os.path.exists(session_secrets):
+
+        # check if this file is readable/writeable by user only
+        fileperm = oct(os.stat(session_secrets)[stat.ST_MODE])
+
+        if not (fileperm == '0100600' or fileperm == '0o100600'):
+            logger.error('Incorrect file permissions on %s '
+                         '(needs chmod 600)' % session_secrets)
+            sys.exit(1)
+
+
+        with open(session_secrets,'r') as infd:
+            SESSIONSECRET = infd.read().strip('\n')
+
+        if len(SESSIONSECRET) == 0:
+
+            logger.error(
+                'SESSIONSECRET from file in current base directory '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'Using SESSIONSECRET from file in current base directory'
+        )
+
+    else:
+
+        logger.warning(
+            'No Session secret file found in '
+            'current base directory and no LCC_SESSIONSECRET '
+            'environment variable found.'
+        )
+        logger.info('Will make a new Session '
+                    'secret file: %s' % session_secrets)
+
+        SESSIONSECRET = Fernet.generate_key()
+        with open(session_secrets,'wb') as outfd:
+            outfd.write(SESSIONSECRET)
+        os.chmod(session_secrets, 0o100600)
+
+    return SESSIONSECRET
+
+
+
+def get_cpserver_secret(tornado_options, logger):
+    """
+    This loads and generates the required CPSERVER secret key:
+
+
+    """
+    # handle the cpserver secret key to encrypt tokens sent out by itsdangerous
+    cpserver_secrets = tornado_options.secretfile + '-cpserver'
+
+    if 'LCC_CPSERVERSECRET' in os.environ:
+
+        CPSERVERSECRET = os.environ['LCSERVER_CPSERVERSECRET']
+        if len(CPSERVERSECRET) == 0:
+
+            logger.error(
+                'CPSERVERSECRET from environ["LCC_CPSERVERSECRET"] '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'Using CPSERVERSECRET from environ["LCC_CPSERVERSECRET"]'
+        )
+
+    elif os.path.exists(cpserver_secrets):
+
+        # check if this file is readable/writeable by user only
+        fileperm = oct(os.stat(cpserver_secrets)[stat.ST_MODE])
+
+        if not (fileperm == '0100600' or fileperm == '0o100600'):
+            logger.error('Incorrect file permissions on %s '
+                         '(needs chmod 600)' % cpserver_secrets)
+            sys.exit(1)
+
+
+        with open(cpserver_secrets,'r') as infd:
+            CPSERVERSECRET = infd.read().strip('\n')
+
+        if len(CPSERVERSECRET) == 0:
+
+            logger.error(
+                'CPSERVERSECRET from file in current base directory '
+                'is either empty or not valid, will not continue'
+            )
+            sys.exit(1)
+
+        logger.info(
+            'Using CPSERVERSECRET from file in current base directory'
+        )
+
+    else:
+
+        logger.warning(
+            'No CPSERVER secret file found in '
+            'current base directory and no LCC_CPSERVERSECRET '
+            'environment variable found.'
+        )
+        logger.info('Will make a new CPSERVER '
+                    'secret file: %s' % cpserver_secrets)
+
+        CPSERVERSECRET = Fernet.generate_key()
+        with open(cpserver_secrets,'wb') as outfd:
+            outfd.write(CPSERVERSECRET)
+        os.chmod(cpserver_secrets, 0o100600)
+
+    return CPSERVERSECRET
+
 
 
 def create_authentication_database(authdb_path):
@@ -214,8 +357,9 @@ def create_authentication_database(authdb_path):
     '''
 
     tables.create_auth_db(authdb_path,
-                          echo=True,
+                          echo=False,
                           returnconn=False)
+
 
 
 def setup_auth_worker(authdb_path,
@@ -253,7 +397,7 @@ def close_authentication_database():
         currproc.engine.dispose()
         del currproc.engine
 
-    print('shut down database engine in process: %s' % currproc.name,
+    print('Shutting down database engine in process: %s' % currproc.name,
           file=sys.stdout)
 
 
@@ -280,13 +424,31 @@ def main():
     ###################
 
     MAXWORKERS = options.backgroundworkers
-    FERNETSECRET = get_secret_key(options, LOGGER)
+
+    # also fire the cpserver and lccserver secret functions so these get
+    # generated before the checkplotserver or indexserver launch
+    get_cpserver_secret(options, LOGGER)
+    get_session_secret(options, LOGGER)
+    FERNETSECRET = get_fernet_secret(options, LOGGER)
 
     # create our authentication database if it doesn't exist
     if not os.path.exists(options.authdb):
-        LOGGER.info('making new authentication database at: %s' %
-                    options.authdb)
+
+        LOGGER.info('Making new authentication database...')
+
+        # generate the initial DB
         create_authentication_database(options.authdb)
+
+        # generate the admin users and initial DB info
+        u, p = tables.initial_authdb_inserts(options.authdb)
+
+        LOGGER.warning('')
+        LOGGER.warning('Generated new admin user: %s' % u)
+        LOGGER.warning('Generated new admin pass: %s' % p)
+        LOGGER.warning('')
+
+    else:
+        LOGGER.info('Using existing authentication database...')
 
     #
     # this is the background executor we'll pass over to the handler
@@ -356,13 +518,13 @@ def main():
             serverport = serverport + 1
 
     if not portok:
-        LOGGER.error('could not find a free port after %s tries, giving up' %
+        LOGGER.error('Could not find a free port after %s tries, giving up' %
                      maxtries)
         sys.exit(1)
 
-    LOGGER.info('started authnzerver. listening on http://%s:%s' %
+    LOGGER.info('Started authnzerver. listening on http://%s:%s' %
                 (options.serve, serverport))
-    LOGGER.info('background worker processes: %s, IOLoop in use: %s' %
+    LOGGER.info('Background worker processes: %s. IOLoop in use: %s' %
                 (MAXWORKERS, IOLOOP_SPEC))
 
 
@@ -370,12 +532,11 @@ def main():
     try:
 
         loop = tornado.ioloop.IOLoop.current()
-        LOGGER.info(loop)
         loop.start()
 
     except KeyboardInterrupt:
 
-        LOGGER.info('received Ctrl-C: shutting down...')
+        LOGGER.info('Received Ctrl-C: shutting down...')
 
         # close down the processpool
         executor.shutdown()

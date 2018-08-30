@@ -989,7 +989,8 @@ def remove_collection_from_lcc_index(basedir,
 ########################################
 
 async def start_lccserver(executor):
-    '''This starts the LCC server and a backing instance of checkplotserver.
+    '''This starts the authnzerver, the LCC server and a backing instance of
+    checkplotserver.
 
     This is NOT meant for production, but is useful to make sure everything
     works correctly or for local browsing of your light curve data.
@@ -1009,13 +1010,13 @@ async def start_lccserver(executor):
 
     '''
 
-    # launch the indexserver
+    # launch the lcc-server HTTP servers
+
     loop = asyncio.get_event_loop()
     tasks = []
-
-    subprocess_call_indexserver = partial(
+    subprocess_call_authnzerver = partial(
         subprocess.call,
-        'indexserver',
+        'authnzerver',
         shell=True
     )
     subprocess_call_cpserver = partial(
@@ -1025,9 +1026,15 @@ async def start_lccserver(executor):
          '--sharedsecret=.lccserver.secret-cpserver'),
         shell=True
     )
+    subprocess_call_indexserver = partial(
+        subprocess.call,
+        'indexserver',
+        shell=True
+    )
 
-    tasks.append(loop.run_in_executor(executor, subprocess_call_indexserver))
+    tasks.append(loop.run_in_executor(executor, subprocess_call_authnzerver))
     tasks.append(loop.run_in_executor(executor, subprocess_call_cpserver))
+    tasks.append(loop.run_in_executor(executor, subprocess_call_indexserver))
 
     completed, pending = await asyncio.wait(tasks)
     results = [t.result() for t in completed]
@@ -1131,7 +1138,7 @@ def main():
         if currdir != args.basedir:
             os.chdir(args.basedir)
 
-        executor = ProcessPoolExecutor(max_workers=2)
+        executor = ProcessPoolExecutor(max_workers=3)
         event_loop = asyncio.get_event_loop()
 
         try:

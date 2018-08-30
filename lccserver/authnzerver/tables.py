@@ -9,9 +9,10 @@ This contains SQLAlchemy models for the authnzerver.
 '''
 
 import os.path
-from datetime import datetime, timedelta
+from datetime import datetime
 import sqlite3
 import secrets
+import getpass
 
 from sqlalchemy import (
     Table, Column, Integer, String, Boolean, DateTime, ForeignKey, MetaData
@@ -487,8 +488,11 @@ def initial_authdb_inserts(auth_db_path,
 
     # make the superuser account
     if not superuser_email:
-        superuser_email = '%s@localhost' % os.environ.get('USER',
-                                                          default='superuser')
+        try:
+            superuser_email = '%s@localhost' % getpass.getuser()
+        except Exception as e:
+            superuser_email = 'lccs_admin@localhost'
+
     if not superuser_pass:
         superuser_pass = secrets.token_urlsafe(16)
         superuser_pass_auto = True
@@ -503,7 +507,6 @@ def initial_authdb_inserts(auth_db_path,
             {'password':hashed_password,
              'email':superuser_email,
              'email_verified':True,
-             'is_staff':True,
              'is_active':True,
              'user_role':'superuser',
              'created_on':datetime.utcnow()},
@@ -511,7 +514,6 @@ def initial_authdb_inserts(auth_db_path,
             {'password':password_context.hash(secrets.token_urlsafe(32)),
              'email':'anonuser@localhost',
              'email_verified':True,
-             'is_staff':False,
              'is_active':True,
              'user_role':'anonymous',
              'created_on':datetime.utcnow()},
@@ -519,7 +521,6 @@ def initial_authdb_inserts(auth_db_path,
             {'password':password_context.hash(secrets.token_urlsafe(32)),
              'email':'dummyuser@localhost',
              'email_verified':True,
-             'is_staff':False,
              'is_active':False,
              'user_role':'locked',
              'created_on':datetime.utcnow()},
