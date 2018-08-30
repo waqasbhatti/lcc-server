@@ -132,59 +132,241 @@ APIKeys = Table(
 )
 
 
-######################
-## PERMISSIONS LIST ##
-######################
-
-# TODO: add an owner column on each dataset that references the user_id or
-# anonymous.
-
-permissions = [
-    #
-    # user model permissions
-    #
-    'apikeys.can_create',
-    'apikeys.can_change',
-    'apikeys.can_delete',
-    'apikeys.can_view',
-    'preferences.can_create',
-    'preferences.can_change',
-    'preferences.can_delete',
-    'preferences.can_view',
-    # FIXME: add other user permissions
-
-    #
-    # collection permissions
-    #
-    'collection.can_create',
-    'collection.can_edit',
-    'collection.can_delete',
-    'collection.can_view',
-
-    #
-    # dataset permissions
-    #
-    # this is effectively a read-only mode for the server
-    # if people can't create datasets, they can't run searches
-    # so are restricted to only viewing existing datasets
-    'dataset.can_create',
-    'dataset.can_edit',
-    'dataset.can_delete',
-    'dataset.can_view',
-
-    #
-    # object permissions
-    #
-    'object.can_edit',
-    'object.can_view',
-]
-
-
 ######################################
 ## ROLES AND ASSOCIATED PERMISSIONS ##
 ######################################
 
-# FIXME: fill this in
+# each item in the database will have these columns to make these work correctly
+# owner -> userid of the object owner. superuser's ID = 1
+# status -> one of 0 -> private, 1 -> shared, 2 -> public
+# scope -> one of 0 -> owned item, 1 -> somebody else's item
+
+# these are the basic permissions
+PERMISSIONS = {
+    'superuser':{
+        'owned': {
+            'view',
+            'create',
+            'delete',
+            'edit',
+            'make_public',
+            'make_private',
+            'make_shared',
+        },
+        'others':{
+            'public':{
+                'view',
+                'create',
+                'delete',
+                'edit',
+                'make_public',
+                'make_private',
+                'make_shared',
+            },
+            'shared':{
+                'view',
+                'create',
+                'delete',
+                'edit',
+                'make_public',
+                'make_private',
+                'make_shared',
+            },
+            'private':{
+                'view',
+                'create',
+                'delete',
+                'edit',
+                'make_public',
+                'make_private',
+                'make_shared',
+            },
+        }
+    },
+    'authenticated':{
+        'owned': {
+            'view',
+            'create',
+            'delete',
+            'edit',
+            'make_public',
+            'make_private',
+            'make_shared',
+        },
+        'others':{
+            'public':{
+                'view',
+            },
+            'shared':{
+                'view',
+                'edit',
+            },
+            'private':set({}),
+        }
+    },
+    'anonymous':{
+        'owned': {
+            'view',
+            'create',
+        },
+        'others':{
+            'public':{
+                'view',
+            },
+            'shared':set({}),
+            'private':set({}),
+        }
+    },
+    'locked':{
+        'owned': set({}),
+        'others':{
+            'public':set({}),
+            'shared':set({}),
+            'private':set({}),
+        }
+    },
+}
+
+# these are intersected with each role's permissions above to form the final set
+# of permissions available for each item
+ITEM_SPECIFIC_PERMISSIONS = {
+    'object':{
+        'valid_permissions':{'view',
+                             'create',
+                             'edit',
+                             'delete',
+                             'make_public',
+                             'make_shared',
+                             'make_private'},
+        'valid_statuses':{'public',
+                          'private',
+                          'shared'},
+        'invalid_roles':set({'locked'}),
+    },
+    'dataset':{
+        'valid_permissions':{'view',
+                             'create',
+                             'edit',
+                             'delete',
+                             'make_public',
+                             'make_shared',
+                             'make_private'},
+        'valid_statuses':{'public',
+                          'private',
+                          'shared'},
+        'invalid_roles':set({'locked'}),
+    },
+    'collection':{
+        'valid_permissions':{'view',
+                             'create',
+                             'edit',
+                             'delete',
+                             'make_public',
+                             'make_shared',
+                             'make_private'},
+        'valid_statuses':{'public',
+                          'private',
+                          'shared'},
+        'invalid_roles':set({'locked'}),
+    },
+    'apikey':{
+        'valid_permissions':{'view',
+                             'create',
+                             'delete'},
+        'valid_statuses':{'private'},
+        'invalid_roles':set({'anonymous','locked'}),
+
+    },
+    'userprefs':{
+        'valid_permissions':{'view',
+                             'edit'},
+        'valid_statuses':{'private'},
+        'invalid_roles':set({'anonymous','locked'}),
+    }
+}
+
+
+def get_item_permissions(role_name,
+                         target_name,
+                         target_status,
+                         target_scope,
+                         debug=False):
+    '''Returns the possible permissions for a target given a role and target
+    status.
+
+    role is one of superuser, authenticated, anonymous, locked
+    target is one of object, dataset, collection, apikey, userprefs
+    target_status is one of public, private, shared
+    target_scope is one of owned, others
+
+    Returns a set. If the permissions don't make sense, returns an empty set, in
+    which case access MUST be denied.
+
+    '''
+
+    if debug:
+        print(
+            'role_name = %s, target_name = %s, '
+            'target_status = %s, target_scope = %s' %
+            (role_name, target_name, target_status, target_scope)
+        )
+
+    try:
+        target_valid_permissions = ITEM_SPECIFIC_PERMISSIONS[
+            target_name
+        ]['valid_permissions']
+        target_valid_statuses = ITEM_SPECIFIC_PERMISSIONS[
+            target_name
+        ]['valid_statuses']
+        target_invalid_roles = ITEM_SPECIFIC_PERMISSIONS[
+            target_name
+        ]['invalid_roles']
+
+        if debug:
+            print('%s valid_perms: %r' %
+                  (target_name, target_valid_permissions))
+            print('%s valid_statuses: %r' %
+                  (target_name, target_valid_statuses))
+            print('%s invalid_roles: %r' %
+                  (target_name, target_invalid_roles))
+
+
+        # if the role is not allowed into this target, return
+        if role_name in target_invalid_roles:
+            return set({})
+
+        # if the target's status is not valid, return
+        if target_status not in target_valid_statuses:
+            return set({})
+
+        # check the target's scope
+
+        # if this target is owned by the user, then check target owned
+        # permissions
+        if target_scope == 'owned':
+            role_permissions = PERMISSIONS[role_name][target_scope]
+
+        # otherwise, the target is not owned by the user, check scope
+        # permissions for target status
+        else:
+            role_permissions = (
+                PERMISSIONS[role_name][target_scope][target_status]
+            )
+
+        # these are the final available permissions
+        available_permissions = role_permissions.intersection(
+            target_valid_permissions
+        )
+
+        if debug:
+            print('role_permissions for status: %s, scope: %s: %r' %
+                  (target_status, target_scope, role_permissions))
+            print('available_permissions: %r' % available_permissions)
+
+        return available_permissions
+
+    except Exception as e:
+        return set({})
 
 
 #######################
