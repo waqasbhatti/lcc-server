@@ -182,6 +182,10 @@ def objectinfo_to_sqlite(augcatpkl,
     can all contain Markdown. The frontend will use these to render HTML
     descriptions, etc.
 
+    NOTE: lcc_ispublic is a short cut for:
+    - owner      = user ID 1 -> the admin user
+    - visibility = 2         -> public
+
     If colinfo is not None, it should be either a dict or JSON with elements
     that are of the form:
 
@@ -1195,12 +1199,12 @@ create table lcc_index (
   description text,
   project text,
   citation text,
-  ispublic integer,
   datarelease integer default 0,
   last_updated datetime,
   last_indexed datetime,
   collection_owner integer default 1,
   collection_visibility integer default 2,
+  collection_shared_with text,
   primary key (collection_id, name, project, datarelease)
 );
 
@@ -1221,8 +1225,9 @@ insert or replace into lcc_index (
   nobjects,
   catalog_columninfo_json,
   columnlist, indexedcols, ftsindexedcols,
-  name, description, project, citation, ispublic, datarelease,
-  last_updated, last_indexed
+  name, description, project, citation, datarelease,
+  last_updated, last_indexed,
+  collection_owner, collection_visibility
 ) values (
   ?,
   ?,?,
@@ -1232,8 +1237,9 @@ insert or replace into lcc_index (
   ?,
   ?,
   ?,?,?,
-  ?,?,?,?,?,?,
-  ?,datetime('now')
+  ?,?,?,?,?,
+  ?,datetime('now'),
+  ?,?
 )
 '''
 
@@ -1513,6 +1519,18 @@ def sqlite_collect_lcc_info(
 
         # 3. put these things into the lcc-index database
 
+        # check if the lcc_ispublic
+        # if so, set collection_owner to user_id = 1 (the admin user)
+        # and set the collection_visibility to 2 (public)
+        # collections can only be owned by the admin user
+
+        if metadata['lcc_ispublic']:
+            collection_owner = 1
+            collection_visibility = 2
+        else:
+            collection_owner = 1
+            collection_visibility = 0
+
         # prepare the query items
         items = (
             collection_id,
@@ -1533,9 +1551,10 @@ def sqlite_collect_lcc_info(
             metadata['lcc_desc'],
             metadata['lcc_project'],
             metadata['lcc_citation'],
-            metadata['lcc_ispublic'],
             metadata['lcc_datarelease'],
-            last_updated
+            last_updated,
+            collection_owner,
+            collection_visibility
         )
 
         # 4. execute the queries to put all of this stuff into the lcc_index
