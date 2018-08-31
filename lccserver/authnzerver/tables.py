@@ -9,6 +9,8 @@ This contains SQLAlchemy models for the authnzerver.
 '''
 
 import os.path
+import os
+import stat
 from datetime import datetime
 import sqlite3
 import secrets
@@ -468,13 +470,23 @@ def create_auth_db(auth_db_path,
     db.commit()
     db.close()
 
+    # set the permissions on the file appropriately
+    os.chmod(auth_db_path, 0o100600)
 
 
-def get_auth_db(auth_db_path, echo=False):
+
+def get_auth_db(auth_db_path,
+                echo=False):
     '''
     This just gets a connection to the auth DB.
 
     '''
+
+    # make sure to check the auth DB permissions before we load it
+    fileperm = oct(os.stat(auth_db_path)[stat.ST_MODE])
+
+    if not (fileperm == '0100600' or fileperm == '0o100600'):
+        raise IOError('incorrect permissions on auth DB, will not load it')
 
     meta = MetaData()
     engine = create_engine('sqlite:///%s' % os.path.abspath(auth_db_path),
