@@ -93,7 +93,7 @@ dbsearch.set_logger_parent(__name__)
 from . import abcat
 abcat.set_logger_parent(__name__)
 
-from ..authnzerver.authdb import get_item_permissions
+from ..authnzerver.authdb import check_user_access
 
 #########################################
 ## INITIALIZING A DATASET INDEX SQLITE ##
@@ -120,7 +120,7 @@ create table lcc_datasets (
   citation text,
   dataset_owner integer default 1,
   dataset_visibility integer default 2,
-  dataset_shared_with text,
+  dataset_sharedwith text,
   primary key (setid)
 );
 
@@ -179,8 +179,9 @@ VISIBILITY_MAP = {
 }
 
 def sqlite_prepare_dataset(basedir,
-                           owner=1,
-                           visibility='public'):
+                           dataset_owner=1,
+                           dataset_visibility='public',
+                           dataset_sharedwith=None):
     '''This generates a setid to use for the next step below.
 
     datasets can have the following statuses:
@@ -218,20 +219,21 @@ def sqlite_prepare_dataset(basedir,
     creationdt = datetime.utcnow().isoformat()
 
     # set the owner and visibility
-    visibility_code = VISIBILITY_MAP[visibility]
+    visibility_code = VISIBILITY_MAP[dataset_visibility]
 
     # update the database to prepare for this new dataset
     query = ("insert into lcc_datasets "
              "(setid, created_on, last_updated, nobjects, status, "
-             "dataset_owner, dataset_visibility) "
-             "values (?, ?, ?, ?, ?, ?, ?)")
+             "dataset_owner, dataset_visibility, dataset_sharedwith) "
+             "values (?, ?, ?, ?, ?, ?, ?, ?)")
     params = (setid,
               creationdt,
               creationdt,
               0,
               'initialized',
-              owner,
-              visibility_code)
+              dataset_owner,
+              visibility_code,
+              dataset_sharedwith)
 
     cur.execute(query, params)
     db.commit()
@@ -245,8 +247,9 @@ def sqlite_new_dataset(basedir,
                        setid,
                        creationdt,
                        searchresult,
-                       owner=1,
-                       visibility='public'):
+                       dataset_owner=1,
+                       dataset_visibility='public',
+                       dataset_sharedwith=None):
     '''create new dataset function.
 
     ispublic controls if the dataset is public
@@ -341,9 +344,9 @@ def sqlite_new_dataset(basedir,
         'setid':setid,
         'name':setname,
         'desc':setdesc,
-        'owner':owner,
-        'visibility':VISIBILITY_MAP[visibility],
-        'shared_with':None,  # default is not shared with anyone
+        'owner':dataset_owner,
+        'visibility':VISIBILITY_MAP[dataset_visibility],
+        'sharedwith':dataset_sharedwith,
         'collections':collections,
         'columns':reqcols,  # these are the columns guaranteed to be in all
                             # collections
@@ -395,7 +398,7 @@ def sqlite_new_dataset(basedir,
         "nobjects = ?, "
         "dataset_owner = ?, "
         "dataset_visibility = ?, "
-        "dataset_shared_with = ?"
+        "dataset_sharedwith = ?"
         "status = ?, "
         "queried_collections = ?, "
         "query_type = ?, "
@@ -410,7 +413,7 @@ def sqlite_new_dataset(basedir,
         total_nmatches,
         dataset['owner'],
         dataset['visibility'],
-        dataset['shared_with'],
+        dataset['sharedwith'],
         'in progress',
         ', '.join(collections),
         searchtype,
@@ -854,6 +857,93 @@ def sqlite_update_dataset(basedir,
 ## LISTING AND GETTING DATASET INFO ##
 ######################################
 
+def sqlite_check_dataset_access(
+        setid,
+        action,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        database=None
+):
+    '''This is a function to check single dataset accessibility.
+
+    action = 'list' permissions are not handled here, but are handled directly
+    in functions that return rows of results by filtering on them using the
+    authdb.check_user_access function directly.
+
+    setid is the dataset ID
+
+    action is one of {'view','edit','delete',
+                      'make_public','make_private','make_shared',
+                      'change_owner'}
+
+    incoming_userid and incoming_role are the user ID and role of the user to
+    check access for.
+
+    database is either the path to the lcc-datasets.sqlite DB or the connection
+    handler to such a connection to re-use an already open connection.
+
+    '''
+
+    # return immediately if the action doesn't make sense
+    if action not in ('view','edit','delete',
+                      'make_public','make_private','make_shared',
+                      'change_owner'):
+        return False
+
+    if isinstance(database) and os.path.exists(database):
+
+        datasets_dbf = os.path.join(database)
+        db = sqlite3.connect(
+            datasets_dbf,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        db.row_factory = sqlite3.Row
+        cur = db.cursor()
+        close_at_end = True
+
+    else:
+
+        cur = database.cursor()
+        close_at_end = False
+
+    # this is the query to run
+    query = (
+        "select dataset_owner, dataset_visibility, dataset_sharedwith from "
+        "lcc_datasets where setid = ?"
+    )
+    params = (setid,)
+    cur.execute(query, params)
+    row = cur.fetchone()
+
+    # check the dataset access
+    if row and len(row) > 0:
+
+        accessok = check_user_access(
+            userid=incoming_userid,
+            role=incoming_role,
+            action=action,
+            target_name='dataset',
+            target_owner=row['dataset_owner'],
+            target_visibility=row['dataset_visibility'],
+            target_sharedwith=row['dataset_sharedwith'],
+        )
+
+        cur.close()
+        if close_at_end:
+            db.close()
+
+        return accessok
+
+    # the dataset doesn't exist, this is a failure
+    else:
+        cur.close()
+        if close_at_end:
+            db.close()
+
+        return False
+
+
+
 def sqlite_list_datasets(basedir,
                          nrecent=25,
                          require_status='complete',
@@ -874,7 +964,7 @@ def sqlite_list_datasets(basedir,
 
     dataset_owner
     dataset_visibility
-    dataset_shared_with
+    dataset_sharedwith
 
     dataset_fpath
     lczip_fpath
@@ -905,28 +995,33 @@ def sqlite_list_datasets(basedir,
 
     query = ("select setid, created_on, last_updated, nobjects, is_public, "
              "name, description, citation, "
-             "queried_collections, query_type, query_params from "
-             "lcc_datasets where status = ? {public_cond} "
-             "order by last_updated desc limit {nrecent}")
+             "queried_collections, query_type, query_params, "
+             "dataset_owner, dataset_visibility, dataset_sharedwith "
+             "from "
+             "lcc_datasets where status = ?"
+             "order by last_updated desc limit ?")
 
     # make sure we never get more than 1000 recent datasets
     if nrecent > 1000:
         nrecent = 1000
 
+    cur.execute(query, (require_status, nrecent))
+    xrows = cur.fetchall()
 
-    if require_ispublic:
-        query = query.format(public_cond='and (is_public = 1)',
-                             nrecent=nrecent)
-    else:
-        query = query.format(public_cond='',
-                             nrecent=nrecent)
+    if xrows and len(xrows) > 0:
 
-    cur.execute(query, (require_status,))
-    rows = cur.fetchall()
-
-    if rows and len(rows) > 0:
-
-        rows = [dict(x) for x in rows]
+        # filter the rows depending on check_user_access
+        rows = [
+            dict(x) for x in xrows if check_user_access(
+                userid=incoming_userid,
+                role=incoming_role,
+                action='list',
+                target_name='dataset',
+                target_owner=x['dataset_owner'],
+                target_visibility=x['dataset_visibility'],
+                target_sharedwith=x['dataset_sharedwith']
+            )
+        ]
 
         # we'll generate fpaths for the various products
         for row in rows:
@@ -978,6 +1073,8 @@ def sqlite_list_datasets(basedir,
 
 def sqlite_get_dataset(basedir,
                        setid,
+                       incoming_userid=2,
+                       incoming_role='anonymous',
                        returnjson=False,
                        generatecsv=True,
                        forcecsv=False,
@@ -1007,219 +1104,270 @@ def sqlite_get_dataset(basedir,
         datasets_dbf,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
     )
+    db.row_factory = sqlite3.Row
     cur = db.cursor()
 
+    # if the dataset pickle for this dataset doesn't exist yet, then it's either
+    # just been initialized or it's broken
     if not os.path.exists(dataset_fpath):
 
         LOGWARNING('expected dataset pickle does not exist for setid: %s' %
                    setid)
 
         # if the dataset pickle doesn't exist, check the DB for its status
-        query = ("select created_on, last_updated, is_public, status from "
-                 "lcc_datasets where setid = ?")
+        query = ("select created_on, last_updated, status, "
+                 "dataset_owner, dataset_visibility, dataset_sharedwith "
+                 "from lcc_datasets where setid = ?")
         cur.execute(query, (setid,))
         row = cur.fetchone()
 
         if row and len(row) > 0:
 
-            # check the dataset's status
+            dataset_accessible = check_user_access(
+                userid=incoming_userid,
+                role=incoming_role,
+                action='view',
+                target_name='dataset',
+                target_owner=row['dataset_owner'],
+                target_visibility=row['dataset_visibility'],
+                target_sharedwith=row['dataset_sharedwith']
+            )
 
-            # this should only be initialized if the dataset pickle doesn't
-            # exist
-            if row[-1] == 'initialized':
+            if dataset_accessible:
 
-                dataset_status = 'in progress'
+                # check the dataset's status
+                # this should only be initialized if the dataset pickle doesn't
+                # exist
+                if row['status'] == 'initialized':
 
-            # if the status is anything else, the dataset is in an unknown
-            # state, and is probably broken
+                    dataset_status = 'in progress'
+
+                # if the status is anything else, the dataset is in an unknown
+                # state, and is probably broken
+                else:
+
+                    dataset_status = 'broken'
+
+                returndict = {
+                    'setid': setid,
+                    'created_on':row['created_on'],
+                    'last_updated':row['last_updated'],
+                    'nobjects':0,
+                    'status': dataset_status,
+                    'name':None,
+                    'desc':None,
+                    'ispublic': row[-2],
+                    'columns':None,
+                    'searchtype':None,
+                    'searchargs':None,
+                    'lczip':None,
+                    'dataset_csv':None,
+                    'collections':None,
+                    'result':None,
+                }
+
+                LOGWARNING("dataset: %s is in state: %s" % (setid,
+                                                            dataset_status))
+                db.close()
+                return returndict
+
             else:
 
-                dataset_status = 'broken'
-
-            returndict = {
-                'setid': setid,
-                'created_on':row[0],
-                'last_updated':row[1],
-                'nobjects':0,
-                'status': dataset_status,
-                'name':None,
-                'desc':None,
-                'ispublic': row[-2],
-                'columns':None,
-                'searchtype':None,
-                'searchargs':None,
-                'lczip':None,
-                'dataset_csv':None,
-                'collections':None,
-                'result':None,
-            }
-
-            LOGWARNING("dataset: %s is in state: %s" % (setid, dataset_status))
-
-            db.close()
-            return returndict
+                LOGWARNING(
+                    'user: %s, role: %s does not have access to '
+                    'dataset: %s owned by: %s, visibility: %s, '
+                    'shared with: %s' %
+                    (incoming_userid, incoming_role, setid,
+                     row['dataset_owner'],
+                     row['dataset_visibility'],
+                     row['dataset_sharedwith'])
+                )
+                db.close()
+                return None
 
         # if no dataset entry in the DB, then this DS doesn't exist at all
         else:
 
             LOGERROR('requested dataset: %s does not exist' % setid)
+            db.close()
             return None
 
     #
     # otherwise, proceed as normal
     #
+    dataset_accessible = sqlite_check_dataset_access(
+        setid,
+        'view',
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role,
+        database=db
+    )
 
-    # read in the pickle
-    with gzip.open(dataset_fpath,'rb') as infd:
-        dataset = pickle.load(infd)
+    # check if we can access this dataset
+    if dataset_accessible:
 
-    returndict = {
-        'setid':dataset['setid'],
-        'name':dataset['name'],
-        'desc':dataset['desc'],
-        'ispublic':dataset['ispublic'],
-        'columns':dataset['columns'],
-        'searchtype':dataset['searchtype'],
-        'searchargs':dataset['searchargs'],
-        'lczip':dataset['lczipfpath'],
-    }
+        # read in the pickle
+        with gzip.open(dataset_fpath,'rb') as infd:
+            dataset = pickle.load(infd)
 
-    query = ("select created_on, last_updated, nobjects, status "
-             "from lcc_datasets where setid = ?")
-    params = (dataset['setid'],)
-    cur.execute(query, params)
-    row = cur.fetchone()
-    db.close()
+        returndict = {
+            'setid':dataset['setid'],
+            'name':dataset['name'],
+            'desc':dataset['desc'],
+            'ispublic':dataset['ispublic'],
+            'columns':dataset['columns'],
+            'searchtype':dataset['searchtype'],
+            'searchargs':dataset['searchargs'],
+            'lczip':dataset['lczipfpath'],
+        }
 
-    # update these in the returndict
-    returndict['created_on'] = row[0]
-    returndict['last_updated'] = row[1]
-    returndict['nobjects'] = row[2]
-    returndict['status'] = row[3]
-
-    # the results are per-collection
-    returndict['collections'] = dataset['collections']
-    returndict['result'] = {}
-
-    for coll in dataset['collections']:
-
-        returndict['result'][coll] = {'data':dataset['result'][coll][::],
-                                      'success':dataset['success'][coll],
-                                      'message':dataset['message'][coll],
-                                      'nmatches':dataset['nmatches'][coll],
-                                      'columnspec':dataset['columnspec'][coll],
-                                      'collid':dataset['collid'][coll]}
-
-    # if we're told to force complete the dataset, do so here
-    if forcecomplete and returndict['status'] != 'complete':
-
-        datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
-        db = sqlite3.connect(
-            datasets_dbf,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
-        cur = db.cursor()
-        query = ("update lcc_datasets set last_updated = ?, "
-                 "nobjects = ?, status = ? where setid = ?")
-        params = (datetime.utcnow().isoformat(),
-                  sum(dataset['nmatches'][x] for x in dataset['collections']),
-                  'complete',
-                  dataset['setid'])
+        query = ("select created_on, last_updated, nobjects, status "
+                 "from lcc_datasets where setid = ?")
+        params = (dataset['setid'],)
         cur.execute(query, params)
-        db.commit()
+        row = cur.fetchone()
         db.close()
 
-        if not os.path.exists(returndict['lczip']):
-            returndict['lczip'] = None
+        # update these in the returndict
+        returndict['created_on'] = row[0]
+        returndict['last_updated'] = row[1]
+        returndict['nobjects'] = row[2]
+        returndict['status'] = row[3]
 
-        # link the CSV LCs to the output csvlcs directory if available
-        # this should let these through to generate_dataset_tablerows even if
-        # the dataset is forced to completion
-        for collection in returndict['collections']:
-            for row in returndict['result'][collection]['data']:
+        # the results are per-collection
+        returndict['collections'] = dataset['collections']
+        returndict['result'] = {}
 
-                # NOTE: here we rely on the fact that the collection names
-                # are normalized by the CLI (assuming that's the only way
-                # people generate these collections). The generated collection
-                # IDs never include a '_', so we can safely change from the DB
-                # collection ID which can't have a '-' to a collection ID ==
-                # directory name on disk, which can't have a '_'
-                # this will probably come back to haunt me
+        for coll in dataset['collections']:
 
-                csvlc_original = os.path.join(os.path.abspath(basedir),
+            returndict['result'][coll] = {
+                'data':dataset['result'][coll][::],
+                'success':dataset['success'][coll],
+                'message':dataset['message'][coll],
+                'nmatches':dataset['nmatches'][coll],
+                'columnspec':dataset['columnspec'][coll],
+                'collid':dataset['collid'][coll]
+            }
+
+        # if we're told to force complete the dataset, do so here
+        if forcecomplete and returndict['status'] != 'complete':
+
+            datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+            db = sqlite3.connect(
+                datasets_dbf,
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            )
+            cur = db.cursor()
+            query = ("update lcc_datasets set last_updated = ?, "
+                     "nobjects = ?, status = ? where setid = ?")
+            params = (
+                datetime.utcnow().isoformat(),
+                sum(dataset['nmatches'][x] for x in dataset['collections']),
+                'complete',
+                dataset['setid']
+            )
+            cur.execute(query, params)
+            db.commit()
+            db.close()
+
+            if not os.path.exists(returndict['lczip']):
+                returndict['lczip'] = None
+
+            # link the CSV LCs to the output csvlcs directory if available this
+            # should let these through to generate_dataset_tablerows even if the
+            # dataset is forced to completion
+            for collection in returndict['collections']:
+                for row in returndict['result'][collection]['data']:
+
+                    # NOTE: here we rely on the fact that the collection names
+                    # are normalized by the CLI (assuming that's the only way
+                    # people generate these collections). The generated
+                    # collection IDs never include a '_', so we can safely
+                    # change from the DB collection ID which can't have a '-' to
+                    # a collection ID == directory name on disk, which can't
+                    # have a '_' this will probably come back to haunt me
+
+                    csvlc_original = os.path.join(os.path.abspath(basedir),
+                                                  collection.replace('_','-'),
+                                                  'lightcurves',
+                                                  '%s-csvlc.gz' %
+                                                  row['db_oid'])
+                    csvlc_link = os.path.join(os.path.abspath(basedir),
+                                              'csvlcs',
                                               collection.replace('_','-'),
-                                              'lightcurves',
-                                              '%s-csvlc.gz' %
-                                              row['db_oid'])
-                csvlc_link = os.path.join(os.path.abspath(basedir),
-                                          'csvlcs',
-                                          collection.replace('_','-'),
-                                          '%s-csvlc.gz' % row['db_oid'])
+                                              '%s-csvlc.gz' % row['db_oid'])
 
-                if (os.path.exists(csvlc_original) and
-                    not os.path.exists(csvlc_link)):
+                    if (os.path.exists(csvlc_original) and
+                        not os.path.exists(csvlc_link)):
 
-                    os.symlink(os.path.abspath(csvlc_original),
-                               csvlc_link)
-                    csvlc = csvlc_link
+                        os.symlink(os.path.abspath(csvlc_original),
+                                   csvlc_link)
+                        csvlc = csvlc_link
 
-                elif (os.path.exists(csvlc_original) and
-                      os.path.exists(csvlc_link)):
+                    elif (os.path.exists(csvlc_original) and
+                          os.path.exists(csvlc_link)):
 
-                    csvlc = csvlc_link
+                        csvlc = csvlc_link
 
-                else:
+                    else:
 
-                    csvlc = None
+                        csvlc = None
 
-                if 'db_lcfname' in row:
-                    row['db_lcfname'] = csvlc
+                    if 'db_lcfname' in row:
+                        row['db_lcfname'] = csvlc
 
-                if 'lcfname' in row:
-                    row['lcfname'] = csvlc
+                    if 'lcfname' in row:
+                        row['lcfname'] = csvlc
 
-                # changing the row keys here also automatically changes the
-                # corresponding row key in the original dataset dict
-                # this shouldn't be happening though, because we (attempted to)
-                # make a copy of the dataset row list above (apparently not!)
+                    # changing the row keys here also automatically changes the
+                    # corresponding row key in the original dataset dict this
+                    # shouldn't be happening though, because we (attempted to)
+                    # make a copy of the dataset row list above (apparently
+                    # not!)
 
-        LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
-                   (returndict['status'], returndict['setid']))
+            LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
+                       (returndict['status'], returndict['setid']))
 
-        # write the original dataset dict back to the pickle after the
-        # lcfname items have been censored
-        with gzip.open(dataset_fpath,'wb') as outfd:
-            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+            # write the original dataset dict back to the pickle after the
+            # lcfname items have been censored
+            with gzip.open(dataset_fpath,'wb') as outfd:
+                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
-        LOGINFO('updated dataset pickle with CSVLC filenames')
+            LOGINFO('updated dataset pickle with CSVLC filenames')
 
-    elif forcecomplete and returndict['status'] == 'complete':
-        LOGERROR('not going to force completion '
-                 'for an already complete dataset: %s'
-                 % returndict['setid'])
+        elif forcecomplete and returndict['status'] == 'complete':
+            LOGERROR('not going to force completion '
+                     'for an already complete dataset: %s'
+                     % returndict['setid'])
 
-    # make the CSV at the end if told to do so
-    if generatecsv:
-        csv = generate_dataset_csv(
-            basedir,
-            returndict,
-            force=forcecsv,
-        )
-        returndict['dataset_csv'] = csv
+        # make the CSV at the end if told to do so
+        if generatecsv:
+            csv = generate_dataset_csv(
+                basedir,
+                returndict,
+                force=forcecsv,
+            )
+            returndict['dataset_csv'] = csv
+        else:
+            returndict['dataset_csv'] = None
+
+        # if we're returning JSON, do that
+        if returnjson:
+
+            retjson = json.dumps(returndict)
+            retjson = retjson.replace('nan','null')
+
+            return retjson
+
+        # otherwise, return the usual dict
+        else:
+            return returndict
+
+
+    # otherwise, the dataset is not accessible
     else:
-        returndict['dataset_csv'] = None
 
-    # if we're returning JSON, do that
-    if returnjson:
-
-        retjson = json.dumps(returndict)
-        retjson = retjson.replace('nan','null')
-
-        return retjson
-
-    # otherwise, return the usual dict
-    else:
-        return returndict
+        return None
 
 
 
@@ -1230,10 +1378,16 @@ def generate_dataset_tablerows(
         headeronly=False,
         strformat=False,
         datarows_bypass_cache=False,
+        incoming_userid=2,
+        incoming_role='anonymous'
 ):
     '''This generates row elements useful for direct insert into a HTML table.
 
     Requires the output from sqlite_get_dataset or postgres_get_dataset.
+
+    This will check if the user has access to each object in the dataset by
+    using the 'view' action on each object. If an object is not accessible, it
+    won't show up in the results.
 
     '''
 

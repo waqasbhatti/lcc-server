@@ -442,7 +442,7 @@ def check_user_access(userid=2,
                       target_name='collection',
                       target_owner=1,
                       target_visibility='private',
-                      target_sharedwith='',
+                      target_sharedwith=None,
                       debug=False):
     '''
     This does a check for user access to a target.
@@ -464,7 +464,7 @@ def check_user_access(userid=2,
 
         try:
 
-            if target_sharedwith != '':
+            if target_sharedwith and target_sharedwith != '':
 
                 sharedwith_userids = target_sharedwith.split(',')
                 sharedwith_userids = [int(x) for x in sharedwith_userids]
