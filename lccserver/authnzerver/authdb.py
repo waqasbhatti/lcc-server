@@ -201,21 +201,14 @@ ROLE_PERMISSIONS = {
                 'view',
                 'edit',
                 'delete',
-                'make_private',
-                'make_shared',
-                'change_owner',
             },
             'shared':{
                 'list',
                 'view',
                 'edit',
-                'make_public',
-                'make_private',
-                'change_owner',
             },
             'private':{
                 'list',
-                'view',
             },
         }
     },
