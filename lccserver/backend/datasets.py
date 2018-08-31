@@ -93,7 +93,7 @@ dbsearch.set_logger_parent(__name__)
 from . import abcat
 abcat.set_logger_parent(__name__)
 
-from ..authnzerver.tables import get_item_permissions
+from ..authnzerver.authdb import get_item_permissions
 
 #########################################
 ## INITIALIZING A DATASET INDEX SQLITE ##
@@ -825,9 +825,12 @@ def sqlite_make_dataset_lczip(basedir,
 # LATER
 def sqlite_remove_dataset(basedir,
                           setid,
-                          incoming_userid=1):
+                          incoming_userid=2,
+                          incoming_role='anonymous'):
     '''
     This removes the specified dataset.
+
+    The default incoming_userid is set to 2 -> anonymous user for safety.
 
     '''
 
@@ -836,9 +839,12 @@ def sqlite_remove_dataset(basedir,
 def sqlite_update_dataset(basedir,
                           setid,
                           updatedict,
-                          incoming_userid=1):
+                          incoming_userid=2,
+                          incoming_role='anonymous'):
     '''
     This updates a dataset.
+
+    The default incoming_userid is set to 2 -> anonymous user for safety.
 
     '''
 
@@ -851,11 +857,13 @@ def sqlite_update_dataset(basedir,
 def sqlite_list_datasets(basedir,
                          nrecent=25,
                          require_status='complete',
-                         incoming_userid=1):
-    '''
-    This just lists all the datasets available.
+                         incoming_userid=2,
+                         incoming_role='anonymous'):
+    '''This just lists all the datasets available.
 
-    incoming_userid is used to check permissions on the list operation.
+    incoming_userid is used to check permissions on the list operation. This is
+    2 -> anonymous user by default.
+
     FIXME: get this working
 
     setid
