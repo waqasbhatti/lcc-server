@@ -686,8 +686,8 @@ def main():
     ########################
 
     app = tornado.web.Application(
-        handlers=HANDLERS,
         static_path=ASSETPATH,
+        handlers=HANDLERS,
         template_path=TEMPLATEPATH,
         static_url_prefix='/static/',
         compress_response=True,
@@ -696,9 +696,20 @@ def main():
         debug=DEBUG,
     )
 
+    # FIXME: consider using this instead of handlers=HANDLERS above.
+    # http://www.tornadoweb.org/en/stable/guide/security.html#dns-rebinding
+    # FIXME: how does this work for X-Real-Ip and X-Forwarded-Host?
+    # if options.serve == '127.0.0.1':
+    #     app.add_handlers(r'(localhost|127\.0\.0\.1)', HANDLERS)
+    # else:
+    #     fqdn = socket.getfqdn()
+    #     ip = options.serve.replace('.','\.')
+    #     app.add_handlers(r'({fqdn}|{ip})'.format(fqdn=fqdn,ip=ip), HANDLERS)
+
     # start up the HTTP server and our application. xheaders = True turns on
     # X-Forwarded-For support so we can see the remote IP in the logs
     http_server = tornado.httpserver.HTTPServer(app, xheaders=True)
+
 
     ######################
     ## start the server ##
