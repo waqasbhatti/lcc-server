@@ -135,6 +135,7 @@ APIKeys = Table(
 # these are the basic permissions for roles
 ROLE_PERMISSIONS = {
     'superuser':{
+        'can_own':{'dataset','object','collection','apikeys','preferences'},
         'owned': {
             'list',
             'view',
@@ -180,6 +181,7 @@ ROLE_PERMISSIONS = {
         }
     },
     'staff':{
+        'can_own':{'dataset','object','collection','apikeys','preferences'},
         'owned': {
             'list',
             'view',
@@ -216,6 +218,7 @@ ROLE_PERMISSIONS = {
         }
     },
     'authenticated':{
+        'can_own':{'dataset','object','apikeys','preferences'},
         'owned': {
             'list',
             'view',
@@ -240,6 +243,7 @@ ROLE_PERMISSIONS = {
         }
     },
     'anonymous':{
+        'can_own':{'dataset'},
         'owned': {
             'list',
             'view',
@@ -255,6 +259,7 @@ ROLE_PERMISSIONS = {
         }
     },
     'locked':{
+        'can_own':set({}),
         'owned': set({}),
         'others':{
             'public':set({}),
@@ -372,8 +377,8 @@ def get_item_permissions(role_name,
 
     if debug:
         print(
-            'role_name = %s, target_name = %s, '
-            'target_visibility = %s, target_scope = %s' %
+            'role_name = %s\ntarget_name = %s\n'
+            'target_visibility = %s\ntarget_scope = %s' %
             (role_name, target_name, target_visibility, target_scope)
         )
 
@@ -425,9 +430,8 @@ def get_item_permissions(role_name,
         )
 
         if debug:
-            print('role_permissions for status: %s, scope: %s: %r' %
-                  (target_visibility, target_scope, role_permissions))
-            print('available_permissions: %r' % available_permissions)
+            print("target role permissions: %r" % role_permissions)
+            print('available actions for role: %r' % available_permissions)
 
         return available_permissions
 
@@ -436,41 +440,66 @@ def get_item_permissions(role_name,
 
 
 
-def check_user_access(userid,
-                      user_role,
-                      user_action,
-                      target_name,
-                      target_owner,
-                      target_visibility,
-                      target_sharedwith,
+def check_user_access(userid=2,
+                      role='anonymous',
+                      action='view',
+                      target_name='collection',
+                      target_owner=1,
+                      target_visibility='private',
+                      target_sharedwith='',
                       debug=False):
     '''
     This does a check for user access to a target.
 
     '''
+    if debug:
+        print('userid = %s\nsharedwith_userids = %s' %
+              (userid, target_sharedwith))
 
-    try:
-        sharedwith_userids = target_sharedwith.split(',')
-        sharedwith_userids = [int(x) for x in target_sharedwith]
-        shared_ok = userid in sharedwith_userids
-    except Exception as e:
-        shared_ok = False
+    if target_visibility == 'shared':
 
-    if userid == target_owner:
-        perms = get_item_permissions(user_role,
-                                     target_name,
-                                     target_visibility,
-                                     'owner',
-                                     debug=debug)
+        try:
+            sharedwith_userids = target_sharedwith.split(',')
+            sharedwith_userids = [int(x) for x in target_sharedwith]
+            shared_ok = userid in sharedwith_userids
+
+        except Exception as e:
+            shared_ok = False
+
+    elif target_visibility == 'public':
+
+        shared_ok = True
 
     else:
-        perms = get_item_permissions(user_role,
+
+        shared_ok = False
+
+
+    if debug:
+        print('shared_ok = %s' % shared_ok)
+
+    # validate ownership of the target
+    if (userid == target_owner and
+        target_name in ROLE_PERMISSIONS[role]['can_own']):
+        perms = get_item_permissions(role,
+                                     target_name,
+                                     target_visibility,
+                                     'owned',
+                                     debug=debug)
+
+    # if the target is not owned, then check if it's accessible under its scope
+    # and visibility
+    else:
+        perms = get_item_permissions(role,
                                      target_name,
                                      target_visibility,
                                      'others',
                                      debug=debug)
 
-    return user_action in perms
+    if debug:
+        print("user action: '%s', permitted actions: %s" % (action, perms))
+
+    return ((action in perms) and shared_ok)
 
 
 
