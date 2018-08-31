@@ -127,13 +127,14 @@ APIKeys = Table(
 
 # each item in the database will have these columns to make these work correctly
 # owner -> userid of the object owner. superuser's ID = 1
-# status -> one of 0 -> private, 1 -> shared, 2 -> public
 # scope -> one of 0 -> owned item, 1 -> somebody else's item
+# visibility -> one of 0 -> private, 1 -> shared, 2 -> public
 
 # these are the basic permissions for roles
 ROLE_PERMISSIONS = {
     'superuser':{
         'owned': {
+            'list',
             'view',
             'create',
             'delete',
@@ -145,6 +146,7 @@ ROLE_PERMISSIONS = {
         },
         'others':{
             'public':{
+                'list',
                 'view',
                 'create',
                 'delete',
@@ -154,6 +156,7 @@ ROLE_PERMISSIONS = {
                 'change_owner',
             },
             'shared':{
+                'list',
                 'view',
                 'create',
                 'delete',
@@ -163,6 +166,7 @@ ROLE_PERMISSIONS = {
                 'change_owner',
             },
             'private':{
+                'list',
                 'view',
                 'create',
                 'delete',
@@ -175,6 +179,7 @@ ROLE_PERMISSIONS = {
     },
     'staff':{
         'owned': {
+            'list',
             'view',
             'create',
             'delete',
@@ -186,6 +191,7 @@ ROLE_PERMISSIONS = {
         },
         'others':{
             'public':{
+                'list',
                 'view',
                 'edit',
                 'delete',
@@ -194,6 +200,7 @@ ROLE_PERMISSIONS = {
                 'change_owner',
             },
             'shared':{
+                'list',
                 'view',
                 'edit',
                 'make_public',
@@ -201,12 +208,14 @@ ROLE_PERMISSIONS = {
                 'change_owner',
             },
             'private':{
+                'list',
                 'view',
             },
         }
     },
     'authenticated':{
         'owned': {
+            'list',
             'view',
             'create',
             'delete',
@@ -217,9 +226,11 @@ ROLE_PERMISSIONS = {
         },
         'others':{
             'public':{
+                'list',
                 'view',
             },
             'shared':{
+                'list',
                 'view',
                 'edit',
             },
@@ -228,11 +239,13 @@ ROLE_PERMISSIONS = {
     },
     'anonymous':{
         'owned': {
+            'list',
             'view',
             'create',
         },
         'others':{
             'public':{
+                'list',
                 'view',
             },
             'shared':set({}),
@@ -253,7 +266,7 @@ ROLE_PERMISSIONS = {
 # of permissions available for each item
 ITEM_PERMISSIONS = {
     'object':{
-        'valid_permissions':{'view',
+        'valid_permissions':{'view',  # FIXME: does this need a 'list' perm?
                              'create',
                              'edit',
                              'delete',
@@ -261,13 +274,14 @@ ITEM_PERMISSIONS = {
                              'make_shared',
                              'change_owner',
                              'make_private'},
-        'valid_statuses':{'public',
-                          'private',
-                          'shared'},
+        'valid_visibilities':{'public',
+                              'private',
+                              'shared'},
         'invalid_roles':set({'locked'}),
     },
     'dataset':{
-        'valid_permissions':{'view',
+        'valid_permissions':{'list',
+                             'view',
                              'create',
                              'edit',
                              'delete',
@@ -275,13 +289,14 @@ ITEM_PERMISSIONS = {
                              'make_shared',
                              'change_owner',
                              'make_private'},
-        'valid_statuses':{'public',
-                          'private',
-                          'shared'},
+        'valid_visibilities':{'public',
+                              'private',
+                              'shared'},
         'invalid_roles':set({'locked'}),
     },
     'collection':{
-        'valid_permissions':{'view',
+        'valid_permissions':{'list',
+                             'view',
                              'create',
                              'edit',
                              'delete',
@@ -289,23 +304,43 @@ ITEM_PERMISSIONS = {
                              'change_owner',
                              'make_shared',
                              'make_private'},
-        'valid_statuses':{'public',
-                          'private',
-                          'shared'},
+        'valid_visibilities':{'public',
+                              'private',
+                              'shared'},
         'invalid_roles':set({'locked'}),
     },
-    'apikey':{
-        'valid_permissions':{'view',
+    'users':{
+        'valid_permissions':{'list',
+                             'view',
+                             'edit',
                              'create',
                              'delete'},
-        'valid_statuses':{'private'},
+        'valid_visibilities':{'private'},
+        'invalid_roles':set({'authenticated','anonymous','locked'}),
+
+    },
+    'sessions':{
+        'valid_permissions':{'list',
+                             'view',
+                             'delete'},
+        'valid_visibilities':{'private'},
+        'invalid_roles':set({'authenticated','anonymous','locked'}),
+
+    },
+    'apikeys':{
+        'valid_permissions':{'list',
+                             'view',
+                             'create',
+                             'delete'},
+        'valid_visibilities':{'private'},
         'invalid_roles':set({'anonymous','locked'}),
 
     },
-    'userprefs':{
-        'valid_permissions':{'view',
+    'preferences':{
+        'valid_permissions':{'list',
+                             'view',
                              'edit'},
-        'valid_statuses':{'private'},
+        'valid_visibilities':{'private'},
         'invalid_roles':set({'anonymous','locked'}),
     }
 }
@@ -313,16 +348,20 @@ ITEM_PERMISSIONS = {
 
 def get_item_permissions(role_name,
                          target_name,
-                         target_status,
+                         target_visibility,
                          target_scope,
                          debug=False):
     '''Returns the possible permissions for a target given a role and target
     status.
 
-    role is one of superuser, authenticated, anonymous, locked
-    target is one of object, dataset, collection, apikey, userprefs
-    target_status is one of public, private, shared
-    target_scope is one of owned, others
+    role is one of {superuser, authenticated, anonymous, locked}
+
+    target_name is one of {object, dataset, collection, users,
+                           apikeys, preferences, sessions}
+
+    target_visibility is one of {public, private, shared}
+
+    target_scope is one of {owned, others}
 
     Returns a set. If the permissions don't make sense, returns an empty set, in
     which case access MUST be denied.
@@ -332,17 +371,17 @@ def get_item_permissions(role_name,
     if debug:
         print(
             'role_name = %s, target_name = %s, '
-            'target_status = %s, target_scope = %s' %
-            (role_name, target_name, target_status, target_scope)
+            'target_visibility = %s, target_scope = %s' %
+            (role_name, target_name, target_visibility, target_scope)
         )
 
     try:
         target_valid_permissions = ITEM_PERMISSIONS[
             target_name
         ]['valid_permissions']
-        target_valid_statuses = ITEM_PERMISSIONS[
+        target_valid_visibilities = ITEM_PERMISSIONS[
             target_name
-        ]['valid_statuses']
+        ]['valid_visibilities']
         target_invalid_roles = ITEM_PERMISSIONS[
             target_name
         ]['invalid_roles']
@@ -350,8 +389,8 @@ def get_item_permissions(role_name,
         if debug:
             print('%s valid_perms: %r' %
                   (target_name, target_valid_permissions))
-            print('%s valid_statuses: %r' %
-                  (target_name, target_valid_statuses))
+            print('%s valid_visibilities: %r' %
+                  (target_name, target_valid_visibilities))
             print('%s invalid_roles: %r' %
                   (target_name, target_invalid_roles))
 
@@ -361,7 +400,7 @@ def get_item_permissions(role_name,
             return set({})
 
         # if the target's status is not valid, return
-        if target_status not in target_valid_statuses:
+        if target_visibility not in target_valid_visibilities:
             return set({})
 
         # check the target's scope
@@ -375,7 +414,7 @@ def get_item_permissions(role_name,
         # permissions for target status
         else:
             role_permissions = (
-                ROLE_PERMISSIONS[role_name][target_scope][target_status]
+                ROLE_PERMISSIONS[role_name][target_scope][target_visibility]
             )
 
         # these are the final available permissions
@@ -385,7 +424,7 @@ def get_item_permissions(role_name,
 
         if debug:
             print('role_permissions for status: %s, scope: %s: %r' %
-                  (target_status, target_scope, role_permissions))
+                  (target_visibility, target_scope, role_permissions))
             print('available_permissions: %r' % available_permissions)
 
         return available_permissions
