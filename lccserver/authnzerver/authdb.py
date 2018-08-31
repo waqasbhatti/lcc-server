@@ -39,7 +39,6 @@ password_context = CryptContext(schemes=['argon2','bcrypt'],
 AUTHDB_META = MetaData()
 
 # this lists all possible roles in the system
-# roles can be things like 'owner' or actual user group names
 Roles = Table(
     'roles',
     AUTHDB_META,
@@ -93,6 +92,9 @@ Users = Table(
            ForeignKey("roles.name"),
            nullable=False, index=True)
 )
+
+# FIXME: add a Groups table and figure out how to assign them to Roles and how
+# Users will work (especially sharing of items)
 
 
 # user preferences - fairly freeform to allow extension
@@ -218,7 +220,7 @@ ROLE_PERMISSIONS = {
         }
     },
     'authenticated':{
-        'can_own':{'dataset','object','apikeys','preferences'},
+        'can_own':{'dataset','apikeys','preferences'},
         'for_owned': {
             'list',
             'view',
@@ -460,8 +462,9 @@ def check_user_access(userid=2,
     if target_visibility == 'shared':
 
         try:
+
             sharedwith_userids = target_sharedwith.split(',')
-            sharedwith_userids = [int(x) for x in target_sharedwith]
+            sharedwith_userids = [int(x) for x in sharedwith_userids]
             shared_ok = userid in sharedwith_userids
 
         except Exception as e:
