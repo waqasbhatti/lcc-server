@@ -24,7 +24,6 @@ LOGMOD = __name__
 #############
 
 import os
-import stat
 import os.path
 import socket
 import sys
@@ -60,9 +59,6 @@ import tornado.web
 import tornado.options
 from tornado.options import define, options
 import multiprocessing as mp
-import getpass
-
-from cryptography.fernet import Fernet
 
 ###################
 ## LOCAL IMPORTS ##

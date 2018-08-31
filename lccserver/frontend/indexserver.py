@@ -21,12 +21,10 @@ LOGMOD = __name__
 
 import os
 import os.path
-import hashlib
 import signal
 import time
 import sys
 import socket
-import stat
 import json
 
 # this handles async background stuff
@@ -82,6 +80,7 @@ from . import searchserver_handlers as sh
 from . import dataserver_handlers as dh
 from . import objectserver_handlers as oh
 
+from ..authnzerver import authdb
 
 ###############################
 ### APPLICATION SETUP BELOW ###
@@ -102,16 +101,6 @@ define('port',
 define('serve',
        default='127.0.0.1',
        help='Bind to given address and serve content.',
-       type=str)
-
-# path to the cookie secrets file
-define('secretfile',
-       default=os.path.join(os.getcwd(), '.lccserver.secret'),
-       help=('The path to a text file containing a strong randomly '
-             'generated token suitable for signing cookies. Will be used as '
-             'the filename basis for files containing a Fernet key for '
-             'API authentication and a shared key for '
-             'checkplotserver as well.'),
        type=str)
 
 # whether to run in debugmode or not
@@ -146,15 +135,6 @@ define('basedir',
        help=('The base directory of the light curve collections.'),
        type=str)
 
-# docspath is a directory that contains a bunch of markdown files that are read
-# by the lcc-server docshandler and then rendered to HTML using the usual
-# templates. By default, this is in a docs subdir of the current dir, but this
-# should generally be in the basedir of the LCC collections directory.
-define('docspath',
-       default=os.path.join(os.getcwd(), 'docs'),
-       help=('Sets the documentation path for the lcc-server.'),
-       type=str)
-
 # this overrides the light curve directories that the server uses to find
 # original format light curves.
 define('uselcdir',
@@ -172,202 +152,6 @@ define('cpaddr',
              'running checkplotserver instance that might be '
              'used to get individual object info.'),
        type='str')
-
-
-
-#########################
-## SECRET KEY HANDLING ##
-#########################
-
-def get_secret_keys(tornado_options, logger):
-    """
-    This loads and generates secret keys.
-
-    """
-
-    # handle the session secret to generate coookies and itsdangerous tokens
-    # with signatures
-    if 'LCC_SESSIONSECRET' in os.environ:
-
-        SESSIONSECRET = os.environ['LCC_SESSIONSECRET']
-        if len(SESSIONSECRET) == 0:
-
-            logger.error(
-                'SESSIONSECRET from environ["LCC_SESSIONSECRET"] '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        logger.info(
-            'using SESSIONSECRET from environ["LCC_SESSIONSECRET"]'
-        )
-
-    elif os.path.exists(tornado_options.secretfile):
-
-        # check if this file is readable/writeable by user only
-        fileperm = oct(os.stat(tornado_options.secretfile)[stat.ST_MODE])
-
-        if not (fileperm == '0100600' or fileperm == '0o100600'):
-            logger.error('incorrect file permissions on %s '
-                         '(needs chmod 600)' % tornado_options.secretfile)
-            sys.exit(1)
-
-
-        with open(tornado_options.secretfile,'r') as infd:
-            SESSIONSECRET = infd.read().strip('\n')
-
-        if len(SESSIONSECRET) == 0:
-
-            logger.error(
-                'SESSIONSECRET from file in current base directory '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        logger.info(
-            'using SESSIONSECRET from file in current base directory'
-        )
-
-    else:
-
-        logger.warning(
-            'no session secret file found in '
-            'current base directory and no LCC_SESSIONSECRET '
-            'environment variable found. will make a new session '
-            'secret file in current directory: %s' % tornado_options.secretfile
-        )
-        SESSIONSECRET = hashlib.sha512(os.urandom(32)).hexdigest()
-        with open(tornado_options.secretfile,'w') as outfd:
-            outfd.write(SESSIONSECRET)
-        os.chmod(tornado_options.secretfile, 0o100600)
-
-
-    # handle the fernet secret key to encrypt tokens sent out by itsdangerous
-    fernet_secrets = tornado_options.secretfile + '-fernet'
-
-    if 'LCC_FERNETSECRET' in os.environ:
-
-        FERNETSECRET = os.environ['LCSERVER_FERNETSECRET']
-        if len(FERNETSECRET) == 0:
-
-            logger.error(
-                'FERNETSECRET from environ["LCC_FERNETSECRET"] '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        logger.info(
-            'using FERNETSECRET from environ["LCC_FERNETSECRET"]'
-        )
-
-    elif os.path.exists(fernet_secrets):
-
-        # check if this file is readable/writeable by user only
-        fileperm = oct(os.stat(fernet_secrets)[stat.ST_MODE])
-
-        if not (fileperm == '0100600' or fileperm == '0o100600'):
-            logger.error('incorrect file permissions on %s '
-                         '(needs chmod 600)' % fernet_secrets)
-            sys.exit(1)
-
-
-        with open(fernet_secrets,'r') as infd:
-            FERNETSECRET = infd.read().strip('\n')
-
-        if len(FERNETSECRET) == 0:
-
-            logger.error(
-                'FERNETSECRET from file in current base directory '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        logger.info(
-            'using FERNETSECRET from file in current base directory'
-        )
-
-    else:
-
-        logger.warning(
-            'no fernet secret file found in '
-            'current base directory and no LCC_FERNETSECRET '
-            'environment variable found. will make a new fernet '
-            'secret file in current directory: %s' % fernet_secrets
-        )
-        FERNETSECRET = Fernet.generate_key()
-        with open(fernet_secrets,'wb') as outfd:
-            outfd.write(FERNETSECRET)
-        os.chmod(fernet_secrets, 0o100600)
-
-    # handle the cpserver secret key to encrypt tokens sent out by itsdangerous
-    cpserver_secrets = tornado_options.secretfile + '-cpserver'
-
-    if 'LCC_CPSERVERSECRET' in os.environ:
-
-        CPSERVERSECRET = os.environ['LCC_CPSERVERSECRET']
-        if len(CPSERVERSECRET) == 0:
-
-            logger.error(
-                'CPSERVERSECRET from environ["LCC_CPSERVERSECRET"] '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        logger.info(
-            'using CPSERVERSECRET from environ["LCC_CPSERVERSECRET"]'
-        )
-
-    elif os.path.exists(cpserver_secrets):
-
-        with open(cpserver_secrets,'r') as infd:
-            CPSERVERSECRET = infd.read().strip('\n')
-
-        # check if this file is readable/writeable by user only
-        fileperm = oct(os.stat(cpserver_secrets)[stat.ST_MODE])
-
-        if not (fileperm == '0100600' or fileperm == '0o100600'):
-            logger.error('incorrect file permissions on %s '
-                         '(needs chmod 600)' % cpserver_secrets)
-            sys.exit(1)
-
-
-        if len(CPSERVERSECRET) == 0:
-
-            logger.error(
-                'CPSERVERSECRET from file in current base directory '
-                'is either empty or not valid, will not continue'
-            )
-            sys.exit(1)
-
-        logger.info(
-            'using CPSERVERSECRET from file in current base directory'
-        )
-
-    else:
-
-        logger.warning(
-            'no cpserver secret file found in '
-            'current base directory and no LCC_CPSERVERSECRET '
-            'environment variable found. will make a new cpserver '
-            'secret file in current directory: %s' % cpserver_secrets
-        )
-        CPSERVERSECRET = Fernet.generate_key()
-        with open(cpserver_secrets,'wb') as outfd:
-            outfd.write(CPSERVERSECRET)
-        os.chmod(cpserver_secrets, 0o100600)
-
-    # return our signer object, fernet object and shared key for talking to
-    # checkplotserver
-    SIGNER = URLSafeTimedSerializer(SESSIONSECRET,
-                                    salt='lcc-server-api')
-    FERNET = Fernet(FERNETSECRET)
-
-    return (SESSIONSECRET,
-            FERNETSECRET,
-            CPSERVERSECRET,
-            SIGNER,
-            FERNET)
-
 
 
 ############
@@ -401,26 +185,50 @@ def main():
 
     MAXWORKERS = options.backgroundworkers
 
+    # various directories we need
     BASEDIR = os.path.abspath(options.basedir)
     TEMPLATEPATH = os.path.abspath(options.templatepath)
     ASSETPATH = os.path.abspath(options.assetpath)
-
     USELCDIR = options.uselcdir
-
     CURRENTDIR = os.path.abspath(os.getcwd())
 
-    # get our secret keys
-    SESSIONSECRET, FERNETSECRET, CPKEY, SIGNER, FERNET = get_secret_keys(
-        options,
-        LOGGER
-    )
     # get the address of the background checkplotserver instance
     CPADDR = options.cpaddr
+
+    # get our secret keys
+    SESSIONSECRET = authdb.get_secret_token(
+        'LCC_SESSIONSECRET',
+        os.path.join(
+            BASEDIR,
+            '.lccserver.secret'
+        ),
+        LOGGER
+    )
+    FERNETSECRET = authdb.get_secret_token(
+        'LCC_FERNETSECRET',
+        os.path.join(
+            BASEDIR,
+            '.lccserver.secret-fernet'
+        ),
+        LOGGER
+    )
+    CPKEY = authdb.get_secret_token(
+        'LCC_CPSERVERSECRET',
+        os.path.join(
+            BASEDIR,
+            '.lccserver.secret-cpserver'
+        ),
+        LOGGER
+    )
+
+    # get our crypto contexts
+    FERNET = Fernet(FERNETSECRET)
+    SIGNER = URLSafeTimedSerializer(SESSIONSECRET, 'lcc-server-api')
 
     #
     # site docs
     #
-    SITE_DOCSPATH = options.docspath
+    SITE_DOCSPATH = os.path.join(BASEDIR,'docs')
     SITE_STATIC = os.path.join(SITE_DOCSPATH,'static')
     with open(os.path.join(SITE_DOCSPATH, 'doc-index.json'),'r') as infd:
         SITE_DOCINDEX = json.load(infd)
@@ -735,11 +543,11 @@ def main():
                      maxtries)
         sys.exit(1)
 
-    LOGGER.info('started indexserver. listening on http://%s:%s' %
+    LOGGER.info('Started indexserver. listening on http://%s:%s' %
                 (options.serve, serverport))
-    LOGGER.info('background worker processes: %s, IOLoop in use: %s' %
+    LOGGER.info('Background worker processes: %s, IOLoop in use: %s' %
                 (MAXWORKERS, IOLOOP_SPEC))
-    LOGGER.info('the current base directory is: %s' % os.path.abspath(BASEDIR))
+    LOGGER.info('The current base directory is: %s' % os.path.abspath(BASEDIR))
 
     # register the signal callbacks
     signal.signal(signal.SIGINT,recv_sigint)
