@@ -459,27 +459,32 @@ def check_user_access(userid=2,
         print('userid = %s\nsharedwith_userids = %s' %
               (userid, target_sharedwith))
 
-    if target_visibility == 'shared':
+    if target_visibility == 'private':
+
+        shared_or_owned_ok = userid == target_owner
+
+    elif target_visibility == 'shared':
 
         try:
 
             sharedwith_userids = target_sharedwith.split(',')
             sharedwith_userids = [int(x) for x in sharedwith_userids]
-            shared_ok = userid in sharedwith_userids
+            shared_or_owned_ok = userid in sharedwith_userids
 
         except Exception as e:
-            shared_ok = False
+            shared_or_owned_ok = False
 
     elif target_visibility == 'public':
 
-        shared_ok = True
+        shared_or_owned_ok = True
 
     else:
 
-        shared_ok = False
+        shared_or_owned_ok = False
+
 
     if debug:
-        print('target shared or owned test passed = %s' % shared_ok)
+        print('target shared or owned test passed = %s' % shared_or_owned_ok)
 
     target_may_be_owned_by_role = (
         target_name in ROLE_PERMISSIONS[role]['can_own']
@@ -513,7 +518,7 @@ def check_user_access(userid=2,
     if debug:
         print("user action: '%s', permitted actions: %s" % (action, perms))
 
-    return ((action in perms) and shared_ok)
+    return ((action in perms) and shared_or_owned_ok)
 
 
 
