@@ -435,6 +435,45 @@ def get_item_permissions(role_name,
         return set({})
 
 
+
+def check_user_access(userid,
+                      user_role,
+                      user_action,
+                      target_name,
+                      target_owner,
+                      target_visibility,
+                      target_sharedwith,
+                      debug=False):
+    '''
+    This does a check for user access to a target.
+
+    '''
+
+    try:
+        sharedwith_userids = target_sharedwith.split(',')
+        sharedwith_userids = [int(x) for x in target_sharedwith]
+        shared_ok = userid in sharedwith_userids
+    except Exception as e:
+        shared_ok = False
+
+    if userid == target_owner:
+        perms = get_item_permissions(user_role,
+                                     target_name,
+                                     target_visibility,
+                                     'owner',
+                                     debug=debug)
+
+    else:
+        perms = get_item_permissions(user_role,
+                                     target_name,
+                                     target_visibility,
+                                     'others',
+                                     debug=debug)
+
+    return user_action in perms
+
+
+
 #######################
 ## UTILITY FUNCTIONS ##
 #######################
@@ -581,3 +620,60 @@ def initial_authdb_inserts(auth_db_path,
 
     if superuser_pass_auto:
         return superuser_email, superuser_pass
+    else:
+        return superuser_email, None
+
+
+
+def get_secret_token(token_environvar,
+                     token_file,
+                     logger):
+    """
+    This loads the specified token file from the environment or the token_file.
+
+
+    """
+    if token_environvar in os.environ:
+
+        secret = os.environ[token_environvar]
+        if len(secret.strip()) == 0:
+
+            raise EnvironmentError(
+                'Secret from environment is either empty or not valid.'
+            )
+
+        logger.info(
+            'Using secret from environment.' % token_environvar
+        )
+
+    elif os.path.exists(token_file):
+
+        # check if this file is readable/writeable by user only
+        fileperm = oct(os.stat(token_file)[stat.ST_MODE])
+
+        if not (fileperm == '0100600' or fileperm == '0o100600'):
+            raise PermissionError('Incorrect file permissions on secret file '
+                                  '(needs chmod 600)')
+
+
+        with open(token_file,'r') as infd:
+            secret = infd.read().strip('\n')
+
+        if len(secret.strip()) == 0:
+
+            raise ValueError(
+                'Secret from specified secret file '
+                'is either empty or not valid, will not continue'
+            )
+
+        logger.info(
+            'Using secret from specified secret file.'
+        )
+
+    else:
+
+        raise IOError(
+            'Could not load secret from environment or the specified file.'
+        )
+
+    return secret
