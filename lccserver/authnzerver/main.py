@@ -274,6 +274,7 @@ def main():
                 (options.serve, serverport))
     LOGGER.info('Background worker processes: %s. IOLoop in use: %s' %
                 (MAXWORKERS, IOLOOP_SPEC))
+    LOGGER.info('Base directory is: %s' % os.path.abspath(options.basedir))
 
 
     # start the IOLoop and begin serving requests

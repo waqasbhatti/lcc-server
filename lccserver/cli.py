@@ -4,30 +4,30 @@
 '''cli.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
 License: MIT - see the LICENSE file for the full text.
 
-This contains the CLI implementation for the LCC server.
+This contains the CLI implementation for the LCC-Server.
 
 lcc-server [options] COMMAND
 
 where COMMAND is one of:
 
-init-basedir        -> Initializes the basedir for the LCC server.
+init-basedir        -> Initializes the basedir for the LCC-Server.
                        This is an interactive command.
 
-add-collection      -> Adds a new LC collection to the LCC server.
+add-collection      -> Adds a new LC collection to the LCC-Server.
                        This is an interactive command.
 
 edit-collection     -> Edits an existing LC collection.
                        This is an interactive command.
 
-del-collection      -> Removes an LC collection from the LCC server
+del-collection      -> Removes an LC collection from the LCC-Server
                        This will ask you for confirmation.
 
-run-server          -> Runs an instance of the LCC server to provide
+run-server          -> Runs an instance of the LCC-Server to provide
                        the main search interface and a backing instance
                        of the checkplotserver for serving objectinfo
 
 shell               -> Starts an IPython shell in the context of the specified
-                       LCC server base directory. This is useful for debugging
+                       LCC-Server base directory. This is useful for debugging
                        and running queries directly using the
                        lccserver.backend.datasets.py and
                        lccserver.backend.dbsearch.py modules
@@ -35,7 +35,7 @@ shell               -> Starts an IPython shell in the context of the specified
 and options are:
 
 --basedir           -> The base directory to execute all commands from
-                       this is the directory where all of the LCC server's
+                       this is the directory where all of the LCC-Server's
                        files and directories will be created and where it will
                        run from when executed.
 
@@ -119,13 +119,37 @@ import subprocess
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from functools import partial
-import pickle
+import getpass
 
 import multiprocessing as mp
 NCPUS = mp.cpu_count()
 
 import numpy as np
 from tornado.escape import squeeze
+
+from cryptography.fernet import Fernet
+
+
+######################
+## AUTH DB CREATION ##
+######################
+
+from .authnzerver import authdb
+
+
+def create_authentication_database(authdb_path):
+    '''This will make a new authentication database.
+
+    Does NOT return engine or metadata, because those are opened in the
+    background workers.
+
+    '''
+
+    authdb.create_auth_db(authdb_path,
+                          echo=False,
+                          returnconn=False)
+
+
 
 #######################
 ## PREPARING BASEDIR ##
@@ -140,7 +164,7 @@ def prepare_basedir(basedir,
                     site_institution_link="https://example.org",
                     site_institution_logo=None):
     '''
-    This prepares the given base directory for use with LCC server.
+    This prepares the given base directory for use with LCC-Server.
 
     We need the following structure (e.g. for two LC collections):
     .
@@ -203,7 +227,7 @@ def prepare_basedir(basedir,
     if not os.path.exists(os.path.join(basedir,'products')):
         os.mkdir(os.path.join(basedir,'products'))
 
-    LOGINFO('created LCC server sub-directories under basedir: %s' % basedir)
+    LOGINFO('Created LCC-Server sub-directories under basedir: %s' % basedir)
 
     #
     # generate the site-info.json file in the basedir
@@ -243,7 +267,7 @@ def prepare_basedir(basedir,
         with open(os.path.join(basedir,'site-info.json'),'w') as outfd:
             json.dump(siteinfo, outfd, indent=2)
 
-        LOGINFO('created site-info.json: %s' %
+        LOGINFO('Created site-info.json: %s' %
                 os.path.join(basedir,'site-info.json'))
 
     #
@@ -271,11 +295,92 @@ def prepare_basedir(basedir,
             outfd.write("Light curve column descriptions for "
                         "your project's data go here.\n")
 
-        LOGINFO('created doc-index.json: %s and '
+        LOGINFO('Created doc-index.json: %s and '
                 'barebones %s/docs/citation.md, %s/docs/lcformat.md' %
                 (os.path.join(basedir,'docs','doc-index.json'),
                  basedir,
                  basedir))
+
+
+    # at the end, we'll make the auth DB for the LCC-server
+    LOGINFO("We'll now generate an authentication database.")
+    # create our authentication database if it doesn't exist
+
+    authdb_path = os.path.join(basedir, '.authdb.sqlite')
+
+    if not os.path.exists(authdb_path):
+
+        LOGINFO('No existing DB found, making a new one...')
+
+        # generate the initial DB
+        create_authentication_database(authdb_path)
+
+        # ask the user for their email address and password
+        # the default email address will be used for the superuser
+        # if the email address is None, we'll use the user's UNIX ID@localhost
+        # if the password is None, a random one will be generated
+
+        try:
+            userid = '%s@localhost' % getpass.getuser()
+        except Exception as e:
+            userid = 'lcc_admin@localhost'
+
+        inp_userid = input(
+            '\nAdmin email address [default: %s]: ' %
+            userid
+        )
+        if inp_userid and len(inp_userid.strip()) > 0:
+            userid = inp_userid
+
+        inp_pass = getpass.getpass(
+            'Admin password [default: randomly generated]: '
+        )
+        if inp_pass and len(inp_pass.strip()) > 0:
+            password = inp_pass
+        else:
+            password = None
+
+        # generate the admin users and initial DB info
+        u, p = authdb.initial_authdb_inserts(authdb_path,
+                                             superuser_email=userid,
+                                             superuser_pass=password)
+
+        print('')
+        if p:
+            print('Generated random admin password: %s' % p)
+        print('')
+
+    else:
+        LOGINFO('Using existing authentication database.')
+
+
+    # finally, we'll generate the server secrets now so we don't have to deal
+    # with them later
+    LOGINFO('Generating LCC-Server secret tokens...')
+    session_secret = Fernet.generate_key()
+    cpserver_secret = Fernet.generate_key()
+    fernet_secret = Fernet.generate_key()
+    session_secret_file = os.path.join(basedir,'.lccserver.secret')
+    cpserver_secret_file = os.path.join(basedir,'.lccserver.secret-cpserver')
+    fernet_secret_file = os.path.join(basedir,'.lccserver.secret-fernet')
+
+    with open(session_secret_file,'wb') as outfd:
+        outfd.write(session_secret)
+    os.chmod(session_secret_file, 0o100600)
+
+    with open(cpserver_secret_file,'wb') as outfd:
+        outfd.write(cpserver_secret)
+    os.chmod(cpserver_secret_file, 0o100600)
+
+    with open(fernet_secret_file,'wb') as outfd:
+        outfd.write(fernet_secret)
+    os.chmod(fernet_secret_file, 0o100600)
+
+    #
+    # now we're all done.
+    #
+    LOGINFO('Done with LCC-Server basedir set up for: %s.' %
+            os.path.abspath(basedir))
 
 
 
@@ -398,7 +503,7 @@ def new_collection_directories(basedir,
             os.path.join(basedir, collection_id, 'lcformat-description.json')
         )
         LOGINFO('please fill this out using the instructions within so '
-                'LCC server can read your original format light curves '
+                'LCC-Server can read your original format light curves '
                 'and convert them to common LCC CSVLC format')
 
         #
@@ -418,7 +523,7 @@ def convert_original_lightcurves(basedir,
                                  skip_converted=True):
     '''This converts original format light curves to the common LCC CSV format.
 
-    This is optional since the LCC server can do this conversion on-the-fly if
+    This is optional since the LCC-Server can do this conversion on-the-fly if
     necessary, but this slows down LC zip operations if people request large
     numbers of light curves.
 
@@ -701,7 +806,7 @@ def generate_augmented_lclist_catalog(
     '''This generates a lclist-catalog.pkl file containing extra info from
     checkplots.
 
-    basedir is the base directory for the LCC server
+    basedir is the base directory for the LCC-Server
 
     collection_id is the directory name of the collection you want to process
 
@@ -814,7 +919,7 @@ def generate_catalog_database(
 ):
     '''This generates the objectinfo-catalog.sqlite database.
 
-    basedir is the base directory of the LCC server
+    basedir is the base directory of the LCC-Server
 
     collection_id is the directory name of the LC collection we're working on.
 
@@ -925,7 +1030,7 @@ def add_collection_to_lcc_index(basedir,
     '''
     This adds an LC collection to the index DB.
 
-    basedir is the base directory of the LCC server
+    basedir is the base directory of the LCC-Server
 
     collection_id is the directory name of the LC collection we're working on.
 
@@ -989,13 +1094,13 @@ def remove_collection_from_lcc_index(basedir,
 ########################################
 
 async def start_lccserver(executor):
-    '''This starts the authnzerver, the LCC server and a backing instance of
+    '''This starts the authnzerver, the LCC-Server and a backing instance of
     checkplotserver.
 
     This is NOT meant for production, but is useful to make sure everything
     works correctly or for local browsing of your light curve data.
 
-    All of the log lines from the LCC server instance and the backing
+    All of the log lines from the LCC-Server instance and the backing
     checkplotserver instance will go to STDOUT. STDERR will also be directed to
     STDOUT.
 
@@ -1047,24 +1152,24 @@ async def start_lccserver(executor):
 
 CMD_HELP = '''COMMAND is one of:
 
-init-basedir        -> Initializes the basedir for the LCC server.
+init-basedir        -> Initializes the basedir for the LCC-Server.
                        This is an interactive command.
 
-add-collection      -> Adds an LC collection to the LCC server.
+add-collection      -> Adds an LC collection to the LCC-Server.
                        This is an interactive command.
 
 edit-collection     -> Edits an existing LC collection.
                        This is an interactive command.
 
-del-collection      -> Removes an LC collection from the LCC server
+del-collection      -> Removes an LC collection from the LCC-Server
                        This will ask you for confirmation.
 
-run-server          -> Runs an instance of the LCC server to provide
+run-server          -> Runs an instance of the LCC-Server to provide
                        the main search interface and a backing instance
                        of the checkplotserver for serving objectinfo.
 
 shell               -> Starts an IPython shell in the context of the specified
-                       LCC server base directory. This is useful for debugging
+                       LCC-Server base directory. This is useful for debugging
                        and running queries directly using the
                        lccserver.backend.datasets.py and
                        lccserver.backend.dbsearch.py modules
@@ -1386,7 +1491,7 @@ def main():
         )
 
         convertlcs = input(
-            "The LCC server can convert your original format LCs "
+            "The LCC-Server can convert your original format LCs "
             "to the common LCC CSV format as they are "
             "requested in search results, "
             "but it might slow down your queries. "
@@ -1745,7 +1850,7 @@ def main():
                              'ispublic':lcc_ispublic}
         )
 
-        print("Adding this collection to the LCC server's index...")
+        print("Adding this collection to the LCC-Server's index...")
         catindex = add_collection_to_lcc_index(args.basedir,
                                                collection_id)
 
@@ -1766,7 +1871,7 @@ def main():
         ds = datasets.sqlite_get_dataset(args.basedir, setid)
 
         print('\nAll done!\n')
-        print('You can start an LCC server instance '
+        print('You can start an LCC-Server instance '
               'using the command below:\n')
         print('%s --basedir %s run-server' % (aparser.prog,
                                               args.basedir))
@@ -1997,7 +2102,7 @@ def main():
 
                 print(
                     'Removed collection: %s from index DB. '
-                    'Files in its LCC server directory:\n\n%s\n\nhave '
+                    'Files in its LCC-Server directory:\n\n%s\n\nhave '
                     'NOT been touched. Remove them to permanently delete '
                     'this collection.'
                     % (removecoll,
