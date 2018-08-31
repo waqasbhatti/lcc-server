@@ -456,10 +456,14 @@ def check_user_access(userid=2,
 
     '''
     if debug:
-        print('userid = %s\nsharedwith_userids = %s' %
-              (userid, target_sharedwith))
+        print('userid = %s\ntarget_owner = %s\nsharedwith_userids = %s' %
+              (userid, target_owner, target_sharedwith))
 
-    if target_visibility == 'private':
+    if role in ('superuser', 'staff'):
+
+        shared_or_owned_ok = True
+
+    elif target_visibility == 'private':
 
         shared_or_owned_ok = userid == target_owner
 
@@ -467,9 +471,18 @@ def check_user_access(userid=2,
 
         try:
 
-            sharedwith_userids = target_sharedwith.split(',')
-            sharedwith_userids = [int(x) for x in sharedwith_userids]
-            shared_or_owned_ok = userid in sharedwith_userids
+            if target_sharedwith != '':
+
+                sharedwith_userids = target_sharedwith.split(',')
+                sharedwith_userids = [int(x) for x in sharedwith_userids]
+                shared_or_owned_ok = (
+                    userid in sharedwith_userids or userid == target_owner
+                )
+
+            else:
+                shared_or_owned_ok = (
+                    userid == target_owner
+                )
 
         except Exception as e:
             shared_or_owned_ok = False
