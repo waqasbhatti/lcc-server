@@ -136,7 +136,7 @@ APIKeys = Table(
 ROLE_PERMISSIONS = {
     'superuser':{
         'can_own':{'dataset','object','collection','apikeys','preferences'},
-        'owned': {
+        'for_owned': {
             'list',
             'view',
             'create',
@@ -147,7 +147,7 @@ ROLE_PERMISSIONS = {
             'make_shared',
             'change_owner',
         },
-        'others':{
+        'for_others':{
             'public':{
                 'list',
                 'view',
@@ -182,7 +182,7 @@ ROLE_PERMISSIONS = {
     },
     'staff':{
         'can_own':{'dataset','object','collection','apikeys','preferences'},
-        'owned': {
+        'for_owned': {
             'list',
             'view',
             'create',
@@ -193,7 +193,7 @@ ROLE_PERMISSIONS = {
             'make_shared',
             'change_owner',
         },
-        'others':{
+        'for_others':{
             'public':{
                 'list',
                 'view',
@@ -219,7 +219,7 @@ ROLE_PERMISSIONS = {
     },
     'authenticated':{
         'can_own':{'dataset','object','apikeys','preferences'},
-        'owned': {
+        'for_owned': {
             'list',
             'view',
             'create',
@@ -229,7 +229,7 @@ ROLE_PERMISSIONS = {
             'make_private',
             'make_shared',
         },
-        'others':{
+        'for_others':{
             'public':{
                 'list',
                 'view',
@@ -244,12 +244,12 @@ ROLE_PERMISSIONS = {
     },
     'anonymous':{
         'can_own':{'dataset'},
-        'owned': {
+        'for_owned': {
             'list',
             'view',
             'create',
         },
-        'others':{
+        'for_others':{
             'public':{
                 'list',
                 'view',
@@ -260,8 +260,8 @@ ROLE_PERMISSIONS = {
     },
     'locked':{
         'can_own':set({}),
-        'owned': set({}),
-        'others':{
+        'for_owned': set({}),
+        'for_others':{
             'public':set({}),
             'shared':set({}),
             'private':set({}),
@@ -273,7 +273,8 @@ ROLE_PERMISSIONS = {
 # of permissions available for each item
 ITEM_PERMISSIONS = {
     'object':{
-        'valid_permissions':{'view',  # FIXME: does this need a 'list' perm?
+        'valid_permissions':{'list',
+                             'view',
                              'create',
                              'edit',
                              'delete',
@@ -414,7 +415,7 @@ def get_item_permissions(role_name,
 
         # if this target is owned by the user, then check target owned
         # permissions
-        if target_scope == 'owned':
+        if target_scope == 'for_owned':
             role_permissions = ROLE_PERMISSIONS[role_name][target_scope]
 
         # otherwise, the target is not owned by the user, check scope
@@ -474,27 +475,37 @@ def check_user_access(userid=2,
 
         shared_ok = False
 
+    if debug:
+        print('target shared or owned test passed = %s' % shared_ok)
+
+    target_may_be_owned_by_role = (
+        target_name in ROLE_PERMISSIONS[role]['can_own']
+    )
 
     if debug:
-        print('shared_ok = %s' % shared_ok)
+        print("target: '%s' may be owned by role: '%s' = %s" %
+              (target_name, role, target_may_be_owned_by_role))
 
     # validate ownership of the target
-    if (userid == target_owner and
-        target_name in ROLE_PERMISSIONS[role]['can_own']):
+    if (userid == target_owner and target_may_be_owned_by_role):
         perms = get_item_permissions(role,
                                      target_name,
                                      target_visibility,
-                                     'owned',
+                                     'for_owned',
                                      debug=debug)
 
     # if the target is not owned, then check if it's accessible under its scope
     # and visibility
-    else:
+    elif userid != target_owner:
         perms = get_item_permissions(role,
                                      target_name,
                                      target_visibility,
-                                     'others',
+                                     'for_others',
                                      debug=debug)
+
+    # if the target cannot be owned by the role, then fail
+    else:
+        perms = set({})
 
     if debug:
         print("user action: '%s', permitted actions: %s" % (action, perms))
