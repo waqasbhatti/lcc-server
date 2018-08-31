@@ -873,12 +873,12 @@ def generate_catalog_database(
     return abcat.objectinfo_to_sqlite(
         lclist_catalog_pickle,
         os.path.join(basedir, collection_id, 'catalog-objectinfo.sqlite'),
-        lcset_name=collection_info['name'],
-        lcset_desc=collection_info['desc'],
-        lcset_project=collection_info['project'],
-        lcset_datarelease=collection_info['datarelease'],
-        lcset_citation=collection_info['citation'],
-        lcset_ispublic=collection_info['ispublic'],
+        collection_info['name'],  # lcc_name arg for abcat.objectinfo_to_sqlite
+        lcc_desc=collection_info['desc'],
+        lcc_project=collection_info['project'],
+        lcc_datarelease=collection_info['datarelease'],
+        lcc_citation=collection_info['citation'],
+        lcc_ispublic=collection_info['ispublic'],
         colinfo=colinfo,
         indexcols=indexcols,
         ftsindexcols=ftsindexcols,

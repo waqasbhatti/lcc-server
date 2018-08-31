@@ -157,27 +157,27 @@ OPERATORS = {'+':operator.add,
 
 def objectinfo_to_sqlite(augcatpkl,
                          outfile,
-                         lcset_name,
-                         lcset_desc=None,
-                         lcset_project=None,
-                         lcset_datarelease=None,
-                         lcset_citation=None,
-                         lcset_ispublic=True,
+                         lcc_name,
+                         lcc_desc=None,
+                         lcc_project=None,
+                         lcc_datarelease=None,
+                         lcc_citation=None,
+                         lcc_ispublic=True,
                          colinfo=None,
                          indexcols=None,
                          ftsindexcols=None,
                          overwrite_existing=False):
 
-    '''This writes the object information to an SQLite file.
+    '''This writes the object information for an LCC to an SQLite file.
 
     NOTE: This function requires FTS5 to be available in SQLite because we don't
     want to mess with text-search ranking algorithms to be implemented for FTS4.
 
-    lcset_name must be provided. It will be used as name of the DB in several
+    lcc_name must be provided. It will be used as name of the DB in several
     frontend LCC server controls. This is a string, e.g. 'HATNet DR0: Kepler
     Field'.
 
-    The other lcset_* kwargs set some metadata for the project. this is used by
+    The other lcc_* kwargs set some metadata for the project. this is used by
     the top-level lcc-collections.sqlite database for all LC collections. These
     can all contain Markdown. The frontend will use these to render HTML
     descriptions, etc.
@@ -714,7 +714,6 @@ def objectinfo_to_sqlite(augcatpkl,
 
         indexcols = []
 
-        # don't forget to index the object_is_public column
         for icol in defaultcolinfo.keys():
 
             if defaultcolinfo[icol]['index']:
@@ -795,12 +794,12 @@ def objectinfo_to_sqlite(augcatpkl,
         'catalogcols':sorted(colnames),
         'indexcols':sorted([x.replace('.','_') for x in m_indexcols]),
         'ftsindexcols':sorted([x.replace('.','_') for x in m_ftsindexcols]),
-        'lcset_name':lcset_name,
-        'lcset_desc':lcset_desc,
-        'lcset_project':lcset_project,
-        'lcset_datarelease':lcset_datarelease,
-        'lcset_citation':lcset_citation,
-        'lcset_ispublic':lcset_ispublic
+        'lcc_name':lcc_name,
+        'lcc_desc':lcc_desc,
+        'lcc_project':lcc_project,
+        'lcc_datarelease':lcc_datarelease,
+        'lcc_citation':lcc_citation,
+        'lcc_ispublic':lcc_ispublic
     }
     metadata_json = json.dumps(metadata)
     cur.execute(
@@ -1273,7 +1272,7 @@ def sqlite_collect_lcc_info(
     - lclist-catalog.pkl
     - catalog-kdtree.pkl
     - catalog-objectinfo.sqlite
-      - this must contain lcset_* metadata for the collection, so we can give it
+      - this must contain lcc_* metadata for the collection, so we can give it
         a name, description, project name, last time of update, datarelease
         number
     - lcformat-description.json
@@ -1530,12 +1529,12 @@ def sqlite_collect_lcc_info(
             ','.join(metadata['catalogcols']),
             ','.join(metadata['indexcols']),
             ','.join(metadata['ftsindexcols']),
-            metadata['lcset_name'],
-            metadata['lcset_desc'],
-            metadata['lcset_project'],
-            metadata['lcset_citation'],
-            metadata['lcset_ispublic'],
-            metadata['lcset_datarelease'],
+            metadata['lcc_name'],
+            metadata['lcc_desc'],
+            metadata['lcc_project'],
+            metadata['lcc_citation'],
+            metadata['lcc_ispublic'],
+            metadata['lcc_datarelease'],
             last_updated
         )
 
