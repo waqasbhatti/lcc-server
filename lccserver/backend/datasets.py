@@ -93,14 +93,14 @@ dbsearch.set_logger_parent(__name__)
 from . import abcat
 abcat.set_logger_parent(__name__)
 
+from ..authnzerver.tables import get_item_permissions
+
 #########################################
 ## INITIALIZING A DATASET INDEX SQLITE ##
 #########################################
 
 SQLITE_DATASET_CREATE = '''\
 -- think about adding some more useful columns
--- user_sessionid -> salted hash of the user's session token
--- user_metadata_json -> info from user (e.g. who the dataset is shared with)
 -- objectid_list  -> list of all object IDs in this dataset (for dataset FTS)
 -- convex_hull_polygon -> for queries like "all datasets in this sky region"
 
@@ -111,7 +111,6 @@ create table lcc_datasets (
   last_updated datetime not null,
   nobjects integer not null,
   status text not null,
-  is_public integer,
   lczip_cachekey text,
   queried_collections text,
   query_type text,
@@ -121,6 +120,7 @@ create table lcc_datasets (
   citation text,
   dataset_owner integer default 1,
   dataset_visibility integer default 2,
+  dataset_shared_with text,
   primary key (setid)
 );
 
@@ -132,7 +132,6 @@ create index rev_time_idx on lcc_datasets (last_updated desc);
 create index lczip_cachekey_idx on lcc_datasets (lczip_cachekey);
 
 -- index on the ispublic, owner, visibility columns
-create index ispublic_idx on lcc_datasets (is_public);
 create index owner_idx on lcc_datasets (dataset_owner);
 create index visibility_idx on lcc_datasets (dataset_visibility);
 
@@ -140,6 +139,7 @@ create index visibility_idx on lcc_datasets (dataset_visibility);
 pragma journal_mode = wal;
 pragma journal_size_limit = 52428800;
 '''
+
 
 def sqlite_datasets_db_create(basedir):
     '''
@@ -172,16 +172,36 @@ def sqlite_datasets_db_create(basedir):
 ## FUNCTIONS THAT OPERATE ON DATASETS ##
 ########################################
 
+VISIBILITY_MAP = {
+    'public': 2,
+    'shared': 1,
+    'private': 0
+}
+
 def sqlite_prepare_dataset(basedir,
-                           ispublic=True):
-    '''
-    This generates a setid to use for the next step below.
+                           owner=1,
+                           visibility='public'):
+    '''This generates a setid to use for the next step below.
 
     datasets can have the following statuses:
 
     'initialized'
+    'in progress'
     'complete'
     'failed'
+
+    owner is the user ID of the owner of the dataset. The default is 1, which
+    corresponds to the superuser. In general, this should be set to the integer
+    user ID of an existing user in the users table of the
+    lcc-basedir/.authdb.sqlite DB.
+
+    visibility is one of:
+
+    'public'  -> dataset is visible to anyone
+    'shared'  -> dataset is visible to owner user ID
+                 and the user IDs in the shared_with column
+                 FIXME: we'll add groups and group ID columns later
+    'private' -> dataset is only visible to the owner
 
     '''
 
@@ -197,16 +217,21 @@ def sqlite_prepare_dataset(basedir,
     setid = secrets.token_urlsafe(8).replace('-','Z').replace('_','a')
     creationdt = datetime.utcnow().isoformat()
 
+    # set the owner and visibility
+    visibility_code = VISIBILITY_MAP[visibility]
+
     # update the database to prepare for this new dataset
     query = ("insert into lcc_datasets "
-             "(setid, created_on, last_updated, nobjects, status, is_public) "
-             "values (?, ?, ?, ?, ?, ?)")
+             "(setid, created_on, last_updated, nobjects, status, "
+             "dataset_owner, dataset_visibility) "
+             "values (?, ?, ?, ?, ?, ?, ?)")
     params = (setid,
               creationdt,
               creationdt,
               0,
               'initialized',
-              1 if ispublic else 0)
+              owner,
+              visibility_code)
 
     cur.execute(query, params)
     db.commit()
@@ -220,9 +245,9 @@ def sqlite_new_dataset(basedir,
                        setid,
                        creationdt,
                        searchresult,
-                       ispublic=True):
-    '''
-    create new dataset function.
+                       owner=1,
+                       visibility='public'):
+    '''create new dataset function.
 
     ispublic controls if the dataset is public
 
@@ -235,7 +260,9 @@ def sqlite_new_dataset(basedir,
     {'setid': the randomly generated set id,
      'name': the name of the dataset or None,
      'desc': a description of the dataset or None,
-     'ispublic': boolean indicating if the dataset is public, default True,
+     'owner': integer user ID of the dataset's owner,
+     'visibility': integer visibility code generated from visibility kwarg,
+     'shared_with': text list of user IDs that this dataset is shared with,
      'collections': the names of the collections making up this dataset,
      'columns': a list of the columns in the search result,
      'result': a list containing the search result lists of dicts / collection,
@@ -245,6 +272,11 @@ def sqlite_new_dataset(basedir,
      'message': the message from the search result dict,
      'lczipfpath': the path to the light curve ZIP in basedir/products/}
 
+    NOTE: we add in the owner, visibility, and shared_with here because we'll
+    later add strict permission controls to the /d/dataset-<setid>.pkl.gz/csv
+    endpoints. This would allow us to block people who have no access via their
+    session_token or apikey to a dataset's products even if they know the
+    dataset's setid.
 
     '''
 
@@ -309,7 +341,9 @@ def sqlite_new_dataset(basedir,
         'setid':setid,
         'name':setname,
         'desc':setdesc,
-        'ispublic':ispublic,
+        'owner':owner,
+        'visibility':VISIBILITY_MAP[visibility],
+        'shared_with':None,  # default is not shared with anyone
         'collections':collections,
         'columns':reqcols,  # these are the columns guaranteed to be in all
                             # collections
@@ -353,20 +387,31 @@ def sqlite_new_dataset(basedir,
     cur = db.cursor()
 
     # generate the entry in the lcc-datasets.sqlite table and commit it
-    query = ("update lcc_datasets set "
-             "name = ?, description = ?, "
-             "last_updated = ?, nobjects = ?, "
-             "status = ?, is_public = ?, "
-             "queried_collections = ?, query_type = ?, query_params = ? "
-             "where setid = ?")
+    query = (
+        "update lcc_datasets set "
+        "name = ?, "
+        "description = ?, "
+        "last_updated = ?, "
+        "nobjects = ?, "
+        "dataset_owner = ?, "
+        "dataset_visibility = ?, "
+        "dataset_shared_with = ?"
+        "status = ?, "
+        "queried_collections = ?, "
+        "query_type = ?, "
+        "query_params = ? "
+        "where setid = ?"
+    )
 
     params = (
         setname,
         setdesc,
         datetime.utcnow().isoformat(),
         total_nmatches,
+        dataset['owner'],
+        dataset['visibility'],
+        dataset['shared_with'],
         'in progress',
-        1 if ispublic else 0,
         ', '.join(collections),
         searchtype,
         json.dumps(searchargs),
@@ -778,7 +823,9 @@ def sqlite_make_dataset_lczip(basedir,
 
 
 # LATER
-def sqlite_remove_dataset(basedir, setid):
+def sqlite_remove_dataset(basedir,
+                          setid,
+                          incoming_userid=1):
     '''
     This removes the specified dataset.
 
@@ -786,7 +833,10 @@ def sqlite_remove_dataset(basedir, setid):
 
 
 # LATER
-def sqlite_update_dataset(basedir, setid, updatedict):
+def sqlite_update_dataset(basedir,
+                          setid,
+                          updatedict,
+                          incoming_userid=1):
     '''
     This updates a dataset.
 
@@ -801,16 +851,23 @@ def sqlite_update_dataset(basedir, setid, updatedict):
 def sqlite_list_datasets(basedir,
                          nrecent=25,
                          require_status='complete',
-                         require_ispublic=True):
+                         incoming_userid=1):
     '''
     This just lists all the datasets available.
+
+    incoming_userid is used to check permissions on the list operation.
+    FIXME: get this working
 
     setid
     created_on
     last_updated
     nobjects
     status
-    is_public
+
+    dataset_owner
+    dataset_visibility
+    dataset_shared_with
+
     dataset_fpath
     lczip_fpath
     name
