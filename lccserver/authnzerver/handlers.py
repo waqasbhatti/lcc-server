@@ -37,7 +37,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from sqlalchemy.sql import select
 
-from . import tables
+from . import authdb
 from . import actions
 
 
@@ -111,7 +111,7 @@ def auth_echo(payload):
     engine = getattr(currproc, 'engine', None)
     if not engine:
         currproc.engine, currproc.connection, currproc.table_meta = (
-            tables.get_auth_db(
+            authdb.get_auth_db(
                 currproc.auth_db_path,
                 echo=False
             )

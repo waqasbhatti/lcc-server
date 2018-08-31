@@ -27,7 +27,7 @@ import ipaddress
 import secrets
 import multiprocessing as mp
 
-from . import tables
+from . import authdb
 
 
 ###################################
@@ -153,7 +153,7 @@ def auth_session_new(payload,
 
         if not engine:
             currproc.engine, currproc.connection, currproc.table_meta = (
-                tables.get_auth_db(
+                authdb.get_auth_db(
                     currproc.auth_db_path,
                     echo=False
                 )
