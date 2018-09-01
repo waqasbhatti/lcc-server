@@ -110,7 +110,7 @@ import numpy as np
 from astrobase.coordutils import make_kdtree, conesearch_kdtree, \
     xmatch_kdtree, great_circle_dist
 
-from ..authnzerver import authdb
+from ..authnzerver.authdb import check_user_access
 
 
 #####################################
@@ -217,7 +217,7 @@ def sqlite_get_collections(basedir,
 
         results = [
             x for x in xresults if
-            authdb.check_user_access(
+            check_user_access(
                 userid=incoming_userid,
                 role=incoming_role,
                 action='view',
@@ -597,26 +597,38 @@ def sqlite_fulltext_search(basedir,
         columnstr = ', '.join(
             [columnstr,
              ('a.objectid as db_oid, a.ra as db_ra, '
-              'a.decl as db_decl, a.lcfname as db_lcfname')]
+              'a.decl as db_decl, a.lcfname as db_lcfname, '
+              'a.object_owner as owner, '
+              'a.object_visibility as visibility, '
+              'a.object_sharedwith as sharedwith')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
         rescolumns = getcolumns[::] + ['db_oid',
                                        'db_ra',
                                        'db_decl',
-                                       'db_lcfname']
+                                       'db_lcfname',
+                                       'owner',
+                                       'visibility',
+                                       'sharedwith']
 
 
     # otherwise, if there are no columns, use the default ones
     else:
 
         columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
-                     'a.decl as db_decl, a.lcfname as db_lcfname')
+                     'a.decl as db_decl, a.lcfname as db_lcfname, '
+                     'a.object_owner as owner, '
+                     'a.object_visibility as visibility, '
+                     'a.object_sharedwith as sharedwith')
 
         rescolumns = ['db_oid',
                       'db_ra',
                       'db_decl',
-                      'db_lcfname']
+                      'db_lcfname',
+                      'owner',
+                      'visibility',
+                      'sharedwith']
 
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
@@ -666,6 +678,33 @@ def sqlite_fulltext_search(basedir,
 
         lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
         lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
+
+        lcc_columnspec['owner'] = {
+            'title': 'object owner',
+            'description':'userid of the owner of this object',
+            'dtype':'i8',
+            'format':'%i',
+            'index':True,
+            'ftsindex':False,
+        }
+        lcc_columnspec['visibility'] = {
+            'title': 'object visibility',
+            'description':("visibility tag for this object. "
+                           "One of 'public', 'shared', 'private'"),
+            'dtype':'U10',
+            'format':'%s',
+            'index':True,
+            'ftsindex':False,
+        }
+        lcc_columnspec['sharedwith'] = {
+            'title': 'shared with',
+            'description':("user/group IDs of LCC-Server users that "
+                           "this object is shared with."),
+            'dtype':'U20',
+            'format':'%s',
+            'index':True,
+            'ftsindex':False,
+        }
 
         # we should return all FTS indexed columns regardless of whether the
         # user selected them or not
@@ -738,7 +777,20 @@ def sqlite_fulltext_search(basedir,
 
             if rows and len(rows) > 0:
 
-                rows = [dict(x) for x in rows]
+                # check each object's permissions before adding it to the result
+                # rows. this is fairly fast since we have the permissions model
+                # entirely in memory from authdb
+                rows = [
+                    dict(x) for x in rows if check_user_access(
+                        userid=incoming_userid,
+                        role=incoming_role,
+                        action='view',
+                        target_name='object',
+                        target_owner=x['owner'],
+                        target_visibility=x['visibility'],
+                        target_sharedwith=x['sharedwith']
+                    )
+                ]
 
             else:
 
