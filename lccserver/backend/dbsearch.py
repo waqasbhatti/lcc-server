@@ -593,7 +593,6 @@ def sqlite_fulltext_search(basedir,
 
         # get the requested columns together
         columnstr = ', '.join('a.%s' % (c,) for c in getcolumns)
-
         columnstr = ', '.join(
             [columnstr,
              ('a.objectid as db_oid, a.ra as db_ra, '
@@ -935,29 +934,41 @@ def sqlite_column_search(basedir,
                 getcolumns.remove(c)
 
         # get the requested columns together
-        columnstr = ', '.join('a.%s' % c for c in getcolumns)
+        columnstr = ', '.join('a.%s' % (c,) for c in getcolumns)
         columnstr = ', '.join(
             [columnstr,
              ('a.objectid as db_oid, a.ra as db_ra, '
-              'a.decl as db_decl, a.lcfname as db_lcfname')]
+              'a.decl as db_decl, a.lcfname as db_lcfname, '
+              'a.object_owner as owner, '
+              'a.object_visibility as visibility, '
+              'a.object_sharedwith as sharedwith')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
         rescolumns = getcolumns[::] + ['db_oid',
                                        'db_ra',
                                        'db_decl',
-                                       'db_lcfname']
+                                       'db_lcfname',
+                                       'owner',
+                                       'visibility',
+                                       'sharedwith']
 
     # otherwise, if there are no columns, use the default ones
     else:
 
         columnstr = ('a.objectid as db_oid, a.ra as db_ra, '
-                     'a.decl as db_decl, a.lcfname as db_lcfname')
+                     'a.decl as db_decl, a.lcfname as db_lcfname, '
+                     'a.object_owner as owner, '
+                     'a.object_visibility as visibility, '
+                     'a.object_sharedwith as sharedwith')
 
         rescolumns = ['db_oid',
                       'db_ra',
                       'db_decl',
-                      'db_lcfname']
+                      'db_lcfname',
+                      'owner',
+                      'visibility',
+                      'sharedwith']
 
     # this is the query that will be used
     q = ("select {columnstr} from {collection_id}.object_catalog a "
@@ -1056,6 +1067,32 @@ def sqlite_column_search(basedir,
         lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
         lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
 
+        lcc_columnspec['owner'] = {
+            'title': 'object owner',
+            'description':'userid of the owner of this object',
+            'dtype':'i8',
+            'format':'%i',
+            'index':True,
+            'ftsindex':False,
+        }
+        lcc_columnspec['visibility'] = {
+            'title': 'object visibility',
+            'description':("visibility tag for this object. "
+                           "One of 'public', 'shared', 'private'"),
+            'dtype':'U10',
+            'format':'%s',
+            'index':True,
+            'ftsindex':False,
+        }
+        lcc_columnspec['sharedwith'] = {
+            'title': 'shared with',
+            'description':("user/group IDs of LCC-Server users that "
+                           "this object is shared with."),
+            'dtype':'U20',
+            'format':'%s',
+            'index':True,
+            'ftsindex':False,
+        }
 
         thisq = q.format(columnstr=columnstr,
                          collection_id=lcc,
@@ -1070,8 +1107,22 @@ def sqlite_column_search(basedir,
             rows = cur.fetchall()
 
             if rows and len(rows) > 0:
-                rows = [dict(x) for x in rows]
+
+                # check permissions for each object before accepting it
+                rows = [
+                    dict(x) for x in rows if check_user_access(
+                        userid=incoming_userid,
+                        role=incoming_role,
+                        action='view',
+                        target_name='object',
+                        target_owner=x['owner'],
+                        target_visibility=x['visibility'],
+                        target_sharedwith=x['sharedwith']
+                    )
+                ]
+
             else:
+
                 rows = []
 
             # put the results into the right place
@@ -1264,7 +1315,10 @@ def sqlite_kdtree_conesearch(basedir,
              ('a.objectid as db_oid, b.objectid as kdtree_oid, '
               'a.ra as db_ra, a.decl as db_decl, '
               'b.ra as kdtree_ra, b.decl as kdtree_decl, '
-              'a.lcfname as db_lcfname')]
+              'a.lcfname as db_lcfname, '
+              'a.object_owner as owner, '
+              'a.object_visibility as visibility, '
+              'a.object_sharedwith as sharedwith')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
@@ -1275,7 +1329,10 @@ def sqlite_kdtree_conesearch(basedir,
                                        'kdtree_ra',
                                        'kdtree_decl',
                                        'db_lcfname',
-                                       'dist_arcsec']
+                                       'dist_arcsec',
+                                       'owner',
+                                       'visibility',
+                                       'sharedwith']
 
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
@@ -1284,7 +1341,10 @@ def sqlite_kdtree_conesearch(basedir,
         columnstr = ('a.objectid as db_oid, b.objectid as kdtree_oid, '
                      'a.ra as db_ra, a.decl as db_decl, '
                      'b.ra as kdtree_ra, b.decl as kdtree_decl, '
-                     'a.lcfname as db_lcfname')
+                     'a.lcfname as db_lcfname, '
+                     'a.object_owner as owner, '
+                     'a.object_visibility as visibility, '
+                     'a.object_sharedwith as sharedwith')
 
         rescolumns = ['db_oid',
                       'kdtree_oid',
@@ -1293,7 +1353,10 @@ def sqlite_kdtree_conesearch(basedir,
                       'kdtree_ra',
                       'kdtree_decl',
                       'db_lcfname',
-                      'dist_arcsec']
+                      'dist_arcsec',
+                      'owner',
+                      'visibility',
+                      'sharedwith']
 
 
     # this is the query that will be used to query the database only
@@ -1375,6 +1438,33 @@ def sqlite_kdtree_conesearch(basedir,
             'ftsindex':False,
         }
 
+        lcc_columnspec['owner'] = {
+            'title': 'object owner',
+            'description':'userid of the owner of this object',
+            'dtype':'i8',
+            'format':'%i',
+            'index':True,
+            'ftsindex':False,
+        }
+        lcc_columnspec['visibility'] = {
+            'title': 'object visibility',
+            'description':("visibility tag for this object. "
+                           "One of 'public', 'shared', 'private'"),
+            'dtype':'U10',
+            'format':'%s',
+            'index':True,
+            'ftsindex':False,
+        }
+        lcc_columnspec['sharedwith'] = {
+            'title': 'shared with',
+            'description':("user/group IDs of LCC-Server users that "
+                           "this object is shared with."),
+            'dtype':'U20',
+            'format':'%s',
+            'index':True,
+            'ftsindex':False,
+        }
+
         # if we can't find the kdtree, we can't do anything. skip this LCC
         if not os.path.exists(kdtree_fpath):
 
@@ -1397,15 +1487,12 @@ def sqlite_kdtree_conesearch(basedir,
 
         with open(kdtree_fpath, 'rb') as infd:
             kdtreedict = pickle.load(infd)
-
         kdt = kdtreedict['kdtree']
 
         # make sure never to exceed maxradius_arcmin
         if radius_arcmin > maxradius_arcmin:
             radius_arcmin = maxradius_arcmin
-
         searchradiusdeg = radius_arcmin/60.0
-
 
         # do the conesearch and get the appropriate kdtree indices
         kdtinds = conesearch_kdtree(kdt,
@@ -1486,8 +1573,20 @@ def sqlite_kdtree_conesearch(basedir,
             try:
                 LOGINFO('query = %s' % thisq)
                 cur.execute(thisq)
-                # get the results
-                rows = [dict(x) for x in cur.fetchall()]
+
+                # get the results and filter by permitted objects
+                rows = [
+                    dict(x) for x in cur.fetchall() if check_user_access(
+                        userid=incoming_userid,
+                        role=incoming_role,
+                        action='view',
+                        target_name='object',
+                        target_owner=x['owner'],
+                        target_visibility=x['visibility'],
+                        target_sharedwith=x['sharedwith']
+                    )
+                ]
+
             except Exception as e:
                 LOGEXCEPTION('query failed, probably an SQL error')
                 rows = None
@@ -1497,9 +1596,8 @@ def sqlite_kdtree_conesearch(basedir,
 
             LOGINFO('table-kdtree match complete, generating result rows...')
 
-            # for each row of the results, add in the objectid, ra, decl if
-            # they're not already present in the requested columns. also add in
-            # the distance from the center of the cone search
+            # for each row of the results, add in the distance from the center
+            # of the cone search
             if rows:
                 for row in rows:
 
@@ -1723,26 +1821,37 @@ def sqlite_xmatch_search(basedir,
             [columnstr,
              ('b.objectid as db_oid, '
               'b.ra as db_ra, b.decl as db_decl, '
-              'b.lcfname as db_lcfname')]
+              'b.lcfname as db_lcfname, '
+              'a.object_owner as owner, '
+              'a.object_visibility as visibility, '
+              'a.object_sharedwith as sharedwith')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
         rescolumns = getcolumns[::] + ['db_oid',
                                        'db_ra',
                                        'db_decl',
-                                       'db_lcfname']
+                                       'db_lcfname',
+                                       'owner',
+                                       'visibility',
+                                       'sharedwith']
 
     # otherwise, if there are no columns, get the default set of columns for a
     # 'check' cone-search query
     else:
         columnstr = ('b.objectid as db_oid, '
                      'b.ra as db_ra, b.decl as db_decl, '
-                     'b.lcfname as db_lcfname')
-
+                     'b.lcfname as db_lcfname, '
+                     'a.object_owner as owner, '
+                     'a.object_visibility as visibility, '
+                     'a.object_sharedwith as sharedwith')
         rescolumns = ['db_oid',
                       'db_ra',
                       'db_decl',
-                      'db_lcfname']
+                      'db_lcfname',
+                      'owner',
+                      'visibility',
+                      'sharedwith']
 
     # make sure we have everything we need from the inputdata
 
@@ -1912,7 +2021,6 @@ def sqlite_xmatch_search(basedir,
                 '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
             )
 
-
             #
             # handle extra stuff that needs to go into the xmatch results
             #
@@ -1954,6 +2062,33 @@ def sqlite_xmatch_search(basedir,
                 'format': '%.3f',
                 'description':'distance from search center in arcsec',
                 'dtype':'<f8',
+                'index':True,
+                'ftsindex':False,
+            }
+
+            lcc_columnspec['owner'] = {
+                'title': 'object owner',
+                'description':'userid of the owner of this object',
+                'dtype':'i8',
+                'format':'%i',
+                'index':True,
+                'ftsindex':False,
+            }
+            lcc_columnspec['visibility'] = {
+                'title': 'object visibility',
+                'description':("visibility tag for this object. "
+                               "One of 'public', 'shared', 'private'"),
+                'dtype':'U10',
+                'format':'%s',
+                'index':True,
+                'ftsindex':False,
+            }
+            lcc_columnspec['sharedwith'] = {
+                'title': 'shared with',
+                'description':("user/group IDs of LCC-Server users that "
+                               "this object is shared with."),
+                'dtype':'U20',
+                'format':'%s',
                 'index':True,
                 'ftsindex':False,
             }
@@ -2051,7 +2186,18 @@ def sqlite_xmatch_search(basedir,
 
                 try:
                     cur.execute(thisq, tuple(matching_lcc_objectids))
-                    rows = [dict(x) for x in cur.fetchall()]
+                    rows = [
+                        dict(x) for x in cur.fetchall() if
+                        check_user_access(
+                            userid=incoming_userid,
+                            role=incoming_role,
+                            action='view',
+                            target_name='object',
+                            target_owner=x['owner'],
+                            target_visibility=x['visibility'],
+                            target_sharedwith=x['sharedwith']
+                        )
+                    ]
                 except Exception as e:
                     LOGEXCEPTION(
                         'xmatch object lookup for input object '
@@ -2062,7 +2208,7 @@ def sqlite_xmatch_search(basedir,
                     )
                     rows = None
 
-                if rows:
+                if rows and len(rows) > 0:
 
                     # add in the information from the input data
                     inputdata_row = datatable[input_objind]
@@ -2100,7 +2246,7 @@ def sqlite_xmatch_search(basedir,
                             'query':thisq,
                             'success':True}
             results[lcc]['nmatches'] = len(this_lcc_results)
-            msg = ("executed query successfully for collection: %s, "
+            msg = ("executed xmatch query successfully for collection: %s, "
                    "matching nrows: %s" % (lcc, results[lcc]['nmatches']))
             results[lcc]['message'] = msg
             LOGINFO(msg)
@@ -2289,6 +2435,43 @@ def sqlite_xmatch_search(basedir,
             lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname'].copy()
             lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
 
+            # this is the extra spec for dist_arcsec
+            lcc_columnspec['dist_arcsec'] = {
+                'title': 'distance [arcsec]',
+                'format': '%.3f',
+                'description':'distance from search center in arcsec',
+                'dtype':'<f8',
+                'index':True,
+                'ftsindex':False,
+            }
+
+            lcc_columnspec['owner'] = {
+                'title': 'object owner',
+                'description':'userid of the owner of this object',
+                'dtype':'i8',
+                'format':'%i',
+                'index':True,
+                'ftsindex':False,
+            }
+            lcc_columnspec['visibility'] = {
+                'title': 'object visibility',
+                'description':("visibility tag for this object. "
+                               "One of 'public', 'shared', 'private'"),
+                'dtype':'U10',
+                'format':'%s',
+                'index':True,
+                'ftsindex':False,
+            }
+            lcc_columnspec['sharedwith'] = {
+                'title': 'shared with',
+                'description':("user/group IDs of LCC-Server users that "
+                               "this object is shared with."),
+                'dtype':'U20',
+                'format':'%s',
+                'index':True,
+                'ftsindex':False,
+            }
+
             # execute the xmatch statement
             thisq = q.format(columnstr=xmatch_columnstr,
                              collection_id=lcc,
@@ -2300,10 +2483,25 @@ def sqlite_xmatch_search(basedir,
 
                 cur.execute(thisq)
 
+                rows = [
+                    dict(x) for x in cur.fetchall() if
+                    check_user_access(
+                        userid=incoming_userid,
+                        role=incoming_role,
+                        action='view',
+                        target_name='object',
+                        target_owner=x['owner'],
+                        target_visibility=x['visibility'],
+                        target_sharedwith=x['sharedwith']
+                    )
+                ]
+
                 # put the results into the right place
-                results[lcc] = {'result':cur.fetchall(),
-                                'query':thisq,
-                                'success':True}
+                results[lcc] = {
+                    'result':rows,
+                    'query':thisq,
+                    'success':True if (rows and len(rows) > 0) else False
+                }
                 results[lcc]['nmatches'] = len(results[lcc]['result'])
 
                 msg = ('executed query successfully for collection: %s'
