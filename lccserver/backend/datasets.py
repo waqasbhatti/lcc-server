@@ -103,7 +103,7 @@ from ..authnzerver.authdb import check_user_access
 # -- objectid_list  -> list of all object IDs in this dataset (for dataset FTS)
 # -- convex_hull_polygon -> for queries like "all datasets in this sky region"
 SQLITE_DATASET_CREATE = '''\
-create table lcc_datasets_vinfo (dbver text,
+create table lcc_datasets_vinfo (dbver integer,
                                  lccserver_vtag text,
                                  vdate date);
 insert into lcc_datasets_vinfo values (1, 'v0.2', '2018-08-31');
@@ -160,7 +160,7 @@ create trigger fts_before_update before update on lcc_datasets begin
        delete from lcc_datasets_fts where docid=old.rowid;
 end;
 
-create trigger fts_before_delete before delete on arxiv begin
+create trigger fts_before_delete before delete on lcc_datasets begin
        delete from lcc_datasets_fts where docid=old.rowid;
 end;
 
@@ -173,7 +173,7 @@ create trigger fts_after_update after update on lcc_datasets begin
 end;
 
 create trigger fts_after_insert after insert on lcc_datasets begin
-       insert into arxiv_fts(docid, setid, queried_collections, query_type,
+       insert into lcc_datasets(docid, setid, queried_collections, query_type,
                                 query_params, name, description, citation)
               values (new.rowid, new.setid, new.queried_collections,
                       new.query_type, new.query_params, new.name,

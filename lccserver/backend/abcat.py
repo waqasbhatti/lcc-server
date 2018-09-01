@@ -641,7 +641,7 @@ def objectinfo_to_sqlite(augcatpkl,
                       'pragma journal_size_limit = 52428800;')
     cur.execute('begin')
     cur.executescript(
-        "create table object_catalog_vinfo (dbver text, "
+        "create table object_catalog_vinfo (dbver integer, "
         "lccserver_vtag text, "
         "vdate date); "
         "insert into object_catalog_vinfo values (1, 'v0.2', '2018-08-31');"
@@ -1192,9 +1192,9 @@ def convert_to_csvlc(lcfile,
 ##############################################
 
 SQLITE_LCC_CREATE = '''\
-create table lcc_index_vinfo (dbver text,
-                                 lccserver_vtag text,
-                                 vdate date);
+create table lcc_index_vinfo (dbver integer,
+                              lccserver_vtag text,
+                              vdate date);
 insert into lcc_index_vinfo values (1, 'v0.2', '2018-08-31');
 
 pragma journal_mode = wal;
@@ -1248,7 +1248,7 @@ create trigger fts_before_update before update on lcc_index begin
        delete from lcc_index_fts where docid=old.rowid;
 end;
 
-create trigger fts_before_delete before delete on arxiv begin
+create trigger fts_before_delete before delete on lcc_index begin
        delete from lcc_index_fts where docid=old.rowid;
 end;
 
@@ -1260,7 +1260,7 @@ create trigger fts_after_update after update on lcc_index begin
 end;
 
 create trigger fts_after_insert after insert on lcc_index begin
-       insert into arxiv_fts(docid, collection_id, columnlist, name,
+       insert into lcc_index(docid, collection_id, columnlist, name,
                              description, project, citation, link)
               values (new.rowid, new.collection_id, new.columnlist, new.name,
                       new.description, new.project, new.citation, new.link);
