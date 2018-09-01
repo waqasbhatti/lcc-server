@@ -638,6 +638,11 @@ def convert_original_lightcurves(basedir,
 
             LOGINFO('symlinking complete.')
 
+        # we'll also generate the basic lclist.pkl
+
+
+
+
         return results
 
 
@@ -911,6 +916,9 @@ def generate_catalog_kdtree(basedir,
 def generate_catalog_database(
         basedir,
         collection_id,
+        collection_owner=1,
+        collection_visibility='public',
+        collection_sharedwith=None,
         collection_info=None,
         colinfo=None,
         indexcols=None,
@@ -923,8 +931,36 @@ def generate_catalog_database(
 
     collection_id is the directory name of the LC collection we're working on.
 
+    collection_owner is the user ID of the owner of this collection. By
+    conventions, the LCC-Server uses the following three users by default:
+
+    1 -> LCC-Server admin
+    2 -> the anonymous user
+    3 -> the locked user (who can't access anything)
+
+    collection_visibility is one of:
+
+    'public'  -> the LC collection will be visible to anyone who uses the server
+    'shared'  -> the LC collection will only be visible to userids provided in
+                 collection_sharedwith
+    'private' -> the LC collection will only be visible to the collection_owner
+                 user ID
+
+    colection_sharedwith is a comma-separated string of user IDs that this
+    collection is shared with.
+
     collection_info is a dict that MUST have the keys listed in the
-    example. replace these values with those appropriate for your LC collection.
+    example:
+
+        collection_info = {
+            'name':'Example LC Collection',
+            'desc':'This is an example light curve collection.',
+            'project':'LCC-Server Example Project',
+            'datarelease':1,
+            'citation':'Your citation goes here (2018)',
+        }
+
+    Replace these values with those appropriate for your LC collection.
 
     If colinfo is not None, it should be either a dict or JSON with elements
     that are of the form:
@@ -966,7 +1002,6 @@ def generate_catalog_database(
             'project':'LCC-Server Example Project',
             'datarelease':1,
             'citation':'Your citation goes here (2018)',
-            'ispublic':True
         }
 
     # get basedir/collection_id/lclist-catalog.pkl
@@ -983,7 +1018,9 @@ def generate_catalog_database(
         lcc_project=collection_info['project'],
         lcc_datarelease=collection_info['datarelease'],
         lcc_citation=collection_info['citation'],
-        lcc_ispublic=collection_info['ispublic'],
+        lcc_owner=collection_owner,
+        lcc_visibility=collection_visibility,
+        lcc_sharedwith=collection_sharedwith,
         colinfo=colinfo,
         indexcols=indexcols,
         ftsindexcols=ftsindexcols,
@@ -1093,7 +1130,7 @@ def remove_collection_from_lcc_index(basedir,
 ## STARTING AN INSTANCE OF THE SERVER ##
 ########################################
 
-async def start_lccserver(executor):
+async def start_lccserver(basedir, executor):
     '''This starts the authnzerver, the LCC-Server and a backing instance of
     checkplotserver.
 
@@ -1121,19 +1158,20 @@ async def start_lccserver(executor):
     tasks = []
     subprocess_call_authnzerver = partial(
         subprocess.call,
-        'authnzerver',
+        "authnzerver --basedir='%s'" % os.path.abspath(basedir),
         shell=True
     )
     subprocess_call_cpserver = partial(
         subprocess.call,
-        ('checkplotserver '
-         '--standalone=1 '
-         '--sharedsecret=.lccserver.secret-cpserver'),
+        ("checkplotserver "
+         "--standalone=1 "
+         "--sharedsecret='%s'" % os.path.join(os.path.abspath(basedir),
+                                              '.lccserver.secret-cpserver')),
         shell=True
     )
     subprocess_call_indexserver = partial(
         subprocess.call,
-        'indexserver',
+        "indexserver --basedir='%s'" % os.path.abspath(basedir),
         shell=True
     )
 
@@ -1142,7 +1180,6 @@ async def start_lccserver(executor):
     tasks.append(loop.run_in_executor(executor, subprocess_call_indexserver))
 
     completed, pending = await asyncio.wait(tasks)
-    results = [t.result() for t in completed]
 
 
 
@@ -1248,7 +1285,7 @@ def main():
 
         try:
             event_loop.run_until_complete(
-                start_lccserver(executor)
+                start_lccserver(args.basedir, executor)
             )
         finally:
             event_loop.close()
