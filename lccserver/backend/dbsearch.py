@@ -110,15 +110,31 @@ import numpy as np
 from astrobase.coordutils import make_kdtree, conesearch_kdtree, \
     xmatch_kdtree, great_circle_dist
 
+from ..authnzerver import authdb
+
 
 #####################################
 ## UTILITY FUNCTIONS FOR DATABASES ##
 #####################################
 
+VISIBILITY_MAP = {
+    'public': 2,
+    'shared': 1,
+    'private': 0
+}
+
+VISIBILITY_REVMAP = {
+    2: 'public',
+    1: 'shared',
+    0: 'private'
+}
+
+
 def sqlite_get_collections(basedir,
                            lcclist=None,
-                           require_ispublic=True,
-                           return_connection=True):
+                           return_connection=True,
+                           incoming_userid=2,
+                           incoming_role='anonymous'):
     '''This returns an instance of sqlite3 connection with all sqlite DBs
     corresponding to the collections in lcclist attached to it.
 
@@ -138,14 +154,16 @@ def sqlite_get_collections(basedir,
         indexdbf,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
     )
+    indexdb.row_factory = sqlite3.Row
     cur = indexdb.cursor()
 
     # get the info we need
     query = ("select collection_id, object_catalog_path, kdtree_pkl_path, "
              "columnlist, indexedcols, ftsindexedcols, name, "
-             "description, project, ispublic, datarelease, "
+             "description, project, datarelease, "
              "ra_min, ra_max, decl_min, decl_max, nobjects, "
-             "lcformat_key, lcformat_desc_path, catalog_columninfo_json "
+             "lcformat_key, lcformat_desc_path, catalog_columninfo_json, "
+             "collection_owner, collection_visibility, collection_sharedwith "
              "from lcc_index "
              "{lccspec}")
 
@@ -172,8 +190,6 @@ def sqlite_get_collections(basedir,
             query = query.format(
                 lccspec=lccspec
             )
-            if require_ispublic:
-                query = query + ' and ispublic = 1'
             cur.execute(query, params)
 
         # if no collection made it through sanitation, we'll search all of them
@@ -182,9 +198,6 @@ def sqlite_get_collections(basedir,
             query = query.format(
                 lccspec=''
             )
-
-            if require_ispublic:
-                query = query + ' and ispublic = 1'
             cur.execute(query)
 
 
@@ -192,27 +205,40 @@ def sqlite_get_collections(basedir,
     else:
 
         query = query.format(lccspec='')
-
-        if require_ispublic:
-            query = query + ' where ispublic = 1'
-
         cur.execute(query)
 
-    results = cur.fetchall()
+    xresults = cur.fetchall()
     indexdb.close()
 
     # if we got the databases, then proceed
-    if results and len(results) > 0:
+    if xresults and len(xresults) > 0:
+
+        # filter the results using access control
+
+        results = [
+            x for x in xresults if
+            authdb.check_user_access(
+                userid=incoming_userid,
+                role=incoming_role,
+                action='view',
+                target_name='collection',
+                target_owner=x['collection_owner'],
+                target_visibility=x['collection_visibility'],
+                target_sharedwith=x['collection_sharedwith']
+            )
+        ]
 
         results = list(zip(*list(results)))
 
         (collection_id, object_catalog_path,
          kdtree_pkl_path, columnlist,
          indexedcols, ftsindexedcols, name,
-         description, project,
-         ispublic, datarelease,
+         description, project, datarelease,
          minra, maxra, mindecl, maxdecl,
-         nobjects, lcformatkey, lcformatdesc, columnjson) = results
+         nobjects, lcformatkey, lcformatdesc, columnjson,
+         collection_owner,
+         collection_visibility,
+         collection_sharedwith) = results
 
         dbnames = [x.replace('-','_') for x in collection_id]
 
@@ -267,10 +293,14 @@ def sqlite_get_collections(basedir,
                 'columnlist':columnlist,
                 'indexedcols':indexedcols,
                 'ftsindexedcols':ftsindexedcols,
+                # FIXME: think about censoring these items
+                # in the frontend (or maybe present them in a nicer way)
+                'collection_owner':collection_owner,
+                'collection_visibility':collection_visibility,
+                'collection_sharedwith':collection_sharedwith,
                 'name':name,
                 'description':description,
                 'project':project,
-                'ispublic':ispublic,
                 'datarelease':datarelease,
                 'minra':minra,
                 'maxra':maxra,
@@ -294,14 +324,16 @@ def sqlite_get_collections(basedir,
 
 
 def sqlite_list_collections(basedir,
-                            require_ispublic=True):
+                            incoming_userid=2,
+                            incoming_role='anonymous'):
     '''
     This just lists the collections in basedir.
 
     '''
 
     return sqlite_get_collections(basedir,
-                                  require_ispublic=require_ispublic,
+                                  incoming_userid=incoming_userid,
+                                  incoming_role=incoming_role,
                                   return_connection=False)
 
 
@@ -320,6 +352,15 @@ SQLITE_ALLOWED_ORDERBY = ['asc','desc']
 SQLITE_ALLOWED_LIMIT = ['limit']
 
 SQLITE_DISALLOWED_STRINGS = ['object_is_public',
+                             'collection_visibility',
+                             'object_visibility',
+                             'dataset_visibility',
+                             'collection_owner',
+                             'object_owner',
+                             'dataset_owner',
+                             'collection_sharedwith',
+                             'object_sharedwith',
+                             'dataset_sharedwith',
                              '--',
                              '||',
                              'drop',
@@ -462,8 +503,8 @@ def sqlite_fulltext_search(basedir,
                            extraconditions=None,
                            lcclist=None,
                            raiseonfail=False,
-                           require_ispublic=True,
-                           require_objectispublic=True,
+                           incoming_userid=2,
+                           incoming_role='anonymous',
                            fail_if_conditions_invalid=True):
 
     '''This searches the specified collections for a full-text match.
@@ -485,23 +526,31 @@ def sqlite_fulltext_search(basedir,
     lcclist is the list of light curve collection IDs to search in. If this is
     None, all light curve collections are searched.
 
-    require_ispublic sets if the query is restricted to public light curve
-    collections only.
-
-    require_objectispublic sets if the results should be restricted to objects
-    that are public only.
-
     fail_if_conditions_invalid sets the behavior of the function if it finds
     that the conditions provided in extraconditions kwarg don't pass
     validate_sqlite_filters().
 
     '''
 
-    # get all the specified databases
-    dbinfo = sqlite_get_collections(basedir,
-                                    lcclist=lcclist,
-                                    require_ispublic=require_ispublic,
-                                    return_connection=False)
+    try:
+
+        # get all the specified databases
+        dbinfo = sqlite_get_collections(basedir,
+                                        lcclist=lcclist,
+                                        incoming_userid=incoming_userid,
+                                        incoming_role=incoming_role,
+                                        return_connection=False)
+
+
+    except Exception as e:
+
+        LOGEXCEPTION(
+            "could not fetch available LC collections for "
+            "userid: %s, role: %s. "
+            "likely no collections matching this user's access level" %
+            (incoming_userid, incoming_role)
+        )
+        return None
 
     # get the available databases and columns
     dbfiles = dbinfo['info']['object_catalog_path']
@@ -572,7 +621,7 @@ def sqlite_fulltext_search(basedir,
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
          "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
-         "catalog_fts MATCH ? {extraconditions} {publiccondition} "
+         "catalog_fts MATCH ? {extraconditions} "
          "order by bm25(catalog_fts)")
 
     # handle the extra conditions
@@ -665,19 +714,9 @@ def sqlite_fulltext_search(basedir,
 
 
             # format the query
-
-            # add in the object_is_public condition if it is True
-            if require_objectispublic:
-                publiccondition = 'and (object_is_public = 1)'
-            else:
-                publiccondition = ''
-
-            # FIXME: this isn't using sqlite safe param substitution
-            # does it matter?
             thisq = q.format(columnstr=columnstr,
                              collection_id=lcc,
-                             extraconditions=extraconditionstr,
-                             publiccondition=publiccondition)
+                             extraconditions=extraconditionstr)
 
             # we need to unescape the search string because it might contain
             # exact match strings that we might want to use with FTS
@@ -770,8 +809,8 @@ def sqlite_column_search(basedir,
                          lcclist=None,
                          raiseonfail=False,
                          fail_if_conditions_invalid=True,
-                         require_objectispublic=True,
-                         require_ispublic=True):
+                         incoming_userid=2,
+                         incoming_role='anonymous'):
     '''This runs an arbitrary column search.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -784,16 +823,26 @@ def sqlite_column_search(basedir,
     getcolumns is a list that specifies which columns to return after the query
     is complete.
 
-    require_ispublic sets if the query is restricted to public light curve
-    collections only.
-
     '''
+    try:
 
-    # get all the specified databases
-    dbinfo = sqlite_get_collections(basedir,
-                                    lcclist=lcclist,
-                                    require_ispublic=require_ispublic,
-                                    return_connection=False)
+        # get all the specified databases
+        dbinfo = sqlite_get_collections(basedir,
+                                        lcclist=lcclist,
+                                        incoming_userid=incoming_userid,
+                                        incoming_role=incoming_role,
+                                        return_connection=False)
+
+
+    except Exception as e:
+
+        LOGEXCEPTION(
+            "could not fetch available LC collections for "
+            "userid: %s, role: %s. "
+            "likely no collections matching this user's access level" %
+            (incoming_userid, incoming_role)
+        )
+        return None
 
     # get the available databases and columns
     dbfiles = dbinfo['info']['object_catalog_path']
@@ -862,16 +911,6 @@ def sqlite_column_search(basedir,
     q = ("select {columnstr} from {collection_id}.object_catalog a "
          "{wherecondition} {sortcondition} {limitcondition}")
 
-    # set up the object_is_public condition
-    if require_objectispublic:
-
-        publiccondition = '(object_is_public = 1)'
-
-    else:
-
-        publiccondition = ''
-
-
     # validate the column conditions and add in any
     if conditions:
 
@@ -880,19 +919,14 @@ def sqlite_column_search(basedir,
 
         # do not proceed if the sqlite filters don't validate
         if not wherecondition and fail_if_conditions_invalid:
+
             LOGERROR('fail_if_conditions_invalid = True and conditions did not '
                      'pass validate_sqlite_filters, returning early')
             return None
 
         else:
 
-            if require_objectispublic:
-                wherecondition = (
-                    'where %s and (object_is_public = 1)' % wherecondition
-                )
-
-            else:
-                wherecondition = 'where %s' % wherecondition
+            wherecondition = 'where %s' % wherecondition
 
     else:
 
@@ -974,7 +1008,6 @@ def sqlite_column_search(basedir,
         thisq = q.format(columnstr=columnstr,
                          collection_id=lcc,
                          wherecondition=wherecondition,
-                         publiccondition=publiccondition,
                          sortcondition=sortcondition,
                          limitcondition=limitcondition)
 
@@ -1047,9 +1080,9 @@ def sqlite_column_search(basedir,
 def sqlite_sql_search(basedir,
                       sqlstatement,
                       lcclist=None,
-                      require_ispublic=True,
                       fail_if_sql_invalid=True,
-                      require_objectispublic=True,
+                      incoming_userid=2,
+                      incoming_role='anonymous',
                       raiseonfail=False):
     '''This runs an arbitrary SQL statement search.
 
@@ -1067,10 +1100,7 @@ def sqlite_sql_search(basedir,
     the where statement. This will be parsed and if it contains any non-allowed
     keywords, extraconditions will be disabled.
 
-    require_ispublic sets if the query is restricted to public light curve
-    collections only.
-
-    FIXME: this will require an sql parser to do it right.
+   FIXME: this will require an sql parser to do it right.
 
     '''
 
@@ -1087,8 +1117,8 @@ def sqlite_kdtree_conesearch(basedir,
                              getcolumns=None,
                              extraconditions=None,
                              lcclist=None,
-                             require_ispublic=True,
-                             require_objectispublic=True,
+                             incoming_userid=2,
+                             incoming_role='anonymous',
                              fail_if_conditions_invalid=True,
                              conesearchworkers=1,
                              raiseonfail=False):
@@ -1114,22 +1144,31 @@ def sqlite_kdtree_conesearch(basedir,
     the where statement. This will be parsed and if it contains any non-allowed
     keywords, extraconditions will be disabled.
 
-    require_ispublic sets if the query is restricted to public light curve
-    collections only.
-
     '''
 
-    # get all the specified databases
-    dbinfo = sqlite_get_collections(basedir,
-                                    lcclist=lcclist,
-                                    require_ispublic=require_ispublic,
-                                    return_connection=False)
+    try:
+
+        # get all the specified databases
+        dbinfo = sqlite_get_collections(basedir,
+                                        lcclist=lcclist,
+                                        incoming_userid=incoming_userid,
+                                        incoming_role=incoming_role,
+                                        return_connection=False)
+
+    except Exception as e:
+
+        LOGEXCEPTION(
+            "could not fetch available LC collections for "
+            "userid: %s, role: %s. "
+            "likely no collections matching this user's access level" %
+            (incoming_userid, incoming_role)
+        )
+        return None
 
     # get the available databases and columns
     dbfiles = dbinfo['info']['object_catalog_path']
     available_lcc = dbinfo['databases']
     available_columns = dbinfo['columns']
-
 
     if lcclist is not None:
 
@@ -1223,12 +1262,6 @@ def sqlite_kdtree_conesearch(basedir,
                      "extraconditions did not pass "
                      "validate_sqlite_filters, returning early...")
             return None
-
-    # handle the publiccondition
-    if require_objectispublic:
-        publiccondition = '(a.object_is_public = 1)'
-    else:
-        publiccondition = ''
 
     # now go through each LCC
     # - load the kdtree
@@ -1364,20 +1397,11 @@ def sqlite_kdtree_conesearch(basedir,
             # if we have extra filters, apply them
             if extraconditions is not None and len(extraconditions) > 0:
 
-                if publiccondition:
-                    publiccondstr = 'and %s' % publiccondition
-                else:
-                    publiccondstr = ''
-
-                extraconditionstr = 'where (%s) %s' % (extraconditions,
-                                                       publiccondstr)
+                extraconditionstr = 'where (%s)' % extraconditions
 
             else:
 
-                if publiccondition:
-                    extraconditionstr = 'where %s' % publiccondition
-                else:
-                    extraconditionstr = ''
+                extraconditionstr = ''
 
             # now, we'll get the corresponding info from the database
             thisq = q.format(columnstr=columnstr,
@@ -1539,8 +1563,8 @@ def sqlite_xmatch_search(basedir,
                          extraconditions=None,
                          fail_if_conditions_invalid=True,
                          lcclist=None,
-                         require_ispublic=True,
-                         require_objectispublic=True,
+                         incoming_userid=2,
+                         incoming_role='anonymous',
                          max_matchradius_arcsec=30.0,
                          raiseonfail=False):
     '''This does an xmatch between the input and LCC databases.
@@ -1584,11 +1608,25 @@ def sqlite_xmatch_search(basedir,
 
     '''
 
-    # get all the specified databases
-    dbinfo = sqlite_get_collections(basedir,
-                                    lcclist=lcclist,
-                                    require_ispublic=require_ispublic,
-                                    return_connection=False)
+    try:
+
+        # get all the specified databases
+        dbinfo = sqlite_get_collections(basedir,
+                                        lcclist=lcclist,
+                                        incoming_userid=incoming_userid,
+                                        incoming_role=incoming_role,
+                                        return_connection=False)
+
+
+    except Exception as e:
+
+        LOGEXCEPTION(
+            "could not fetch available LC collections for "
+            "userid: %s, role: %s. "
+            "likely no collections matching this user's access level" %
+            (incoming_userid, incoming_role)
+        )
+        return None
 
     # get the available databases and columns
     dbfiles = dbinfo['info']['object_catalog_path']
@@ -1737,7 +1775,7 @@ def sqlite_xmatch_search(basedir,
         q = (
             "select {columnstr} from {collection_id}.object_catalog b "
             "where b.objectid in ({placeholders}) {extraconditionstr} "
-            "{publiccondition} order by b.objectid"
+            "order by b.objectid"
         )
 
         # go through each LCC
@@ -1924,11 +1962,6 @@ def sqlite_xmatch_search(basedir,
 
             this_lcc_results = []
 
-            if require_objectispublic:
-                publiccondition = 'and (b.object_is_public = 1)'
-            else:
-                publiccondition = ''
-
             # if we have extra filters, apply them
             if extraconditions is not None and len(extraconditions) > 0:
 
@@ -1942,7 +1975,6 @@ def sqlite_xmatch_search(basedir,
                 columnstr=columnstr,
                 collection_id=lcc,
                 placeholders='<placeholders>',
-                publiccondition=publiccondition,
                 extraconditionstr=extraconditionstr)
             )
 
@@ -1963,7 +1995,6 @@ def sqlite_xmatch_search(basedir,
                 thisq = q.format(columnstr=columnstr,
                                  collection_id=lcc,
                                  placeholders=placeholders,
-                                 publiccondition=publiccondition,
                                  extraconditionstr=extraconditionstr)
 
                 try:
@@ -2076,22 +2107,9 @@ def sqlite_xmatch_search(basedir,
                         extraconditionstr.replace('(%s ' % c,'(b.%s ' % c)
                     )
 
-            if require_objectispublic:
-                publiccondition = 'and (b.object_is_public = 1)'
-            else:
-                publiccondition = ''
-
-            extraconditionstr = '%s %s' % (extraconditionstr, publiccondition)
-
-
         else:
 
-            if require_objectispublic:
-                publiccondition = 'where (b.object_is_public = 1)'
-            else:
-                publiccondition = ''
-
-            extraconditionstr = publiccondition
+            extraconditionstr = ''
 
         # we use a left outer join because we want to keep all the input columns
         # and notice when there are no database matches
