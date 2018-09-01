@@ -154,6 +154,18 @@ OPERATORS = {'+':operator.add,
              '/':operator.truediv}
 
 
+VISIBILITY_MAP = {
+    'public': 2,
+    'shared': 1,
+    'private': 0
+}
+
+VISIBILITY_REVMAP = {
+    2: 'public',
+    1: 'shared',
+    0: 'private'
+}
+
 
 def objectinfo_to_sqlite(augcatpkl,
                          outfile,
@@ -162,7 +174,9 @@ def objectinfo_to_sqlite(augcatpkl,
                          lcc_project=None,
                          lcc_datarelease=None,
                          lcc_citation=None,
-                         lcc_ispublic=True,
+                         lcc_owner=1,
+                         lcc_visibility='public',
+                         lcc_sharedwith=None,
                          colinfo=None,
                          indexcols=None,
                          ftsindexcols=None,
@@ -178,13 +192,8 @@ def objectinfo_to_sqlite(augcatpkl,
     Field'.
 
     The other lcc_* kwargs set some metadata for the project. this is used by
-    the top-level lcc-collections.sqlite database for all LC collections. These
-    can all contain Markdown. The frontend will use these to render HTML
-    descriptions, etc.
-
-    NOTE: lcc_ispublic is a short cut for:
-    - owner      = user ID 1 -> the admin user
-    - visibility = 2         -> public
+    the top-level lcc-index.sqlite database for all LC collections. The frontend
+    will use these to render HTML descriptions, etc.
 
     If colinfo is not None, it should be either a dict or JSON with elements
     that are of the form:
@@ -605,6 +614,7 @@ def objectinfo_to_sqlite(augcatpkl,
     sqlcreate = ("create table object_catalog ({column_type_list}, "
                  "object_owner integer default 1, "
                  "object_visibility integer default 2, "
+                 "object_sharedwith text, "
                  "primary key (objectid))")
     sqlcreate = sqlcreate.format(column_type_list=column_and_type_list)
 
@@ -629,8 +639,13 @@ def objectinfo_to_sqlite(augcatpkl,
     # start the transaction
     cur.executescript('pragma journal_mode = wal; '
                       'pragma journal_size_limit = 52428800;')
-
     cur.execute('begin')
+    cur.executescript(
+        "create table object_catalog_vinfo (dbver text, "
+        "lccserver_vtag text, "
+        "vdate date); "
+        "insert into object_catalog_vinfo values (1, 'v0.2', '2018-08-31');"
+    )
 
     # create the table
     cur.execute(sqlcreate)
@@ -732,6 +747,8 @@ def objectinfo_to_sqlite(augcatpkl,
                     'on object_catalog (object_owner)')
         cur.execute('create index object_visibility_idx '
                     'on object_catalog (object_visibility)')
+        cur.execute('create index object_sharedwith_idx '
+                    'on object_catalog (object_sharedwith)')
 
     # create any full-text-search indices we want
     if ftsindexcols:
@@ -803,7 +820,9 @@ def objectinfo_to_sqlite(augcatpkl,
         'lcc_project':lcc_project,
         'lcc_datarelease':lcc_datarelease,
         'lcc_citation':lcc_citation,
-        'lcc_ispublic':lcc_ispublic
+        'lcc_owner':lcc_owner,
+        'lcc_visibility':lcc_visibility,
+        'lcc_sharedwith':lcc_sharedwith
     }
     metadata_json = json.dumps(metadata)
     cur.execute(
@@ -1173,6 +1192,11 @@ def convert_to_csvlc(lcfile,
 ##############################################
 
 SQLITE_LCC_CREATE = '''\
+create table lcc_index_vinfo (dbver text,
+                                 lccserver_vtag text,
+                                 vdate date);
+insert into lcc_index_vinfo values (1, 'v0.2', '2018-08-31');
+
 pragma journal_mode = wal;
 pragma journal_size_limit = 52428800;
 
@@ -1204,15 +1228,46 @@ create table lcc_index (
   last_indexed datetime,
   collection_owner integer default 1,
   collection_visibility integer default 2,
-  collection_shared_with text,
+  collection_sharedwith text,
   primary key (collection_id, name, project, datarelease)
 );
 
--- make some indexes
-
 -- fts indexes below
+create virtual table lcc_index_fts using fts5(
+  collection_id,
+  columnlist,
+  name,
+  description,
+  project,
+  citation,
+  content=lcc_index
+);
+
+-- triggers for updating FTS index when things get changed
+create trigger fts_before_update before update on lcc_index begin
+       delete from lcc_index_fts where docid=old.rowid;
+end;
+
+create trigger fts_before_delete before delete on arxiv begin
+       delete from lcc_index_fts where docid=old.rowid;
+end;
+
+create trigger fts_after_update after update on lcc_index begin
+       insert into lcc_index(docid, collection_id, columnlist, name,
+                             description, project, citation, link)
+              values (new.rowid, new.collection_id, new.columnlist, new.name,
+                      new.description, new.project, new.citation, new.link);
+end;
+
+create trigger fts_after_insert after insert on lcc_index begin
+       insert into arxiv_fts(docid, collection_id, columnlist, name,
+                             description, project, citation, link)
+              values (new.rowid, new.collection_id, new.columnlist, new.name,
+                      new.description, new.project, new.citation, new.link);
+end;
 
 -- activate the fts indexes
+insert into lcc_index_fts(lcc_index_fts) values ('rebuild');
 '''
 
 SQLITE_LCC_INSERT = '''\
