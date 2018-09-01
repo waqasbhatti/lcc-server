@@ -332,7 +332,7 @@ class DatasetHandler(tornado.web.RequestHandler):
                         datasets.generate_dataset_tablerows,
                         self.basedir, ds,
                         strformat=strformat,
-                        giveupafter=3000
+                        endatrow=3000
                     )
 
                     LOGGER.info('returning JSON for %s' % setid)
