@@ -127,7 +127,7 @@ create table lcc_datasets (
   description text,
   citation text,
   dataset_owner integer default 1,
-  dataset_visibility integer default 2,
+  dataset_visibility text default 'public',
   dataset_sharedwith text,
   primary key (setid)
 );
@@ -157,32 +157,35 @@ create virtual table lcc_datasets_fts using fts5(
 
 -- triggers for updating FTS index when things get changed
 create trigger fts_before_update before update on lcc_datasets begin
-       delete from lcc_datasets_fts where docid=old.rowid;
+    delete from lcc_datasets_fts where rowid=old.rowid;
 end;
 
 create trigger fts_before_delete before delete on lcc_datasets begin
-       delete from lcc_datasets_fts where docid=old.rowid;
+    delete from lcc_datasets_fts where rowid=old.rowid;
 end;
 
 create trigger fts_after_update after update on lcc_datasets begin
-       insert into lcc_datasets(docid, setid, queried_collections, query_type,
-                                query_params, name, description, citation)
-              values (new.rowid, new.setid, new.queried_collections,
-                      new.query_type, new.query_params, new.name,
-                      new.description, new.citation);
+    insert into lcc_datasets_fts(
+        rowid, setid, queried_collections, query_type,
+        query_params, name, description, citation
+    )
+    values (new.rowid, new.setid, new.queried_collections,
+            new.query_type, new.query_params, new.name,
+            new.description, new.citation);
 end;
 
 create trigger fts_after_insert after insert on lcc_datasets begin
-       insert into lcc_datasets(docid, setid, queried_collections, query_type,
-                                query_params, name, description, citation)
-              values (new.rowid, new.setid, new.queried_collections,
-                      new.query_type, new.query_params, new.name,
-                      new.description, new.citation);
+    insert into lcc_datasets_fts(rowid, setid, queried_collections, query_type,
+                                 query_params, name, description, citation)
+    values (new.rowid, new.setid, new.queried_collections,
+            new.query_type, new.query_params, new.name,
+            new.description, new.citation);
 end;
 
 -- activate the fts indexes
 insert into lcc_datasets_fts(lcc_datasets_fts) values ('rebuild');
 '''
+
 
 
 def sqlite_datasets_db_create(basedir):
@@ -216,21 +219,8 @@ def sqlite_datasets_db_create(basedir):
 ## FUNCTIONS THAT OPERATE ON DATASETS ##
 ########################################
 
-VISIBILITY_MAP = {
-    'public': 2,
-    'shared': 1,
-    'private': 0
-}
-
-VISIBILITY_REVMAP = {
-    2: 'public',
-    1: 'shared',
-    0: 'private'
-}
-
-
 def sqlite_prepare_dataset(basedir,
-                           dataset_owner=1,
+                           dataset_owner=2,
                            dataset_visibility='public',
                            dataset_sharedwith=None):
     '''This generates a setid to use for the next step below.
@@ -242,9 +232,9 @@ def sqlite_prepare_dataset(basedir,
     'complete'
     'failed'
 
-    owner is the user ID of the owner of the dataset. The default is 1, which
-    corresponds to the superuser. In general, this should be set to the integer
-    user ID of an existing user in the users table of the
+    owner is the user ID of the owner of the dataset. The default is 2, which
+    corresponds to the anonymous user. In general, this should be set to the
+    integer user ID of an existing user in the users table of the
     lcc-basedir/.authdb.sqlite DB.
 
     visibility is one of:
@@ -269,13 +259,16 @@ def sqlite_prepare_dataset(basedir,
     setid = secrets.token_urlsafe(8).replace('-','Z').replace('_','a')
     creationdt = datetime.utcnow().isoformat()
 
-    # set the owner and visibility
-    visibility_code = VISIBILITY_MAP[dataset_visibility]
-
     # update the database to prepare for this new dataset
     query = ("insert into lcc_datasets "
-             "(setid, created_on, last_updated, nobjects, status, "
-             "dataset_owner, dataset_visibility, dataset_sharedwith) "
+             "(setid, "
+             "created_on, "
+             "last_updated, "
+             "nobjects, "
+             "status, "
+             "dataset_owner, "
+             "dataset_visibility, "
+             "dataset_sharedwith) "
              "values (?, ?, ?, ?, ?, ?, ?, ?)")
     params = (setid,
               creationdt,
@@ -283,7 +276,7 @@ def sqlite_prepare_dataset(basedir,
               0,
               'initialized',
               dataset_owner,
-              visibility_code,
+              dataset_visibility,
               dataset_sharedwith)
 
     cur.execute(query, params)
@@ -302,8 +295,6 @@ def sqlite_new_dataset(basedir,
                        dataset_visibility='public',
                        dataset_sharedwith=None):
     '''create new dataset function.
-
-    ispublic controls if the dataset is public
 
     this produces a pickle that goes into /datasets/random-set-id.pkl
 
@@ -449,7 +440,7 @@ def sqlite_new_dataset(basedir,
         "nobjects = ?, "
         "dataset_owner = ?, "
         "dataset_visibility = ?, "
-        "dataset_sharedwith = ?"
+        "dataset_sharedwith = ?, "
         "status = ?, "
         "queried_collections = ?, "
         "query_type = ?, "
@@ -463,7 +454,7 @@ def sqlite_new_dataset(basedir,
         datetime.utcnow().isoformat(),
         total_nmatches,
         dataset['owner'],
-        VISIBILITY_MAP[dataset['visibility']],
+        dataset['visibility'],
         dataset['sharedwith'],
         'in progress',
         ', '.join(collections),
@@ -886,6 +877,8 @@ def sqlite_remove_dataset(basedir,
 
     The default incoming_userid is set to 2 -> anonymous user for safety.
 
+    the action to test is 'delete'
+
     '''
 
 
@@ -899,6 +892,8 @@ def sqlite_update_dataset(basedir,
     This updates a dataset.
 
     The default incoming_userid is set to 2 -> anonymous user for safety.
+
+    the action to test is 'edit'
 
     '''
 
@@ -941,7 +936,7 @@ def sqlite_check_dataset_access(
                       'change_owner'):
         return False
 
-    if isinstance(database) and os.path.exists(database):
+    if isinstance(database,str) and os.path.exists(database):
 
         datasets_dbf = os.path.join(database)
         db = sqlite3.connect(
@@ -952,10 +947,14 @@ def sqlite_check_dataset_access(
         cur = db.cursor()
         close_at_end = True
 
-    else:
+    elif database is not None:
 
         cur = database.cursor()
         close_at_end = False
+
+    else:
+        LOGERROR('no database provided to check access in')
+        return False
 
     # this is the query to run
     query = (
@@ -1005,8 +1004,6 @@ def sqlite_list_datasets(basedir,
     incoming_userid is used to check permissions on the list operation. This is
     2 -> anonymous user by default.
 
-    FIXME: get this working
-
     setid
     created_on
     last_updated
@@ -1044,7 +1041,7 @@ def sqlite_list_datasets(basedir,
     db.row_factory = sqlite3.Row
     cur = db.cursor()
 
-    query = ("select setid, created_on, last_updated, nobjects, is_public, "
+    query = ("select setid, created_on, last_updated, nobjects, "
              "name, description, citation, "
              "queried_collections, query_type, query_params, "
              "dataset_owner, dataset_visibility, dataset_sharedwith "
@@ -1205,9 +1202,11 @@ def sqlite_get_dataset(basedir,
                     'last_updated':row['last_updated'],
                     'nobjects':0,
                     'status': dataset_status,
+                    'owner': row['dataset_owner'],
+                    'visibility': row['dataset_visibility'],
+                    'sharedwith': row['dataset_sharedwith'],
                     'name':None,
                     'desc':None,
-                    'ispublic': row[-2],
                     'columns':None,
                     'searchtype':None,
                     'searchargs':None,
@@ -1265,7 +1264,9 @@ def sqlite_get_dataset(basedir,
             'setid':dataset['setid'],
             'name':dataset['name'],
             'desc':dataset['desc'],
-            'ispublic':dataset['ispublic'],
+            'owner':dataset['owner'],
+            'visibility':dataset['visibility'],
+            'sharedwith':dataset['sharedwith'],
             'columns':dataset['columns'],
             'searchtype':dataset['searchtype'],
             'searchargs':dataset['searchargs'],
@@ -1336,7 +1337,8 @@ def sqlite_get_dataset(basedir,
                     # collection IDs never include a '_', so we can safely
                     # change from the DB collection ID which can't have a '-' to
                     # a collection ID == directory name on disk, which can't
-                    # have a '_' this will probably come back to haunt me
+                    # have a '_'.
+                    # this will probably come back to haunt me
 
                     csvlc_original = os.path.join(os.path.abspath(basedir),
                                                   collection.replace('_','-'),
@@ -1418,6 +1420,7 @@ def sqlite_get_dataset(basedir,
     # otherwise, the dataset is not accessible
     else:
 
+        db.close()
         return None
 
 
@@ -1425,7 +1428,8 @@ def sqlite_get_dataset(basedir,
 def generate_dataset_tablerows(
         basedir,
         in_dataset,
-        giveupafter=3000,
+        startatrow=None,
+        endatrow=3000,
         headeronly=False,
         strformat=False,
         datarows_bypass_cache=False,
@@ -1444,7 +1448,6 @@ def generate_dataset_tablerows(
 
     setid = in_dataset['setid']
 
-
     # check the cache first
     cached_dataset_header = os.path.join(basedir,
                                          'datasets',
@@ -1452,12 +1455,12 @@ def generate_dataset_tablerows(
     cached_dataset_tablerows_strformat = os.path.join(
         basedir,
         'datasets',
-        'dataset-%s-rows-strformat-limit-%s.json' % (setid, giveupafter)
+        'dataset-%s-rows-strformat-limit-%s.json' % (setid, endatrow)
     )
     cached_dataset_tablerows = os.path.join(
         basedir,
         'datasets',
-        'dataset-%s-rows-limit-%s.json' % (setid, giveupafter)
+        'dataset-%s-rows-limit-%s.json' % (setid, endatrow)
     )
 
     # the cached header is always used if available
@@ -1542,13 +1545,18 @@ def generate_dataset_tablerows(
         'status':in_dataset['status'],
         'created':'%sZ' % in_dataset['created_on'],
         'updated':'%sZ' % in_dataset['last_updated'],
-        'public':in_dataset['ispublic'],
+        'owner': in_dataset['owner'],
+        'visibility': in_dataset['visibility'],
+        'sharedwith': in_dataset['sharedwith'],
         'searchtype':in_dataset['searchtype'],
         'searchargs':in_dataset['searchargs'],
         'collections':in_dataset['collections'],
         'columns':final_cols,
         'nobjects':in_dataset['nobjects'],
         'coldesc':{}
+        # FIXME: add the pagination key with lists of start/end row numbers in
+        # separate lists for each page. the page size is set by the first call
+        # to this function using the endatrow kwarg.
     }
 
     # go through each column and get its info from colspec
@@ -1581,11 +1589,15 @@ def generate_dataset_tablerows(
     table_rows = []
     nitems = 0
 
-    if giveupafter is None or giveupafter is False:
+    if endatrow is None or endatrow is False:
         maxrows = sum(len(in_dataset['result'][collid]['data']) for
                       collid in in_dataset['collections'])
     else:
-        maxrows = giveupafter
+        maxrows = endatrow
+
+    # NOTE: we are assuming here that the dbsearch.py backends have correctly
+    # filtered out any rows that aren't accessible to the current
+    # incoming_userid and incoming_role.
 
     # we'll go by collection_id first, then by entry
     for collid in in_dataset['collections']:
@@ -1597,7 +1609,7 @@ def generate_dataset_tablerows(
             entry = ientry.copy()
 
             if nitems > maxrows:
-                LOGWARNING('reached %s rows, returning early' % giveupafter)
+                LOGWARNING('reached %s rows, returning early' % endatrow)
                 break
 
             # censor the light curve filenames
@@ -1695,6 +1707,8 @@ def generate_dataset_csv(
         force=False,
         separator='|',
         comment='#',
+        incoming_userid=2,
+        incoming_role='anonymous',
 ):
     '''
     This generates a CSV for the dataset's data table.
@@ -1719,7 +1733,7 @@ def generate_dataset_csv(
         header, datarows = generate_dataset_tablerows(
             basedir,
             in_dataset,
-            giveupafter=None,
+            endatrow=None,
             headeronly=False,
             strformat=True,
             datarows_bypass_cache=force,
