@@ -154,18 +154,6 @@ OPERATORS = {'+':operator.add,
              '/':operator.truediv}
 
 
-VISIBILITY_MAP = {
-    'public': 2,
-    'shared': 1,
-    'private': 0
-}
-
-VISIBILITY_REVMAP = {
-    2: 'public',
-    1: 'shared',
-    0: 'private'
-}
-
 
 def objectinfo_to_sqlite(augcatpkl,
                          outfile,
@@ -564,7 +552,7 @@ def objectinfo_to_sqlite(augcatpkl,
                         )
                     )
 
-            # everything is coerced into a string
+            # everything else is coerced into a string
             else:
 
                 coldefs.append(('%s text' % thiscol_name, str))
@@ -604,21 +592,30 @@ def objectinfo_to_sqlite(augcatpkl,
         if col in augcat['objects']:
             cols.append(col)
 
+    # generate the final column list for insertion
     column_and_type_list = ', '.join([x[0] for x in coldefs])
-    column_list = ', '.join(colnames)
-    placeholders = ','.join(['?']*len(cols))
 
     # this is the final SQL used to create the database
     # object_owner -> userid of the object owner. superuser's ID = 1
     # object_visibility -> one of 0 -> private, 1 -> shared, 2 -> public
     sqlcreate = ("create table object_catalog ({column_type_list}, "
                  "object_owner integer default 1, "
-                 "object_visibility integer default 2, "
+                 "object_visibility text default 'public', "
                  "object_sharedwith text, "
                  "primary key (objectid))")
     sqlcreate = sqlcreate.format(column_type_list=column_and_type_list)
 
+    # add in the owner, visibility, and sharedwith columns. set these values for
+    # each object to the same as the provided values for this collection in
+    # lcc_owner, lcc_visibility, and lcc_sharedwith
+
     # this is the insert statement
+    column_list = ', '.join(colnames +
+                            ['object_owner',
+                             'object_visibility',
+                             'object_sharedwith'])
+    placeholders = ','.join(['?']*(len(cols) + 3))
+
     sqlinsert = ("insert into object_catalog ({column_list}) "
                  "values ({placeholders})")
     sqlinsert = sqlinsert.format(column_list=column_list,
@@ -659,6 +656,10 @@ def objectinfo_to_sqlite(augcatpkl,
         thisrow = [
             y(augcat['objects'][x][rowind]) for x,y in zip(cols, colformatters)
         ]
+        # add in the per-object permissions using the LCC permissions as base
+        thisrow.extend([lcc_owner,
+                        lcc_visibility,
+                        lcc_sharedwith])
 
         for ind, rowelem in enumerate(thisrow):
 
@@ -1245,25 +1246,25 @@ create virtual table lcc_index_fts using fts5(
 
 -- triggers for updating FTS index when things get changed
 create trigger fts_before_update before update on lcc_index begin
-       delete from lcc_index_fts where docid=old.rowid;
+    delete from lcc_index_fts where rowid=old.rowid;
 end;
 
 create trigger fts_before_delete before delete on lcc_index begin
-       delete from lcc_index_fts where docid=old.rowid;
+    delete from lcc_index_fts where rowid=old.rowid;
 end;
 
 create trigger fts_after_update after update on lcc_index begin
-       insert into lcc_index(docid, collection_id, columnlist, name,
-                             description, project, citation, link)
-              values (new.rowid, new.collection_id, new.columnlist, new.name,
-                      new.description, new.project, new.citation, new.link);
+    insert into lcc_index_fts(rowid, collection_id, columnlist, name,
+                              description, project, citation)
+    values (new.rowid, new.collection_id, new.columnlist, new.name,
+            new.description, new.project, new.citation);
 end;
 
 create trigger fts_after_insert after insert on lcc_index begin
-       insert into lcc_index(docid, collection_id, columnlist, name,
-                             description, project, citation, link)
-              values (new.rowid, new.collection_id, new.columnlist, new.name,
-                      new.description, new.project, new.citation, new.link);
+    insert into lcc_index_fts(rowid, collection_id, columnlist, name,
+                              description, project, citation)
+    values (new.rowid, new.collection_id, new.columnlist, new.name,
+            new.description, new.project, new.citation);
 end;
 
 -- activate the fts indexes
@@ -1282,7 +1283,7 @@ insert or replace into lcc_index (
   columnlist, indexedcols, ftsindexedcols,
   name, description, project, citation, datarelease,
   last_updated, last_indexed,
-  collection_owner, collection_visibility
+  collection_owner, collection_visibility, collection_sharedwith
 ) values (
   ?,
   ?,?,
@@ -1294,7 +1295,7 @@ insert or replace into lcc_index (
   ?,?,?,
   ?,?,?,?,?,
   ?,datetime('now'),
-  ?,?
+  ?,?,?
 )
 '''
 
@@ -1579,13 +1580,6 @@ def sqlite_collect_lcc_info(
         # and set the collection_visibility to 2 (public)
         # collections can only be owned by the admin user
 
-        if metadata['lcc_ispublic']:
-            collection_owner = 1
-            collection_visibility = 2
-        else:
-            collection_owner = 1
-            collection_visibility = 0
-
         # prepare the query items
         items = (
             collection_id,
@@ -1608,8 +1602,9 @@ def sqlite_collect_lcc_info(
             metadata['lcc_citation'],
             metadata['lcc_datarelease'],
             last_updated,
-            collection_owner,
-            collection_visibility
+            metadata['lcc_owner'],
+            metadata['lcc_visibility'],
+            metadata['lcc_sharedwith']
         )
 
         # 4. execute the queries to put all of this stuff into the lcc_index
