@@ -99,10 +99,18 @@ from ..authnzerver.authdb import check_user_access
 ## INITIALIZING A DATASET INDEX SQLITE ##
 #########################################
 
+# -- FIXME: think about adding some more useful columns
+# -- objectid_list  -> list of all object IDs in this dataset (for dataset FTS)
+# -- convex_hull_polygon -> for queries like "all datasets in this sky region"
 SQLITE_DATASET_CREATE = '''\
--- think about adding some more useful columns
--- objectid_list  -> list of all object IDs in this dataset (for dataset FTS)
--- convex_hull_polygon -> for queries like "all datasets in this sky region"
+create table lcc_datasets_vinfo (dbver text,
+                                 lccserver_vtag text,
+                                 vdate date);
+insert into lcc_datasets_vinfo values (1, 'v0.2', '2018-08-31');
+
+-- set the WAL mode on
+pragma journal_mode = wal;
+pragma journal_size_limit = 52428800;
 
 -- this is the main table
 create table lcc_datasets (
@@ -135,9 +143,45 @@ create index lczip_cachekey_idx on lcc_datasets (lczip_cachekey);
 create index owner_idx on lcc_datasets (dataset_owner);
 create index visibility_idx on lcc_datasets (dataset_visibility);
 
--- set the WAL mode on
-pragma journal_mode = wal;
-pragma journal_size_limit = 52428800;
+-- fts indexes below
+create virtual table lcc_datasets_fts using fts5(
+  setid,
+  queried_collections,
+  query_type,
+  query_params,
+  name,
+  description,
+  citation,
+  content=lcc_datasets
+);
+
+-- triggers for updating FTS index when things get changed
+create trigger fts_before_update before update on lcc_datasets begin
+       delete from lcc_datasets_fts where docid=old.rowid;
+end;
+
+create trigger fts_before_delete before delete on arxiv begin
+       delete from lcc_datasets_fts where docid=old.rowid;
+end;
+
+create trigger fts_after_update after update on lcc_datasets begin
+       insert into lcc_datasets(docid, setid, queried_collections, query_type,
+                                query_params, name, description, citation)
+              values (new.rowid, new.setid, new.queried_collections,
+                      new.query_type, new.query_params, new.name,
+                      new.description, new.citation);
+end;
+
+create trigger fts_after_insert after insert on lcc_datasets begin
+       insert into arxiv_fts(docid, setid, queried_collections, query_type,
+                                query_params, name, description, citation)
+              values (new.rowid, new.setid, new.queried_collections,
+                      new.query_type, new.query_params, new.name,
+                      new.description, new.citation);
+end;
+
+-- activate the fts indexes
+insert into lcc_datasets_fts(lcc_datasets_fts) values ('rebuild');
 '''
 
 
@@ -177,6 +221,13 @@ VISIBILITY_MAP = {
     'shared': 1,
     'private': 0
 }
+
+VISIBILITY_REVMAP = {
+    2: 'public',
+    1: 'shared',
+    0: 'private'
+}
+
 
 def sqlite_prepare_dataset(basedir,
                            dataset_owner=1,
@@ -264,7 +315,7 @@ def sqlite_new_dataset(basedir,
      'name': the name of the dataset or None,
      'desc': a description of the dataset or None,
      'owner': integer user ID of the dataset's owner,
-     'visibility': integer visibility code generated from visibility kwarg,
+     'visibility': visibility of the dataset: 'public', 'shared,' or 'private',
      'shared_with': text list of user IDs that this dataset is shared with,
      'collections': the names of the collections making up this dataset,
      'columns': a list of the columns in the search result,
@@ -345,7 +396,7 @@ def sqlite_new_dataset(basedir,
         'name':setname,
         'desc':setdesc,
         'owner':dataset_owner,
-        'visibility':VISIBILITY_MAP[dataset_visibility],
+        'visibility':dataset_visibility,
         'sharedwith':dataset_sharedwith,
         'collections':collections,
         'columns':reqcols,  # these are the columns guaranteed to be in all
@@ -412,7 +463,7 @@ def sqlite_new_dataset(basedir,
         datetime.utcnow().isoformat(),
         total_nmatches,
         dataset['owner'],
-        dataset['visibility'],
+        VISIBILITY_MAP[dataset['visibility']],
         dataset['sharedwith'],
         'in progress',
         ', '.join(collections),
