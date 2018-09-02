@@ -13,71 +13,7 @@ import os.path
 import subprocess
 
 from lccserver import cli
-
-def get_lightcurves(outdir):
-    '''
-    This downloads test light curves if they're not already present.
-
-    '''
-
-    check_lcs = (
-        os.path.exists(outdir) and
-        len(glob.glob(os.path.join(outdir,
-                                   'lcc-server-demo',
-                                   'lightcurves',
-                                   '*.csv'))) > 0
-    )
-
-    check_catalog = os.path.exists(
-        os.path.join(
-            outdir, 'lcc-server-demo','object-db.csv'
-        )
-    )
-
-    if check_lcs and check_catalog:
-        print('catalog and light curves already downloaded')
-        return (os.path.join(outdir, 'lcc-server-demo','lightcurves'),
-                os.path.join(outdir, 'lcc-server-demo', 'object-db.csv'))
-
-    else:
-
-        print('downloading light curves')
-        req = requests.get('https://wbhatti.org/abfiles/lcc-server-demo.tar.gz',
-                           timeout=10.0)
-        req.raise_for_status()
-
-        with open(os.path.join(outdir,'lcc-server-demo.tar.gz'),'wb') as outfd:
-            for chunk in req.iter_content(chunk_size=1024*1024*4):
-                outfd.write(chunk)
-            print('done.')
-
-        # untar the light curves
-        currdir = os.getcwd()
-        os.chdir(outdir)
-        p = subprocess.run('tar xvf lcc-server-demo.tar.gz', shell=True)
-        os.chdir(currdir)
-
-        check_lcs = (
-            os.path.exists(outdir) and
-            len(glob.glob(os.path.join(outdir,
-                                       'lcc-server-demo',
-                                       'lightcurves',
-                                       '*.csv'))) > 0
-        )
-
-        check_catalog = os.path.exists(
-            os.path.join(
-                outdir, 'lcc-server-demo','object-db.csv'
-            )
-        )
-
-        if check_lcs and check_catalog:
-            print('catalog and light curves downloaded successfully')
-            return (os.path.join(outdir, 'lcc-server-demo','lightcurves'),
-                    os.path.join(outdir, 'lcc-server-demo', 'object-db.csv'))
-        else:
-            raise FileNotFoundError('could not download the light curves')
-
+from lccserver.tests.setup_tests import get_lightcurves
 
 
 def test_prepare_basedir():
