@@ -21,7 +21,7 @@ TODO:
 
 FIXME:
 
-- for column search and extraconditions, we parse the SQL ourselves to validate
+- for column search and conditions, we parse the SQL ourselves to validate
   it and remove harmful stuff. This is likely not as safe as the actual SQL
   parameter substitution code in SQLite. How to get around this?
 
@@ -101,10 +101,9 @@ import os.path
 import sqlite3
 import pickle
 import json
-from functools import reduce
+from functools import reduce, partial
+
 from tornado.escape import squeeze, xhtml_unescape
-
-
 import numpy as np
 
 from astrobase.coordutils import make_kdtree, conesearch_kdtree, \
@@ -113,9 +112,259 @@ from astrobase.coordutils import make_kdtree, conesearch_kdtree, \
 from ..authnzerver.authdb import check_user_access
 
 
-#####################################
-## UTILITY FUNCTIONS FOR DATABASES ##
-#####################################
+###########################
+## SQLITE UTIL FUNCTIONS ##
+###########################
+
+def sqlite3_to_memory(dbfile, dbname,
+                      autocommit=False,
+                      authorizer=None,
+                      authorizer_target=None):
+    '''This returns a connection and cursor to the SQLite3 file dbfile.
+
+    The connection is actually made to an in-memory database, and the database
+    in dbfile is attached to it. This keeps the original file mostly free of any
+    temporary tables we make.
+
+    '''
+
+    # this is the connection we will return
+    if autocommit:
+        newconn = sqlite3.connect(
+            ':memory:',
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+            isolation_level=None
+        )
+    else:
+        newconn = sqlite3.connect(
+            ':memory:',
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+        )
+
+    newconn.row_factory = sqlite3.Row
+    newcur = newconn.cursor()
+    newcur.execute("attach database '%s' as %s" % (dbfile, dbname))
+
+    if authorizer and authorizer_target:
+        callback = partial(authorizer, enforce_dbname=authorizer_target)
+        newconn.set_authorizer(callback)
+
+    return newconn, newcur
+
+
+
+def sqlite3_readonly_authorizer(operation,
+                                arg2,
+                                arg3,
+                                target_dbname,
+                                caller,
+                                enforce_dbname=None):
+    '''This is an authorizer that enforces only SELECT queries against
+    enforce_dbname.
+
+    docs.python.org/3/library/sqlite3.html#sqlite3.Connection.set_authorizer
+
+    '''
+
+    if ((operation not in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ)) and
+        enforce_dbname and
+        target_dbname == enforce_dbname):
+        return sqlite3.SQLITE_DENY
+    else:
+        return sqlite3.READ_OK
+
+
+############################
+## PARSING FILTER STRINGS ##
+############################
+
+SQLITE_ALLOWED_WORDS_FOR_FILTERS = [
+    'and','between','in',
+    'is','isnull','like','not',
+    'notnull','null','or',
+    '=','<','>','<=','>=','!=','%'
+]
+
+SQLITE_ALLOWED_ORDERBY_FOR_FILTERS = ['asc','desc']
+
+SQLITE_ALLOWED_LIMIT_FOR_FILTERS = ['limit']
+
+SQLITE_DISALLOWED_COLUMNS_FOR_FILTERS = [
+    'object_is_public',
+    'collection_visibility',
+    'object_visibility',
+    'dataset_visibility',
+    'collection_owner',
+    'object_owner',
+    'dataset_owner',
+    'collection_sharedwith',
+    'object_sharedwith',
+    'dataset_sharedwith',
+]
+
+SQLITE_DISALLOWED_STRINGS_FOR_FILTERS = [
+    ';'
+    '--',
+    '||',
+    'drop',
+    'delete',
+    'update',
+    'insert',
+    'alter',
+    'create',
+    'pragma',
+    'attach',
+    'analyze',
+    'cascade',
+    'commit',
+    'conflict',
+    'autoincrement',
+    'database',
+    'detach',
+    'index',
+    'glob',
+    'exclusive',
+    'into',
+    'recursive',
+    'rename',
+    'begin',
+    'rollback',
+    'savepoint',
+    'trigger',
+    'vacuum',
+    'view',
+    'virtual',
+]
+
+
+def validate_sqlite_filters(
+        filterstring,
+        columnlist=None,
+        disallowed_strings=(
+            SQLITE_DISALLOWED_STRINGS_FOR_FILTERS +
+            SQLITE_DISALLOWED_COLUMNS_FOR_FILTERS
+        ),
+        allowedsqlwords=SQLITE_ALLOWED_WORDS_FOR_FILTERS,
+        otherkeywords=None
+):
+    '''This validates the sqlitecurve filter string.
+
+    This MUST be valid SQL but not contain any commands.
+
+    '''
+
+    # fail immediately if any of the disallowed_strings are in the query string
+    for dstr in disallowed_strings:
+        if dstr in filterstring:
+            LOGERROR('found disallowed string: %s in query, '
+                     'bailing out immediately' % dstr)
+            return None
+
+    #
+    # otherwise, continue as usual
+    #
+
+    # first, lowercase, then squeeze to single spaces
+    stringelems = squeeze(filterstring).lower()
+
+    # replace shady characters
+    stringelems = filterstring.replace('(','')
+    stringelems = stringelems.replace(')','')
+    stringelems = stringelems.replace(',','')
+    stringelems = stringelems.replace("'",'"')
+    stringelems = stringelems.replace('\n',' ')
+    stringelems = stringelems.replace('\t',' ')
+    stringelems = squeeze(stringelems)
+
+    # split into words
+    stringelems = stringelems.split(' ')
+    stringelems = [x.strip() for x in stringelems]
+
+    # get rid of all numbers
+    stringwords = []
+    for x in stringelems:
+        try:
+            _ = float(x)
+        except ValueError as e:
+            stringwords.append(x)
+
+    # get rid of everything within quotes
+    stringwords2 = []
+    for x in stringwords:
+        if not(x.startswith('"') and x.endswith('"')):
+            stringwords2.append(x)
+    stringwords2 = [x for x in stringwords2 if len(x) > 0]
+
+    # check the filterstring words against the allowed words
+    wordset = set(stringwords2)
+
+    # generate the allowed word set for these LC columns
+    if columnlist is not None:
+        allowedcolumnlist = columnlist
+    else:
+        allowedcolumnlist = []
+
+    allowedwords = allowedsqlwords + allowedcolumnlist
+
+    # this allows us to handle other stuff like ADQL operators
+    if otherkeywords is not None:
+        allowedwords = allowedwords + otherkeywords
+
+    checkset = set(allowedwords)
+
+    validatecheck = list(wordset - checkset)
+
+    # if there are words left over, then this filter string is suspicious
+    if len(validatecheck) > 0:
+
+        # check if validatecheck contains an elem with % in it
+        LOGWARNING("provided SQL filter string '%s' "
+                   "contains non-allowed keywords: %s" % (filterstring,
+                                                          validatecheck))
+        return None
+
+    else:
+
+        # at the end, check again for disallowed words
+        reconstructed_filterstring = ' '.join(stringelems)
+
+        for dstr in disallowed_strings:
+            if dstr in reconstructed_filterstring:
+                LOGERROR('found disallowed string: %s in reconstructed query, '
+                         'bailing out immediately' % dstr)
+                return None
+
+        # if all succeeded, return the filterstring to indicate it's ok
+        return filterstring
+
+
+############################################
+## PARSING FREE-FORM SQL and ADQL QUERIES ##
+############################################
+
+# inspired by:
+# https://github.com/simonw/datasette/blob/master/datasette/utils.py
+SQLITE_ALLOWED_QUERY_STARTERS = [
+    'select',
+    'explain query plan select',
+]
+
+# FIXME: we need to add:
+# - [ ] absolutely paranoid input SQL parsing
+# - [ ] an SQL parser using https://sqlparse.readthedocs.io/en/latest
+# - [ ] use that to parse the SQL into an AST
+# - [ ] find ADQL spatial terms in the AST and translate them to kdtree searches
+# - [ ] re-assemble the AST without the ADQL terms into a pure SQL column query
+# - [ ] run the kd-tree and column queries and match results based on db_oid
+#       (the existing sqlite_kdtree_conesearch can probably do most of this if
+#       we give it the parsed filter string and add in the sort col/order spec
+#       and limit/offset spec)
+
+
+
+#################################
+## SQLITE COLLECTION FUNCTIONS ##
+#################################
 
 def sqlite_get_collections(basedir,
                            lcclist=None,
@@ -325,233 +574,24 @@ def sqlite_list_collections(basedir,
 
 
 
-############################
-## PARSING FILTER STRINGS ##
-############################
-
-SQLITE_ALLOWED_WORDS_FOR_FILTERS = [
-    'and','between','in',
-    'is','isnull','like','not',
-    'notnull','null','or',
-    '=','<','>','<=','>=','!=','%'
-]
-
-SQLITE_ALLOWED_ORDERBY_FOR_FILTERS = ['asc','desc']
-
-SQLITE_ALLOWED_LIMIT_FOR_FILTERS = ['limit']
-
-SQLITE_DISALLOWED_COLUMNS_FOR_FILTERS = [
-    'object_is_public',
-    'collection_visibility',
-    'object_visibility',
-    'dataset_visibility',
-    'collection_owner',
-    'object_owner',
-    'dataset_owner',
-    'collection_sharedwith',
-    'object_sharedwith',
-    'dataset_sharedwith',
-]
-
-SQLITE_DISALLOWED_STRINGS_FOR_FILTERS = [
-    ';'
-    '--',
-    '||',
-    'drop',
-    'delete',
-    'update',
-    'insert',
-    'alter',
-    'create',
-    'pragma',
-    'attach',
-    'analyze',
-    'cascade',
-    'commit',
-    'conflict',
-    'autoincrement',
-    'database',
-    'detach',
-    'index',
-    'glob',
-    'exclusive',
-    'into',
-    'recursive',
-    'rename',
-    'begin',
-    'rollback',
-    'savepoint',
-    'trigger',
-    'vacuum',
-    'view',
-    'virtual',
-]
-
-
-def validate_sqlite_filters(
-        filterstring,
-        columnlist=None,
-        disallowed_strings=(
-            SQLITE_DISALLOWED_STRINGS_FOR_FILTERS +
-            SQLITE_DISALLOWED_COLUMNS_FOR_FILTERS
-        ),
-        allowedsqlwords=SQLITE_ALLOWED_WORDS_FOR_FILTERS,
-        otherkeywords=None
-):
-    '''This validates the sqlitecurve filter string.
-
-    This MUST be valid SQL but not contain any commands.
-
-    '''
-
-    # fail immediately if any of the disallowed_strings are in the query string
-    for dstr in disallowed_strings:
-        if dstr in filterstring:
-            LOGERROR('found disallowed string: %s in query, '
-                     'bailing out immediately' % dstr)
-            return None
-
-    #
-    # otherwise, continue as usual
-    #
-
-    # first, lowercase, then squeeze to single spaces
-    stringelems = squeeze(filterstring).lower()
-
-    # replace shady characters
-    stringelems = filterstring.replace('(','')
-    stringelems = stringelems.replace(')','')
-    stringelems = stringelems.replace(',','')
-    stringelems = stringelems.replace("'",'"')
-    stringelems = stringelems.replace('\n',' ')
-    stringelems = stringelems.replace('\t',' ')
-    stringelems = squeeze(stringelems)
-
-    # split into words
-    stringelems = stringelems.split(' ')
-    stringelems = [x.strip() for x in stringelems]
-
-    # get rid of all numbers
-    stringwords = []
-    for x in stringelems:
-        try:
-            _ = float(x)
-        except ValueError as e:
-            stringwords.append(x)
-
-    # get rid of everything within quotes
-    stringwords2 = []
-    for x in stringwords:
-        if not(x.startswith('"') and x.endswith('"')):
-            stringwords2.append(x)
-    stringwords2 = [x for x in stringwords2 if len(x) > 0]
-
-    # check the filterstring words against the allowed words
-    wordset = set(stringwords2)
-
-    # generate the allowed word set for these LC columns
-    if columnlist is not None:
-        allowedcolumnlist = columnlist
-    else:
-        allowedcolumnlist = []
-
-    allowedwords = allowedsqlwords + allowedcolumnlist
-
-    # this allows us to handle other stuff like ADQL operators
-    if otherkeywords is not None:
-        allowedwords = allowedwords + otherkeywords
-
-    checkset = set(allowedwords)
-
-    validatecheck = list(wordset - checkset)
-
-    # if there are words left over, then this filter string is suspicious
-    if len(validatecheck) > 0:
-
-        # check if validatecheck contains an elem with % in it
-        LOGWARNING("provided SQL filter string '%s' "
-                   "contains non-allowed keywords: %s" % (filterstring,
-                                                          validatecheck))
-        return None
-
-    else:
-
-        # at the end, check again for disallowed words
-        reconstructed_filterstring = ' '.join(stringelems)
-
-        for dstr in disallowed_strings:
-            if dstr in reconstructed_filterstring:
-                LOGERROR('found disallowed string: %s in reconstructed query, '
-                         'bailing out immediately' % dstr)
-                return None
-
-        # if all succeeded, return the filterstring to indicate it's ok
-        return filterstring
-
-
-############################################
-## PARSING FREE-FORM SQL and ADQL QUERIES ##
-############################################
-
-# inspired by:
-# https://github.com/simonw/datasette/blob/master/datasette/utils.py
-SQLITE_ALLOWED_QUERY_STARTERS = [
-    'select',
-    'explain query plan select',
-]
-
-# FIXME: we need to add:
-# - [ ] absolutely paranoid input SQL parsing
-# - [ ] an SQL parser using https://sqlparse.readthedocs.io/en/latest
-# - [ ] use that to parse the SQL into an AST
-# - [ ] find ADQL spatial terms in the AST and translate them to kdtree searches
-# - [ ] re-assemble the AST without the ADQL terms into a pure SQL column query
-# - [ ] run the kd-tree and column queries and match results based on db_oid
-#       (the existing sqlite_kdtree_conesearch can probably do most of this if
-#       we give it the parsed filter string and add in the sort col/order spec
-#       and limit/offset spec)
-
-
-###########################
-## SQLITE UTIL FUNCTIONS ##
-###########################
-
-def sqlite3_to_memory(dbfile, dbname):
-    '''This returns a connection and cursor to the SQLite3 file dbfile.
-
-    The connection is actually made to an in-memory database, and the database
-    in dbfile is attached to it. This keeps the original file mostly free of any
-    temporary tables we make.
-
-    '''
-
-    # this is the connection we will return
-    newconn = sqlite3.connect(
-        ':memory:',
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-    )
-    newconn.row_factory = sqlite3.Row
-    newcur = newconn.cursor()
-
-    newcur.execute("attach database '%s' as %s" % (dbfile, dbname))
-
-    return newconn, newcur
-
-
 ###################
 ## SQLITE SEARCH ##
 ###################
 
-def sqlite_fulltext_search(basedir,
-                           ftsquerystr,
-                           getcolumns=None,
-                           extraconditions=None,
-                           lcclist=None,
-                           raiseonfail=False,
-                           incoming_userid=2,
-                           incoming_role='anonymous',
-                           fail_if_conditions_invalid=True):
-
+def sqlite_fulltext_search(
+        basedir,
+        ftsquerystr,
+        getcolumns=None,
+        conditions=None,
+        randomsample=None,
+        sortby=None,
+        limit=None,
+        lcclist=None,
+        raiseonfail=False,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        fail_if_conditions_invalid=True
+):
     '''This searches the specified collections for a full-text match.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -564,15 +604,15 @@ def sqlite_fulltext_search(basedir,
     getcolumns is a list that specifies which columns to return after the query
     is complete.
 
-    extraconditions is a string in SQL format that applies extra conditions to
+    conditions is a string in SQL format that applies extra conditions to
     the where statement. This will be parsed and if it contains any non-allowed
-    keywords, extraconditions will be disabled.
+    keywords, conditions will be disabled.
 
     lcclist is the list of light curve collection IDs to search in. If this is
     None, all light curve collections are searched.
 
     fail_if_conditions_invalid sets the behavior of the function if it finds
-    that the conditions provided in extraconditions kwarg don't pass
+    that the conditions provided in conditions kwarg don't pass
     validate_sqlite_filters().
 
     '''
@@ -677,20 +717,20 @@ def sqlite_fulltext_search(basedir,
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
          "{collection_id}.catalog_fts b on (a.rowid = b.rowid) where "
-         "catalog_fts MATCH ? {extraconditions} "
+         "catalog_fts MATCH ? {conditions} "
          "order by bm25(catalog_fts)")
 
     # handle the extra conditions
-    if extraconditions is not None and len(extraconditions) > 0:
+    if conditions is not None and len(conditions) > 0:
 
         # validate this string
-        extraconditions = validate_sqlite_filters(extraconditions,
+        conditions = validate_sqlite_filters(conditions,
                                                   columnlist=available_columns)
 
-        if not extraconditions and fail_if_conditions_invalid:
+        if not conditions and fail_if_conditions_invalid:
 
             LOGERROR('fail_if_conditions_invalid = True '
-                     'and extraconditions did not pass '
+                     'and conditions did not pass '
                      'validate_sqlite_filters, returning early')
             return None
 
@@ -773,9 +813,9 @@ def sqlite_fulltext_search(basedir,
         try:
 
             # if we have extra filters, apply them
-            if extraconditions is not None and len(extraconditions) > 0:
+            if conditions is not None and len(conditions) > 0:
 
-                extraconditionstr = ' and (%s)' % extraconditions
+                conditionstr = ' and (%s)' % conditions
 
                 # replace the column names and add the table prefixes to them so
                 # they remain unambiguous in case the 'where' columns are in
@@ -786,20 +826,20 @@ def sqlite_fulltext_search(basedir,
                 # with 'dered_a.jmag_a.kmag'
                 # FIXME: find a better way of doing this
                 for c in rescolumns:
-                    if '(%s ' % c in extraconditionstr:
-                        extraconditionstr = (
-                            extraconditionstr.replace('(%s ' % c,'(a.%s ' % c)
+                    if '(%s ' % c in conditionstr:
+                        conditionstr = (
+                            conditionstr.replace('(%s ' % c,'(a.%s ' % c)
                         )
 
             else:
 
-                extraconditionstr = ''
+                conditionstr = ''
 
 
             # format the query
             thisq = q.format(columnstr=columnstr,
                              collection_id=lcc,
-                             extraconditions=extraconditionstr)
+                             conditions=conditionstr)
 
             # we need to unescape the search string because it might contain
             # exact match strings that we might want to use with FTS
@@ -890,7 +930,7 @@ def sqlite_fulltext_search(basedir,
     results['args'] = {'ftsquerystr':ftsquerystr,
                        'getcolumns':rescolumns,
                        'lcclist':lcclist,
-                       'extraconditions':extraconditions}
+                       'conditions':conditions}
     results['search'] = 'sqlite_fulltext_search'
 
     return results
@@ -1244,9 +1284,9 @@ def sqlite_sql_search(basedir,
     columns is a list that specifies which columns to return after the query is
     complete.
 
-    extraconditions is a string in SQL format that applies extra conditions to
+    conditions is a string in SQL format that applies extra conditions to
     the where statement. This will be parsed and if it contains any non-allowed
-    keywords, extraconditions will be disabled.
+    keywords, conditions will be disabled.
 
    FIXME: this will require an sql parser to do it right.
 
@@ -1263,7 +1303,7 @@ def sqlite_kdtree_conesearch(basedir,
                              radius_arcmin,
                              maxradius_arcmin=60.0,
                              getcolumns=None,
-                             extraconditions=None,
+                             conditions=None,
                              lcclist=None,
                              incoming_userid=2,
                              incoming_role='anonymous',
@@ -1288,9 +1328,9 @@ def sqlite_kdtree_conesearch(basedir,
     query' to see if there are any matching objects for conesearchparams in the
     LCC.
 
-    extraconditions is a string in SQL format that applies extra conditions to
+    conditions is a string in SQL format that applies extra conditions to
     the where statement. This will be parsed and if it contains any non-allowed
-    keywords, extraconditions will be disabled.
+    keywords, conditions will be disabled.
 
     '''
 
@@ -1407,19 +1447,19 @@ def sqlite_kdtree_conesearch(basedir,
     # this is the query that will be used to query the database only
     q = ("select {columnstr} from {collection_id}.object_catalog a "
          "join _temp_objectid_list b on (a.objectid = b.objectid) "
-         "{extraconditions} order by b.objectid asc")
+         "{conditions} order by b.objectid asc")
 
 
     # handle the extra conditions
-    if extraconditions is not None and len(extraconditions) > 0:
+    if conditions is not None and len(conditions) > 0:
 
         # validate this string
-        extraconditions = validate_sqlite_filters(extraconditions,
+        conditions = validate_sqlite_filters(conditions,
                                                   columnlist=available_columns)
 
-        if not extraconditions and fail_if_conditions_invalid:
+        if not conditions and fail_if_conditions_invalid:
             LOGERROR("fail_if_conditions_invalid = True and "
-                     "extraconditions did not pass "
+                     "conditions did not pass "
                      "validate_sqlite_filters, returning early...")
             return None
 
@@ -1579,18 +1619,18 @@ def sqlite_kdtree_conesearch(basedir,
         try:
 
             # if we have extra filters, apply them
-            if extraconditions is not None and len(extraconditions) > 0:
+            if conditions is not None and len(conditions) > 0:
 
-                extraconditionstr = 'where (%s)' % extraconditions
+                conditionstr = 'where (%s)' % conditions
 
             else:
 
-                extraconditionstr = ''
+                conditionstr = ''
 
             # now, we'll get the corresponding info from the database
             thisq = q.format(columnstr=columnstr,
                              collection_id=lcc,
-                             extraconditions=extraconditionstr)
+                             conditions=conditionstr)
 
 
             # first, we need to add a temporary table that contains the object
@@ -1735,7 +1775,7 @@ def sqlite_kdtree_conesearch(basedir,
                        'center_decl':center_decl,
                        'radius_arcmin':radius_arcmin,
                        'getcolumns':rescolumns,
-                       'extraconditions':extraconditions,
+                       'conditions':conditions,
                        'lcclist':lcclist}
 
     results['search'] = 'sqlite_kdtree_conesearch'
@@ -1755,7 +1795,7 @@ def sqlite_xmatch_search(basedir,
                          inputmatchcol=None,
                          dbmatchcol=None,
                          getcolumns=None,
-                         extraconditions=None,
+                         conditions=None,
                          fail_if_conditions_invalid=True,
                          lcclist=None,
                          incoming_userid=2,
@@ -1958,16 +1998,16 @@ def sqlite_xmatch_search(basedir,
     ###########################################
 
     # handle the extra conditions
-    if extraconditions is not None and len(extraconditions) > 0:
+    if conditions is not None and len(conditions) > 0:
 
         # validate this string
-        extraconditions = validate_sqlite_filters(extraconditions,
+        conditions = validate_sqlite_filters(conditions,
                                                   columnlist=available_columns)
 
-        if not extraconditions and fail_if_conditions_invalid:
+        if not conditions and fail_if_conditions_invalid:
 
             LOGERROR("fail_if_conditions_invalid = True "
-                     "and extraconditions did not pass "
+                     "and conditions did not pass "
                      "validate_sqlite_filters, "
                      "returning early...")
             return None
@@ -1980,7 +2020,7 @@ def sqlite_xmatch_search(basedir,
 
         q = (
             "select {columnstr} from {collection_id}.object_catalog b "
-            "where b.objectid in ({placeholders}) {extraconditionstr} "
+            "where b.objectid in ({placeholders}) {conditionstr} "
             "order by b.objectid"
         )
 
@@ -2195,19 +2235,19 @@ def sqlite_xmatch_search(basedir,
             this_lcc_results = []
 
             # if we have extra filters, apply them
-            if extraconditions is not None and len(extraconditions) > 0:
+            if conditions is not None and len(conditions) > 0:
 
-                extraconditionstr = 'and (%s)' % extraconditions
+                conditionstr = 'and (%s)' % conditions
 
             else:
 
-                extraconditionstr = ''
+                conditionstr = ''
 
             LOGINFO('query = %s' % q.format(
                 columnstr=columnstr,
                 collection_id=lcc,
                 placeholders='<placeholders>',
-                extraconditionstr=extraconditionstr)
+                conditionstr=conditionstr)
             )
 
             # this handles the case where all queries over all input objects
@@ -2227,7 +2267,7 @@ def sqlite_xmatch_search(basedir,
                 thisq = q.format(columnstr=columnstr,
                                  collection_id=lcc,
                                  placeholders=placeholders,
-                                 extraconditionstr=extraconditionstr)
+                                 conditionstr=conditionstr)
 
                 try:
                     cur.execute(thisq, tuple(matching_lcc_objectids))
@@ -2320,7 +2360,7 @@ def sqlite_xmatch_search(basedir,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
                            'getcolumns':rescolumns,
-                           'extraconditions':extraconditions,
+                           'conditions':conditions,
                            'lcclist':lcclist}
         results['search'] = 'sqlite_xmatch_search'
 
@@ -2337,22 +2377,22 @@ def sqlite_xmatch_search(basedir,
         results = {}
 
         # if we have extra filters, apply them
-        if extraconditions is not None and len(extraconditions) > 0:
+        if conditions is not None and len(conditions) > 0:
 
-            extraconditionstr = 'where (%s)' % extraconditions
+            conditionstr = 'where (%s)' % conditions
 
             # replace the column names and add the table prefixes to them so
             # they remain unambiguous in case the 'where' columns are in
             # both the '_temp_xmatch_table a' and the 'object_catalog b' tables
             for c in rescolumns:
-                if '(%s ' % c in extraconditionstr:
-                    extraconditionstr = (
-                        extraconditionstr.replace('(%s ' % c,'(b.%s ' % c)
+                if '(%s ' % c in conditionstr:
+                    conditionstr = (
+                        conditionstr.replace('(%s ' % c,'(b.%s ' % c)
                     )
 
         else:
 
-            extraconditionstr = ''
+            conditionstr = ''
 
         # we use a left outer join because we want to keep all the input columns
         # and notice when there are no database matches
@@ -2361,7 +2401,7 @@ def sqlite_xmatch_search(basedir,
             "_temp_xmatch_table a "
             "left outer join "
             "{collection_id}.object_catalog b on "
-            "(a.{input_xmatch_col} = b.{db_xmatch_col}) {extraconditionstr} "
+            "(a.{input_xmatch_col} = b.{db_xmatch_col}) {conditionstr} "
             "order by a.{input_xmatch_col} asc"
         )
 
@@ -2522,7 +2562,7 @@ def sqlite_xmatch_search(basedir,
                              collection_id=lcc,
                              input_xmatch_col=xmatch_col,
                              db_xmatch_col=dbmatchcol,
-                             extraconditionstr=extraconditionstr)
+                             conditionstr=conditionstr)
 
             try:
 
@@ -2599,7 +2639,7 @@ def sqlite_xmatch_search(basedir,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
                            'getcolumns':rescolumns,
-                           'extraconditions':extraconditions,
+                           'conditions':conditions,
                            'lcclist':lcclist}
         results['search'] = 'sqlite_xmatch_search'
 

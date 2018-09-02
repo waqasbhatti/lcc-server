@@ -896,7 +896,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
         required params
         ---------------
 
-        extraconditions
+        conditions
 
         result_ispublic: either 1 or 0
 
@@ -1120,7 +1120,7 @@ class ConeSearchHandler(tornado.web.RequestHandler,
 
         columns
 
-        extraconditions
+        conditions
         '''
         LOGGER.info('request arguments: %r' % self.request.arguments)
 
@@ -1185,14 +1185,14 @@ class ConeSearchHandler(tornado.web.RequestHandler,
                 lcclist = None
 
 
-            # OPTIONAL: extraconditions
-            extraconditions = self.get_argument('filters', default=None)
+            # OPTIONAL: conditions
+            conditions = self.get_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
-            if extraconditions:
-                extraconditions = yield self.executor.submit(
+            if conditions:
+                conditions = yield self.executor.submit(
                     parse_conditions,
-                    extraconditions
+                    conditions
                 )
 
             #
@@ -1230,7 +1230,7 @@ class ConeSearchHandler(tornado.web.RequestHandler,
                     % (center_ra, center_decl, radius_arcmin))
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
-        LOGGER.info('extraconditions = %s' % extraconditions)
+        LOGGER.info('conditions = %s' % conditions)
 
         # send the query to the background worker
         yield self.background_query(
@@ -1239,12 +1239,12 @@ class ConeSearchHandler(tornado.web.RequestHandler,
              center_ra,
              center_decl,
              radius_arcmin),
-            {"extraconditions":extraconditions,
+            {"conditions":conditions,
              "getcolumns":getcolumns,
              "lcclist":lcclist},
             {"name":"conesearch",
              "args":{"coords":coordstr,
-                     "extraconditions":extraconditions,
+                     "conditions":conditions,
                      "result_ispublic":self.result_ispublic,
                      "collections":lcclist,
                      "getcolumns":getcolumns}}
@@ -1350,7 +1350,7 @@ class FTSearchHandler(tornado.web.RequestHandler,
 
         columns
 
-        extraconditions
+        conditions
 
 
         '''
@@ -1409,14 +1409,14 @@ class FTSearchHandler(tornado.web.RequestHandler,
                 lcclist = None
 
 
-            # OPTIONAL: extraconditions
-            extraconditions = self.get_argument('filters', default=None)
+            # OPTIONAL: conditions
+            conditions = self.get_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
-            if extraconditions:
-                extraconditions = yield self.executor.submit(
+            if conditions:
+                conditions = yield self.executor.submit(
                     parse_conditions,
-                    extraconditions
+                    conditions
                 )
 
             #
@@ -1453,19 +1453,19 @@ class FTSearchHandler(tornado.web.RequestHandler,
         LOGGER.info('ftstext = %s' % ftstext)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
-        LOGGER.info('extraconditions = %s' % extraconditions)
+        LOGGER.info('conditions = %s' % conditions)
 
         # send the query to the background worker
         yield self.background_query(
             dbsearch.sqlite_fulltext_search,
             (self.basedir,
              ftstext),
-            {"extraconditions":extraconditions,
+            {"conditions":conditions,
              "getcolumns":getcolumns,
              "lcclist":lcclist},
             {"name":"ftsquery",
              "args":{"ftstext":ftstext,
-                     "extraconditions":extraconditions,
+                     "conditions":conditions,
                      "collections":lcclist,
                      "result_ispublic":self.result_ispublic,
                      "getcolumns":getcolumns}}
@@ -1804,14 +1804,14 @@ class XMatchHandler(tornado.web.RequestHandler,
             else:
                 self.req_hostname = self.request.host
 
-            # OPTIONAL: extraconditions
-            extraconditions = self.get_body_argument('filters', default=None)
+            # OPTIONAL: conditions
+            conditions = self.get_body_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
-            if extraconditions:
-                extraconditions = yield self.executor.submit(
+            if conditions:
+                conditions = yield self.executor.submit(
                     parse_conditions,
-                    extraconditions
+                    conditions
                 )
 
             #
@@ -1874,7 +1874,7 @@ class XMatchHandler(tornado.web.RequestHandler,
             raise tornado.web.Finish()
 
         LOGGER.info('********* PARSED ARGS *********')
-        LOGGER.info('conditions = %s' % extraconditions)
+        LOGGER.info('conditions = %s' % conditions)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
         LOGGER.info('xmq = %s' % parsed_xmq)
@@ -1892,13 +1892,13 @@ class XMatchHandler(tornado.web.RequestHandler,
              parsed_xmq),
             {"xmatch_dist_arcsec":parsed_xmd,
              "xmatch_closest_only":False,
-             "extraconditions":extraconditions,
+             "conditions":conditions,
              "getcolumns":getcolumns,
              "lcclist":lcclist},
             {"name":"xmatch",
              "args":{"xmq":xmq,
                      "xmd":xmd,
-                     "extraconditions":extraconditions,
+                     "conditions":conditions,
                      "result_ispublic":self.result_ispublic,
                      "collections":lcclist,
                      "getcolumns":getcolumns}}

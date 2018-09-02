@@ -26,17 +26,17 @@ Query results are returned with `Content-Type: application/json`. The LCC server
 An example of results from a query that finishes within 30 seconds:
 
 ```json
-{"message": "query in run-queue. executing with set ID: N1tZWPOZyxk...", "status": "queued", "result": {"setid": "N1tZWPOZyxk", "api_service": "conesearch", "api_args": {"coords": "290.0 45.0 60.0", "extraconditions": "(sdssr < 13.0) and (propermotion > 50.0)", "result_ispublic": true, "collections": ["hatnet_keplerfield"], "getcolumns": ["propermotion", "sdssr", "sdssg", "sdssi"]}}, "time": "2018-08-09T01:04:00.878206Z"}
+{"message": "query in run-queue. executing with set ID: N1tZWPOZyxk...", "status": "queued", "result": {"setid": "N1tZWPOZyxk", "api_service": "conesearch", "api_args": {"coords": "290.0 45.0 60.0", "conditions": "(sdssr < 13.0) and (propermotion > 50.0)", "result_ispublic": true, "collections": ["hatnet_keplerfield"], "getcolumns": ["propermotion", "sdssr", "sdssg", "sdssi"]}}, "time": "2018-08-09T01:04:00.878206Z"}
 {"message": "query finished OK. objects matched: 11, building dataset...", "status": "running", "result": {"setid": "N1tZWPOZyxk", "nobjects": 11}, "time": "2018-08-09T01:04:01.199606Z"}
 {"message": "dataset pickle generation complete. collecting light curves into ZIP file...", "status": "running", "result": {"setid": "N1tZWPOZyxk"}, "time": "2018-08-09T01:04:01.206888Z"}
 {"message": "dataset LC ZIP complete. generating dataset CSV...", "status": "running", "result": {"setid": "N1tZWPOZyxk", "lczip": "/p/lightcurves-N1tZWPOZyxk.zip"}, "time": "2018-08-09T01:04:01.213817Z"}
-{"message": "dataset now ready: {{ server_url }}/set/N1tZWPOZyxk", "status": "ok", "result": {"setid": "N1tZWPOZyxk", "seturl": "{{ server_url }}/set/N1tZWPOZyxk", "created": "2018-08-09T01:04:00.874976", "updated": "2018-08-09T01:04:01.211014", "backend_function": "sqlite_kdtree_conesearch", "backend_parsedargs": {"center_ra": 290.0, "center_decl": 45.0, "radius_arcmin": 60.0, "getcolumns": ["propermotion", "sdssr", "sdssg", "sdssi", "db_oid", "kdtree_oid", "db_ra", "db_decl", "kdtree_ra", "kdtree_decl", "db_lcfname", "dist_arcsec"], "extraconditions": "(sdssr < 13.0) and (propermotion > 50.0)", "lcclist": ["hatnet_keplerfield"]}, "nobjects": 11}, "time": "2018-08-09T01:04:01.219230Z"}
+{"message": "dataset now ready: {{ server_url }}/set/N1tZWPOZyxk", "status": "ok", "result": {"setid": "N1tZWPOZyxk", "seturl": "{{ server_url }}/set/N1tZWPOZyxk", "created": "2018-08-09T01:04:00.874976", "updated": "2018-08-09T01:04:01.211014", "backend_function": "sqlite_kdtree_conesearch", "backend_parsedargs": {"center_ra": 290.0, "center_decl": 45.0, "radius_arcmin": 60.0, "getcolumns": ["propermotion", "sdssr", "sdssg", "sdssi", "db_oid", "kdtree_oid", "db_ra", "db_decl", "kdtree_ra", "kdtree_decl", "db_lcfname", "dist_arcsec"], "conditions": "(sdssr < 13.0) and (propermotion > 50.0)", "lcclist": ["hatnet_keplerfield"]}, "nobjects": 11}, "time": "2018-08-09T01:04:01.219230Z"}
 ```
 
 An example for a longer running query that takes more than 30 seconds:
 
 ```json
-{"message": "query in run-queue. executing with set ID: iRM6Vy7hP08...", "status": "queued", "result": {"setid": "iRM6Vy7hP08", "api_service": "conesearch", "api_args": {"coords": "295.35 -25.38 60.0", "extraconditions": "", "result_ispublic": true, "collections": null, "getcolumns": []}}, "time": "2018-08-09T01:21:28.595478Z"}
+{"message": "query in run-queue. executing with set ID: iRM6Vy7hP08...", "status": "queued", "result": {"setid": "iRM6Vy7hP08", "api_service": "conesearch", "api_args": {"coords": "295.35 -25.38 60.0", "conditions": "", "result_ispublic": true, "collections": null, "getcolumns": []}}, "time": "2018-08-09T01:21:28.595478Z"}
 {"message": "query finished OK. objects matched: 7960, building dataset...", "status": "running", "result": {"setid": "iRM6Vy7hP08", "nobjects": 7960}, "time": "2018-08-09T01:21:29.449012Z"}
 {"message": "dataset pickle generation complete. collecting light curves into ZIP file...", "status": "running", "result": {"setid": "iRM6Vy7hP08"}, "time": "2018-08-09T01:21:29.879868Z"}
 {"message": "query sent to background after 30 seconds. query is complete, but light curves of matching objects are still being zipped. check {{ server_url }}/set/iRM6Vy7hP08 for results later", "status": "background", "result": {"setid": "iRM6Vy7hP08", "seturl": "{{ server_url }}/set/iRM6Vy7hP08"}, "time": "2018-08-09T01:21:44.893590Z"}
@@ -52,7 +52,7 @@ An example of a query that could not be parsed:
 An example of a query that did not match any items:
 
 ```json
-{"message": "query in run-queue. executing with set ID: M1aMW0PUkIw...", "status": "queued", "result": {"setid": "M1aMW0PUkIw", "api_service": "conesearch", "api_args": {"coords": "290.0 -45.0 10.0", "extraconditions": "", "result_ispublic": true, "collections": null, "getcolumns": []}}, "time": "2018-08-09T01:29:46.694673Z"}
+{"message": "query in run-queue. executing with set ID: M1aMW0PUkIw...", "status": "queued", "result": {"setid": "M1aMW0PUkIw", "api_service": "conesearch", "api_args": {"coords": "290.0 -45.0 10.0", "conditions": "", "result_ispublic": true, "collections": null, "getcolumns": []}}, "time": "2018-08-09T01:29:46.694673Z"}
 {"status": "failed", "result": {"setid": "M1aMW0PUkIw", "nobjects": 0}, "message": "Query <code>M1aMW0PUkIw<\/code> failed. No matching objects were found", "time": "2018-08-09T01:29:46.863618Z"}
 ```
 
