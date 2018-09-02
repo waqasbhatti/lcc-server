@@ -117,19 +117,6 @@ from ..authnzerver.authdb import check_user_access
 ## UTILITY FUNCTIONS FOR DATABASES ##
 #####################################
 
-VISIBILITY_MAP = {
-    'public': 2,
-    'shared': 1,
-    'private': 0
-}
-
-VISIBILITY_REVMAP = {
-    2: 'public',
-    1: 'shared',
-    0: 'private'
-}
-
-
 def sqlite_get_collections(basedir,
                            lcclist=None,
                            return_connection=True,
@@ -150,10 +137,12 @@ def sqlite_get_collections(basedir,
 
     # open the index database
     indexdbf = os.path.join(basedir, 'lcc-index.sqlite')
+
     indexdb = sqlite3.connect(
         indexdbf,
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
     )
+
     indexdb.row_factory = sqlite3.Row
     cur = indexdb.cursor()
 
@@ -293,8 +282,6 @@ def sqlite_get_collections(basedir,
                 'columnlist':columnlist,
                 'indexedcols':indexedcols,
                 'ftsindexedcols':ftsindexedcols,
-                # FIXME: think about censoring these items
-                # in the frontend (or maybe present them in a nicer way)
                 'collection_owner':collection_owner,
                 'collection_visibility':collection_visibility,
                 'collection_sharedwith':collection_sharedwith,
@@ -338,45 +325,79 @@ def sqlite_list_collections(basedir,
 
 
 
-###########################
-## PARSING SEARCH PARAMS ##
-###########################
+############################
+## PARSING FILTER STRINGS ##
+############################
 
-SQLITE_ALLOWED_WORDS = ['and','between','in',
-                        'is','isnull','like','not',
-                        'notnull','null','or',
-                        '=','<','>','<=','>=','!=','%']
+SQLITE_ALLOWED_WORDS_FOR_FILTERS = [
+    'and','between','in',
+    'is','isnull','like','not',
+    'notnull','null','or',
+    '=','<','>','<=','>=','!=','%'
+]
 
-SQLITE_ALLOWED_ORDERBY = ['asc','desc']
+SQLITE_ALLOWED_ORDERBY_FOR_FILTERS = ['asc','desc']
 
-SQLITE_ALLOWED_LIMIT = ['limit']
+SQLITE_ALLOWED_LIMIT_FOR_FILTERS = ['limit']
 
-SQLITE_DISALLOWED_STRINGS = ['object_is_public',
-                             'collection_visibility',
-                             'object_visibility',
-                             'dataset_visibility',
-                             'collection_owner',
-                             'object_owner',
-                             'dataset_owner',
-                             'collection_sharedwith',
-                             'object_sharedwith',
-                             'dataset_sharedwith',
-                             '--',
-                             '||',
-                             'drop',
-                             'delete',
-                             'update',
-                             'insert',
-                             'alter',
-                             'create',
-                             ';']
+SQLITE_DISALLOWED_COLUMNS_FOR_FILTERS = [
+    'object_is_public',
+    'collection_visibility',
+    'object_visibility',
+    'dataset_visibility',
+    'collection_owner',
+    'object_owner',
+    'dataset_owner',
+    'collection_sharedwith',
+    'object_sharedwith',
+    'dataset_sharedwith',
+]
+
+SQLITE_DISALLOWED_STRINGS_FOR_FILTERS = [
+    ';'
+    '--',
+    '||',
+    'drop',
+    'delete',
+    'update',
+    'insert',
+    'alter',
+    'create',
+    'pragma',
+    'attach',
+    'analyze',
+    'cascade',
+    'commit',
+    'conflict',
+    'autoincrement',
+    'database',
+    'detach',
+    'index',
+    'glob',
+    'exclusive',
+    'into',
+    'recursive',
+    'rename',
+    'begin',
+    'rollback',
+    'savepoint',
+    'trigger',
+    'vacuum',
+    'view',
+    'virtual',
+]
 
 
-def validate_sqlite_filters(filterstring,
-                            columnlist=None,
-                            disallowed_strings=SQLITE_DISALLOWED_STRINGS,
-                            allowedsqlwords=SQLITE_ALLOWED_WORDS,
-                            otherkeywords=None):
+def validate_sqlite_filters(
+        filterstring,
+        columnlist=None,
+        disallowed_strings=(
+            SQLITE_DISALLOWED_STRINGS_FOR_FILTERS +
+            SQLITE_DISALLOWED_COLUMNS_FOR_FILTERS
+        ),
+        allowedsqlwords=SQLITE_ALLOWED_WORDS_FOR_FILTERS,
+        otherkeywords=None
+):
     '''This validates the sqlitecurve filter string.
 
     This MUST be valid SQL but not contain any commands.
@@ -468,6 +489,32 @@ def validate_sqlite_filters(filterstring,
         return filterstring
 
 
+############################################
+## PARSING FREE-FORM SQL and ADQL QUERIES ##
+############################################
+
+# inspired by:
+# https://github.com/simonw/datasette/blob/master/datasette/utils.py
+SQLITE_ALLOWED_QUERY_STARTERS = [
+    'select',
+    'explain query plan select',
+]
+
+# FIXME: we need to add:
+# - [ ] absolutely paranoid input SQL parsing
+# - [ ] an SQL parser using https://sqlparse.readthedocs.io/en/latest
+# - [ ] use that to parse the SQL into an AST
+# - [ ] find ADQL spatial terms in the AST and translate them to kdtree searches
+# - [ ] re-assemble the AST without the ADQL terms into a pure SQL column query
+# - [ ] run the kd-tree and column queries and match results based on db_oid
+#       (the existing sqlite_kdtree_conesearch can probably do most of this if
+#       we give it the parsed filter string and add in the sort col/order spec
+#       and limit/offset spec)
+
+
+###########################
+## SQLITE UTIL FUNCTIONS ##
+###########################
 
 def sqlite3_to_memory(dbfile, dbname):
     '''This returns a connection and cursor to the SQLite3 file dbfile.
@@ -489,8 +536,6 @@ def sqlite3_to_memory(dbfile, dbname):
     newcur.execute("attach database '%s' as %s" % (dbfile, dbname))
 
     return newconn, newcur
-
-
 
 
 ###################
@@ -1006,7 +1051,7 @@ def sqlite_column_search(basedir,
         sortcondition = validate_sqlite_filters(
             sortby,
             columnlist=available_columns,
-            allowedsqlwords=SQLITE_ALLOWED_ORDERBY
+            allowedsqlwords=SQLITE_ALLOWED_ORDERBY_FOR_FILTERS
         )
 
         if not sortcondition:
@@ -1026,7 +1071,7 @@ def sqlite_column_search(basedir,
         limitcondition = validate_sqlite_filters(
             str(limit),
             columnlist=available_columns,
-            allowedsqlwords=SQLITE_ALLOWED_LIMIT
+            allowedsqlwords=SQLITE_ALLOWED_LIMIT_FOR_FILTERS
         )
 
         if not limitcondition:
@@ -2534,7 +2579,6 @@ def sqlite_xmatch_search(basedir,
                 if raiseonfail:
                     raise
 
-
             # close the DB at the end of LCC processing
             finally:
                 # delete the temporary xmatch table
@@ -2558,7 +2602,6 @@ def sqlite_xmatch_search(basedir,
                            'extraconditions':extraconditions,
                            'lcclist':lcclist}
         results['search'] = 'sqlite_xmatch_search'
-
 
         db.close()
         return results
