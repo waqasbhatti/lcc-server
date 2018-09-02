@@ -16,10 +16,13 @@ import sqlite3
 import secrets
 import getpass
 
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy import event
 from sqlalchemy import (
     Table, Column, Integer, String, Boolean, DateTime, ForeignKey, MetaData
 )
-from sqlalchemy import create_engine
+
 from passlib.context import CryptContext
 
 
@@ -537,11 +540,13 @@ pragma journal_mode = 'wal';
 pragma journal_size_limit = 5242880;
 '''
 
-def create_auth_db(auth_db_path,
-                   echo=False,
-                   returnconn=True):
+def create_sqlite_auth_db(
+        auth_db_path,
+        echo=False,
+        returnconn=False
+):
     '''
-    This creates the auth DB.
+    This creates the local SQLite auth DB.
 
     '''
 
@@ -568,26 +573,36 @@ def create_auth_db(auth_db_path,
 
 
 
-def get_auth_db(auth_db_path,
-                echo=False):
+def get_auth_db(auth_db_path, echo=False):
     '''
     This just gets a connection to the auth DB.
 
     '''
 
-    # make sure to check the auth DB permissions before we load it
-    fileperm = oct(os.stat(auth_db_path)[stat.ST_MODE])
+    # if this is an SQLite DB, make sure to check the auth DB permissions before
+    # we load it so we can be sure no one else messes with it
+    potential_file_path = auth_db_path.replace('sqlite:///','')
 
-    if not (fileperm == '0100600' or fileperm == '0o100600'):
-        raise IOError('incorrect permissions on auth DB, will not load it')
+    if os.path.exists(potential_file_path):
+
+        fileperm = oct(os.stat(potential_file_path)[stat.ST_MODE])
+
+        if not (fileperm == '0100600' or fileperm == '0o100600'):
+            raise IOError('incorrect permissions on auth DB, will not load it')
+
+        @event.listens_for(Engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
 
     meta = MetaData()
-    engine = create_engine('sqlite:///%s' % os.path.abspath(auth_db_path),
-                           echo=echo)
+    engine = create_engine(auth_db_path, echo=echo)
     meta.bind = engine
     meta.reflect()
+    conn = engine.connect()
 
-    return engine, engine.connect(), meta
+    return engine, conn, meta
 
 
 

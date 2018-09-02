@@ -114,6 +114,14 @@ define('basedir',
        help=('The base directory of the light curve collections.'),
        type=str)
 
+define('authdb',
+       default=None,
+       help=('An SQLAlchemy database URL to override the use of '
+             'the local authentication DB. '
+             'This should be in the form discussed at: '
+             'https://docs.sqlalchemy.org/en/latest'
+             '/core/engines.html#database-urls'),
+       type=str)
 
 
 #######################
@@ -191,9 +199,22 @@ def main():
                                            ),
                                            LOGGER)
 
-    AUTHDB_PATH = os.path.join(options.basedir,
-                               '.authdb.sqlite')
+    # use the local sqlite DB as the default auth DB
+    AUTHDB_SQLITE = os.path.join(options.basedir, '.authdb.sqlite')
 
+    # pass the DSN to the SQLAlchemy engine
+    if os.path.exists(AUTHDB_SQLITE):
+        AUTHDB_PATH = 'sqlite:///%s' % os.path.abspath(AUTHDB_SQLITE)
+    elif options.authdb:
+        # if the local authdb doesn't exist, we'll use the DSN provided by the
+        # user
+        AUTHDB_PATH = options.authdb
+    else:
+        raise ConnectionError(
+            "No auth DB connection available. "
+            "The local auth DB is missing or "
+            "no SQLAlchemy database URL was provided to override it"
+        )
     #
     # this is the background executor we'll pass over to the handler
     #
