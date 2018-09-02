@@ -143,8 +143,14 @@ def sqlite3_to_memory(dbfile, dbname,
 
     newconn.row_factory = sqlite3.Row
     newcur = newconn.cursor()
+
+    # turn the cache size up
+    newcur.execute('pragma cache_size=-8192')
+
+    # attach the main database to the in-memory database
     newcur.execute("attach database '%s' as %s" % (dbfile, dbname))
 
+    # hook up the authorizer if provided
     if authorizer and authorizer_target:
         callback = partial(authorizer, enforce_dbname=authorizer_target)
         newconn.set_authorizer(callback)
@@ -152,26 +158,81 @@ def sqlite3_to_memory(dbfile, dbname,
     return newconn, newcur
 
 
+# https://www.sqlite.org/c3ref/c_alter_table.html
+# ******************************************* 3rd ************ 4th ***********/
+# define SQLITE_CREATE_INDEX          1   /* Index Name      Table Name      */
+# define SQLITE_CREATE_TABLE          2   /* Table Name      NULL            */
+# define SQLITE_CREATE_TEMP_INDEX     3   /* Index Name      Table Name      */
+# define SQLITE_CREATE_TEMP_TABLE     4   /* Table Name      NULL            */
+# define SQLITE_CREATE_TEMP_TRIGGER   5   /* Trigger Name    Table Name      */
+# define SQLITE_CREATE_TEMP_VIEW      6   /* View Name       NULL            */
+# define SQLITE_CREATE_TRIGGER        7   /* Trigger Name    Table Name      */
+# define SQLITE_CREATE_VIEW           8   /* View Name       NULL            */
+# define SQLITE_DELETE                9   /* Table Name      NULL            */
+# define SQLITE_DROP_INDEX           10   /* Index Name      Table Name      */
+# define SQLITE_DROP_TABLE           11   /* Table Name      NULL            */
+# define SQLITE_DROP_TEMP_INDEX      12   /* Index Name      Table Name      */
+# define SQLITE_DROP_TEMP_TABLE      13   /* Table Name      NULL            */
+# define SQLITE_DROP_TEMP_TRIGGER    14   /* Trigger Name    Table Name      */
+# define SQLITE_DROP_TEMP_VIEW       15   /* View Name       NULL            */
+# define SQLITE_DROP_TRIGGER         16   /* Trigger Name    Table Name      */
+# define SQLITE_DROP_VIEW            17   /* View Name       NULL            */
+# define SQLITE_INSERT               18   /* Table Name      NULL            */
+# define SQLITE_PRAGMA               19   /* Pragma Name     1st arg or NULL */
+# define SQLITE_READ                 20   /* Table Name      Column Name     */
+# define SQLITE_SELECT               21   /* NULL            NULL            */
+# define SQLITE_TRANSACTION          22   /* Operation       NULL            */
+# define SQLITE_UPDATE               23   /* Table Name      Column Name     */
+# define SQLITE_ATTACH               24   /* Filename        NULL            */
+# define SQLITE_DETACH               25   /* Database Name   NULL            */
+# define SQLITE_ALTER_TABLE          26   /* Database Name   Table Name      */
+# define SQLITE_REINDEX              27   /* Index Name      NULL            */
+# define SQLITE_ANALYZE              28   /* Table Name      NULL            */
+# define SQLITE_CREATE_VTABLE        29   /* Table Name      Module Name     */
+# define SQLITE_DROP_VTABLE          30   /* Table Name      Module Name     */
+# define SQLITE_FUNCTION             31   /* NULL            Function Name   */
+# define SQLITE_SAVEPOINT            32   /* Operation       Savepoint Name  */
+# define SQLITE_COPY                  0   /* No longer used */
+# define SQLITE_RECURSIVE            33   /* NULL            NULL            */
 
-def sqlite3_readonly_authorizer(operation,
-                                arg2,
-                                arg3,
-                                target_dbname,
-                                caller,
+def sqlite3_readonly_authorizer(operation,      # opcode from table above
+                                arg2,           # '3rd' in table above
+                                arg3,           # '4th' in table above
+                                target_dbname,  # database name
+                                context,        # usually blank
                                 enforce_dbname=None):
     '''This is an authorizer that enforces only SELECT queries against
-    enforce_dbname.
+    enforce_dbname.object_catalog.
 
     docs.python.org/3/library/sqlite3.html#sqlite3.Connection.set_authorizer
 
     '''
 
-    if ((operation not in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ)) and
-        enforce_dbname and
-        target_dbname == enforce_dbname):
+    if ((target_dbname and (target_dbname == enforce_dbname)) and
+        ('object_catalog' in arg2 or 'object_catalog' in arg3) and
+        (operation not in (sqlite3.SQLITE_SELECT,
+                           sqlite3.SQLITE_READ,
+                           sqlite3.SQLITE_TRANSACTION))):
+        # print(
+        #     'opcode: %s, arg 1: %s, arg 2: %s, database: %s denied' % (
+        #         operation,
+        #         arg2,
+        #         arg3,
+        #         target_dbname
+        #     )
+        # )
         return sqlite3.SQLITE_DENY
     else:
-        return sqlite3.READ_OK
+        # print(
+        #     'opcode: %s, arg 1: %s, arg 2: %s, database: %s OK' % (
+        #         operation,
+        #         arg2,
+        #         arg3,
+        #         target_dbname
+        #     )
+        # )
+        return sqlite3.SQLITE_OK
+
 
 
 ############################
@@ -725,7 +786,7 @@ def sqlite_fulltext_search(
 
         # validate this string
         conditions = validate_sqlite_filters(conditions,
-                                                  columnlist=available_columns)
+                                             columnlist=available_columns)
 
         if not conditions and fail_if_conditions_invalid:
 
@@ -2486,7 +2547,6 @@ def sqlite_xmatch_search(basedir,
             xmatch_columnstr = (
                 '%s, %s' % (columnstr, ', '.join('a.%s' % x for x in col_names))
             )
-
 
             #
             # handle extra stuff that needs to go into the xmatch results
