@@ -145,9 +145,9 @@ def create_authentication_database(authdb_path):
 
     '''
 
-    authdb.create_auth_db(authdb_path,
-                          echo=False,
-                          returnconn=False)
+    authdb.create_sqlite_auth_db(authdb_path,
+                                 echo=False,
+                                 returnconn=False)
 
 
 
@@ -162,7 +162,8 @@ def prepare_basedir(basedir,
                     site_department_link="https://example.org/astro",
                     site_institution="Example University",
                     site_institution_link="https://example.org",
-                    site_institution_logo=None):
+                    site_institution_logo=None,
+                    interactive=False):
     '''
     This prepares the given base directory for use with LCC-Server.
 
@@ -302,53 +303,67 @@ def prepare_basedir(basedir,
                  basedir))
 
 
-    # at the end, we'll make the auth DB for the LCC-server
-    LOGINFO("We'll now generate an authentication database.")
     # create our authentication database if it doesn't exist
-
     authdb_path = os.path.join(basedir, '.authdb.sqlite')
 
     if not os.path.exists(authdb_path):
 
-        LOGINFO('No existing DB found, making a new one...')
+        LOGINFO('No existing authentication DB found, making a new one...')
 
         # generate the initial DB
         create_authentication_database(authdb_path)
 
-        # ask the user for their email address and password
-        # the default email address will be used for the superuser
-        # if the email address is None, we'll use the user's UNIX ID@localhost
-        # if the password is None, a random one will be generated
+        if interactive:
 
-        try:
-            userid = '%s@localhost' % getpass.getuser()
-        except Exception as e:
-            userid = 'lcc_admin@localhost'
+            # ask the user for their email address and password the default
+            # email address will be used for the superuser if the email address
+            # is None, we'll use the user's UNIX ID@localhost if the password is
+            # None, a random one will be generated
 
-        inp_userid = input(
-            '\nAdmin email address [default: %s]: ' %
-            userid
-        )
-        if inp_userid and len(inp_userid.strip()) > 0:
-            userid = inp_userid
+            try:
+                userid = '%s@localhost' % getpass.getuser()
+            except Exception as e:
+                userid = 'lcc_admin@localhost'
 
-        inp_pass = getpass.getpass(
-            'Admin password [default: randomly generated]: '
-        )
-        if inp_pass and len(inp_pass.strip()) > 0:
-            password = inp_pass
+            inp_userid = input(
+                '\nAdmin email address [default: %s]: ' %
+                userid
+            )
+            if inp_userid and len(inp_userid.strip()) > 0:
+                userid = inp_userid
+
+            inp_pass = getpass.getpass(
+                'Admin password [default: randomly generated]: '
+            )
+            if inp_pass and len(inp_pass.strip()) > 0:
+                password = inp_pass
+            else:
+                password = None
+
         else:
+
+            userid = None
             password = None
 
         # generate the admin users and initial DB info
-        u, p = authdb.initial_authdb_inserts(authdb_path,
+        u, p = authdb.initial_authdb_inserts('sqlite:///%s' % authdb_path,
                                              superuser_email=userid,
                                              superuser_pass=password)
 
-        print('')
-        if p:
-            print('Generated random admin password: %s' % p)
-        print('')
+        if interactive:
+
+            print('')
+            if p:
+                print('Generated random admin password: %s' % p)
+            print('')
+
+        else:
+
+            creds = os.path.join(basedir,
+                                 '.lccserver-admin-credentials')
+            with open(creds,'w') as outfd:
+                outfd.write('%s %s\n' % (u,p))
+                os.chmod(creds, 0o100400)
 
     else:
         LOGINFO('Using existing authentication database.')
@@ -366,15 +381,15 @@ def prepare_basedir(basedir,
 
     with open(session_secret_file,'wb') as outfd:
         outfd.write(session_secret)
-    os.chmod(session_secret_file, 0o100600)
+    os.chmod(session_secret_file, 0o100400)
 
     with open(cpserver_secret_file,'wb') as outfd:
         outfd.write(cpserver_secret)
-    os.chmod(cpserver_secret_file, 0o100600)
+    os.chmod(cpserver_secret_file, 0o100400)
 
     with open(fernet_secret_file,'wb') as outfd:
         outfd.write(fernet_secret)
-    os.chmod(fernet_secret_file, 0o100600)
+    os.chmod(fernet_secret_file, 0o100400)
 
     #
     # now we're all done.
