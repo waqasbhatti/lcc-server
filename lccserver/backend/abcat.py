@@ -870,6 +870,7 @@ def check_extmodule(module, formatkey):
             importedok = importlib.import_module(
                 os.path.basename(module.replace('.py',''))
             )
+
         else:
             importedok = importlib.import_module(module)
 
@@ -897,11 +898,29 @@ def dict_get(datadict, keylist):
 
 
 def get_lcformat_description(descpath):
-    '''
-    This reads the lcformat column description file and returns a dict.
+    '''This reads the lcformat column description file and returns a dict.
 
     The description file is a JSON located under the collection's
     collection_id directory/lcformat-description.json.
+
+    For the values in the JSON keys lc_readermodule, lc_readerfunc_kwargs,
+    lc_normalizemodule, lc_normalizefunc_kwargs, you can use automatic
+    substitutions for your user home and the current LC collection directories
+    by using:
+
+    {{home_dir}} -> substitute this pattern for the user's home directory
+
+    {{collection_dir}} -> substitute this pattern for the current LC
+                          collection's directory
+
+    See an example at:
+
+    https://github.com/waqasbhatti/lcc-server/docs/lcformat-desc-example.json
+
+    This example LC format description JSON is associated with the
+    lcc-server-setup.ipynb notebook at:
+
+    https://github.com/waqasbhatti/astrobase-notebooks
 
     '''
     # read the JSON
@@ -966,6 +985,70 @@ def get_lcformat_description(descpath):
     norm_module_name = formatdesc['lc_normalizemodule']
     norm_func_name = formatdesc['lc_normalizefunc']
     norm_func_kwargs = formatdesc['lc_normalizefunc_kwargs']
+
+    #
+    # do some convenient directory name substitutions in the reader module
+    # import paths and reader function kwargs
+    #
+    if '{{collection_dir}}' in reader_module_name:
+        reader_module_name = reader_module_name.replace(
+            '{{collection_dir}}',
+            os.path.abspath(os.path.dirname(descpath))
+        )
+    elif '{{home_dir}}' in reader_module_name:
+        reader_module_name = reader_module_name.replace(
+            '{{home_dir}}',
+            os.path.abspath(os.path.expanduser('~'))
+        )
+
+    if isinstance(reader_func_kwargs, dict):
+        for kwarg in reader_func_kwargs:
+            if (isinstance(reader_func_kwargs[kwarg], str) and
+                '{{collection_dir}}' in reader_func_kwargs[kwarg]):
+                reader_func_kwargs[kwarg] = reader_func_kwargs[kwarg].replace(
+                    '{{collection_dir}}',
+                    os.path.abspath(os.path.dirname(descpath))
+                )
+    elif isinstance(reader_func_kwargs, dict):
+        for kwarg in reader_func_kwargs:
+            if (isinstance(reader_func_kwargs[kwarg], str) and
+                '{{home_dir}}' in reader_func_kwargs[kwarg]):
+                reader_func_kwargs[kwarg] = reader_func_kwargs[kwarg].replace(
+                    '{{home_dir}}',
+                    os.path.abspath(os.path.expanduser('~'))
+                )
+
+    #
+    # do some convenient directory name substitutions in the norm module
+    # import paths and norm function kwargs
+    #
+    if '{{collection_dir}}' in norm_module_name:
+        norm_module_name = norm_module_name.replace(
+            '{{collection_dir}}',
+            os.path.abspath(os.path.dirname(descpath))
+        )
+    elif '{{home_dir}}' in norm_module_name:
+        norm_module_name = norm_module_name.replace(
+            '{{home_dir}}',
+            os.path.abspath(os.path.expanduser('~'))
+        )
+
+    if isinstance(norm_func_kwargs, dict):
+        for kwarg in norm_func_kwargs:
+            if (isinstance(norm_func_kwargs[kwarg], str) and
+                '{{collection_dir}}' in norm_func_kwargs[kwarg]):
+                norm_func_kwargs[kwarg] = norm_func_kwargs[kwarg].replace(
+                    '{{collection_dir}}',
+                    os.path.abspath(os.path.dirname(descpath))
+                )
+    elif isinstance(norm_func_kwargs, dict):
+        for kwarg in norm_func_kwargs:
+            if (isinstance(norm_func_kwargs[kwarg], str) and
+                '{{home_dir}}' in norm_func_kwargs[kwarg]):
+                norm_func_kwargs[kwarg] = norm_func_kwargs[kwarg].replace(
+                    '{{home_dir}}',
+                    os.path.abspath(os.path.expanduser('~'))
+                )
 
     # see if we can import the reader module
     readermodule = check_extmodule(reader_module_name, formatkey)

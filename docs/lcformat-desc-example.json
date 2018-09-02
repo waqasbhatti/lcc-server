@@ -1,0 +1,106 @@
+{
+  "lc_formatkey": "example-lcs",
+  "lc_fileglob": "*-lc.csv",
+  "lc_readermodule": "{{collection_dir}}/lcreadermodule.py",
+  "lc_readerfunc": "read_lightcurve",
+  "lc_readerfunc_kwargs": {
+    "objectinfo_catalog": "{{collection_dir}}/object-db.csv"
+  },
+  "lc_normalizemodule": "{{collection_dir}}/lcreadermodule.py",
+  "lc_normalizefunc": "normalize_lcdict",
+  "lc_normalizefunc_kwargs": {
+    "timecol": "rjd",
+    "magcol": "aep_000"
+  },
+  "unaffiliated_cols": [
+    "rjd",
+    "stf",
+    "xcc",
+    "ycc"
+  ],
+  "mag_apertures": [
+    "000",
+    "001",
+    "002"
+  ],
+  "aperture_joiner": "_",
+  "per_aperture_cols": [
+    "aim",
+    "aie",
+    "aep"
+  ],
+  "metadata_keys": {
+    "objectid": [
+      "object ID",
+      "%s",
+      "str"
+    ],
+    "objectinfo.ra": [
+      "RA [deg]",
+      "%.7f",
+      "float"
+    ],
+    "objectinfo.decl": [
+      "Dec [deg]",
+      "%.7f",
+      "float"
+    ],
+    "objectinfo.ndet": [
+      "Number of observations",
+      "%i",
+      "int"
+    ],
+    "objectinfo.jmag": [
+      "2MASS J [mag]",
+      "%.5f",
+      "float"
+    ],
+    "objectinfo.hmag": [
+      "2MASS H [mag]",
+      "%.5f",
+      "float"
+    ],
+    "objectinfo.kmag": [
+      "2MASS Ks [mag]",
+      "%.5f",
+      "float"
+    ]
+  },
+  "column_keys": {
+    "rjd": [
+      "time of observation in Reduced Julian date (JD = 2400000.0 + RJD)",
+      "%.7f",
+      "f8"
+    ],
+    "stf": [
+      "the telescope ID of the observing station",
+      "%i",
+      "i8"
+    ],
+    "xcc": [
+      "x coordinate of the object on the CCD",
+      "%.3f",
+      "f8"
+    ],
+    "ycc": [
+      "y coordinate of the object on the CCD",
+      "%.3f",
+      "f8"
+    ],
+    "aim": [
+      "instrument magnitude measured in aperture %s",
+      "%.5f",
+      "f8"
+    ],
+    "aie": [
+      "error associated with instrumental magnitude in aperture %s",
+      "%.5f",
+      "f8"
+    ],
+    "aep": [
+      "EPD magnitude measured in aperture %s",
+      "%.5f",
+      "f8"
+    ]
+  }
+}
