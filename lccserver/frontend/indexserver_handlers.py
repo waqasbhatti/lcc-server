@@ -79,7 +79,6 @@ import itsdangerous
 
 from .. import __version__
 from ..backend import datasets
-datasets.set_logger_parent(__name__)
 from ..backend import dbsearch
 
 

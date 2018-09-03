@@ -77,9 +77,7 @@ import itsdangerous
 ###################
 
 from ..backend import dbsearch
-dbsearch.set_logger_parent(__name__)
 from ..backend import datasets
-datasets.set_logger_parent(__name__)
 
 from astrobase.coordutils import hms_to_decimal, dms_to_decimal, \
     hms_str_to_tuple, dms_str_to_tuple

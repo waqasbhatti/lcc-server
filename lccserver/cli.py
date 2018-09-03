@@ -46,64 +46,26 @@ and options are:
 #############
 
 import logging
-from datetime import datetime
-from traceback import format_exc
+from lccserver import log_sub, log_fmt, log_date_fmt
 
-# setup a logger
-LOGGER = None
-LOGMOD = __name__
 DEBUG = False
+if DEBUG:
+    level = logging.DEBUG
+else:
+    level = logging.INFO
+LOGGER = logging.getLogger(__name__)
+logging.basicConfig(
+    level=level,
+    style=log_sub,
+    format=log_fmt,
+    datefmt=log_date_fmt,
+)
 
-def set_logger_parent(parent_name):
-    globals()['LOGGER'] = logging.getLogger('%s.%s' % (parent_name, LOGMOD))
-
-def LOGDEBUG(message):
-    if LOGGER:
-        LOGGER.debug(message)
-    elif DEBUG:
-        print('[%s - DBUG] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGINFO(message):
-    if LOGGER:
-        LOGGER.info(message)
-    else:
-        print('[%s - INFO] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGERROR(message):
-    if LOGGER:
-        LOGGER.error(message)
-    else:
-        print('[%s - ERR!] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGWARNING(message):
-    if LOGGER:
-        LOGGER.warning(message)
-    else:
-        print('[%s - WRN!] %s' % (
-            datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            message)
-        )
-
-def LOGEXCEPTION(message):
-    if LOGGER:
-        LOGGER.exception(message)
-    else:
-        print(
-            '[%s - EXC!] %s\nexception was: %s' % (
-                datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                message, format_exc()
-            )
-        )
-
+LOGDEBUG = LOGGER.debug
+LOGINFO = LOGGER.info
+LOGWARNING = LOGGER.warning
+LOGERROR = LOGGER.error
+LOGEXCEPTION = LOGGER.exception
 
 #############
 ## IMPORTS ##
@@ -120,13 +82,13 @@ from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from functools import partial
 import getpass
+from datetime import datetime
 
 import multiprocessing as mp
 NCPUS = mp.cpu_count()
 
 import numpy as np
 from tornado.escape import squeeze
-
 from cryptography.fernet import Fernet
 
 
@@ -148,7 +110,6 @@ def create_authentication_database(authdb_path):
     authdb.create_sqlite_auth_db(authdb_path,
                                  echo=False,
                                  returnconn=False)
-
 
 
 #######################
@@ -354,7 +315,7 @@ def prepare_basedir(basedir,
 
             print('')
             if p:
-                print('Generated random admin password: %s' % p)
+                LOGWARNING('Generated random admin password: %s' % p)
             print('')
 
         else:
@@ -884,7 +845,6 @@ def generate_augmented_lclist_catalog(
     '''
 
     from astrobase import lcproc
-    lcproc.set_logger_parent(__name__)
 
     # get the basedir/collection_id/checkplots directory
     cpdir = os.path.join(basedir, collection_id, 'checkplots')
@@ -1416,10 +1376,10 @@ def main():
                                        collection_id,
                                        'lcformat-description.json')):
 
-            print('Existing lcformat-description.json found at: %s' %
-                  os.path.join(args.basedir,
-                               collection_id,
-                               'lcformat-description.json'))
+            LOGINFO('Existing lcformat-description.json found at: %s' %
+                    os.path.join(args.basedir,
+                                 collection_id,
+                                 'lcformat-description.json'))
 
             # read in the format description JSON and check if it makes sense
             try:
@@ -1429,10 +1389,12 @@ def main():
                                  collection_id,
                                  'lcformat-description.json')
                 )
-                print('Everything checks out!')
+                LOGINFO('Everything checks out!')
 
             except Exception as e:
-                print("Could not validate your lcformat-description.json file!")
+                LOGERROR(
+                    "Could not validate your lcformat-description.json file!"
+                )
                 raise
 
             collection_dir = os.path.join(args.basedir,
@@ -1570,7 +1532,6 @@ def main():
         #
 
         from astrobase import lcproc
-        lcproc.set_logger_parent(__name__)
 
         try:
 

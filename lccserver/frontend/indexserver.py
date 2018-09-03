@@ -11,9 +11,6 @@ License: MIT - see the LICENSE file for the full text.
 
 import logging
 
-# setup a logger
-LOGMOD = __name__
-
 
 #############
 ## IMPORTS ##
@@ -60,7 +57,6 @@ import tornado.web
 import tornado.options
 from tornado.options import define, options
 
-
 ########################
 ## OTHER USEFUL STUFF ##
 ########################
@@ -70,17 +66,6 @@ from itsdangerous import URLSafeTimedSerializer
 
 # for generating encrypted token information
 from cryptography.fernet import Fernet
-
-###########################
-## DEFINING URL HANDLERS ##
-###########################
-
-from . import indexserver_handlers as ih
-from . import searchserver_handlers as sh
-from . import dataserver_handlers as dh
-from . import objectserver_handlers as oh
-
-from ..authnzerver import authdb
 
 ###############################
 ### APPLICATION SETUP BELOW ###
@@ -171,6 +156,17 @@ def main():
         LOGGER.setLevel(logging.DEBUG)
     else:
         LOGGER.setLevel(logging.INFO)
+
+    ###########################
+    ## DEFINING URL HANDLERS ##
+    ###########################
+
+    from . import indexserver_handlers as ih
+    from . import searchserver_handlers as sh
+    from . import dataserver_handlers as dh
+    from . import objectserver_handlers as oh
+
+    from ..authnzerver import authdb
 
     ####################################
     ## SET THE GLOBAL VERSION STRINGS ##

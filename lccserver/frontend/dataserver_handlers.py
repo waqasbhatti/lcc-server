@@ -75,9 +75,7 @@ from tornado import gen
 
 from .. import __version__
 from ..backend import dbsearch
-dbsearch.set_logger_parent(__name__)
 from ..backend import datasets
-datasets.set_logger_parent(__name__)
 
 
 #############################

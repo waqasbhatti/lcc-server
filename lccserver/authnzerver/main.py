@@ -60,19 +60,6 @@ import tornado.options
 from tornado.options import define, options
 import multiprocessing as mp
 
-###################
-## LOCAL IMPORTS ##
-###################
-
-from ..utils import ProcExecutor
-
-##############
-## HANDLERS ##
-##############
-
-from .handlers import AuthHandler, EchoHandler
-from . import authdb
-
 ###############################
 ### APPLICATION SETUP BELOW ###
 ###############################
@@ -185,6 +172,19 @@ def main():
         LOGGER.setLevel(logging.DEBUG)
     else:
         LOGGER.setLevel(logging.INFO)
+
+    ###################
+    ## LOCAL IMPORTS ##
+    ###################
+
+    from ..utils import ProcExecutor
+
+    ##############
+    ## HANDLERS ##
+    ##############
+
+    from .handlers import AuthHandler, EchoHandler
+    from . import authdb
 
 
     ###################
