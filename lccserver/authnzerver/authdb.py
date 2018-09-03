@@ -132,14 +132,13 @@ APIKeys = Table(
 ## ROLES AND ASSOCIATED PERMISSIONS ##
 ######################################
 
-# each item in the database will have these columns to make these work correctly
-# owner -> userid of the object owner. superuser's ID = 1
-# scope -> one of 0 -> owned item, 1 -> somebody else's item
-# visibility -> one of 0 -> private, 1 -> shared, 2 -> public
-
 # these are the basic permissions for roles
 ROLE_PERMISSIONS = {
     'superuser':{
+        'limits':{
+            'max_rows': 5000000,
+            'max_reqs_60sec': 50000,
+        },
         'can_own':{'dataset','object','collection','apikeys','preferences'},
         'for_owned': {
             'list',
@@ -186,6 +185,10 @@ ROLE_PERMISSIONS = {
         }
     },
     'staff':{
+        'limits':{
+            'max_rows': 1000000,
+            'max_reqs_60sec': 10000,
+        },
         'can_own':{'dataset','object','collection','apikeys','preferences'},
         'for_owned': {
             'list',
@@ -216,6 +219,10 @@ ROLE_PERMISSIONS = {
         }
     },
     'authenticated':{
+        'limits':{
+            'max_rows': 500000,
+            'max_reqs_60sec': 5000,
+        },
         'can_own':{'dataset','apikeys','preferences'},
         'for_owned': {
             'list',
@@ -241,6 +248,10 @@ ROLE_PERMISSIONS = {
         }
     },
     'anonymous':{
+        'limits':{
+            'max_rows': 100000,
+            'max_reqs_60sec': 1000,
+        },
         'can_own':{'dataset'},
         'for_owned': {
             'list',
@@ -257,6 +268,10 @@ ROLE_PERMISSIONS = {
         }
     },
     'locked':{
+        'limits':{
+            'max_rows': 0,
+            'max_reqs_60sec': 0,
+        },
         'can_own':set({}),
         'for_owned': set({}),
         'for_others':{
@@ -438,7 +453,6 @@ def get_item_permissions(role_name,
         return set({})
 
 
-
 def check_user_access(userid=2,
                       role='anonymous',
                       action='view',
@@ -529,6 +543,22 @@ def check_user_access(userid=2,
 
     return ((action in perms) and shared_or_owned_ok)
 
+
+
+def check_role_limits(role,
+                      rows=None,
+                      rate_60sec=None):
+    '''
+    This just returns the role limits.
+
+    '''
+
+    if rows is not None:
+        return ROLE_PERMISSIONS[role]['limits']['max_rows'] <= rows
+    elif rate_60sec is not None:
+        return ROLE_PERMISSIONS[role]['limits']['max_reqs_60sec'] <= rate_60sec
+    else:
+        return ROLE_PERMISSIONS[role]['limits']
 
 
 #######################
