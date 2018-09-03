@@ -171,7 +171,7 @@ define('cpaddr',
        help=('This tells the lcc-server the address of a '
              'running checkplotserver instance that might be '
              'used to get individual object info.'),
-       type='str')
+       type=str)
 
 
 
