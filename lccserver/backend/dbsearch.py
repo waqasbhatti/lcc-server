@@ -19,13 +19,6 @@ TODO:
   we need an SQL parser to do this correctly because we need to recognize custom
   functions, etc.)
 
-FIXME:
-
-- for column search and conditions, we parse the SQL ourselves to validate
-  it and remove harmful stuff. This is likely not as safe as the actual SQL
-  parameter substitution code in SQLite. How to get around this?
-
-
 '''
 
 #############
@@ -102,6 +95,7 @@ import sqlite3
 import pickle
 import json
 from functools import reduce, partial
+from random import sample
 
 from tornado.escape import squeeze, xhtml_unescape
 import numpy as np
@@ -109,7 +103,7 @@ import numpy as np
 from astrobase.coordutils import make_kdtree, conesearch_kdtree, \
     xmatch_kdtree, great_circle_dist
 
-from ..authnzerver.authdb import check_user_access
+from ..authnzerver.authdb import check_user_access, check_role_limits
 
 
 ###########################
@@ -634,6 +628,131 @@ def sqlite_list_collections(basedir,
                                   return_connection=False)
 
 
+#####################
+## RESULT PIPELINE ##
+#####################
+
+def results_sort_by_keys(rows, sorts=()):
+    '''
+    This sorts the results by the given sorts list.
+
+    rows is the list of sqlite3.Row objects returned from a query.
+
+    sorts is a list of tuples like so:
+
+    ('sqlite.Row key to sort by', 'asc|desc')
+
+    The sorts are applied in order of their appearance in the list.
+
+    Returns the sorted list of sqlite3.Row items.
+
+    '''
+
+    # we iterate backwards from the last sort spec to the first
+    # to handle stuff like order by object asc, ndet desc, sdssr asc as expected
+    for s in sorts[::-1]:
+        key, order = s
+        if order == 'asc':
+            rev = False
+        else:
+            rev = True
+        rows = sorted(rows, key=lambda row: row[key], reversed=rev)
+
+    return rows
+
+
+def results_apply_permissions(rows,
+                              action='view',
+                              target='object',
+                              owner_key='owner',
+                              visibility_key='visibility',
+                              sharedwith_key='sharedwith',
+                              incoming_userid=2,
+                              incoming_role='anonymous'):
+    '''This applies permissions to each row of the result for action and target.
+
+    rows is the list of sqlite3.Row objects returned from a query.
+
+    action is the action to check against permissions, e.g. 'view', 'list', etc.
+
+    target is the item to apply the permission for, e.g. 'object', 'dataset',
+    etc.
+
+    incoming_userid and incoming_role are the user ID and role to check
+    permission for against the rows, action, and target.
+
+    '''
+
+    return [
+        x for x in rows if
+        check_user_access(
+            userid=incoming_userid,
+            role=incoming_role,
+            action=action,
+            target_name=target,
+            target_owner=x[owner_key],
+            target_visibility=x[visibility_key],
+            target_sharedwith=x[sharedwith_key]
+        )
+    ]
+
+
+def results_limit_rows(rows,
+                       rowlimit=None,
+                       incoming_userid=2,
+                       incoming_role='anonymous'):
+    '''
+    This justs limits the rows based on the permissions and rowlimit.
+
+    '''
+
+    # check how many results the user is allowed to have
+    role_maxrows = check_role_limits(incoming_role)
+
+    if rowlimit is not None and rowlimit > role_maxrows:
+        return rows[role_maxrows]
+    elif rowlimit is not None and rowlimit < role_maxrows:
+        return rows[rowlimit]
+    else:
+        return rows
+
+
+def results_random_sample(rows, sample_count=None):
+    '''This returns sample_count uniformly sampled without replacement rows.
+
+    '''
+
+    if sample_count is not None and 0 < sample_count < len(rows):
+        return sample(rows, sample_count)
+    else:
+        return rows
+
+
+pipeline_funcs = {
+    'permissions':results_apply_permissions,
+    'randomsample':results_random_sample,
+    'sort':results_sort_by_keys,
+    'limit':results_limit_rows
+}
+
+
+def results_pipeline(rows, operation_list):
+    '''Runs operations in order against rows to produce the final result set.
+
+    '''
+
+    for op in operation_list:
+
+        func, args, kwargs = op
+
+        rows = func(rows, *args, **args)
+
+        if len(rows) == 0:
+            break
+
+    return rows
+
+
 
 ###################
 ## SQLITE SEARCH ##
@@ -653,6 +772,7 @@ def sqlite_fulltext_search(
         incoming_role='anonymous',
         fail_if_conditions_invalid=True
 ):
+
     '''This searches the specified collections for a full-text match.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -675,6 +795,14 @@ def sqlite_fulltext_search(
     fail_if_conditions_invalid sets the behavior of the function if it finds
     that the conditions provided in conditions kwarg don't pass
     validate_sqlite_filters().
+
+    FIXME: this and other search functions currently return all results grouped
+    by collection. That's not really what we want on the frontend, so we'll
+    reform them using the results pipeline functions above later.
+
+    FIXME: turn off permissions checking here.
+
+    FIXME: use the readonly authorizer here for sqlite3_to_memory calls.
 
     '''
 
