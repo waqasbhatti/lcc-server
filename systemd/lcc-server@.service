@@ -1,0 +1,13 @@
+[Unit]
+Description=LCC-Server listening on port %i
+After=network.target checkplotserver.service
+
+[Service]
+WorkingDirectory={{ lccserver_basedir }}
+ExecStart={{ lccserver_venv }}/bin/indexserver --port=%i --basedir={{ lccserver_basedir }} --cpaddr='http://127.0.0.1:5229'
+Restart=always
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

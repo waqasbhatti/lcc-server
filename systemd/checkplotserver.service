@@ -1,0 +1,13 @@
+[Unit]
+Description=checkplotserver in standalone mode listening on port 5229
+After=network.target
+
+[Service]
+WorkingDirectory={{ lccserver_basedir }}
+ExecStart={{ lccserver_venv }}/bin/checkplotserver --port=5229 --standalone=1 --sharedsecret={{ lccserver_basedir }}/.lccserver.secret-cpserver
+Restart=always
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
