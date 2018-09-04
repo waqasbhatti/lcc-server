@@ -49,9 +49,10 @@ from textwrap import indent
 from functools import reduce
 import hashlib
 from datetime import datetime
+from random import sample
 
 from . import abcat
-from ..authnzerver.authdb import check_user_access
+from ..authnzerver.authdb import check_user_access, check_role_limits
 
 #########################################
 ## INITIALIZING A DATASET INDEX SQLITE ##
@@ -172,6 +173,130 @@ def sqlite_datasets_db_create(basedir):
     return datasets_dbf
 
 
+#####################
+## RESULT PIPELINE ##
+#####################
+
+def results_sort_by_keys(rows, sorts=()):
+    '''
+    This sorts the results by the given sorts list.
+
+    rows is the list of sqlite3.Row objects returned from a query.
+
+    sorts is a list of tuples like so:
+
+    ('sqlite.Row key to sort by', 'asc|desc')
+
+    The sorts are applied in order of their appearance in the list.
+
+    Returns the sorted list of sqlite3.Row items.
+
+    '''
+
+    # we iterate backwards from the last sort spec to the first
+    # to handle stuff like order by object asc, ndet desc, sdssr asc as expected
+    for s in sorts[::-1]:
+        key, order = s
+        if order == 'asc':
+            rev = False
+        else:
+            rev = True
+        rows = sorted(rows, key=lambda row: row[key], reversed=rev)
+
+    return rows
+
+
+def results_apply_permissions(rows,
+                              action='view',
+                              target='object',
+                              owner_key='owner',
+                              visibility_key='visibility',
+                              sharedwith_key='sharedwith',
+                              incoming_userid=2,
+                              incoming_role='anonymous'):
+    '''This applies permissions to each row of the result for action and target.
+
+    rows is the list of sqlite3.Row objects returned from a query.
+
+    action is the action to check against permissions, e.g. 'view', 'list', etc.
+
+    target is the item to apply the permission for, e.g. 'object', 'dataset',
+    etc.
+
+    incoming_userid and incoming_role are the user ID and role to check
+    permission for against the rows, action, and target.
+
+    '''
+
+    return [
+        x for x in rows if
+        check_user_access(
+            userid=incoming_userid,
+            role=incoming_role,
+            action=action,
+            target_name=target,
+            target_owner=x[owner_key],
+            target_visibility=x[visibility_key],
+            target_sharedwith=x[sharedwith_key]
+        )
+    ]
+
+
+def results_limit_rows(rows,
+                       rowlimit=None,
+                       incoming_userid=2,
+                       incoming_role='anonymous'):
+    '''
+    This justs limits the rows based on the permissions and rowlimit.
+
+    '''
+
+    # check how many results the user is allowed to have
+    role_maxrows = check_role_limits(incoming_role)
+
+    if rowlimit is not None and rowlimit > role_maxrows:
+        return rows[:role_maxrows]
+    elif rowlimit is not None and rowlimit < role_maxrows:
+        return rows[:rowlimit]
+    else:
+        return rows
+
+
+def results_random_sample(rows, sample_count=None):
+    '''This returns sample_count uniformly sampled without replacement rows.
+
+    '''
+
+    if sample_count is not None and 0 < sample_count < len(rows):
+        return sample(rows, sample_count)
+    else:
+        return rows
+
+
+pipeline_funcs = {
+    'permissions':results_apply_permissions,
+    'randomsample':results_random_sample,
+    'sort':results_sort_by_keys,
+    'limit':results_limit_rows
+}
+
+
+def results_pipeline(rows, operation_list):
+    '''Runs operations in order against rows to produce the final result set.
+
+    '''
+
+    for op in operation_list:
+
+        func, args, kwargs = op
+
+        rows = func(rows, *args, **args)
+
+        if len(rows) == 0:
+            break
+
+    return rows
+
 
 ########################################
 ## FUNCTIONS THAT OPERATE ON DATASETS ##
@@ -249,37 +374,19 @@ def sqlite_new_dataset(basedir,
                        setid,
                        creationdt,
                        searchresult,
-                       dataset_owner=1,
+                       results_sortspec=None,
+                       results_limitspec=None,
+                       results_samplespec=None,
+                       incoming_userid=2,
+                       incoming_role='anonymous',
                        dataset_visibility='public',
                        dataset_sharedwith=None):
-    '''create new dataset function.
+    '''This is the new-style dataset pickle maker.
 
-    this produces a pickle that goes into /datasets/random-set-id.pkl
-
-    and also produces an entry that goes into the lcc-datasets.sqlite DB
-
-    the pickle has the following structure:
-
-    {'setid': the randomly generated set id,
-     'name': the name of the dataset or None,
-     'desc': a description of the dataset or None,
-     'owner': integer user ID of the dataset's owner,
-     'visibility': visibility of the dataset: 'public', 'shared,' or 'private',
-     'shared_with': text list of user IDs that this dataset is shared with,
-     'collections': the names of the collections making up this dataset,
-     'columns': a list of the columns in the search result,
-     'result': a list containing the search result lists of dicts / collection,
-     'searchtype': what kind of search produced this dataset,
-     'searchargs': the args dict from the search result dict,
-     'success': the boolean from the search result dict
-     'message': the message from the search result dict,
-     'lczipfpath': the path to the light curve ZIP in basedir/products/}
-
-    NOTE: we add in the owner, visibility, and shared_with here because we'll
-    later add strict permission controls to the /d/dataset-<setid>.pkl.gz/csv
-    endpoints. This would allow us to block people who have no access via their
-    session_token or apikey to a dataset's products even if they know the
-    dataset's setid.
+    Converts the results from the backend into a data table with rows from all
+    collections in a single array instead of broken up by collection. This
+    allows us to resort on their properties over the entire dataset instead of
+    just per collection.
 
     '''
 
@@ -289,9 +396,6 @@ def sqlite_new_dataset(basedir,
 
     # get some stuff out of the search result
     collections = searchresult['databases']
-
-    # the result should be a dict with key:val = collection:result
-    result = {x:searchresult[x]['result'] for x in collections}
 
     searchtype = searchresult['search']
     searchargs = searchresult['args']
@@ -304,6 +408,11 @@ def sqlite_new_dataset(basedir,
     # a common format later on
     lcformatkey = {x:searchresult[x]['lcformatkey'] for x in collections}
     lcformatdesc = {x:searchresult[x]['lcformatdesc'] for x in collections}
+
+    # get the columnspecs and actual collectionids for each collection searched
+    # so we can return the column names and descriptions as well
+    columnspec = {x:searchresult[x]['columnspec'] for x in collections}
+    collid = {x:searchresult[x]['collid'] for x in collections}
 
     # get the columnspecs and actual collectionids for each collection searched
     # so we can return the column names and descriptions as well
@@ -339,18 +448,43 @@ def sqlite_new_dataset(basedir,
     setname = 'New dataset using collections: %s' % ', '.join(collections)
     setdesc = 'Created at %s UTC, using query: %s' % (creationdt, searchtype)
 
+    # each collection result from the search backend is a list of dicts. we'll
+    # collect all of them into a single data table. Each row returned by the
+    # search backend has its collection noted in the row['collection'] key.
+    rows = []
+
+    for coll in collections:
+        rows.extend(searchresult[coll]['result'])
+
+    # apply the result pipeline to sort, limit, sample correctly
+    # the search backend takes care of per object permissions
+    # order of operations: sample -> sort -> rowlimit
+
+    if results_samplespec is not None:
+        rows = results_random_sample(rows, sample_count=results_samplespec)
+
+    if results_sortspec is not None:
+        rows = results_sort_by_keys(rows, sorts=results_sortspec)
+
+    if results_limitspec is not None:
+        rows = results_limit_rows(rows,
+                                  rowlimit=results_limitspec,
+                                  incoming_userid=incoming_userid,
+                                  incoming_role=incoming_role)
+
+
     # create the dict for the dataset pickle
     dataset = {
         'setid':setid,
         'name':setname,
         'desc':setdesc,
-        'owner':dataset_owner,
+        'owner':incoming_userid,
         'visibility':dataset_visibility,
         'sharedwith':dataset_sharedwith,
         'collections':collections,
         'columns':reqcols,  # these are the columns guaranteed to be in all
                             # collections
-        'result':result,
+        'result':rows,
         'searchtype':searchtype,
         'searchargs':searchargs,
         'success':success,
@@ -372,7 +506,6 @@ def sqlite_new_dataset(basedir,
 
     # put these into the dataset dict
     dataset['lczipfpath'] = lczip_fpath
-
 
     # write the pickle to the datasets directory
     with gzip.open(dataset_fpath,'wb') as outfd:
