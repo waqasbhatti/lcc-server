@@ -379,13 +379,31 @@ def sqlite_new_dataset(basedir,
                        incoming_userid=2,
                        incoming_role='anonymous',
                        dataset_visibility='public',
-                       dataset_sharedwith=None):
+                       dataset_sharedwith=None,
+                       strformat=False,
+                       make_dataset_csv=False,
+                       rows_per_page=None):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
     collections in a single array instead of broken up by collection. This
     allows us to resort on their properties over the entire dataset instead of
     just per collection.
+
+    FIXME: implement strformat, make_dataset_csv, and rows_per_page to generate
+    all the JSON headers and stuff in one shot so we can return the full dataset
+    quickly.
+
+    FIXME: convert original format LC names to LCC CSV filenames as well. Then
+    the lczip function below can just check if the expected file exists at the
+    specified location and regen it if it doesn't.
+
+    FIXME: We'll check in this function if the output light curve CSVs exist for
+    each row and mark them for regen if not present. This way, we can return the
+    dataset view immediately while letting the LC ZIP finish in the
+    background. When that finishes, the frontend polling JS will receive a LC
+    ZIP done message along with its download path and a list of any regenerated
+    light curves that should be added to the existing data table.
 
     '''
 
