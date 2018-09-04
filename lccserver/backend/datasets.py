@@ -380,9 +380,8 @@ def sqlite_new_dataset(basedir,
                        incoming_role='anonymous',
                        dataset_visibility='public',
                        dataset_sharedwith=None,
-                       strformat=False,
-                       make_dataset_csv=False,
-                       rows_per_page=None):
+                       make_dataset_csv=True,
+                       rows_per_page=500):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
@@ -416,15 +415,6 @@ def sqlite_new_dataset(basedir,
 
     searchtype = searchresult['search']
     searchargs = searchresult['args']
-
-    # success and message is a dict for each collection searched
-    success = {x:searchresult[x]['success'] for x in collections}
-    message = {x:searchresult[x]['message'] for x in collections}
-
-    # get the LC formats for each collection searched so we can reform LCs into
-    # a common format later on
-    lcformatkey = {x:searchresult[x]['lcformatkey'] for x in collections}
-    lcformatdesc = {x:searchresult[x]['lcformatdesc'] for x in collections}
 
     # get the columnspecs and actual collectionids for each collection searched
     # so we can return the column names and descriptions as well
@@ -490,41 +480,83 @@ def sqlite_new_dataset(basedir,
                                   incoming_role=incoming_role)
 
 
-    # create the dict for the dataset pickle
-    dataset = {
-        'setid':setid,
-        'name':setname,
-        'desc':setdesc,
-        'owner':incoming_userid,
-        'visibility':dataset_visibility,
-        'sharedwith':dataset_sharedwith,
-        'collections':collections,
-        'columns':reqcols,  # these are the columns guaranteed to be in all
-                            # collections
-        'result':rows,
-        'searchtype':searchtype,
-        'searchargs':searchargs,
-        'success':success,
-        'lcformatkey':lcformatkey,
-        'lcformatdesc':lcformatdesc,
-        'columnspec':columnspec,
-        'collid':collid,
-        'message':message,
-        'nmatches':nmatches
-    }
+    # updated date
+    last_updated = datetime.utcnow().isoformat()
 
+    # the paths to the complete dataset pickle and CSV
     # generate the dataset pickle filepath
     dataset_fname = 'dataset-%s.pkl.gz' % setid
     dataset_fpath = os.path.join(datasetdir, dataset_fname)
+    dataset_csv = dataset_fpath.replace('.pkl.gz','.csv')
 
     # generate the name of the lczipfile
     lczip_fname = 'lightcurves-%s.zip' % setid
     lczip_fpath = os.path.join(productdir, lczip_fname)
 
-    # put these into the dataset dict
-    dataset['lczipfpath'] = lczip_fpath
+    # figure out the number of pages
+    if len(rows) % rows_per_page:
+        npages = int(len(rows)/rows_per_page) + 1
+    else:
+        npages = int(len(rows)/rows_per_page)
 
-    # write the pickle to the datasets directory
+    page_slices = [[x*rows_per_page, x*rows_per_page+rows_per_page]
+                   for x in range(npages)]
+
+    # the header for the dataset
+    dataset = {
+        'setid': setid,
+        'name': setname,
+        'desc': setdesc,
+        'created': creationdt,
+        'updated': last_updated,
+        'owner': incoming_userid,
+        'visibility': dataset_visibility,
+        'sharedwith': dataset_sharedwith,
+        'searchtype': searchtype,
+        'searchargs': searchargs,
+        'collections': collections,
+        'coll_dirs': collid,
+        'npages':npages,
+        'rows_per_page':rows_per_page,
+        'page_slices':page_slices,
+        'nmatches_by_collection':nmatches,
+        'total_nmatches': total_nmatches,
+        'columns': reqcols,
+        'coldesc': {},
+        'dataset_csv':dataset_csv,
+        'dataset_pickle':dataset_fpath,
+        'lczipfpath':lczip_fpath,
+    }
+
+    # go through each column and get its info from colspec
+    # also build up the format string for the CSV
+    for col in reqcols:
+
+        dataset['coldesc'][col] = {
+            'title': columnspec[collections[0]][col]['title'],
+            'desc': columnspec[collections[0]][col]['description'],
+            'dtype': columnspec[collections[0]][col]['dtype'],
+            'format': columnspec[collections[0]][col]['format'],
+        }
+
+    # generate the JSON header for the CSV
+    csvheader = json.dumps(dataset, indent=2)
+    csvheader = indent(csvheader, '# ')
+
+    # 1. write the header pickle to the datasets directory
+    dataset_header_pkl = os.path.join(datasetdir,
+                                      'dataset-%s-header.pkl' % setid)
+
+    with open(dataset_header_pkl,'wb') as outfd:
+        pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+    LOGINFO('wrote dataset header pickle: %s for dataset setid: %s' %
+            (dataset_header_pkl, setid))
+
+    # add in the rows to turn the header into the complete dataset pickle
+    dataset['result'] = rows
+
+    # 2. write the pickle to the datasets directory
     with gzip.open(dataset_fpath,'wb') as outfd:
         pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
@@ -539,7 +571,7 @@ def sqlite_new_dataset(basedir,
     )
     cur = db.cursor()
 
-    # generate the entry in the lcc-datasets.sqlite table and commit it
+    # 3. generate the entry in the lcc-datasets.sqlite table and commit it
     query = (
         "update lcc_datasets set "
         "name = ?, "
@@ -559,7 +591,7 @@ def sqlite_new_dataset(basedir,
     params = (
         setname,
         setdesc,
-        datetime.utcnow().isoformat(),
+        last_updated,
         total_nmatches,
         dataset['owner'],
         dataset['visibility'],
@@ -574,11 +606,155 @@ def sqlite_new_dataset(basedir,
     db.commit()
     db.close()
 
-    LOGINFO('updated entry for setid: %s, total nmatches: %s' %
+    LOGINFO('updated DB entry for setid: %s, total nmatches: %s' %
             (setid, total_nmatches))
 
+
+    # 4. we'll now create the auxiliary files in datasets/ for this dataset
+    # FIXME: some of these will have to be regenerated if people edit datasets
+    #
+    # - dataset-<setid>-rows-page1.pkl -> pageX.pkl as required
+    # - dataset-<setid>-rows-page1-strformat.pkl -> pageX-strformat.pkl
+    #                                                as required
+    # - dataset-<setid>.csv
+
+    # we'll open ALL of these files at once and go through the object row loop
+    # ONLY ONCE
+
+    csvfd = open(dataset_csv,'wb')
+
+    # write the header to the CSV file
+    csvfd.write(('%s\n' % csvheader).encode())
+
+    lcs_to_generate = []
+    lcs_ready = []
+    all_original_lcs = []
+
+    # we'll iterate by pages
+    for page, pgslice in enumerate(page_slices):
+
+        pgrows = rows[pgslice[0]:pgslice[1]]
+        page_number = page + 1
+
+        # open the pageX.pkl file
+        page_rows_pkl = os.path.join(
+            datasetdir,
+            'dataset-%s-rows-page%s.pkl' %
+            (setid, page_number)
+        )
+        page_rows_strpkl = os.path.join(
+            datasetdir,
+            'dataset-%s-rows-page%s-strformat.pkl' %
+            (setid, page_number)
+        )
+        page_rows_pklfd = open(page_rows_pkl,'wb')
+        page_rows_strpklfd = open(page_rows_strpkl,'wb')
+
+        outrows = []
+        out_strformat_rows = []
+
+        # now we'll go through all the rows
+        for entry in pgrows:
+
+            all_original_lcs.append(entry['db_lcfname'])
+            csvlc = '%s-csvlc.gz' % entry['db_oid']
+            csvlc_path = os.path.join(os.path.abspath(basedir),
+                                      'csvlcs',
+                                      entry['collection'].replace('_','-'),
+                                      csvlc)
+
+            if 'db_lcfname' in entry and os.path.exists(csvlc_path):
+
+                entry['db_lcfname'] = '/l/%s/%s' % (
+                    entry['collection'].replace('_','-'),
+                    csvlc
+                )
+                lcs_ready.append(csvlc_path)
+
+            elif 'db_lcfname' in entry and not os.path.exists(csvlc_path):
+
+                lcs_to_generate.append(
+                    (entry['db_lcfname'],
+                     entry['db_oid'],
+                     entry['collection'],
+                     csvlc_path)
+                )
+                entry['db_lcfname'] = '/l/%s/%s' % (
+                    entry['collection'].replace('_','-'),
+                    csvlc
+                )
+
+            elif 'lcfname' in entry and os.path.exists(csvlc_path):
+
+                entry['lcfname'] = '/l/%s/%s' % (
+                    entry['collection'].replace('_','-'),
+                    csvlc
+                )
+                lcs_ready.append(csvlc_path)
+
+            elif 'lcfname' in entry and not os.path.exists(csvlc_path):
+
+                lcs_to_generate.append(
+                    (entry['lcfname'],
+                     entry['db_oid'],
+                     entry['collection'],
+                     csvlc_path)
+                )
+                entry['lcfname'] = '/l/%s/%s' % (
+                    entry['collection'].replace('_','-'),
+                    csvlc
+                )
+
+            # the normal data table row
+            outrow = [entry[c] for c in reqcols]
+            outrows.append(outrow)
+
+            # the string formatted data table row
+            # this will be written to the CSV and to the page JSON
+            out_strformat_row = []
+
+            for c in reqcols:
+
+                cform = dataset['coldesc'][c]['format']
+                if 'f' in cform and entry[c] is None:
+                    out_strformat_row.append('nan')
+                elif 'i' in cform and entry[c] is None:
+                    out_strformat_row.append('-9999')
+                else:
+                    thisr = cform % entry[c]
+                    # replace any pipe characters with commas
+                    # to save us from broken CSVs
+                    thisr = thisr.replace('|',', ')
+                    out_strformat_row.append(thisr)
+
+            # append the strformat row to the page JSON
+            out_strformat_rows.append(out_strformat_row)
+
+            # write this row to the CSV
+            outline = '%s\n' % '|'.join(out_strformat_row)
+            csvfd.write(outline.encode())
+
+        #
+        # at the end of the page, write the JSON files for this page
+        #
+        pickle.dump(outrows, page_rows_pklfd,
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(out_strformat_rows, page_rows_strpklfd,
+                    pickle.HIGHEST_PROTOCOL)
+
+        page_rows_pklfd.close()
+        page_rows_strpklfd.close()
+
+        LOGINFO('wrote page %s pickles: %s and %s, for setid: %s' %
+                (page_number, page_rows_pkl, page_rows_strpkl, setid))
+    #
+    # finish up the CSV when we're done with all of the pages
+    #
+    csvfd.close()
+    LOGINFO('wrote CSV: %s for setid: %s' % (dataset_csv, setid))
+
     # return the setid
-    return setid
+    return setid, lcs_to_generate, lcs_ready, sorted(all_original_lcs)
 
 
 
@@ -626,6 +802,9 @@ def generate_lczip_cachekey(lczip_lclist):
 
 def sqlite_make_dataset_lczip(basedir,
                               setid,
+                              dataset_lcs_to_generate,
+                              dataset_lcs_ready,
+                              dataset_all_original_lcs,
                               converter_processes=4,
                               converter_csvlc_version=1,
                               converter_comment_char='#',
@@ -648,7 +827,6 @@ def sqlite_make_dataset_lczip(basedir,
 
         with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
-
 
         # get the list of original format light curves for this dataset
         # we'll use these as the basis of the cache key
@@ -1530,341 +1708,6 @@ def sqlite_get_dataset(basedir,
 
         db.close()
         return None
-
-
-
-def generate_dataset_tablerows(
-        basedir,
-        in_dataset,
-        startatrow=None,
-        endatrow=3000,
-        headeronly=False,
-        strformat=False,
-        datarows_bypass_cache=False,
-        incoming_userid=2,
-        incoming_role='anonymous'
-):
-    '''This generates row elements useful for direct insert into a HTML table.
-
-    Requires the output from sqlite_get_dataset or postgres_get_dataset.
-
-    This will check if the user has access to each object in the dataset by
-    using the 'view' action on each object. If an object is not accessible, it
-    won't show up in the results.
-
-    '''
-
-    setid = in_dataset['setid']
-
-    # check the cache first
-    cached_dataset_header = os.path.join(basedir,
-                                         'datasets',
-                                         'dataset-%s-header.json' % setid)
-    cached_dataset_tablerows_strformat = os.path.join(
-        basedir,
-        'datasets',
-        'dataset-%s-rows-strformat-limit-%s.json' % (setid, endatrow)
-    )
-    cached_dataset_tablerows = os.path.join(
-        basedir,
-        'datasets',
-        'dataset-%s-rows-limit-%s.json' % (setid, endatrow)
-    )
-
-    # the cached header is always used if available
-    if os.path.exists(cached_dataset_header):
-
-        with open(cached_dataset_header,'rb') as infd:
-            header = json.load(infd)
-
-            if headeronly:
-                LOGINFO('returning cached header for dataset: %s' % setid)
-                return header
-
-    # we'll also use the cached strformat if requested
-    if (strformat and (not datarows_bypass_cache) and
-        (os.path.exists(cached_dataset_tablerows_strformat))):
-
-        with open(cached_dataset_tablerows_strformat,'rb') as infd:
-            table_rows = json.load(infd)
-
-        LOGINFO('returning cached header and '
-                'strformat table rows for dataset: %s' % setid)
-        return header, table_rows
-
-    # if strformat is not requested and we're still allowed to return items from
-    # the cache if they exist, then do so here
-    elif ((not strformat) and (not datarows_bypass_cache) and
-          (os.path.exists(cached_dataset_tablerows))):
-
-        with open(cached_dataset_tablerows,'rb') as infd:
-            table_rows = json.load(infd)
-
-        LOGINFO('returning cached header and '
-                'raw table rows for dataset: %s' % setid)
-        return header, table_rows
-
-    #
-    # otherwise, we're not allowed to bypass the cache, so proceed to the actual
-    # processing
-    #
-
-    # we'll get the common columns across all collections
-    xcolumns = []
-
-    # this is the merged colspec dictionary across all collections
-    colspec = {}
-
-    for coll in in_dataset['collections']:
-        try:
-            # get this collection's column keys from the first row
-            coll_columns = list(in_dataset['result'][coll]['data'][0].keys())
-
-            # append them as a set to the global list of all collections'
-            # columns
-            xcolumns.append(set(coll_columns))
-
-            # finally, for each column in this collection, get its
-            # specifications
-            for cc in coll_columns:
-                colspec[cc] = in_dataset['result'][coll]['columnspec'][cc]
-        except Exception as e:
-            pass
-
-    # xcolumns is now a list of sets of column keys from all collections.
-    # we can only display columns that are common to all collections, so we need
-    # to do a reduce operation on set intersections of all of these sets.
-    columns = reduce(lambda x,y: x.intersection(y), xcolumns)
-    columns = list(columns)
-
-    # we need to reorder the common columns in the order they were requested in
-    requested_cols = in_dataset['columns']
-
-    # but the requested columns might contain columns that are not common across
-    # all collections, so we need to be careful
-    final_cols = []
-    for col in requested_cols:
-        if col in columns:
-            final_cols.append(col)
-
-    # generate the header JSON now
-    header = {
-        'setid':setid,
-        'status':in_dataset['status'],
-        'created':'%sZ' % in_dataset['created_on'],
-        'updated':'%sZ' % in_dataset['last_updated'],
-        'owner': in_dataset['owner'],
-        'visibility': in_dataset['visibility'],
-        'sharedwith': in_dataset['sharedwith'],
-        'searchtype':in_dataset['searchtype'],
-        'searchargs':in_dataset['searchargs'],
-        'collections':in_dataset['collections'],
-        'columns':final_cols,
-        'nobjects':in_dataset['nobjects'],
-        'coldesc':{}
-        # FIXME: add the pagination key with lists of start/end row numbers in
-        # separate lists for each page. the page size is set by the first call
-        # to this function using the endatrow kwarg.
-    }
-
-    # go through each column and get its info from colspec
-    # also build up the format string for the CSV
-    for col in final_cols:
-
-        header['coldesc'][col] = {
-            'title': colspec[col]['title'],
-            'desc': colspec[col]['description'],
-            'dtype': colspec[col]['dtype'],
-            'format': colspec[col]['format'],
-        }
-
-    # there's an extra collection column needed for the CSV
-    header['columns'].append('collection')
-    header['coldesc']['collection'] = {
-        'title':'LC collection',
-        'desc':'LC collection of this object',
-        'dtype':'U60',
-        'format':'%s',
-    }
-
-    # write this new header to a JSON that can be cached
-    with open(cached_dataset_header,'w') as outfd:
-        json.dump(header, outfd)
-
-    if headeronly:
-        return header
-
-    table_rows = []
-    nitems = 0
-
-    if endatrow is None or endatrow is False:
-        maxrows = sum(len(in_dataset['result'][collid]['data']) for
-                      collid in in_dataset['collections'])
-    else:
-        maxrows = endatrow
-
-    # NOTE: we are assuming here that the dbsearch.py backends have correctly
-    # filtered out any rows that aren't accessible to the current
-    # incoming_userid and incoming_role.
-
-    # we'll go by collection_id first, then by entry
-    for collid in in_dataset['collections']:
-        for ientry in in_dataset['result'][collid]['data']:
-
-            # this is to avoid weird breakage when we call
-            # generate_dataset_tablerows again
-            # (EVEN IF A COPY OF THE DATASET DICT IS PASSED TO IT - WTF?!)
-            entry = ientry.copy()
-
-            if nitems > maxrows:
-                LOGWARNING('reached %s rows, returning early' % endatrow)
-                break
-
-            # censor the light curve filenames
-            # also make sure the actual files exist, otherwise,
-            # return nothing for those entries
-            if 'db_lcfname' in entry:
-
-                if (entry['db_lcfname'] is not None and
-                    os.path.exists(entry['db_lcfname'])):
-
-                    entry['db_lcfname'] = entry['db_lcfname'].replace(
-                        os.path.join(os.path.abspath(basedir), 'csvlcs'),
-                        '/l'
-                    )
-                else:
-                    entry['db_lcfname'] = None
-
-            elif 'lcfname' in entry:
-
-                if (entry['lcfname'] is not None and
-                    os.path.exists(entry['lcfname'])):
-
-                    entry['lcfname'] = entry['lcfname'].replace(
-                        os.path.join(os.path.abspath(basedir), 'csvlcs'),
-                        '/l'
-                    )
-                else:
-                    entry['lcfname'] = None
-
-            # if we're returning in string format, we need to format each
-            # row according to the per-column format strings
-            if strformat:
-
-                row = []
-
-                for col in final_cols[:-1]:
-
-                    # reformat the downloadable LC link
-                    if col in ('lcfname', 'db_lcfname'):
-                        if entry[col] is not None:
-                            row.append(
-                                '<a href="%s">download light curve</a>' %
-                                (entry[col],)
-                            )
-                        else:
-                            row.append('unavailable or missing')
-
-                    # take care with nans, Nones, and missing integers
-                    else:
-
-                        colform = header['coldesc'][col]['format']
-                        if 'f' in colform and entry[col] is None:
-                            row.append('nan')
-                        elif 'i' in colform and entry[col] is None:
-                            row.append('-9999')
-                        else:
-                            thisr = colform % entry[col]
-                            # replace any pipe characters with commas
-                            # to save us from broken CSVs
-                            thisr = thisr.replace('|',', ')
-                            row.append(thisr)
-
-            # otherwise, we can just return the row for this entry
-            else:
-                row = [entry[col] for col in final_cols[:-1]]
-
-            # at end of the row processing, append the collection ID
-            row.append(collid)
-
-            # append this row to the table_rows
-            table_rows.append(row)
-            nitems = nitems + 1
-
-
-    # now that we're done with the table rows, dump them to JSON as appropriate
-    if strformat:
-        with open(cached_dataset_tablerows_strformat,'w') as outfd:
-            json.dump(table_rows, outfd)
-
-    else:
-
-        with open(cached_dataset_tablerows,'w') as outfd:
-            json.dump(table_rows, outfd)
-
-    #
-    # at the end, return our requested items
-    #
-    return header, table_rows
-
-
-
-def generate_dataset_csv(
-        basedir,
-        in_dataset,
-        force=False,
-        separator='|',
-        comment='#',
-        incoming_userid=2,
-        incoming_role='anonymous',
-):
-    '''
-    This generates a CSV for the dataset's data table.
-
-    Requires the output from sqlite_get_dataset or postgres_get_dataset.
-
-    '''
-
-    productdir = os.path.abspath(os.path.join(basedir,
-                                              'datasets'))
-    setid = in_dataset['setid']
-    in_dataset_csv = os.path.join(productdir,'dataset-%s.csv' % setid)
-
-    if not force and os.path.exists(in_dataset_csv):
-
-        LOGINFO('returning cached version of %s' % in_dataset_csv)
-        return in_dataset_csv
-
-    else:
-
-        # generate the strformatted table rows using generate_dataset_tablerows
-        header, datarows = generate_dataset_tablerows(
-            basedir,
-            in_dataset,
-            endatrow=None,
-            headeronly=False,
-            strformat=True,
-            datarows_bypass_cache=force,
-        )
-
-        LOGINFO('generating new CSV for in_dataset: %s' % setid)
-
-        # generate the JSON header for the CSV
-        csvheader = json.dumps(header, indent=2)
-        csvheader = indent(csvheader, '%s ' % comment)
-
-        # write to the output file now
-        with open(in_dataset_csv,'wb') as outfd:
-
-            # write the header first
-            outfd.write(('%s\n' % csvheader).encode())
-
-            for row in datarows:
-                outfd.write(('%s\n' % separator.join(row)).encode())
-
-
-        LOGINFO('wrote CSV: %s for in_dataset: %s' % (in_dataset_csv, setid))
-        return in_dataset_csv
 
 
 
