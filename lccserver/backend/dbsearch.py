@@ -822,6 +822,14 @@ def sqlite_fulltext_search(
             'index':True,
             'ftsindex':False,
         }
+        lcc_columnspec['collection'] = {
+            'title': 'LC collection',
+            'description':("the light curve collection this object belongs to"),
+            'dtype':'U60',
+            'format':'%s',
+            'index':False,
+            'ftsindex':False,
+        }
 
         # we should return all FTS indexed columns regardless of whether the
         # user selected them or not
@@ -962,7 +970,7 @@ def sqlite_fulltext_search(
     results['columns'] = available_columns
 
     results['args'] = {'ftsquerystr':ftsquerystr,
-                       'getcolumns':rescolumns,
+                       'getcolumns':rescolumns + ['collection'],
                        'lcclist':lcclist,
                        'conditions':conditions}
     results['search'] = 'sqlite_fulltext_search'
@@ -1212,6 +1220,14 @@ def sqlite_column_search(basedir,
             'index':True,
             'ftsindex':False,
         }
+        lcc_columnspec['collection'] = {
+            'title': 'LC collection',
+            'description':("the light curve collection this object belongs to"),
+            'dtype':'U60',
+            'format':'%s',
+            'index':False,
+            'ftsindex':False,
+        }
 
         thisq = q.format(columnstr=columnstr,
                          collection_id=lcc,
@@ -1289,7 +1305,7 @@ def sqlite_column_search(basedir,
     results['databases'] = available_lcc
     results['columns'] = available_columns
 
-    results['args'] = {'getcolumns':rescolumns,
+    results['args'] = {'getcolumns':rescolumns + ['collection'],
                        'conditions':conditions,
                        'sortby':sortby,
                        'limit':limit,
@@ -1584,6 +1600,14 @@ def sqlite_kdtree_conesearch(basedir,
             'index':True,
             'ftsindex':False,
         }
+        lcc_columnspec['collection'] = {
+            'title': 'LC collection',
+            'description':("the light curve collection this object belongs to"),
+            'dtype':'U60',
+            'format':'%s',
+            'index':False,
+            'ftsindex':False,
+        }
 
         # if we can't find the kdtree, we can't do anything. skip this LCC
         if not os.path.exists(kdtree_fpath):
@@ -1810,7 +1834,7 @@ def sqlite_kdtree_conesearch(basedir,
     results['args'] = {'center_ra':center_ra,
                        'center_decl':center_decl,
                        'radius_arcmin':radius_arcmin,
-                       'getcolumns':rescolumns,
+                       'getcolumns':rescolumns + ['collection'],
                        'conditions':conditions,
                        'lcclist':lcclist}
 
@@ -2213,6 +2237,14 @@ def sqlite_xmatch_search(basedir,
                 'index':True,
                 'ftsindex':False,
             }
+            lcc_columnspec['collection'] = {
+                'title': 'LC collection',
+                'description':("the light curve collection this object belongs to"),
+                'dtype':'U60',
+                'format':'%s',
+                'index':False,
+                'ftsindex':False,
+            }
 
             # if we can't find the kdtree, we can't do anything. skip this LCC
             if not os.path.exists(kdtree_fpath):
@@ -2395,7 +2427,7 @@ def sqlite_xmatch_search(basedir,
                            'xmatch_closest_only':xmatch_closest_only,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
-                           'getcolumns':rescolumns,
+                           'getcolumns':rescolumns + ['collection'],
                            'conditions':conditions,
                            'lcclist':lcclist}
         results['search'] = 'sqlite_xmatch_search'
@@ -2591,6 +2623,14 @@ def sqlite_xmatch_search(basedir,
                 'index':True,
                 'ftsindex':False,
             }
+            lcc_columnspec['collection'] = {
+                'title': 'LC collection',
+                'description':("the light curve collection this object belongs to"),
+                'dtype':'U60',
+                'format':'%s',
+                'index':False,
+                'ftsindex':False,
+            }
 
             # execute the xmatch statement
             thisq = q.format(columnstr=xmatch_columnstr,
@@ -2673,7 +2713,7 @@ def sqlite_xmatch_search(basedir,
                            'xmatch_closest_only':xmatch_closest_only,
                            'inputmatchcol':inputmatchcol,
                            'dbmatchcol':dbmatchcol,
-                           'getcolumns':rescolumns,
+                           'getcolumns':rescolumns + ['collection'],
                            'conditions':conditions,
                            'lcclist':lcclist}
         results['search'] = 'sqlite_xmatch_search'
