@@ -198,10 +198,9 @@ def results_sort_by_keys(rows, sorts=()):
     for s in sorts[::-1]:
         key, order = s
         if order == 'asc':
-            rev = False
-        else:
-            rev = True
-        rows = sorted(rows, key=lambda row: row[key], reversed=rev)
+            rows = sorted(rows, key=lambda row: row[key], reversed=False)
+        elif order == 'desc':
+            rows = sorted(rows, key=lambda row: row[key], reversed=True)
 
     return rows
 
