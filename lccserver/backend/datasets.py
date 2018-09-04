@@ -626,9 +626,9 @@ def sqlite_new_dataset(basedir,
     # write the header to the CSV file
     csvfd.write(('%s\n' % csvheader).encode())
 
-    lcs_to_generate = []
-    lcs_ready = []
     all_original_lcs = []
+    csvlcs_to_generate = []
+    csvlcs_ready = []
 
     # we'll iterate by pages
     for page, pgslice in enumerate(page_slices):
@@ -669,13 +669,14 @@ def sqlite_new_dataset(basedir,
                     entry['collection'].replace('_','-'),
                     csvlc
                 )
-                lcs_ready.append(csvlc_path)
+                csvlcs_ready.append(csvlc_path)
 
             elif 'db_lcfname' in entry and not os.path.exists(csvlc_path):
 
-                lcs_to_generate.append(
+                csvlcs_to_generate.append(
                     (entry['db_lcfname'],
                      entry['db_oid'],
+                     searchresult[entry['collection']]['lcformatdesc'],
                      entry['collection'],
                      csvlc_path)
                 )
@@ -690,13 +691,14 @@ def sqlite_new_dataset(basedir,
                     entry['collection'].replace('_','-'),
                     csvlc
                 )
-                lcs_ready.append(csvlc_path)
+                csvlcs_ready.append(csvlc_path)
 
             elif 'lcfname' in entry and not os.path.exists(csvlc_path):
 
-                lcs_to_generate.append(
-                    (entry['lcfname'],
+                csvlcs_to_generate.append(
+                    (entry['db_lcfname'],
                      entry['db_oid'],
+                     searchresult[entry['collection']]['lcformatdesc'],
                      entry['collection'],
                      csvlc_path)
                 )
@@ -754,7 +756,7 @@ def sqlite_new_dataset(basedir,
     LOGINFO('wrote CSV: %s for setid: %s' % (dataset_csv, setid))
 
     # return the setid
-    return setid, lcs_to_generate, lcs_ready, sorted(all_original_lcs)
+    return setid, csvlcs_to_generate, csvlcs_ready, sorted(all_original_lcs)
 
 
 
@@ -802,8 +804,8 @@ def generate_lczip_cachekey(lczip_lclist):
 
 def sqlite_make_dataset_lczip(basedir,
                               setid,
-                              dataset_lcs_to_generate,
-                              dataset_lcs_ready,
+                              dataset_csvlcs_to_generate,
+                              dataset_csvlcs_ready,
                               dataset_all_original_lcs,
                               converter_processes=4,
                               converter_csvlc_version=1,
@@ -828,20 +830,10 @@ def sqlite_make_dataset_lczip(basedir,
         with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
-        # get the list of original format light curves for this dataset
-        # we'll use these as the basis of the cache key
-        dataset_original_lclist = []
 
-        for coll in dataset['collections']:
-
-            thiscoll_lclist = [
-                x['db_lcfname'] for x in dataset['result'][coll]
-            ]
-            dataset_original_lclist.extend(thiscoll_lclist)
-
-        dataset_original_lclist = sorted(dataset_original_lclist)
+        # 1. use the provided list of original LCs to generate a cache key.
         dataset_lczip_cachekey = generate_lczip_cachekey(
-            dataset_original_lclist
+            dataset_all_original_lcs
         )
 
         # check the cachekey against the database to see if a dataset with
@@ -890,38 +882,6 @@ def sqlite_make_dataset_lczip(basedir,
 
             else:
 
-                # FIXME: LC conversion from original format -> CSV LCs is
-                # currently triggered if the ZIP doesn't exist. This means that
-                # the process for converting original format LCs to CSV LCs in
-                # the basedir/csvlcs/[collection] directory will kick off even
-                # if there are more than 20,000 light curves requested for this
-                # dataset. Normally, this should be a fast operation because
-                # we'll have converted all of the original format LCs beforehand
-                # and linked them into the csvlcs directory, but if this is not
-                # the case, then this operation will continue for a long time
-                # and block the 'complete' status of the accompanying
-                # dataset.
-
-                # What should we do about this? We could set skip_lc_collection
-                # to True below, but that risks leaving some light curves in an
-                # unconverted state if this wasn't done before hand. If we do
-                # set skip_lc_collection = True below, then we should also send
-                # some sort of warning back to the calling function that
-                # indicates that we gave up instead of collecting LCs.
-
-                # I think the only decent option here is to keep
-                # skip_lc_collection False in this pathological case. When the
-                # user comes back to the dataset page after a long time,
-                # everything should be OK because there were too many objects to
-                # collect LCs for, but the relevant CSVs and data table rows
-                # will have the correct links to individual LCs and should be
-                # OK.
-
-                # Actually, the problem becomes hugely apparent if the query
-                # itself goes to the background instead of just the LC
-                # zipping. We'll fix this in searchserver_handlers, so it uses
-                # the same logic as the timeout for the > 20k LCs problem.
-
                 skip_lc_collection = False
 
         # only collect LCs if we have to, we'll use the already generated link
@@ -931,136 +891,58 @@ def sqlite_make_dataset_lczip(basedir,
             LOGINFO('no cached LC zip found for dataset: %s, regenerating...' %
                     setid)
 
-            dataset_lclist = []
 
-            # we'll do this by collection
-            for collection in dataset['collections']:
+            convertopts = {'csvlc_version':converter_csvlc_version,
+                           'comment_char':converter_comment_char,
+                           'column_separator':converter_column_separator,
+                           'skip_converted':converter_skip_converted}
 
-                # load the format description
-                lcformatdesc = dataset['lcformatdesc'][collection]
-                convertopts = {'csvlc_version':converter_csvlc_version,
-                               'comment_char':converter_comment_char,
-                               'column_separator':converter_column_separator,
-                               'skip_converted':converter_skip_converted}
+            # these are the light curves to regenerate
+            tasks = [(x[0], x[1], x[2], convertopts)
+                     for x in dataset_csvlcs_to_generate]
 
-                collection_lclist = [
-                    x['db_lcfname'] for x in dataset['result'][collection]
-                ]
-
-                # we'll use this to form CSV filenames
-                collection_objectidlist = [
-                    x['db_oid'] for x in dataset['result'][collection]
-                ]
-
-                # handle the lcdir override if present
-                if override_lcdir and os.path.exists(override_lcdir):
-                    collection_lclist = [
-                        os.path.join(override_lcdir,
-                                     os.path.basename(x))
-                        for x in collection_lclist
-                    ]
-
-                # now, we'll convert these light curves in parallel
-                pool = Pool(converter_processes)
-                tasks = [(x, y, lcformatdesc, convertopts) for x,y in
-                         zip(collection_lclist, collection_objectidlist)]
-                results = pool.map(csvlc_convert_worker, tasks)
-                pool.close()
-                pool.join()
-
-                #
-                # link the generated CSV LCs to the output directory
-                #
-
-                # get this collection's output LC directory under the LCC
-                # basedir basedir/csvlcs/<collection>/lightcurves/<lcfname>
-                thiscoll_lcdir = os.path.join(
-                    basedir,
-                    'csvlcs',
-                    os.path.dirname(lcformatdesc).split('/')[-1],
-                )
-
-                if os.path.exists(thiscoll_lcdir):
-                    for rind, rlc in enumerate(results):
-                        outpath = os.path.abspath(
-                            os.path.join(thiscoll_lcdir,
-                                         os.path.basename(rlc))
-                        )
-                        if os.path.exists(outpath):
-                            LOGWARNING(
-                                'not linking CSVLC: %s to %s because '
-                                ' it exists already' % (rlc, outpath)
-                            )
-                        elif os.path.exists(rlc):
-
-                            LOGINFO(
-                                'linking CSVLC: %s -> %s OK' %
-                                (rlc, outpath)
-                            )
-                            os.symlink(os.path.abspath(rlc), outpath)
-
-                        else:
-
-                            LOGWARNING(
-                                '%s probably does not '
-                                'exist, skipping linking...' % rlc
-                            )
-                            # the LC won't exist, but that's fine, we'll
-                            # catch it later down below
-
-                        # put the output path into the actual results list
-                        results[rind] = outpath
-
-
-                # update this collection's light curve list
-                for nlc, dsrow in zip(results,
-                                      dataset['result'][collection]):
-
-                    # make sure we don't include broken or missing LCs
-                    if os.path.exists(nlc):
-                        dsrow['db_lcfname'] = nlc
-                        if 'lcfname' in dsrow:
-                            dsrow['lcfname'] = nlc
-                    else:
-                        dsrow['db_lcfname'] = None
-                        if 'lcfname' in dsrow:
-                            dsrow['lcfname'] = None
-
-
-                # update the global LC list
-                dataset_lclist.extend(results)
+            # now, we'll convert these light curves in parallel
+            pool = Pool(converter_processes)
+            results = pool.map(csvlc_convert_worker, tasks)
+            pool.close()
+            pool.join()
 
             #
-            # update the dataset pickle with the new light curve locations
+            # link the generated CSV LCs to the output directory
             #
-            with gzip.open(dataset_fpath,'wb') as outfd:
-                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
-            LOGINFO('updated dataset pickle after LC collection completed')
+
+            for item, res in zip(dataset_csvlcs_to_generate, results):
+
+                orig, oid, lcformatdesc, coll, outcsvlc = item
+                if not os.path.exists(outcsvlc):
+                    os.path.symlink(os.path.abspath(res), outcsvlc)
 
             #
             # FINALLY, CARRY OUT THE ZIP OPERATION (IF NEEDED)
             #
-            zipfile_lclist = {os.path.basename(x):'ok' for x in dataset_lclist}
+            zipfile_lclist = (
+                dataset_csvlcs_ready +
+                [x[-1] for x in dataset_csvlcs_to_generate]
+            )
 
-            # if there are too many LCs to collect, bail out
-            if len(dataset_lclist) > max_dataset_lcs:
+            # do not generate LCs if their number > max number allowed
+            if len(zipfile_lclist) > max_dataset_lcs:
 
-                LOGERROR('LCS in dataset: %s > max_dataset_lcs: %s, '
-                         'not making a zip file' % (len(dataset_lclist),
-                                                    max_dataset_lcs))
+                LOGERROR('LCs in dataset: %s > max_dataset_lcs: %s, '
+                         ' will not generate a ZIP file.' %
+                         (len(zipfile_lclist), max_dataset_lcs))
 
-            # otherwise, run the collection
             else:
 
                 # get the expected name of the output zipfile
                 lczip_fpath = dataset['lczipfpath']
 
                 LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
-                        (len(dataset_lclist), lczip_fpath, setid))
+                        (len(zipfile_lclist), lczip_fpath, setid))
 
                 # set up the zipfile
                 with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
-                    for lcf in dataset_lclist:
+                    for lcf in zipfile_lclist:
                         if os.path.exists(lcf):
                             outzip.write(lcf, os.path.basename(lcf))
                         else:
@@ -1083,41 +965,6 @@ def sqlite_make_dataset_lczip(basedir,
                     "ZIP from dataset: %s at %s, "
                     "symlinked to this dataset's LC ZIP: %s" %
                     (other_setid, other_lczip, dataset['lczipfpath']))
-
-            # update the final LC locations in this case as well
-            for collection in dataset['collections']:
-
-                lcformatdesc = dataset['lcformatdesc'][collection]
-                # get this collection's output LC directory under the LCC
-                # basedir basedir/csvlcs/<collection>/lightcurves/<lcfname>
-                thiscoll_lcdir = os.path.join(
-                    basedir,
-                    'csvlcs',
-                    os.path.dirname(lcformatdesc).split('/')[-1],
-                )
-
-                # update the output filename
-                for dsrow in dataset['result'][collection]:
-
-                    if dsrow['db_lcfname']:
-                        dsrow['db_lcfname'] = os.path.join(thiscoll_lcdir,
-                                                           '%s-csvlc.gz' %
-                                                           dsrow['db_oid'])
-                        if 'lcfname' in dsrow:
-                            dsrow['lcfname'] = os.path.join(thiscoll_lcdir,
-                                                            '%s-csvlc.gz' %
-                                                            dsrow['db_oid'])
-                    else:
-                        dsrow['db_lcfname'] = None
-                        if 'lcfname' in dsrow:
-                            dsrow['lcfname'] = None
-
-            #
-            # update the dataset pickle with the new light curve locations
-            #
-            with gzip.open(dataset_fpath,'wb') as outfd:
-                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
-            LOGINFO('updated dataset pickle after LC collection completed')
 
         #
         # done with collecting light curves
