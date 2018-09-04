@@ -590,135 +590,17 @@ def sqlite_list_collections(basedir,
                                   return_connection=False)
 
 
-#####################
-## RESULT PIPELINE ##
-#####################
-
-def results_sort_by_keys(rows, sorts=()):
-    '''
-    This sorts the results by the given sorts list.
-
-    rows is the list of sqlite3.Row objects returned from a query.
-
-    sorts is a list of tuples like so:
-
-    ('sqlite.Row key to sort by', 'asc|desc')
-
-    The sorts are applied in order of their appearance in the list.
-
-    Returns the sorted list of sqlite3.Row items.
-
-    '''
-
-    # we iterate backwards from the last sort spec to the first
-    # to handle stuff like order by object asc, ndet desc, sdssr asc as expected
-    for s in sorts[::-1]:
-        key, order = s
-        if order == 'asc':
-            rev = False
-        else:
-            rev = True
-        rows = sorted(rows, key=lambda row: row[key], reversed=rev)
-
-    return rows
-
-
-def results_apply_permissions(rows,
-                              action='view',
-                              target='object',
-                              owner_key='owner',
-                              visibility_key='visibility',
-                              sharedwith_key='sharedwith',
-                              incoming_userid=2,
-                              incoming_role='anonymous'):
-    '''This applies permissions to each row of the result for action and target.
-
-    rows is the list of sqlite3.Row objects returned from a query.
-
-    action is the action to check against permissions, e.g. 'view', 'list', etc.
-
-    target is the item to apply the permission for, e.g. 'object', 'dataset',
-    etc.
-
-    incoming_userid and incoming_role are the user ID and role to check
-    permission for against the rows, action, and target.
-
-    '''
-
-    return [
-        x for x in rows if
-        check_user_access(
-            userid=incoming_userid,
-            role=incoming_role,
-            action=action,
-            target_name=target,
-            target_owner=x[owner_key],
-            target_visibility=x[visibility_key],
-            target_sharedwith=x[sharedwith_key]
-        )
-    ]
-
-
-def results_limit_rows(rows,
-                       rowlimit=None,
-                       incoming_userid=2,
-                       incoming_role='anonymous'):
-    '''
-    This justs limits the rows based on the permissions and rowlimit.
-
-    '''
-
-    # check how many results the user is allowed to have
-    role_maxrows = check_role_limits(incoming_role)
-
-    if rowlimit is not None and rowlimit > role_maxrows:
-        return rows[role_maxrows]
-    elif rowlimit is not None and rowlimit < role_maxrows:
-        return rows[rowlimit]
-    else:
-        return rows
-
-
-def results_random_sample(rows, sample_count=None):
-    '''This returns sample_count uniformly sampled without replacement rows.
-
-    '''
-
-    if sample_count is not None and 0 < sample_count < len(rows):
-        return sample(rows, sample_count)
-    else:
-        return rows
-
-
-pipeline_funcs = {
-    'permissions':results_apply_permissions,
-    'randomsample':results_random_sample,
-    'sort':results_sort_by_keys,
-    'limit':results_limit_rows
-}
-
-
-def results_pipeline(rows, operation_list):
-    '''Runs operations in order against rows to produce the final result set.
-
-    '''
-
-    for op in operation_list:
-
-        func, args, kwargs = op
-
-        rows = func(rows, *args, **args)
-
-        if len(rows) == 0:
-            break
-
-    return rows
-
-
-
 ###################
 ## SQLITE SEARCH ##
 ###################
+
+def add_collection_info(row, collection):
+    '''This just adds the collection ID to a dict from sqlite.Row.
+    '''
+    row = dict(row)
+    row['collection'] = collection
+    return row
+
 
 def sqlite_fulltext_search(
         basedir,
@@ -1016,7 +898,8 @@ def sqlite_fulltext_search(
                 # rows. this is fairly fast since we have the permissions model
                 # entirely in memory from authdb
                 rows = [
-                    dict(x) for x in rows if check_user_access(
+                    add_collection_info(x, lcc) for x in rows if
+                    check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
                         action='view',
@@ -1346,7 +1229,8 @@ def sqlite_column_search(basedir,
 
                 # check permissions for each object before accepting it
                 rows = [
-                    dict(x) for x in rows if check_user_access(
+                    add_collection_info(x, lcc) for x in rows if
+                    check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
                         action='view',
@@ -1812,7 +1696,8 @@ def sqlite_kdtree_conesearch(basedir,
 
                 # get the results and filter by permitted objects
                 rows = [
-                    dict(x) for x in cur.fetchall() if check_user_access(
+                    add_collection_info(x, lcc) for x in cur.fetchall() if
+                    check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
                         action='view',
@@ -2423,7 +2308,7 @@ def sqlite_xmatch_search(basedir,
                 try:
                     cur.execute(thisq, tuple(matching_lcc_objectids))
                     rows = [
-                        dict(x) for x in cur.fetchall() if
+                        add_collection_info(x, lcc) for x in cur.fetchall() if
                         check_user_access(
                             userid=incoming_userid,
                             role=incoming_role,
@@ -2719,7 +2604,7 @@ def sqlite_xmatch_search(basedir,
                 cur.execute(thisq)
 
                 rows = [
-                    dict(x) for x in cur.fetchall() if
+                    add_collection_info(x, lcc) for x in cur.fetchall() if
                     check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
