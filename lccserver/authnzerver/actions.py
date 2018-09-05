@@ -33,8 +33,6 @@ from tornado.escape import squeeze
 from sqlalchemy import select
 from fuzzywuzzy.fuzz import UQRatio
 
-
-
 from . import authdb
 
 
@@ -97,6 +95,13 @@ def auth_user_login(payload,
     # if it isn't, then hash the dummy user's password twice and
     # return False, None
     if not request_ok:
+
+        # dummy session request
+        session_info = auth_session_exists(
+            {'session_token':'nope'},
+            raiseonfail=raiseonfail,
+            override_authdb_path=override_authdb_path
+        )
 
         # always get the dummy user's password from the DB
         dummy_sel = select([
@@ -572,7 +577,7 @@ def validate_input_password(email,
 
 def create_new_user(payload,
                     min_pass_length=12,
-                    max_similarity=20,
+                    max_similarity=30,
                     raiseonfail=False,
                     override_authdb_path=None):
     '''This makes a new user.
