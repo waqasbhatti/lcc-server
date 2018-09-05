@@ -22,12 +22,12 @@ LOGGER = logging.getLogger(__name__)
 ## IMPORTS ##
 #############
 
-import json
 import ipaddress
 import secrets
 import multiprocessing as mp
 from datetime import datetime
-import base64
+
+from sqlalchemy import select
 
 from . import authdb
 
@@ -47,70 +47,158 @@ def auth_user_login(payload,
 
     valid session_token, email, password
 
-    If user auth succeeds, invalidates the current session token, generates a
-    new one, then returns:
+    login flow:
 
-    True, session_token
-
-    else invalidates the current session token and generates a new one, then
-    returns:
-
-    False, session_token
-
-    If the user doesn't match any existing ones, we'll run the password hash
-    check against the hashed password of the dummyuser (which is unknowable
-    unless someone other than us has access to the DB). This should avoid
-    leaking the presence or absence of specific users via timing attacks.
-
-    We require a valid and unexpired session_token to enable user login. The
-    frontend indexserver takes care of getting this from the timed-expiry
-    Secure, HTTPonly, SameSite cookie. If it's expired or invalid, then the
-    frontend will send None as session_token and we won't allow login until the
-    session token has been renewed (which happens right after this request).
-
-    query:
-
-    select
-      a.user_id,
-      a.session_token,
-      a.email,
-      a.password,
-      a.is_active,
-      a.user_role,
-      a.last_login_try,
-      a.last_login_success
-    from
-      users a join sessions b on (a.user_id = b.user_id)
-    where
-      a.email in (provided_email, 'dummyuser@localhost')
+    session cookie get -> check session exists -> check user login -> old
+    session delete (no matter what) -> new session create (with actual user_id
+    and other info now included if successful or same user_id = anon if not
+    successful) -> done
 
     '''
 
-    # break immediately if the payload doesn't match
+    # check broken
+    request_ok = True
     for item in ('email', 'password', 'session_token'):
         if item not in payload:
+            request_ok = False
+            break
+
+
+    # this checks if the database connection is live
+    currproc = mp.current_process()
+    engine = getattr(currproc, 'engine', None)
+
+    if override_authdb_path:
+        currproc.auth_db_path = override_authdb_path
+
+    if not engine:
+        currproc.engine, currproc.connection, currproc.table_meta = (
+            authdb.get_auth_db(
+                currproc.auth_db_path,
+                echo=raiseonfail
+            )
+        )
+
+    users = currproc.table_meta.tables['users']
+
+    #
+    # check if the request is OK
+    #
+
+    # if it isn't, then hash the dummy user's password twice and
+    # return False, None
+    if not request_ok:
+
+        # always get the dummy user's password from the DB
+        dummy_results = users.select([
+            users.c.password
+        ]).where(users.c.user_id == 3)
+        dummy_password = dummy_results.fetchone()['password']
+        dummy_results.close()
+        authdb.password_context.verify('nope',
+                                       dummy_password)
+        # always get the dummy user's password from the DB
+        dummy_results = users.select([
+            users.c.password
+        ]).where(users.c.user_id == 3)
+        dummy_password = dummy_results.fetchone()['password']
+        dummy_results.close()
+        authdb.password_context.verify('nope',
+                                       dummy_password)
+
+        return False
+
+    # otherwise, now we'll check if the session exists
+    else:
+
+        session_info = auth_session_exists(
+            {'session_token':payload['session_token']},
+            raiseonfail=raiseonfail,
+            override_authdb_path=override_authdb_path
+        )
+
+        # if it doesn't, hash the dummy password twice, insert new session token
+        # and return False, session_token
+        if not session_info:
+
+            # always get the dummy user's password from the DB
+            dummy_results = users.select([
+                users.c.password
+            ]).where(users.c.user_id == 3)
+            dummy_password = dummy_results.fetchone()['password']
+            dummy_results.close()
+            authdb.password_context.verify('nope',
+                                           dummy_password)
+            # always get the dummy user's password from the DB
+            dummy_results = users.select([
+                users.c.password
+            ]).where(users.c.user_id == 3)
+            dummy_password = dummy_results.fetchone()['password']
+            dummy_results.close()
+            authdb.password_context.verify('nope',
+                                           dummy_password)
+
             return False
 
-    # get the dummy user's password from the DB
+        # if it does, we'll proceed to checking the password for the provided
+        # email
+        else:
 
-    # now we'll check if the session exists
+            # always get the dummy user's password from the DB
+            dummy_results = users.select([
+                users.c.password
+            ]).where(users.c.user_id == 3)
+            dummy_password = dummy_results.fetchone()['password']
+            dummy_results.close()
+            authdb.password_context.verify('nope',
+                                           dummy_password)
 
-    # if it doesn't, hash the dummy password twice, generate a new session token
-    # and return False, session_token
+            # look up the provided user
+            user_results = users.select([
+                users.c.user_id,
+                users.c.password
+            ]).where(users.c.email == payload['email'])
+            user_info = user_results.fetchone()
+            user_results.close()
 
-    # if it does, we'll proceed to checking the password for the provided email
+            if user_info:
 
-    # if the user exists or doesn't exist, hash the password against the dummy
-    # user
+                pass_ok = authdb.password_context.verify(
+                    payload['password'],
+                    user_info['password']
+                )
 
-    # if the user exists, hash the password against the provided password. if
-    # not, hash the password again against the dummy user
+            else:
 
-    # check if it matches, if True: delete existing session token, create a new
-    # one, and return True, session_token
+                authdb.password_context.verify('nope',
+                                               dummy_password)
+                pass_ok = False
 
-    # if it doesn't match, delete existing session token, create a new one and
-    # return False, session_token
+
+            if not pass_ok:
+
+                # delete the current session from the database
+                auth_session_delete(
+                    {'session_token':payload['session_token']},
+                    raiseonfail=raiseonfail,
+                    override_authdb_path=override_authdb_path
+                )
+
+                return False
+
+            # if password verification succeeeded, we'll delete the existing
+            # session token. The frontend will take this new session token and
+            # set the cookie on it
+            else:
+
+                # delete the current session from the database
+                auth_session_delete(
+                    {'session_token':payload['session_token']},
+                    raiseonfail=raiseonfail,
+                    override_authdb_path=override_authdb_path
+                )
+
+                return user_info['user_id']
 
 
 
@@ -130,6 +218,23 @@ def auth_user_logout(payload,
     one.
 
     '''
+
+    # check if the session token exists
+    session_ok = auth_session_exists(payload,
+                                     override_authdb_path=override_authdb_path,
+                                     raiseonfail=raiseonfail)
+
+    if session_ok:
+
+        deleted = auth_session_delete(payload,
+                                      override_authdb_path=override_authdb_path,
+                                      raiseonfail=raiseonfail)
+        return deleted
+
+    else:
+
+        return False
+
 
 
 
@@ -167,10 +272,11 @@ def auth_session_new(payload,
     try:
 
         validated_ip = str(ipaddress.ip_address(payload['ip_address']))
+        payload['ip_address'] = validated_ip
 
         # set the userid to anonuser@localhost if no user is provided
         if not payload['user_id']:
-            user_id = 'anonuser@localhost'
+            payload['user_id'] = 2
 
         # this checks if the database connection is live
         currproc = mp.current_process()
@@ -252,17 +358,40 @@ def auth_session_exists(payload,
             )
 
         sessions = currproc.table_meta.tables['sessions']
-        select = sessions.select().where(
-            sessions.c.session_token == session_token
+        users = currproc.table_meta.tables['users']
+        s = select([
+            users.c.user_id,
+            users.c.full_name,
+            users.c.email,
+            users.c.email_verified,
+            users.c.emailverify_sent_datetime,
+            users.c.is_active,
+            users.c.last_login_try,
+            users.c.last_login_success,
+            users.c.created_on,
+            users.c.user_role,
+            sessions.c.session_token,
+            sessions.c.ip_address,
+            sessions.c.client_header,
+            sessions.c.created,
+            sessions.c.expires,
+            sessions.c.extra_info_json
+        ]).select_from(users.join(sessions)).where(
+            (sessions.c.session_token == session_token) &
+            (sessions.c.expires > datetime.utcnow())
         )
-        result = currproc.connection.execute(select)
+        result = currproc.connection.execute(s)
+        rows = result.fetchone()
+        result.close()
 
         try:
-            serialized_result = [dict(x) for x in result]
+
+            serialized_result = dict(rows)
             return serialized_result
         except Exception as e:
-            LOGGER.exception(
-                'no existing session info for token: %s' % session_token
+            LOGGER.warning(
+                'no existing and unexpired session info for token: %s'
+                % session_token
             )
             return False
 
