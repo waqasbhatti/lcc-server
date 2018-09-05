@@ -205,6 +205,7 @@ def results_sort_by_keys(rows, sorts=()):
     return rows
 
 
+
 def results_apply_permissions(rows,
                               action='view',
                               target='object',
@@ -241,6 +242,7 @@ def results_apply_permissions(rows,
     ]
 
 
+
 def results_limit_rows(rows,
                        rowlimit=None,
                        incoming_userid=2,
@@ -251,14 +253,19 @@ def results_limit_rows(rows,
     '''
 
     # check how many results the user is allowed to have
-    role_maxrows = check_role_limits(incoming_role)
+    role_limits = check_role_limits(incoming_role)
 
-    if rowlimit is not None and rowlimit > role_maxrows:
-        return rows[:role_maxrows]
-    elif rowlimit is not None and rowlimit < role_maxrows:
+    if rowlimit is not None and rowlimit > role_limits['max_rows']:
+        return rows[:role_limits['max_rows']]
+
+    elif rowlimit is not None and rowlimit < role_limits['max_rows']:
         return rows[:rowlimit]
+
+    # if no specific row limit is provided, make sure to never go above the
+    # allowed max_rows for the role
     else:
-        return rows
+        return rows[:role_limits['max_rows']]
+
 
 
 def results_random_sample(rows, sample_count=None):
@@ -271,30 +278,6 @@ def results_random_sample(rows, sample_count=None):
     else:
         return rows
 
-
-pipeline_funcs = {
-    'permissions':results_apply_permissions,
-    'randomsample':results_random_sample,
-    'sort':results_sort_by_keys,
-    'limit':results_limit_rows
-}
-
-
-def results_pipeline(rows, operation_list):
-    '''Runs operations in order against rows to produce the final result set.
-
-    '''
-
-    for op in operation_list:
-
-        func, args, kwargs = op
-
-        rows = func(rows, *args, **args)
-
-        if len(rows) == 0:
-            break
-
-    return rows
 
 
 ########################################
