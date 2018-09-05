@@ -110,8 +110,7 @@ Users = Table(
     Column('user_id', Integer(), primary_key=True, nullable=False),
     Column('password', Text(), nullable=False),
     Column('full_name', String(length=280), index=True),
-
-    Column('email', String(length=280), nullable=False, index=True),
+    Column('email', String(length=280), nullable=False, unique=True),
     Column('email_verified',Boolean(), default=False,
            nullable=False, index=True),
     Column('emailverify_sent_datetime', DateTime()),

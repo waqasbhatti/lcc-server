@@ -14,3 +14,4 @@ passlib>=1.7.1
 bcrypt>=3.1.4
 argon2-cffi>=18.3.0
 diskcache>=3.0.6
+fuzzywuzzy>=0.17.0
