@@ -153,7 +153,7 @@ def auth_user_login(payload,
             ]).select_from(users).where(users.c.user_id == 3)
             dummy_results = currproc.connection.execute(dummy_sel)
             dummy_password = dummy_results.fetchone()['password']
-            dummy_sel.close()
+            dummy_results.close()
             authdb.password_context.verify('nope',
                                            dummy_password)
 

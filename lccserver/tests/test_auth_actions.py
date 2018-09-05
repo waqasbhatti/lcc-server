@@ -11,6 +11,9 @@ import os
 from datetime import datetime, timedelta
 import time
 
+import numpy as np
+from numpy.testing import assert_allclose
+
 def get_test_authdb():
     '''This just makes a new test auth DB for each test function.
 
@@ -295,12 +298,60 @@ def test_login():
     # of these should lie within 1 stdev of each other to make sure we're not
     # leaking info on user passwords.
 
-    # FIXME: add tests that check the timing of 500 login requests with correct
-    # password and 500 login requests with nonexistent user accounts. The median
-    # times of these should lie within 1 stdev of each other to make sure we're
-    # not leaking info on user names.
+    # incorrect passwords
+    incorrect_timings = []
+    for _ in range(1000):
 
-    # FIXME: add tests that check the timing of 500 login requests with correct
-    # password and 500 login requests that are completely broken. The median
-    # times of these should lie within 1 stdev of each other to make sure we're
-    # not leaking auxiliary info.
+        start = time.time()
+        actions.auth_user_login(
+            {'session_token':session_token1,
+             'email': user_payload['email'],
+             'password':'helloworld'},
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+        end = time.time()
+        incorrect_timings.append(end - start)
+
+    # correct passwords
+    correct_timings = []
+    for _ in range(1000):
+
+        start = time.time()
+        actions.auth_user_login(
+            {'session_token':session_token1,
+             'email': user_payload['email'],
+             'password':user_payload['password']},
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+        end = time.time()
+        correct_timings.append(end - start)
+
+    # broken requests
+    broken_timings = []
+    for _ in range(1000):
+
+        start = time.time()
+        actions.auth_user_login(
+            {'session_token':'correcthorsebatterystaple',
+             'email': user_payload['email'],
+             'password':user_payload['password']},
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+        end = time.time()
+        broken_timings.append(end - start)
+
+
+    correct_timings = np.array(correct_timings)
+    incorrect_timings = np.array(incorrect_timings)
+    broken_timings = np.array(broken_timings)
+
+    correct_median = np.median(correct_timings)
+    incorrect_median = np.median(incorrect_timings)
+    broken_median = np.median(broken_timings)
+
+    # should match within 2 milliseconds or so
+    assert_allclose(correct_median, incorrect_median, atol=2.0e-3)
+    assert_allclose(correct_median, broken_median, atol=2.0e-3)
+
+    # FIXME: maybe add a test for actual timing array values matching between
+    # random user name and password tries
