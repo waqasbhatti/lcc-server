@@ -389,21 +389,6 @@ def sqlite_new_dataset(basedir,
     allows us to resort on their properties over the entire dataset instead of
     just per collection.
 
-    FIXME: implement strformat, make_dataset_csv, and rows_per_page to generate
-    all the JSON headers and stuff in one shot so we can return the full dataset
-    quickly.
-
-    FIXME: convert original format LC names to LCC CSV filenames as well. Then
-    the lczip function below can just check if the expected file exists at the
-    specified location and regen it if it doesn't.
-
-    FIXME: We'll check in this function if the output light curve CSVs exist for
-    each row and mark them for regen if not present. This way, we can return the
-    dataset view immediately while letting the LC ZIP finish in the
-    background. When that finishes, the frontend polling JS will receive a LC
-    ZIP done message along with its download path and a list of any regenerated
-    light curves that should be added to the existing data table.
-
     '''
 
     # get the dataset dir
@@ -696,7 +681,7 @@ def sqlite_new_dataset(basedir,
             elif 'lcfname' in entry and not os.path.exists(csvlc_path):
 
                 csvlcs_to_generate.append(
-                    (entry['db_lcfname'],
+                    (entry['lcfname'],
                      entry['db_oid'],
                      searchresult[entry['collection']]['lcformatdesc'],
                      entry['collection'],
@@ -1254,23 +1239,19 @@ def sqlite_list_datasets(basedir,
 
 def sqlite_get_dataset(basedir,
                        setid,
+                       returnspec,
                        incoming_userid=2,
-                       incoming_role='anonymous',
-                       returnjson=False,
-                       generatecsv=True,
-                       forcecsv=False,
-                       forcecomplete=False):
-    '''This gets the dataset as a dictionary and optionally as JSON.
+                       incoming_role='anonymous'):
+    '''This gets the dataset as a dict.
 
-    If generatecsv is True, we'll generate a CSV for the dataset table and write
-    it to the products directory (or retrieve it from cache if it exists
-    already).
+    returnspec is what to return:
 
-    if forcecomplete, we'll force-set the dataset status to complete. this can
-    be useful when there's too many LCs to zip and we don't want to wait around
-    for this.
-
-    Returns a dict generated from the dataset pickle.
+    -> 'json-header'      -> only the dataset header
+    -> 'json-preview'     -> header + first page of data table
+    -> 'strjson-preview'  -> header + first page of strformatted data table
+    -> 'json-page-XX'     -> requested page XX of the data table
+    -> 'strjson-page-XX'  -> requested page XX of the strformatted data table
+    -> 'pickle'           -> full pickle
 
     '''
 
@@ -1288,274 +1269,174 @@ def sqlite_get_dataset(basedir,
     db.row_factory = sqlite3.Row
     cur = db.cursor()
 
-    # if the dataset pickle for this dataset doesn't exist yet, then it's either
-    # just been initialized or it's broken
-    if not os.path.exists(dataset_fpath):
+    # get the dataset's info from the DB
+    query = ("select created_on, last_updated, status, "
+             "dataset_owner, dataset_visibility, dataset_sharedwith "
+             "from lcc_datasets where setid = ?")
+    cur.execute(query, (setid,))
+    row = cur.fetchone()
 
-        LOGWARNING('expected dataset pickle does not exist for setid: %s' %
-                   setid)
+    if row and len(row) > 0 and os.path.exists(dataset_fpath):
 
-        # if the dataset pickle doesn't exist, check the DB for its status
-        query = ("select created_on, last_updated, status, "
-                 "dataset_owner, dataset_visibility, dataset_sharedwith "
-                 "from lcc_datasets where setid = ?")
-        cur.execute(query, (setid,))
-        row = cur.fetchone()
+        dataset_status = row['status']
+        #
+        # otherwise, proceed as normal
+        #
+        dataset_accessible = sqlite_check_dataset_access(
+            setid,
+            'view',
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            database=db
+        )
 
-        if row and len(row) > 0:
+        # check if we can access this dataset
+        if dataset_accessible:
 
-            dataset_accessible = check_user_access(
-                userid=incoming_userid,
-                role=incoming_role,
-                action='view',
-                target_name='dataset',
-                target_owner=row['dataset_owner'],
-                target_visibility=row['dataset_visibility'],
-                target_sharedwith=row['dataset_sharedwith']
-            )
+            # check what we want to return
+            if returnspec == 'pickle':
 
-            if dataset_accessible:
+                getpath = dataset_fpath
 
-                # check the dataset's status
-                # this should only be initialized if the dataset pickle doesn't
-                # exist
-                if row['status'] == 'initialized':
+                with open(getpath,'rb') as infd:
+                    outdict = pickle.load(infd)
 
-                    dataset_status = 'in progress'
-
-                # if the status is anything else, the dataset is in an unknown
-                # state, and is probably broken
-                else:
-
-                    dataset_status = 'broken'
-
-                returndict = {
-                    'setid': setid,
-                    'created_on':row['created_on'],
-                    'last_updated':row['last_updated'],
-                    'nobjects':0,
-                    'status': dataset_status,
-                    'owner': row['dataset_owner'],
-                    'visibility': row['dataset_visibility'],
-                    'sharedwith': row['dataset_sharedwith'],
-                    'name':None,
-                    'desc':None,
-                    'columns':None,
-                    'searchtype':None,
-                    'searchargs':None,
-                    'lczip':None,
-                    'dataset_csv':None,
-                    'collections':None,
-                    'result':None,
-                }
-
-                LOGWARNING("dataset: %s is in state: %s" % (setid,
-                                                            dataset_status))
                 db.close()
-                return returndict
+                outdict['status'] = dataset_status
+                return outdict
+
+            elif returnspec == 'json-header':
+
+                getpath1 = os.path.join(datasetdir,
+                                        'dataset-%s-header.pkl' % setid)
+                with open(getpath1,'rb') as infd:
+                    header = pickle.load(infd)
+
+                db.close()
+                header['status'] = dataset_status
+                return header
+
+            elif returnspec == 'json-preview':
+
+                getpath1 = os.path.join(datasetdir,
+                                        'dataset-%s-header.pkl' % setid)
+
+                getpath2 = os.path.join(datasetdir,
+                                        'dataset-%s-rows-page1.pkl' % setid)
+                with open(getpath1,'rb') as infd:
+                    header = pickle.load(infd)
+
+                if os.path.exists(getpath2):
+                    with open(getpath2, 'rb') as infd:
+                        table_preview = pickle.load(infd)
+                else:
+                    LOGERROR('requested page: %s for dataset: %s does not exist'
+                             % (1, setid))
+                    table_preview = []
+
+                header['rows'] = table_preview
+                header['status'] = dataset_status
+                header['currpage'] = 1
+                db.close()
+                return header
+
+            elif returnspec == 'strjson-preview':
+
+                getpath1 = os.path.join(datasetdir,
+                                        'dataset-%s-header.pkl' % setid)
+
+                getpath2 = os.path.join(datasetdir,
+                                        'dataset-%s-rows-page1-strformat.pkl' %
+                                        setid)
+                with open(getpath1,'rb') as infd:
+                    header = pickle.load(infd)
+                if os.path.exists(getpath2):
+                    with open(getpath2, 'rb') as infd:
+                        table_preview = pickle.load(infd)
+                else:
+                    LOGERROR('requested page: %s for dataset: %s does not exist'
+                             % (1, setid))
+                    table_preview = []
+
+                header['rows'] = table_preview
+                header['status'] = dataset_status
+                header['currpage'] = 1
+                db.close()
+                return header
+
+            elif returnspec.startswith('json-page-'):
+
+                page_to_get = returnspec.split('-')[-1]
+                getpath1 = os.path.join(datasetdir,
+                                        'dataset-%s-header.pkl' % setid)
+                with open(getpath1,'rb') as infd:
+                    header = pickle.load(infd)
+
+                getpath2 = os.path.join(
+                    datasetdir,
+                    'dataset-%s-rows-page%s.pkl' % (setid, page_to_get)
+                )
+                if os.path.exists(getpath2):
+                    with open(getpath2, 'rb') as infd:
+                        setrows = pickle.load(infd)
+                else:
+                    LOGERROR('requested page: %s for dataset: %s does not exist'
+                             % (page_to_get, setid))
+                    setrows = []
+
+                header['rows'] = setrows
+                header['status'] = dataset_status
+                header['currpage'] = int(page_to_get)
+                db.close()
+                return header
+
+            elif returnspec.startswith('strjson-page-'):
+
+                page_to_get = returnspec.split('-')[-1]
+                getpath1 = os.path.join(datasetdir,
+                                        'dataset-%s-header.pkl' % setid)
+                with open(getpath1,'rb') as infd:
+                    header = pickle.load(infd)
+
+                getpath2 = os.path.join(
+                    datasetdir,
+                    'dataset-%s-rows-page%s-strformat.pkl' % (setid,
+                                                              page_to_get)
+                )
+                if os.path.exists(getpath2):
+                    with open(getpath2, 'rb') as infd:
+                        setrows = pickle.load(infd)
+                else:
+                    LOGERROR('requested page: %s for dataset: %s does not exist'
+                             % (page_to_get, setid))
+                    setrows = []
+
+                header['rows'] = setrows
+                header['status'] = dataset_status
+                header['currpage'] = int(page_to_get)
+                db.close()
+                return header
 
             else:
 
-                LOGWARNING(
-                    'user: %s, role: %s does not have access to '
-                    'dataset: %s owned by: %s, visibility: %s, '
-                    'shared with: %s' %
-                    (incoming_userid, incoming_role, setid,
-                     row['dataset_owner'],
-                     row['dataset_visibility'],
-                     row['dataset_sharedwith'])
-                )
+                LOGERROR('unknown return spec. not returning anything')
                 db.close()
                 return None
 
-        # if no dataset entry in the DB, then this DS doesn't exist at all
+        # otherwise, the dataset is not accessible
         else:
-
-            LOGERROR('requested dataset: %s does not exist' % setid)
+            LOGERROR('dataset: %s is not accessible by userid: %s, role: %s' %
+                     (setid, incoming_userid, incoming_role))
             db.close()
             return None
 
-    #
-    # otherwise, proceed as normal
-    #
-    dataset_accessible = sqlite_check_dataset_access(
-        setid,
-        'view',
-        incoming_userid=incoming_userid,
-        incoming_role=incoming_role,
-        database=db
-    )
-
-    # check if we can access this dataset
-    if dataset_accessible:
-
-        # read in the pickle
-        with gzip.open(dataset_fpath,'rb') as infd:
-            dataset = pickle.load(infd)
-
-        returndict = {
-            'setid':dataset['setid'],
-            'name':dataset['name'],
-            'desc':dataset['desc'],
-            'owner':dataset['owner'],
-            'visibility':dataset['visibility'],
-            'sharedwith':dataset['sharedwith'],
-            'columns':dataset['columns'],
-            'searchtype':dataset['searchtype'],
-            'searchargs':dataset['searchargs'],
-            'lczip':dataset['lczipfpath'],
-        }
-
-        query = ("select created_on, last_updated, nobjects, status "
-                 "from lcc_datasets where setid = ?")
-        params = (dataset['setid'],)
-        cur.execute(query, params)
-        row = cur.fetchone()
-        db.close()
-
-        # update these in the returndict
-        returndict['created_on'] = row[0]
-        returndict['last_updated'] = row[1]
-        returndict['nobjects'] = row[2]
-        returndict['status'] = row[3]
-
-        # the results are per-collection
-        returndict['collections'] = dataset['collections']
-        returndict['result'] = {}
-
-        for coll in dataset['collections']:
-
-            returndict['result'][coll] = {
-                'data':dataset['result'][coll][::],
-                'success':dataset['success'][coll],
-                'message':dataset['message'][coll],
-                'nmatches':dataset['nmatches'][coll],
-                'columnspec':dataset['columnspec'][coll],
-                'collid':dataset['collid'][coll]
-            }
-
-        # if we're told to force complete the dataset, do so here
-        if forcecomplete and returndict['status'] != 'complete':
-
-            datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
-            db = sqlite3.connect(
-                datasets_dbf,
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-            )
-            cur = db.cursor()
-            query = ("update lcc_datasets set last_updated = ?, "
-                     "nobjects = ?, status = ? where setid = ?")
-            params = (
-                datetime.utcnow().isoformat(),
-                sum(dataset['nmatches'][x] for x in dataset['collections']),
-                'complete',
-                dataset['setid']
-            )
-            cur.execute(query, params)
-            db.commit()
-            db.close()
-
-            if not os.path.exists(returndict['lczip']):
-                returndict['lczip'] = None
-
-            # link the CSV LCs to the output csvlcs directory if available this
-            # should let these through to generate_dataset_tablerows even if the
-            # dataset is forced to completion
-            for collection in returndict['collections']:
-                for row in returndict['result'][collection]['data']:
-
-                    # NOTE: here we rely on the fact that the collection names
-                    # are normalized by the CLI (assuming that's the only way
-                    # people generate these collections). The generated
-                    # collection IDs never include a '_', so we can safely
-                    # change from the DB collection ID which can't have a '-' to
-                    # a collection ID == directory name on disk, which can't
-                    # have a '_'.
-                    # this will probably come back to haunt me
-
-                    csvlc_original = os.path.join(os.path.abspath(basedir),
-                                                  collection.replace('_','-'),
-                                                  'lightcurves',
-                                                  '%s-csvlc.gz' %
-                                                  row['db_oid'])
-                    csvlc_link = os.path.join(os.path.abspath(basedir),
-                                              'csvlcs',
-                                              collection.replace('_','-'),
-                                              '%s-csvlc.gz' % row['db_oid'])
-
-                    if (os.path.exists(csvlc_original) and
-                        not os.path.exists(csvlc_link)):
-
-                        os.symlink(os.path.abspath(csvlc_original),
-                                   csvlc_link)
-                        csvlc = csvlc_link
-
-                    elif (os.path.exists(csvlc_original) and
-                          os.path.exists(csvlc_link)):
-
-                        csvlc = csvlc_link
-
-                    else:
-
-                        csvlc = None
-
-                    if 'db_lcfname' in row:
-                        row['db_lcfname'] = csvlc
-
-                    if 'lcfname' in row:
-                        row['lcfname'] = csvlc
-
-                    # changing the row keys here also automatically changes the
-                    # corresponding row key in the original dataset dict this
-                    # shouldn't be happening though, because we (attempted to)
-                    # make a copy of the dataset row list above (apparently
-                    # not!)
-
-            LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
-                       (returndict['status'], returndict['setid']))
-
-            # write the original dataset dict back to the pickle after the
-            # lcfname items have been censored
-            with gzip.open(dataset_fpath,'wb') as outfd:
-                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
-
-            LOGINFO('updated dataset pickle with CSVLC filenames')
-
-        elif forcecomplete and returndict['status'] == 'complete':
-            LOGERROR('not going to force completion '
-                     'for an already complete dataset: %s'
-                     % returndict['setid'])
-
-        # make the CSV at the end if told to do so
-        if generatecsv:
-            csv = generate_dataset_csv(
-                basedir,
-                returndict,
-                force=forcecsv,
-            )
-            returndict['dataset_csv'] = csv
-        else:
-            returndict['dataset_csv'] = None
-
-        # if we're returning JSON, do that
-        if returnjson:
-
-            retjson = json.dumps(returndict)
-            retjson = retjson.replace('nan','null')
-
-            return retjson
-
-        # otherwise, return the usual dict
-        else:
-            return returndict
-
-
-    # otherwise, the dataset is not accessible
     else:
 
+        LOGERROR(
+            'no database matching setid: %s found' % setid
+        )
         db.close()
         return None
-
 
 
 #####################################
