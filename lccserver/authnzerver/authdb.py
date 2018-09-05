@@ -20,10 +20,44 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
 from sqlalchemy import (
-    Table, Column, Integer, String, Boolean, DateTime, ForeignKey, MetaData
+    Table, Column, Integer, String, Text,
+    Boolean, DateTime, ForeignKey, MetaData
 )
 
 from passlib.context import CryptContext
+
+##########################
+## JSON type for SQLite ##
+##########################
+
+# taken from:
+# docs.sqlalchemy.org/en/latest/core/custom_types.html#marshal-json-strings
+
+from sqlalchemy.types import TypeDecorator, TEXT
+import json
+
+class JSONEncodedDict(TypeDecorator):
+    """Represents an immutable structure as a json-encoded string.
+
+    Usage::
+
+        JSONEncodedDict(255)
+
+    """
+
+    impl = TEXT
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
+
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = json.loads(value)
+        return value
+
 
 
 #############################
@@ -65,7 +99,7 @@ Sessions = Table(
            default=datetime.utcnow,
            nullable=False, index=True),
     Column('expires', DateTime(), nullable=False, index=True),
-    Column('extra_info_json', String()),
+    Column('extra_info_json', JSONEncodedDict()),
 )
 
 
@@ -74,7 +108,7 @@ Users = Table(
     'users',
     AUTHDB_META,
     Column('user_id', Integer(), primary_key=True, nullable=False),
-    Column('password', String(), nullable=False),
+    Column('password', Text(), nullable=False),
     Column('full_name', String(length=280), index=True),
 
     Column('email', String(length=280), nullable=False, index=True),
@@ -116,13 +150,13 @@ Preferences = Table(
 APIKeys = Table(
     'apikeys',
     AUTHDB_META,
-    Column('apikey', String(), primary_key=True, nullable=False),
-    Column('issued', String(), nullable=False, default=datetime.utcnow),
+    Column('apikey', Text(), primary_key=True, nullable=False),
+    Column('issued', DateTime(), nullable=False, default=datetime.utcnow),
     Column('expires', DateTime(), index=True, nullable=False),
     Column('user_id', Integer(),
            ForeignKey('users.user_id', ondelete="CASCADE"),
            nullable=False),
-    Column('session_token', String(),
+    Column('session_token', Text(),
            ForeignKey('sessions.session_token', ondelete="CASCADE"),
            nullable=False)
 )
@@ -626,13 +660,11 @@ def get_auth_db(auth_db_path, echo=False):
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
-    meta = MetaData()
     engine = create_engine(auth_db_path, echo=echo)
-    meta.bind = engine
-    meta.reflect()
+    AUTHDB_META.bind = engine
     conn = engine.connect()
 
-    return engine, conn, meta
+    return engine, conn, AUTHDB_META
 
 
 

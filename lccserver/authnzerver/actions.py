@@ -26,6 +26,8 @@ import json
 import ipaddress
 import secrets
 import multiprocessing as mp
+from datetime import datetime
+import base64
 
 from . import authdb
 
@@ -83,6 +85,32 @@ def auth_user_login(payload,
       a.email in (provided_email, 'dummyuser@localhost')
 
     '''
+
+    # break immediately if the payload doesn't match
+    for item in ('email', 'password', 'session_token'):
+        if item not in payload:
+            return False
+
+    # get the dummy user's password from the DB
+
+    # now we'll check if the session exists
+
+    # if it doesn't, hash the dummy password twice, generate a new session token
+    # and return False, session_token
+
+    # if it does, we'll proceed to checking the password for the provided email
+
+    # if the user exists or doesn't exist, hash the password against the dummy
+    # user
+
+    # if the user exists, hash the password against the provided password. if
+    # not, hash the password again against the dummy user
+
+    # check if it matches, if True: delete existing session token, create a new
+    # one, and return True, session_token
+
+    # if it doesn't match, delete existing session token, create a new one and
+    # return False, session_token
 
 
 
@@ -155,23 +183,19 @@ def auth_session_new(payload,
             currproc.engine, currproc.connection, currproc.table_meta = (
                 authdb.get_auth_db(
                     currproc.auth_db_path,
-                    echo=False
+                    echo=raiseonfail
                 )
             )
 
         # generate a session token
         session_token = secrets.token_urlsafe(32)
 
+        payload['session_token'] = session_token
+        payload['created'] = datetime.utcnow()
+
         # get the insert object from sqlalchemy
         sessions = currproc.table_meta.tables['sessions']
-        insert = sessions.insert().values(
-            session_token=session_token,
-            ip_address=validated_ip,
-            client_header=payload['client_header'],
-            user_id=user_id,
-            expires=payload['expires'],
-            extra_info_json=json.dumps(payload['extra_info_json']),
-        )
+        insert = sessions.insert().values(**payload)
         result = currproc.connection.execute(insert)
         result.close()
 
@@ -187,7 +211,9 @@ def auth_session_new(payload,
 
 
 
-def auth_session_exists(payload):
+def auth_session_exists(payload,
+                        raiseonfail=False,
+                        override_authdb_path=None):
     '''
     This checks if the provided session token exists.
 
@@ -202,8 +228,59 @@ def auth_session_exists(payload):
 
     '''
 
+    if 'session_token' not in payload:
+        LOGGER.error('no session token provided')
+        return False
 
-def auth_session_delete(payload):
+    session_token = payload['session_token']
+
+    try:
+
+        # this checks if the database connection is live
+        currproc = mp.current_process()
+        engine = getattr(currproc, 'engine', None)
+
+        if override_authdb_path:
+            currproc.auth_db_path = override_authdb_path
+
+        if not engine:
+            currproc.engine, currproc.connection, currproc.table_meta = (
+                authdb.get_auth_db(
+                    currproc.auth_db_path,
+                    echo=raiseonfail
+                )
+            )
+
+        sessions = currproc.table_meta.tables['sessions']
+        select = sessions.select().where(
+            sessions.c.session_token == session_token
+        )
+        result = currproc.connection.execute(select)
+
+        try:
+            serialized_result = [dict(x) for x in result]
+            return serialized_result
+        except Exception as e:
+            LOGGER.exception(
+                'no existing session info for token: %s' % session_token
+            )
+            return False
+
+    except Exception as e:
+
+        LOGGER.exception('session token not found or '
+                         'could not check if it exists')
+
+        if raiseonfail:
+            raise
+
+        return False
+
+
+
+def auth_session_delete(payload,
+                        raiseonfail=False,
+                        override_authdb_path=None):
     '''
     This removes a session token.
 
@@ -216,6 +293,48 @@ def auth_session_delete(payload):
     Deletes the row corresponding to the session_key in the sessions table.
 
     '''
+
+    if 'session_token' not in payload:
+        LOGGER.error('no session token provided')
+        return False
+
+    session_token = payload['session_token']
+
+    try:
+
+        # this checks if the database connection is live
+        currproc = mp.current_process()
+        engine = getattr(currproc, 'engine', None)
+
+        if override_authdb_path:
+            currproc.auth_db_path = override_authdb_path
+
+        if not engine:
+            currproc.engine, currproc.connection, currproc.table_meta = (
+                authdb.get_auth_db(
+                    currproc.auth_db_path,
+                    echo=raiseonfail
+                )
+            )
+
+        sessions = currproc.table_meta.tables['sessions']
+        delete = sessions.delete().where(
+            sessions.c.session_token == session_token
+        )
+        result = currproc.connection.execute(delete)
+        result.close()
+
+        return result.rowcount
+
+    except Exception as e:
+
+        LOGGER.exception('could not create a new session')
+
+        if raiseonfail:
+            raise
+
+        return False
+
 
 
 ###################

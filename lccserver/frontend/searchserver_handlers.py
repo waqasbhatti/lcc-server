@@ -308,8 +308,6 @@ def parse_xmatch_input(inputtext, matchradtext,
     except Exception as e:
         xmatch_distarcsec = 3.0
 
-    # FIXME: does this look OK? there seems to be extra backslashes in req args
-    # for some reason. seems to work though
     itextlines = itext.split('\n')
 
     if len(itextlines) > maxlines:
