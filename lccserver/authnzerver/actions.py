@@ -61,6 +61,11 @@ def auth_user_login(payload,
 
     The frontend MUST unset the cookie as well.
 
+    FIXME: fail logins if the account's role is locked or is_active is False.
+
+    FIXME: update (and fake-update) the Users table with the last_login_try and
+    last_login_success.
+
     '''
 
     # check broken
@@ -204,9 +209,16 @@ def auth_user_login(payload,
             if not pass_ok:
                 return False
 
-            # if password verification succeeeded
+            # if password verification succeeeded, check if the user can
+            # actually log in (i.e. their account is not locked or is not
+            # inactive)
             else:
-                return user_info['user_id']
+
+                if (user_info['is_active'] and
+                    user_info['user_role'] != 'locked'):
+                    return user_info['user_id']
+                else:
+                    return False
 
 
 
