@@ -219,7 +219,7 @@ def auth_user_logout(payload,
 
     payload keys required:
 
-    valid session_token
+    valid session_token, user_id
 
     Deletes the session token from the session store. On the next request
     (redirect from POST /auth/logout to GET /), the frontend will issue a new
@@ -230,16 +230,38 @@ def auth_user_logout(payload,
     '''
 
     # check if the session token exists
-    session_ok = auth_session_exists(payload,
-                                     override_authdb_path=override_authdb_path,
-                                     raiseonfail=raiseonfail)
+    session = auth_session_exists(payload,
+                                  override_authdb_path=override_authdb_path,
+                                  raiseonfail=raiseonfail)
 
-    if session_ok:
+    if session:
 
-        deleted = auth_session_delete(payload,
-                                      override_authdb_path=override_authdb_path,
-                                      raiseonfail=raiseonfail)
-        return deleted
+        # check the user ID
+        if payload['user_id'] == session['user_id']:
+
+            deleted = auth_session_delete(
+                payload,
+                override_authdb_path=override_authdb_path,
+                raiseonfail=raiseonfail
+            )
+            if deleted > 0:
+                return session['user_id']
+            else:
+                LOGGER.error(
+                    'something went wrong when '
+                    'trying to remove session ID: %s, '
+                    'for user ID: %s' % (payload['session_token'],
+                                         payload['user_id'])
+                )
+
+        else:
+            LOGGER.error(
+                'tried to log out but session token = %s '
+                'and user_id = %s do not match. '
+                'expected user_id = %s' % (payload['session_token'],
+                                           payload['user_id'],
+                                           session['user_id']))
+            return False
 
     else:
 
@@ -488,6 +510,7 @@ def change_user_role(payload,
     Not used except for by superusers to promote people to other roles.
 
     '''
+    # TODO: finish this
 
 
 
@@ -781,6 +804,7 @@ def verify_user_email_address(payload,
     'authenticated' and the is_active column to True.
 
     '''
+    # TODO: finish this
 
 
 
@@ -797,6 +821,7 @@ def delete_user(payload,
     Superuser accounts cannot be deleted.
 
     '''
+    # TODO: finish this
 
 
 
@@ -812,6 +837,7 @@ def change_user_password(payload,
     changed so the user has to login with their new password.
 
     '''
+    # TODO: finish this
 
 
 

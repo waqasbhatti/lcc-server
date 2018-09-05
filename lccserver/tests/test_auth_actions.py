@@ -293,10 +293,8 @@ def test_login():
 
     # FIXME: add tests for no session token provided
 
-    # FIXME: add tests that check the timing of 500 login requests with correct
-    # password and 500 login requests with incorrect password. The median times
-    # of these should lie within 1 stdev of each other to make sure we're not
-    # leaking info on user passwords.
+
+    # basic tests for timing attacks
 
     # incorrect passwords
     incorrect_timings = []
@@ -355,3 +353,93 @@ def test_login():
 
     # FIXME: maybe add a test for actual timing array values matching between
     # random user name and password tries
+
+
+
+def test_login_logout():
+    '''
+    See if we can login and log out correctly.
+
+    '''
+
+    get_test_authdb()
+
+    # create the user
+    user_payload = {'email':'testuser@test.org',
+                    'password':'aROwQin9L8nNtPTEMLXd'}
+    user_created = actions.create_new_user(
+        user_payload,
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert user_created['user_added'] is True
+    assert user_created['user_email'] == 'testuser@test.org'
+    assert user_created['user_id'] == 4
+    assert ('User account created. Please verify your email address to log in.'
+            in user_created['messages'])
+
+    # create a new session token
+    session_payload = {
+        'user_id':2,
+        'client_header':'Mozzarella Killerwhale',
+        'expires':datetime.utcnow()+timedelta(hours=1),
+        'ip_address': '1.1.1.1',
+        'extra_info_json':{'pref_datasets_always_private':True}
+    }
+
+    # check creation of session
+    session_token1 = actions.auth_session_new(
+        session_payload,
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert (session_token1 is not None and session_token1 is not False)
+
+    # try logging in now with correct password
+    login = actions.auth_user_login(
+        {'session_token':session_token1,
+         'email': user_payload['email'],
+         'password':user_payload['password']},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert login is not False
+    assert login == 4
+
+    # delete the previous session after the user has logged in
+    deleted_session = actions.auth_session_delete(
+        {'session_token':session_token1},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert deleted_session == 1
+
+    # make sure the old session token is gone
+    # check if our session was deleted correctly
+    session_still_exists = actions.auth_session_exists(
+        {'session_token':session_token1},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert session_still_exists is False
+
+    # start a new session with this user's user ID
+    authenticated_session_token = actions.auth_session_new(
+        {'user_id':login,
+         'client_header':'Mozzarella Killerwhale',
+         'expires':datetime.utcnow()+timedelta(hours=1),
+         'ip_address': '1.1.1.1',
+         'extra_info_json':{'pref_datasets_always_private':True}},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+
+    # now see if we can log out
+    logged_out = actions.auth_user_logout(
+        {'session_token':authenticated_session_token, 'user_id': 4},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+
+    assert logged_out == 4
+
+    # check if our session was deleted correctly
+    session_still_exists = actions.auth_session_exists(
+        {'session_token':authenticated_session_token},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+
+    assert session_still_exists is False
