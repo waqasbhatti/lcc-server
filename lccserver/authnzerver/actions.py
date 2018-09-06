@@ -935,6 +935,8 @@ def delete_user(payload,
         users.c.user_id == payload['user_id']
     ).where(
         users.c.email == payload['email']
+    ).where(
+        users.c.user_role != 'superuser'
     )
     result = currproc.connection.execute(delete)
     result.close()
