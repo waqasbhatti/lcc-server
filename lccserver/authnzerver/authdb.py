@@ -123,12 +123,12 @@ Users = Table(
     # this is reset everytime a user logs in sucessfully. this is used to check
     # the number of failed tries since the last successful try. FIXME: can we
     # use this for throttling login attempts without leaking info?
-    Column('failed_login_tries', Integer()),
+    Column('failed_login_tries', Integer(), default=0),
 
     Column('created_on', DateTime(),
            default=datetime.utcnow,
            nullable=False,index=True),
-    Column('updated_at', DateTime(),
+    Column('last_updated', DateTime(),
            onupdate=datetime.utcnow,
            nullable=False,index=True),
     Column('user_role', String(length=100),
@@ -736,21 +736,24 @@ def initial_authdb_inserts(auth_db_path,
              'email_verified':True,
              'is_active':True,
              'user_role':'superuser',
-             'created_on':datetime.utcnow()},
+             'created_on':datetime.utcnow(),
+             'last_updated':datetime.utcnow()},
             # the anonuser
             {'password':password_context.hash(secrets.token_urlsafe(32)),
              'email':'anonuser@localhost',
              'email_verified':True,
              'is_active':True,
              'user_role':'anonymous',
-             'created_on':datetime.utcnow()},
+             'created_on':datetime.utcnow(),
+             'last_updated':datetime.utcnow()},
             # the dummyuser to fail passwords for nonexistent users against
             {'password':password_context.hash(secrets.token_urlsafe(32)),
              'email':'dummyuser@localhost',
              'email_verified':True,
              'is_active':False,
              'user_role':'locked',
-             'created_on':datetime.utcnow()},
+             'created_on':datetime.utcnow(),
+             'last_updated':datetime.utcnow()},
         ])
     )
     result.close()

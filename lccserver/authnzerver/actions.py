@@ -37,6 +37,273 @@ from . import authdb
 
 
 
+################################
+## SESSION HANDLING FUNCTIONS ##
+################################
+
+def auth_session_new(payload,
+                     override_authdb_path=None,
+                     raiseonfail=False):
+    '''
+    This generates a new session token.
+
+    override_authdb_path allows testing without an executor.
+
+    Request payload keys required:
+
+    ip_address, client_header, user_id, expires, extra_info_json
+
+    Returns:
+
+    a 32 byte session token in base64 from secrets.token_urlsafe(32)
+
+    '''
+
+    # fail immediately if the required payload items are not present
+    for item in ('ip_address',
+                 'client_header',
+                 'user_id',
+                 'expires',
+                 'extra_info_json'):
+
+        if item not in payload:
+
+            return {
+                'success':False,
+                'session_token':None,
+                'messages':["Invalid session initiation request. "
+                            "Missing some parameters."]
+            }
+
+    try:
+
+        validated_ip = str(ipaddress.ip_address(payload['ip_address']))
+        payload['ip_address'] = validated_ip
+
+        # set the userid to anonuser@localhost if no user is provided
+        if not payload['user_id']:
+            payload['user_id'] = 2
+
+        # this checks if the database connection is live
+        currproc = mp.current_process()
+        engine = getattr(currproc, 'engine', None)
+
+        if override_authdb_path:
+            currproc.auth_db_path = override_authdb_path
+
+        if not engine:
+            currproc.engine, currproc.connection, currproc.table_meta = (
+                authdb.get_auth_db(
+                    currproc.auth_db_path,
+                    echo=raiseonfail
+                )
+            )
+
+        # generate a session token
+        session_token = secrets.token_urlsafe(32)
+
+        payload['session_token'] = session_token
+        payload['created'] = datetime.utcnow()
+
+        # get the insert object from sqlalchemy
+        sessions = currproc.table_meta.tables['sessions']
+        insert = sessions.insert().values(**payload)
+        result = currproc.connection.execute(insert)
+        result.close()
+
+        return {
+            'success':True,
+            'session_token':session_token,
+            'messages':["Generated session_token successfully. "
+                        "Session initiated."]
+        }
+
+    except Exception as e:
+        LOGGER.exception('could not create a new session')
+
+        if raiseonfail:
+            raise
+
+        return {
+            'success':False,
+            'session_token':None,
+            'messages':["Could not create a new session."],
+        }
+
+
+
+def auth_session_exists(payload,
+                        raiseonfail=False,
+                        override_authdb_path=None):
+    '''
+    This checks if the provided session token exists.
+
+    Request payload keys required:
+
+    session_key
+
+    Returns:
+
+    All sessions columns for session_key if token exists and has not expired.
+    None if token has expired. Will also call auth_session_delete.
+
+    '''
+
+    if 'session_token' not in payload:
+        LOGGER.error('no session token provided')
+
+        return {
+            'success':False,
+            'session_info':None,
+            'messages':["No session token provided."],
+        }
+
+    session_token = payload['session_token']
+
+    try:
+
+        # this checks if the database connection is live
+        currproc = mp.current_process()
+        engine = getattr(currproc, 'engine', None)
+
+        if override_authdb_path:
+            currproc.auth_db_path = override_authdb_path
+
+        if not engine:
+            currproc.engine, currproc.connection, currproc.table_meta = (
+                authdb.get_auth_db(
+                    currproc.auth_db_path,
+                    echo=raiseonfail
+                )
+            )
+
+        sessions = currproc.table_meta.tables['sessions']
+        users = currproc.table_meta.tables['users']
+        s = select([
+            users.c.user_id,
+            users.c.full_name,
+            users.c.email,
+            users.c.email_verified,
+            users.c.emailverify_sent_datetime,
+            users.c.is_active,
+            users.c.last_login_try,
+            users.c.last_login_success,
+            users.c.created_on,
+            users.c.user_role,
+            sessions.c.session_token,
+            sessions.c.ip_address,
+            sessions.c.client_header,
+            sessions.c.created,
+            sessions.c.expires,
+            sessions.c.extra_info_json
+        ]).select_from(users.join(sessions)).where(
+            (sessions.c.session_token == session_token) &
+            (sessions.c.expires > datetime.utcnow())
+        )
+        result = currproc.connection.execute(s)
+        rows = result.fetchone()
+        result.close()
+
+        try:
+
+            serialized_result = dict(rows)
+
+            return {
+                'success':True,
+                'session_info':serialized_result,
+                'messages':["Session look up successful."],
+            }
+
+        except Exception as e:
+
+            return {
+                'success':False,
+                'session_info':None,
+                'messages':["Session look up failed."],
+            }
+
+    except Exception as e:
+
+        LOGGER.warning('session token not found or '
+                       'could not check if it exists')
+
+        return {
+            'success':False,
+            'session_info':None,
+            'messages':["Session look up failed."],
+        }
+
+
+
+def auth_session_delete(payload,
+                        raiseonfail=False,
+                        override_authdb_path=None):
+    '''
+    This removes a session token.
+
+    Request payload keys required:
+
+    session_token
+
+    Returns:
+
+    Deletes the row corresponding to the session_key in the sessions table.
+
+    '''
+
+    if 'session_token' not in payload:
+        LOGGER.error('no session token provided')
+
+        return {
+            'success':False,
+            'messages':["No session token provided."],
+        }
+
+    session_token = payload['session_token']
+
+    try:
+
+        # this checks if the database connection is live
+        currproc = mp.current_process()
+        engine = getattr(currproc, 'engine', None)
+
+        if override_authdb_path:
+            currproc.auth_db_path = override_authdb_path
+
+        if not engine:
+            currproc.engine, currproc.connection, currproc.table_meta = (
+                authdb.get_auth_db(
+                    currproc.auth_db_path,
+                    echo=raiseonfail
+                )
+            )
+
+        sessions = currproc.table_meta.tables['sessions']
+        delete = sessions.delete().where(
+            sessions.c.session_token == session_token
+        )
+        result = currproc.connection.execute(delete)
+        result.close()
+
+        return {
+            'success':True,
+            'messages':["Session deleted successfully."],
+        }
+
+    except Exception as e:
+
+        LOGGER.exception('could not delete the session')
+
+        if raiseonfail:
+            raise
+
+        return {
+            'success':False,
+            'messages':["Session could not be deleted."],
+        }
+
+
+
 ###################################
 ## USER LOGIN HANDLING FUNCTIONS ##
 ###################################
@@ -94,8 +361,7 @@ def auth_user_login(payload,
     # check if the request is OK
     #
 
-    # if it isn't, then hash the dummy user's password twice and
-    # return False, None
+    # if it isn't, then hash the dummy user's password twice
     if not request_ok:
 
         # dummy session request
@@ -130,7 +396,11 @@ def auth_user_login(payload,
                             raiseonfail=raiseonfail,
                             override_authdb_path=override_authdb_path)
 
-        return False
+        return {
+            'success':False,
+            'user_id':None,
+            'messages':['No session token provided.']
+        }
 
     # otherwise, now we'll check if the session exists
     else:
@@ -141,9 +411,8 @@ def auth_user_login(payload,
             override_authdb_path=override_authdb_path
         )
 
-        # if it doesn't, hash the dummy password twice, insert new session token
-        # and return False, session_token
-        if not session_info:
+        # if it doesn't, hash the dummy password twice
+        if not session_info['success']:
 
             # always get the dummy user's password from the DB
             dummy_sel = select([
@@ -164,14 +433,18 @@ def auth_user_login(payload,
             authdb.password_context.verify('nope',
                                            dummy_password)
 
-            # run a fake session delete and generate a new session
+            # run a fake session delete
             auth_session_delete(
                 {'session_token':'nope'},
                 raiseonfail=raiseonfail,
                 override_authdb_path=override_authdb_path
             )
 
-            return False
+            return {
+                'success':False,
+                'user_id':None,
+                'messages':['No session token provided.']
+            }
 
         # if the session token does exist, we'll proceed to checking the
         # password for the provided email
@@ -222,18 +495,39 @@ def auth_user_login(payload,
 
             if not pass_ok:
 
-                return False
+                return {
+                    'success':False,
+                    'user_id':None,
+                    'messages':["Sorry, that user ID and "
+                                "password combination didn't work."]
+                }
 
             # if password verification succeeeded, check if the user can
             # actually log in (i.e. their account is not locked or is not
             # inactive)
             else:
 
+                # if the user account is active and unlocked, proceed.
+                # the frontend will take this user_id and ask for a new session
+                # token with it.
                 if (user_info['is_active'] and
                     user_info['user_role'] != 'locked'):
-                    return user_info['user_id']
+
+                    return {
+                        'success':True,
+                        'user_id': user_info['user_id'],
+                        'messages':["Login successful."]
+                    }
+
+                # if the user account is locked, return a failure
                 else:
-                    return False
+
+                    return {
+                        'success':False,
+                        'user_id': user_info['user_id'],
+                        'messages':["Sorry, that user ID and "
+                                    "password combination didn't work."]
+                    }
 
 
 
@@ -261,25 +555,39 @@ def auth_user_logout(payload,
                                   override_authdb_path=override_authdb_path,
                                   raiseonfail=raiseonfail)
 
-    if session:
+    if session['success']:
 
         # check the user ID
-        if payload['user_id'] == session['user_id']:
+        if payload['user_id'] == session['session_info']['user_id']:
 
             deleted = auth_session_delete(
                 payload,
                 override_authdb_path=override_authdb_path,
                 raiseonfail=raiseonfail
             )
-            if deleted > 0:
-                return session['user_id']
+
+            if deleted['success']:
+
+                return {
+                    'success':True,
+                    'user_id': session['session_info']['user_id'],
+                    'messages':["Logout successful."]
+                }
+
             else:
+
                 LOGGER.error(
                     'something went wrong when '
                     'trying to remove session ID: %s, '
                     'for user ID: %s' % (payload['session_token'],
                                          payload['user_id'])
                 )
+                return {
+                    'success':False,
+                    'user_id':payload['user_id'],
+                    'messages':["Logout failed. Invalid "
+                                "session_token for user_id."]
+                }
 
         else:
             LOGGER.error(
@@ -288,237 +596,20 @@ def auth_user_logout(payload,
                 'expected user_id = %s' % (payload['session_token'],
                                            payload['user_id'],
                                            session['user_id']))
-            return False
+            return {
+                'success':False,
+                'user_id':payload['user_id'],
+                'messages':["Logout failed. Invalid session_token for user_id."]
+            }
 
     else:
 
-        return False
-
-
-
-################################
-## SESSION HANDLING FUNCTIONS ##
-################################
-
-def auth_session_new(payload,
-                     override_authdb_path=None,
-                     raiseonfail=False):
-    '''
-    This generates a new session token.
-
-    override_authdb_path allows testing without an executor.
-
-    Request payload keys required:
-
-    ip_address, client_header, user_id, expires, extra_info_json
-
-    Returns:
-
-    a 32 byte session token in base64 from secrets.token_urlsafe(32)
-
-    '''
-
-    # fail immediately if the required payload items are not present
-    for item in ('ip_address',
-                 'client_header',
-                 'user_id',
-                 'expires',
-                 'extra_info_json'):
-        if item not in payload:
-            return False
-
-    try:
-
-        validated_ip = str(ipaddress.ip_address(payload['ip_address']))
-        payload['ip_address'] = validated_ip
-
-        # set the userid to anonuser@localhost if no user is provided
-        if not payload['user_id']:
-            payload['user_id'] = 2
-
-        # this checks if the database connection is live
-        currproc = mp.current_process()
-        engine = getattr(currproc, 'engine', None)
-
-        if override_authdb_path:
-            currproc.auth_db_path = override_authdb_path
-
-        if not engine:
-            currproc.engine, currproc.connection, currproc.table_meta = (
-                authdb.get_auth_db(
-                    currproc.auth_db_path,
-                    echo=raiseonfail
-                )
-            )
-
-        # generate a session token
-        session_token = secrets.token_urlsafe(32)
-
-        payload['session_token'] = session_token
-        payload['created'] = datetime.utcnow()
-
-        # get the insert object from sqlalchemy
-        sessions = currproc.table_meta.tables['sessions']
-        insert = sessions.insert().values(**payload)
-        result = currproc.connection.execute(insert)
-        result.close()
-
-        return session_token
-
-    except Exception as e:
-        LOGGER.exception('could not create a new session')
-
-        if raiseonfail:
-            raise
-
-        return False
-
-
-
-def auth_session_exists(payload,
-                        raiseonfail=False,
-                        override_authdb_path=None):
-    '''
-    This checks if the provided session token exists.
-
-    Request payload keys required:
-
-    session_key
-
-    Returns:
-
-    All sessions columns for session_key if token exists and has not expired.
-    None if token has expired. Will also call auth_session_delete.
-
-    '''
-
-    if 'session_token' not in payload:
-        LOGGER.error('no session token provided')
-        return False
-
-    session_token = payload['session_token']
-
-    try:
-
-        # this checks if the database connection is live
-        currproc = mp.current_process()
-        engine = getattr(currproc, 'engine', None)
-
-        if override_authdb_path:
-            currproc.auth_db_path = override_authdb_path
-
-        if not engine:
-            currproc.engine, currproc.connection, currproc.table_meta = (
-                authdb.get_auth_db(
-                    currproc.auth_db_path,
-                    echo=raiseonfail
-                )
-            )
-
-        sessions = currproc.table_meta.tables['sessions']
-        users = currproc.table_meta.tables['users']
-        s = select([
-            users.c.user_id,
-            users.c.full_name,
-            users.c.email,
-            users.c.email_verified,
-            users.c.emailverify_sent_datetime,
-            users.c.is_active,
-            users.c.last_login_try,
-            users.c.last_login_success,
-            users.c.created_on,
-            users.c.user_role,
-            sessions.c.session_token,
-            sessions.c.ip_address,
-            sessions.c.client_header,
-            sessions.c.created,
-            sessions.c.expires,
-            sessions.c.extra_info_json
-        ]).select_from(users.join(sessions)).where(
-            (sessions.c.session_token == session_token) &
-            (sessions.c.expires > datetime.utcnow())
-        )
-        result = currproc.connection.execute(s)
-        rows = result.fetchone()
-        result.close()
-
-        try:
-
-            serialized_result = dict(rows)
-            return serialized_result
-
-        except Exception as e:
-
-            return False
-
-    except Exception as e:
-
-        LOGGER.exception('session token not found or '
-                         'could not check if it exists')
-
-        if raiseonfail:
-            raise
-
-        return False
-
-
-
-def auth_session_delete(payload,
-                        raiseonfail=False,
-                        override_authdb_path=None):
-    '''
-    This removes a session token.
-
-    Request payload keys required:
-
-    session_key
-
-    Returns:
-
-    Deletes the row corresponding to the session_key in the sessions table.
-
-    '''
-
-    if 'session_token' not in payload:
-        LOGGER.error('no session token provided')
-        return False
-
-    session_token = payload['session_token']
-
-    try:
-
-        # this checks if the database connection is live
-        currproc = mp.current_process()
-        engine = getattr(currproc, 'engine', None)
-
-        if override_authdb_path:
-            currproc.auth_db_path = override_authdb_path
-
-        if not engine:
-            currproc.engine, currproc.connection, currproc.table_meta = (
-                authdb.get_auth_db(
-                    currproc.auth_db_path,
-                    echo=raiseonfail
-                )
-            )
-
-        sessions = currproc.table_meta.tables['sessions']
-        delete = sessions.delete().where(
-            sessions.c.session_token == session_token
-        )
-        result = currproc.connection.execute(delete)
-        result.close()
-
-        return result.rowcount
-
-    except Exception as e:
-
-        LOGGER.exception('could not create a new session')
-
-        if raiseonfail:
-            raise
-
-        return False
+        return {
+            'success':False,
+            'user_id':payload['user_id'],
+            'messages':["Logout failed. Invalid "
+                        "session_token for user_id."]
+        }
 
 
 
@@ -656,18 +747,22 @@ def create_new_user(payload,
     '''
 
     if 'email' not in payload:
-        return {'user_added':False,
-                'user_email':None,
-                'user_id':None,
-                'send_verification':False,
-                'messages':[]}
+        return {
+            'success':False,
+            'user_email':None,
+            'user_id':None,
+            'send_verification':False,
+            'messages':["Invalid user creation request."]
+        }
 
     if 'password' not in payload:
-        return {'user_added':False,
-                'user_email':None,
-                'user_id':None,
-                'send_verification':False,
-                'messages':[]}
+        return {
+            'success':False,
+            'user_email':None,
+            'user_id':None,
+            'send_verification':False,
+            'messages':["Invalid user creation request."]
+        }
 
     # this checks if the database connection is live
     currproc = mp.current_process()
@@ -701,29 +796,33 @@ def create_new_user(payload,
     )
 
     if not passok:
-        return {'user_added':False,
-                'user_email':None,
-                'user_id':None,
-                'send_verification':False,
-                'messages':messages}
+        return {
+            'success':False,
+            'user_email':payload['email'],
+            'user_id':None,
+            'send_verification':False,
+            'messages':messages
+        }
 
     # insert stuff into the user's table, set is_active = False, user_role =
     # 'locked', the emailverify_sent_datetime to datetime.utcnow()
 
     try:
 
-        ins = users.insert(
-            {'password':hashed_password,
-             'email':payload['email'],
-             'email_verified':False,
-             'is_active':False,
-             'emailverify_sent_datetime':datetime.utcnow(),
-             'created_on':datetime.utcnow(),
-             'user_role':'locked'}
-        )
+        ins = users.insert({
+            'password':hashed_password,
+            'email':payload['email'],
+            'email_verified':False,
+            'is_active':False,
+            'emailverify_sent_datetime':datetime.utcnow(),
+            'created_on':datetime.utcnow(),
+            'user_role':'locked',
+            'last_updated':datetime.utcnow(),
+        })
 
         result = currproc.connection.execute(ins)
         result.close()
+
         user_added = True
 
         LOGGER.info('new user created: %s' % payload['email'])
@@ -735,6 +834,7 @@ def create_new_user(payload,
         LOGGER.warning('could not create a new user with '
                        'email: %s probably because they exist already'
                        % payload['email'])
+
         user_added = False
 
 
@@ -761,11 +861,13 @@ def create_new_user(payload,
             'User account created. Please verify your email address to log in.'
         )
 
-        return {'user_added':True,
-                'user_email':rows['email'],
-                'user_id':rows['user_id'],
-                'send_verification':True,
-                'messages':messages}
+        return {
+            'success':True,
+            'user_email':rows['email'],
+            'user_id':rows['user_id'],
+            'send_verification':True,
+            'messages':messages
+        }
 
     # if the user wasn't added successfully, then they exist in the DB already
     elif (not user_added) and rows:
@@ -798,11 +900,13 @@ def create_new_user(payload,
         messages.append(
             'User account created. Please verify your email address to log in.'
         )
-        return {'user_added':True,
-                'user_email':rows['email'],
-                'user_id':rows['user_id'],
-                'send_verification':resend_verification,
-                'messages':messages}
+        return {
+            'success':False,
+            'user_email':rows['email'],
+            'user_id':rows['user_id'],
+            'send_verification':resend_verification,
+            'messages':messages
+        }
 
     # otherwise, the user wasn't added successfully and they don't already exist
     # in the database so something else went wrong.
@@ -811,11 +915,13 @@ def create_new_user(payload,
         messages.append(
             'User account created. Please verify your email address to log in.'
         )
-        return {'user_added':False,
-                'user_email':None,
-                'user_id':None,
-                'send_verification':False,
-                'messages':messages}
+        return {
+            'success':False,
+            'user_email':None,
+            'user_id':None,
+            'send_verification':False,
+            'messages':messages
+        }
 
 
 
@@ -833,9 +939,24 @@ def verify_user_email_address(payload,
     '''
 
     if 'email' not in payload:
-        return None, False, 'locked'
+
+        return {
+            'success':False,
+            'user_id':None,
+            'is_active': False,
+            'user_role':'locked',
+            'messages':["Invalid email verification request."]
+        }
+
     if 'user_id' not in payload:
-        return None, False, 'locked'
+
+        return {
+            'success':False,
+            'user_id':None,
+            'is_active': False,
+            'user_role':'locked',
+            'messages':["Invalid email verification request."]
+        }
 
     # this checks if the database connection is live
     currproc = mp.current_process()
@@ -878,12 +999,27 @@ def verify_user_email_address(payload,
     )
     result = currproc.connection.execute(sel)
     rows = result.fetchone()
+    result.close()
 
     if rows:
-        result.close()
-        return rows['user_id'], rows['is_active'], rows['user_role']
+
+        return {
+            'success':True,
+            'user_id':rows['user_id'],
+            'is_active':rows['is_active'],
+            'user_role':rows['user_role'],
+            'messages':["Email verification request succeeded."]
+        }
+
     else:
-        return payload['user_id'], False, 'locked'
+
+        return {
+            'success':False,
+            'user_id':payload['user_id'],
+            'is_active':False,
+            'user_role':'locked',
+            'messages':["Email verification request failed."]
+        }
 
 
 
@@ -902,15 +1038,17 @@ def delete_user(payload,
     '''
     if 'email' not in payload:
         return {
-            'deleted': False,
+            'success': False,
             'user_id':None,
             'email':None,
+            'messages':["Invalid user deleteion request."],
         }
     if 'user_id' not in payload:
         return {
-            'deleted':False,
+            'success':False,
             'user_id':None,
-            'email':None
+            'email':None,
+            'messages':["Invalid user deletion request."],
         }
 
     # this checks if the database connection is live
@@ -956,15 +1094,17 @@ def delete_user(payload,
 
     if rows and len(rows) > 0:
         return {
-            'deleted': False,
+            'success': False,
             'user_id':payload['user_id'],
-            'email':payload['email']
+            'email':payload['email'],
+            'messages':["Could not delete user from DB."]
         }
     else:
         return {
-            'deleted': True,
+            'success': True,
             'user_id':payload['user_id'],
-            'email':payload['email']
+            'email':payload['email'],
+            'messages':["User successfully deleted from DB."]
         }
 
 
@@ -985,24 +1125,24 @@ def change_user_password(payload,
     '''
     if 'email' not in payload:
         return {
-            'changed':False,
+            'success':False,
             'user_id':None,
             'email':None,
-            'messages':['No email provided.'],
+            'messages':['Invalid change password request.'],
         }
     if 'password' not in payload:
         return {
-            'changed':False,
+            'success':False,
             'user_id':None,
             'email':None,
-            'messages':['No new password provided.'],
+            'messages':['Invalid change password request.'],
         }
     if 'user_id' not in payload:
         return {
-            'changed':False,
+            'success':False,
             'user_id':None,
             'email':None,
-            'messages':['No user id provided.'],
+            'messages':['Invalid change password request.'],
         }
 
     # this checks if the database connection is live
@@ -1040,7 +1180,7 @@ def change_user_password(payload,
                                                 rows['password'])
     if same_check:
         return {
-            'changed':False,
+            'success':False,
             'user_id':payload['user_id'],
             'email':payload['email'],
             'messages':['Your new password cannot '
@@ -1087,7 +1227,7 @@ def change_user_password(payload,
         if rows and rows['password'] == hashed_password:
             messages.append('Password changed successfully.')
             return {
-                'changed':True,
+                'success':True,
                 'user_id':payload['user_id'],
                 'email':payload['email'],
                 'messages':messages
@@ -1096,7 +1236,7 @@ def change_user_password(payload,
         else:
             messages.append('Password could not be changed.')
             return {
-                'changed':False,
+                'success':False,
                 'user_id':payload['user_id'],
                 'email':payload['email'],
                 'messages':messages
@@ -1105,7 +1245,7 @@ def change_user_password(payload,
     else:
         messages.append('Password could not be changed.')
         return {
-            'changed':False,
+            'success':False,
             'user_id':payload['user_id'],
             'email':payload['email'],
             'messages': messages

@@ -136,6 +136,12 @@ request_functions = {
     'session-new':actions.auth_session_new,
     'session-exists':actions.auth_session_exists,
     'session-delete':actions.auth_session_delete,
+    'user-login':actions.auth_user_login,
+    'user-logout':actions.auth_user_logout,
+    'user-new':actions.create_new_user,
+    'user-verifyemail':actions.verify_user_email_address,
+    'user-delete':actions.delete_user,
+    'user-changepass':actions.change_user_password,
 }
 
 
@@ -267,16 +273,16 @@ class AuthHandler(tornado.web.RequestHandler):
 
             # run the function associated with the request type
             loop = tornado.ioloop.IOLoop.current()
-            response, message = await loop.run_in_executor(
+            response = await loop.run_in_executor(
                 self.executor,
                 request_functions[payload['request']],
                 payload
             )
 
-            response_dict = {"status": "success",
+            response_dict = {"status": response['success'],
                              "reqid": reqid,
                              "response":response,
-                             "message": message}
+                             "message": response['messages']}
 
             encrypted_base64 = encrypt_response(
                 response_dict,
