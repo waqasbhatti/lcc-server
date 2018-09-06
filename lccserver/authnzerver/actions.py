@@ -26,7 +26,7 @@ LOGGER = logging.getLogger(__name__)
 try:
     from datetime import datetime, timezone, timedelta
     utc = timezone.utc
-except:
+except Exception as e:
     from datetime import datetime, timedelta, tzinfo
 
     # we'll need to instantiate a tzinfo object because py2.7's datetime
@@ -178,7 +178,7 @@ def auth_session_exists(payload,
 
     Request payload keys required:
 
-    session_key
+    session_token
 
     Returns:
 

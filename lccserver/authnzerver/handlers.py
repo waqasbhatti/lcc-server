@@ -23,6 +23,34 @@ LOGGER = logging.getLogger(__name__)
 #############
 
 import json
+import numpy as np
+from datetime import datetime
+
+class FrontendEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, bytes):
+            return obj.decode()
+        elif isinstance(obj, complex):
+            return (obj.real, obj.imag)
+        elif (isinstance(obj, (float, np.float64, np.float_)) and
+              not np.isfinite(obj)):
+            return None
+        elif isinstance(obj, (np.int8, np.int16, np.int32, np.int64)):
+            return int(obj)
+        else:
+            return json.JSONEncoder.default(self, obj)
+
+# this replaces the default encoder and makes it so Tornado will do the right
+# thing when it converts dicts to JSON when a
+# tornado.web.RequestHandler.write(dict) is called.
+json._default_encoder = FrontendEncoder()
+
 import ipaddress
 import base64
 
@@ -31,7 +59,6 @@ import multiprocessing as mp
 
 import tornado.web
 import tornado.ioloop
-from tornado.escape import squeeze
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -280,7 +307,7 @@ class AuthHandler(tornado.web.RequestHandler):
                 payload['body']
             )
 
-            response_dict = {"status": response['success'],
+            response_dict = {"success": response['success'],
                              "reqid": reqid,
                              "response":response,
                              "message": response['messages']}
