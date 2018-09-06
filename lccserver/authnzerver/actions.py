@@ -61,8 +61,6 @@ def auth_user_login(payload,
 
     The frontend MUST unset the cookie as well.
 
-    FIXME: fail logins if the account's role is locked or is_active is False.
-
     FIXME: update (and fake-update) the Users table with the last_login_try and
     last_login_success.
 
@@ -74,7 +72,6 @@ def auth_user_login(payload,
         if item not in payload:
             request_ok = False
             break
-
 
     # this checks if the database connection is live
     currproc = mp.current_process()
@@ -128,6 +125,11 @@ def auth_user_login(payload,
         authdb.password_context.verify('nope',
                                        dummy_password)
 
+        # run a fake session delete
+        auth_session_delete({'session_token':'nope'},
+                            raiseonfail=raiseonfail,
+                            override_authdb_path=override_authdb_path)
+
         return False
 
     # otherwise, now we'll check if the session exists
@@ -162,10 +164,17 @@ def auth_user_login(payload,
             authdb.password_context.verify('nope',
                                            dummy_password)
 
+            # run a fake session delete and generate a new session
+            auth_session_delete(
+                {'session_token':'nope'},
+                raiseonfail=raiseonfail,
+                override_authdb_path=override_authdb_path
+            )
+
             return False
 
-        # if it does, we'll proceed to checking the password for the provided
-        # email
+        # if the session token does exist, we'll proceed to checking the
+        # password for the provided email
         else:
 
             # always get the dummy user's password from the DB
@@ -181,7 +190,9 @@ def auth_user_login(payload,
             # look up the provided user
             user_sel = select([
                 users.c.user_id,
-                users.c.password
+                users.c.password,
+                users.c.is_active,
+                users.c.user_role,
             ]).select_from(users).where(users.c.email == payload['email'])
             user_results = currproc.connection.execute(user_sel)
             user_info = user_results.fetchone()
@@ -200,13 +211,17 @@ def auth_user_login(payload,
                                                dummy_password)
                 pass_ok = False
 
-            #
-            # NOTE: we're not deleting session tokens here because we want the
-            # frontend to handle this explicitly. but they should be deleted in
-            # case of success OR failure here
-            #
+            # run a session delete on the provided token. the frontend will
+            # always re-ask for a new session token on the next request after
+            # login if it fails or succeeds.
+            auth_session_delete(
+                {'session_token':payload['session_token']},
+                raiseonfail=raiseonfail,
+                override_authdb_path=override_authdb_path
+            )
 
             if not pass_ok:
+
                 return False
 
             # if password verification succeeeded, check if the user can
@@ -811,12 +826,68 @@ def verify_user_email_address(payload,
                               override_authdb_path=None):
     '''This verifies the email address of the user.
 
+    payload must have the following keys: email, user_id
+
     This is called by the frontend after it verifies that the token challenge to
-    verify the user's email succeeded. This will set the user_role to
-    'authenticated' and the is_active column to True.
+    verify the user's email succeeded and has not yet expired. This will set the
+    user_role to 'authenticated' and the is_active column to True.
 
     '''
-    # TODO: finish this
+
+    if 'email' not in payload:
+        return None, False, 'locked'
+    if 'user_id' not in payload:
+        return None, False, 'locked'
+
+    # this checks if the database connection is live
+    currproc = mp.current_process()
+    engine = getattr(currproc, 'engine', None)
+
+    if override_authdb_path:
+        currproc.auth_db_path = override_authdb_path
+
+    if not engine:
+        currproc.engine, currproc.connection, currproc.table_meta = (
+            authdb.get_auth_db(
+                currproc.auth_db_path,
+                echo=raiseonfail
+            )
+        )
+
+    users = currproc.table_meta.tables['users']
+
+    print(payload)
+
+    # update the table for this user
+    upd = users.update(
+    ).where(
+        users.c.user_id == payload['user_id']
+    ).where(
+        users.c.is_active == False
+    ).where(
+        users.c.email == payload['email']
+    ).values({
+        'is_active':True,
+        'email_verified':True,
+        'user_role':'authenticated'
+    })
+    result = currproc.connection.execute(upd)
+
+    sel = select([
+        users.c.user_id,
+        users.c.is_active,
+        users.c.user_role,
+    ]).select_from(users).where(
+        (users.c.user_id == payload['user_id'])
+    )
+    result = currproc.connection.execute(sel)
+    rows = result.fetchone()
+
+    if rows:
+        result.close()
+        return rows['user_id'], rows['is_active'], rows['user_role']
+    else:
+        return payload['user_id'], False, 'locked'
 
 
 

@@ -14,6 +14,8 @@ import time
 import numpy as np
 from numpy.testing import assert_allclose
 
+
+
 def get_test_authdb():
     '''This just makes a new test auth DB for each test function.
 
@@ -278,12 +280,53 @@ def test_login():
          'password':user_payload['password']},
         override_authdb_path='sqlite:///.authdb.sqlite'
     )
+
+    # this should fail because we haven't verified our email yet
+    assert login is False
+
+    # verify our email
+    verify_user_id, verify_is_active, verify_user_role = (
+        actions.verify_user_email_address(
+            {'email':user_payload['email'],
+             'user_id': user_created['user_id']},
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+    )
+
+    assert verify_user_id == user_created['user_id']
+    assert verify_is_active is True
+    assert verify_user_role == 'authenticated'
+
+    # now make a new session token
+    session_payload = {
+        'user_id':verify_user_id,
+        'client_header':'Mozzarella Killerwhale',
+        'expires':datetime.utcnow()+timedelta(hours=1),
+        'ip_address': '1.1.1.1',
+        'extra_info_json':{'pref_datasets_always_private':True}
+    }
+
+    # check creation of session
+    session_token2 = actions.auth_session_new(
+        session_payload,
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert (session_token2 is not None and session_token2 is not False)
+
+    # and now try to log in again
+    login = actions.auth_user_login(
+        {'session_token':session_token2,
+         'email': user_payload['email'],
+         'password':user_payload['password']},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+
     assert login is not False
     assert login == 4
 
     # try logging in now with the wrong password
     login = actions.auth_user_login(
-        {'session_token':session_token1,
+        {'session_token':session_token2,
          'email': user_payload['email'],
          'password':'helloworld'},
         override_authdb_path='sqlite:///.authdb.sqlite'
@@ -291,7 +334,14 @@ def test_login():
     assert login is False
 
 
-    # FIXME: add tests for no session token provided
+    # tests for no session token provided
+    login = actions.auth_user_login(
+        {'session_token':'correcthorsebatterystaple',
+         'email': user_payload['email'],
+         'password':user_payload['password']},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert login is False
 
 
     # basic tests for timing attacks
@@ -302,7 +352,7 @@ def test_login():
 
         start = time.time()
         actions.auth_user_login(
-            {'session_token':session_token1,
+            {'session_token':session_token2,
              'email': user_payload['email'],
              'password':'helloworld'},
             override_authdb_path='sqlite:///.authdb.sqlite'
@@ -316,7 +366,7 @@ def test_login():
 
         start = time.time()
         actions.auth_user_login(
-            {'session_token':session_token1,
+            {'session_token':session_token2,
              'email': user_payload['email'],
              'password':user_payload['password']},
             override_authdb_path='sqlite:///.authdb.sqlite'
@@ -377,6 +427,7 @@ def test_login_logout():
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
 
+
     # create a new session token
     session_payload = {
         'user_id':2,
@@ -400,20 +451,54 @@ def test_login_logout():
          'password':user_payload['password']},
         override_authdb_path='sqlite:///.authdb.sqlite'
     )
-    assert login is not False
-    assert login == 4
 
-    # delete the previous session after the user has logged in
-    deleted_session = actions.auth_session_delete(
-        {'session_token':session_token1},
+    # this should fail because we haven't verified our email yet
+    assert login is False
+
+    # verify our email
+    verify_user_id, verify_is_active, verify_user_role = (
+        actions.verify_user_email_address(
+            {'email':user_payload['email'],
+             'user_id': user_created['user_id']},
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+    )
+
+    assert verify_user_id == user_created['user_id']
+    assert verify_is_active is True
+    assert verify_user_role == 'authenticated'
+
+    # now make a new session token
+    session_payload = {
+        'user_id':2,
+        'client_header':'Mozzarella Killerwhale',
+        'expires':datetime.utcnow()+timedelta(hours=1),
+        'ip_address': '1.1.1.1',
+        'extra_info_json':{'pref_datasets_always_private':True}
+    }
+
+    # check creation of session
+    session_token2 = actions.auth_session_new(
+        session_payload,
         override_authdb_path='sqlite:///.authdb.sqlite'
     )
-    assert deleted_session == 1
+    assert (session_token2 is not None and session_token2 is not False)
+
+    # and now try to log in again
+    login = actions.auth_user_login(
+        {'session_token':session_token2,
+         'email': user_payload['email'],
+         'password':user_payload['password']},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+
+    assert login is not False
+    assert login == 4
 
     # make sure the old session token is gone
     # check if our session was deleted correctly
     session_still_exists = actions.auth_session_exists(
-        {'session_token':session_token1},
+        {'session_token':session_token2},
         override_authdb_path='sqlite:///.authdb.sqlite'
     )
     assert session_still_exists is False
