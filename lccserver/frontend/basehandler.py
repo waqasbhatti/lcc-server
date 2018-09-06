@@ -16,6 +16,7 @@ import logging
 import numpy as np
 from datetime import datetime, timedelta
 import random
+from textwrap import dedent as twd
 
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
@@ -126,6 +127,7 @@ def encrypt_request(request_dict, fernetkey):
 
 class BaseHandler(tornado.web.RequestHandler):
 
+
     def initialize(self,
                    authnzerver,
                    fernetkey,
@@ -145,6 +147,27 @@ class BaseHandler(tornado.web.RequestHandler):
         self.siteinfo = siteinfo
 
 
+    def render_flash_messages(self):
+        '''
+        This renders any flash messages to a Bootstrap alert.
+
+        '''
+
+        if self.flash_messages:
+
+            flash_msg = twd(
+                '''\
+                <div class="alert alert-warning mt-2" role="alert">
+                {flash_messages}
+                </div>'''.format(
+                    flash_messages='<br>'.join(json.loads(self.flash_messages))
+                )
+            )
+            return flash_msg
+        else:
+            return ''
+
+
     @gen.coroutine
     def prepare(self):
         '''This async talks to the authnzerver to get info on the current user.
@@ -161,13 +184,27 @@ class BaseHandler(tornado.web.RequestHandler):
 
         '''
 
-        # check the cookie
+        # FIXME: cookie annoyances secure=True won't work if
+        # you're developing on localhost samesite=True is not
+        # supported by Python yet
+        if self.request.remote_ip != '127.0.0.1':
+            self.csecure = True
+        else:
+            self.csecure = False
+
+        # check the session cookie
         session_token = self.get_secure_cookie(
             'lccserver_session',
             max_age_days=self.session_expiry
         )
 
-        LOGGER.info(self.request.cookies)
+        # get the flash messages if any
+        self.flash_messages = self.get_secure_cookie(
+            'lccserver_flashmsg'
+        )
+
+        # clear the cookie so we can re-use it later
+        self.clear_cookie('lccserver_flashmsg')
 
         LOGGER.info('session_token = %s' % session_token)
 
@@ -212,10 +249,16 @@ class BaseHandler(tornado.web.RequestHandler):
 
                 response = respdict['response']
 
+                # if the session lookup succeeded, we're OK
                 if respdict['success']:
                     self.current_user = response['session_info']
                 else:
+
+                    # if the session lookup failed, then delete the cookie and
+                    # redirect to the home page
                     self.current_user = None
+                    self.clear_cookie('lccserver_session')
+                    self.redirect('/')
 
         # if the session token is not set, then set the secure cookie
         else:
@@ -284,20 +327,12 @@ class BaseHandler(tornado.web.RequestHandler):
                          expires_days)
                     )
 
-                    # FIXME: cookie annoyances
-                    # secure=True won't work if you're developing on localhost
-                    # samesite=True is not supported by Python yet
-                    if self.request.remote_ip != '127.0.0.1':
-                        csecure = True
-                    else:
-                        csecure = False
-
                     self.set_secure_cookie(
                         'lccserver_session',
                         response['session_token'],
                         expires_days=expires_days,
                         httponly=True,
-                        secure=csecure
+                        secure=self.csecure
                     )
                 else:
 
@@ -351,6 +386,7 @@ class LoginHandler(BaseHandler):
 
         current_user = self.current_user
 
+
         # if we have a session token ready, then prepare to log in
         if current_user:
 
@@ -360,6 +396,7 @@ class LoginHandler(BaseHandler):
                  ('authenticated', 'staff', 'superuser')) and
                 (current_user['user_id'] != 2)):
 
+                LOGGER.warning('user is already logged in')
                 self.redirect('/')
 
             # if we're anonymous and we want to login, show the login page
@@ -367,6 +404,7 @@ class LoginHandler(BaseHandler):
                   (current_user['user_id'] == 2)):
 
                 self.render('login.html',
+                            flash_messages=self.render_flash_messages(),
                             page_title="Sign in",
                             lccserver_version=__version__,
                             siteinfo=self.siteinfo)
@@ -381,7 +419,7 @@ class LoginHandler(BaseHandler):
         # redirect us to the login page again so the anonymous session cookie
         # gets set correctly. FIXME: does this make sense?
         else:
-            self.redirect('/users/login')
+            self.redirect('/')
 
 
     @gen.coroutine
@@ -391,20 +429,244 @@ class LoginHandler(BaseHandler):
 
         '''
 
+        # get the current user
         current_user = self.current_user
 
-        # ask the authnzerver for confirmation of this user's login
+        # get the provided email and password
+        try:
+            email = self.get_argument('email')
+            password = self.get_argument('password')
+        except Exception as e:
+            LOGGER.error('email and password are both required.')
+            raise tornado.web.HTTPError(statuscode=400)
 
-        # if it succeeds, ask the authnzerver for a new session token with the
-        # user's user_id and user_role set and set the lcserver_session cookie
-        # accordingly (do we need to delete the old lccserver_session
-        # cookie?). finally, redirect to the index page so we can see if we
-        # succeeded.
+        # talk to the authnzerver to login this user
 
-        # if login does not succeed, store the error messages in the signed
-        # lccserver_messages and HTTP-only cookie and redirect the user to
-        # /users/login. /users/login on GET should load these flash messages
-        # from the cookie and show them to the user
+        reqtype = 'user-login'
+        reqbody = {
+            'session_token': current_user['session_token'],
+            'email':email,
+            'password':password
+        }
+        reqid = random.randint(0,5000)
+        req = {'request':reqtype,
+               'body':reqbody,
+               'reqid':reqid}
+        encrypted_req = yield self.executor.submit(
+            encrypt_request,
+            req,
+            self.fernetkey
+        )
+        auth_req = HTTPRequest(
+            self.authnzerver,
+            method='POST',
+            body=encrypted_req
+        )
+        encrypted_resp = yield self.httpclient.fetch(
+            auth_req, raise_error=False
+        )
+
+        if encrypted_resp.code != 200:
+
+            LOGGER.error('could not talk to the backend authnzerver. '
+                         'Will fail this request.')
+            raise tornado.web.HTTPError(statuscode=401)
+
+        else:
+
+            respdict = yield self.executor.submit(
+                decrypt_response,
+                encrypted_resp.body,
+                self.fernetkey
+            )
+            LOGGER.info(respdict)
+
+            response = respdict['response']
+
+            # if the login succeeded, we'll ask the authnzerver for a new
+            # session token corresponding to this user_id and set the new
+            # lccserver_session cookie
+            if respdict['success']:
+
+                # ask authnzerver for a session cookie
+                reqtype = 'session-new'
+                reqbody = {
+                    'ip_address': self.request.remote_ip,
+                    'client_header':self.request.headers['User-Agent'],
+                    'user_id':response['user_id'],
+                    'expires':(
+                        datetime.utcnow() + timedelta(days=self.session_expiry)
+                    ),
+                    'extra_info_json':{},
+                }
+                reqid = random.randint(0,5000)
+                req = {'request':reqtype,
+                       'body':reqbody,
+                       'reqid':reqid}
+                encrypted_req = yield self.executor.submit(
+                    encrypt_request,
+                    req,
+                    self.fernetkey
+                )
+                auth_req = HTTPRequest(
+                    self.authnzerver,
+                    method='POST',
+                    body=encrypted_req
+                )
+                encrypted_resp = yield self.httpclient.fetch(
+                    auth_req,
+                    raise_error=False
+                )
+
+                if encrypted_resp.code != 200:
+
+                    LOGGER.error('could not talk to the backend authnzerver. '
+                                 'Will fail this request.')
+                    raise tornado.web.HTTPError(statuscode=401)
+
+                else:
+
+                    respdict = yield self.executor.submit(
+                        decrypt_response,
+                        encrypted_resp.body,
+                        self.fernetkey
+                    )
+                    LOGGER.info(respdict)
+
+                    response = respdict['response']
+
+                    if respdict['success']:
+
+                        # get the expiry date from the response
+                        cookie_expiry = datetime.strptime(
+                            response['expires'].replace('Z',''),
+                            '%Y-%m-%dT%H:%M:%S.%f'
+                        )
+                        expires_days = cookie_expiry - datetime.utcnow()
+                        expires_days = expires_days.days
+
+                        LOGGER.info(
+                            'new session cookie for %s expires '
+                            'at %s, in %s days' %
+                            (response['session_token'],
+                             response['expires'],
+                             expires_days)
+                        )
+
+                        self.set_secure_cookie(
+                            'lccserver_session',
+                            response['session_token'],
+                            expires_days=expires_days,
+                            httponly=True,
+                            secure=self.csecure
+                        )
+
+                        # redirect to the home page
+                        self.redirect('/')
+
+                    else:
+
+                        LOGGER.error(
+                            'could not talk to the backend authnzerver. '
+                            'Will fail this request.'
+                        )
+                        raise tornado.web.HTTPError(statuscode=401)
+
+
+            # if the user login did not succeed, redirect to /users/login with
+            # flash message returned by the authnzerver. we'll set a new session
+            # token
+            else:
+
+                # set the flash messages cookie with the failure messages
+                self.set_secure_cookie('lccserver_flashmsg',
+                                       json.dumps(response['messages']),
+                                       expires_days=None)
+
+                # ask authnzerver for a session cookie for the anonymous user
+                reqtype = 'session-new'
+                reqbody = {
+                    'ip_address': self.request.remote_ip,
+                    'client_header':self.request.headers['User-Agent'],
+                    'user_id':2,
+                    'expires':(
+                        datetime.utcnow() + timedelta(days=self.session_expiry)
+                    ),
+                    'extra_info_json':{},
+                }
+                reqid = random.randint(0,5000)
+                req = {'request':reqtype,
+                       'body':reqbody,
+                       'reqid':reqid}
+                encrypted_req = yield self.executor.submit(
+                    encrypt_request,
+                    req,
+                    self.fernetkey
+                )
+                auth_req = HTTPRequest(
+                    self.authnzerver,
+                    method='POST',
+                    body=encrypted_req
+                )
+                encrypted_resp = yield self.httpclient.fetch(
+                    auth_req,
+                    raise_error=False
+                )
+
+                if encrypted_resp.code != 200:
+
+                    LOGGER.error('could not talk to the backend authnzerver. '
+                                 'Will fail this request.')
+                    raise tornado.web.HTTPError(statuscode=401)
+
+                else:
+
+                    respdict = yield self.executor.submit(
+                        decrypt_response,
+                        encrypted_resp.body,
+                        self.fernetkey
+                    )
+                    LOGGER.info(respdict)
+
+                    response = respdict['response']
+
+                    if respdict['success']:
+
+                        # get the expiry date from the response
+                        cookie_expiry = datetime.strptime(
+                            response['expires'].replace('Z',''),
+                            '%Y-%m-%dT%H:%M:%S.%f'
+                        )
+                        expires_days = cookie_expiry - datetime.utcnow()
+                        expires_days = expires_days.days
+
+                        LOGGER.info(
+                            'new session cookie for %s expires '
+                            'at %s, in %s days' %
+                            (response['session_token'],
+                             response['expires'],
+                             expires_days)
+                        )
+
+                        self.set_secure_cookie(
+                            'lccserver_session',
+                            response['session_token'],
+                            expires_days=expires_days,
+                            httponly=True,
+                            secure=self.csecure
+                        )
+
+                        # redirect back to us so we can show the message
+                        self.redirect('/users/login')
+
+                    else:
+
+                        LOGGER.error(
+                            'could not talk to the backend authnzerver. '
+                            'Will fail this request.'
+                        )
+                        raise tornado.web.HTTPError(statuscode=401)
+
 
 
 

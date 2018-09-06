@@ -85,7 +85,7 @@
 
       <!-- </form> -->
 
-      <div class="ml-auto">
+      <div class="ml-auto topright-link-list">
         <a class="nav-item nav-link"
            title="Read the docs"
            href="/docs">
@@ -152,24 +152,24 @@
     {% end %}
 
     <script>
-     {% block pagejs %}
+      {% block pagejs %}
 
-     $(document).ready(function() {
+      $(document).ready(function() {
 
-       // UI action setup
-       lcc_ui.action_setup();
+          // UI action setup
+          lcc_ui.action_setup();
 
-       // format all the moments
-       $('.moment-format').each(function (index, elem) {
+          // format all the moments
+          $('.moment-format').each(function (index, elem) {
 
-         // get the text we need
-         var mt = moment($(this).text()).fromNow();
-         $(this).html($(this).text() + ' <strong>(' + mt + ')</strong>');
+              // get the text we need
+              var mt = moment($(this).text()).fromNow();
+              $(this).html($(this).text() + ' <strong>(' + mt + ')</strong>');
 
-       });
+          });
 
-     });
-     {% end %}
+      });
+      {% end %}
     </script>
 
   </body>
