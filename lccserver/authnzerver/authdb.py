@@ -119,7 +119,7 @@ Users = Table(
 
     # these two are separated so we can enforce a rate-limit on login tries
     Column('last_login_success', DateTime(), index=True),
-    Column('last_login_try', DateTime(), onupdate=datetime.utcnow, index=True),
+    Column('last_login_try', DateTime(), index=True),
     # this is reset everytime a user logs in sucessfully. this is used to check
     # the number of failed tries since the last successful try. FIXME: can we
     # use this for throttling login attempts without leaking info?
@@ -127,6 +127,9 @@ Users = Table(
 
     Column('created_on', DateTime(),
            default=datetime.utcnow,
+           nullable=False,index=True),
+    Column('updated_at', DateTime(),
+           onupdate=datetime.utcnow,
            nullable=False,index=True),
     Column('user_role', String(length=100),
            ForeignKey("roles.name"),

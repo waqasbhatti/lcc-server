@@ -566,10 +566,10 @@ def test_login_timing():
     broken_median = np.median(broken_timings)
     wronguser_median = np.median(wronguser_timings)
 
-    # should match within 2 milliseconds or so
-    assert_allclose(correct_median, incorrect_median, atol=2.0e-3)
-    assert_allclose(correct_median, broken_median, atol=2.0e-3)
-    assert_allclose(correct_median, wronguser_median, atol=2.0e-3)
+    # should match within 5 milliseconds or so
+    assert_allclose(correct_median, incorrect_median, atol=5.0e-3)
+    assert_allclose(correct_median, broken_median, atol=5.0e-3)
+    assert_allclose(correct_median, wronguser_median, atol=5.0e-3)
 
 
 
