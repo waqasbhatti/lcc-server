@@ -12,28 +12,30 @@
   <div class="row align-items-center justify-content-center" >
     <div class="col-sm-12 col-md-5" >
 
-      <div class="card mt-3 mb-1">
-        <div class="card-header">
-          <h3>Sign in to your LCC-Server account</h3>
-        </div>
+      <div class="card mt-4 mb-1">
         <div class="card-body">
-          <form action="/users/login" method="post">
-            {% module xsrf_form_html() %}
+          <div class="card-title" >
+            <h4>Sign in to your LCC-Server account</h4>
+          </div>
+          <div class="card-text" >
+            <form action="/users/login" method="post">
+              {% module xsrf_form_html() %}
 
-            <div class="form-group" >
-              <label for="email" >Email address</label>
-              <input type="email" class="form-control"
-                     name="email" id="email"
-                     placeholder="user@example.org">
-            </div>
-            <div class="form-group" >
-              <label for="password" >Password</label>
-              <input type="password" class="form-control"
-                     name="password" id="password"
-                     placeholder="Type in your password">
-            </div>
-            <button type="submit" class="btn btn-primary" >Sign in</button>
-          </form>
+              <div class="form-group" >
+                <label for="email" >Email address</label>
+                <input type="email" class="form-control"
+                       name="email" id="email"
+                       placeholder="user@example.org">
+              </div>
+              <div class="form-group" >
+                <label for="password" >Password</label>
+                <input type="password" class="form-control"
+                       name="password" id="password"
+                       placeholder="Type in your password">
+              </div>
+              <button type="submit" class="btn btn-primary" >Sign in</button>
+            </form>
+          </div>
         </div>
       </div>
 

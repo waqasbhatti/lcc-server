@@ -121,6 +121,7 @@ def encrypt_request(request_dict, fernetkey):
     return request_base64
 
 
+
 ########################
 ## BASE HANDLER CLASS ##
 ########################
@@ -157,7 +158,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
             flash_msg = twd(
                 '''\
-                <div class="alert alert-warning mt-2" role="alert">
+                <div class="alert alert-warning mt-2 text-center" role="alert">
                 {flash_messages}
                 </div>'''.format(
                     flash_messages='<br>'.join(json.loads(self.flash_messages))
@@ -184,9 +185,10 @@ class BaseHandler(tornado.web.RequestHandler):
 
         '''
 
-        # FIXME: cookie annoyances secure=True won't work if
-        # you're developing on localhost samesite=True is not
-        # supported by Python yet
+        # FIXME: cookie secure=True won't work if
+        # you're developing on localhost
+        # FIXME: cookie samesite=True is not supported by Python yet
+        # https://bugs.python.org/issue29613
         if self.request.remote_ip != '127.0.0.1':
             self.csecure = True
         else:
@@ -251,13 +253,17 @@ class BaseHandler(tornado.web.RequestHandler):
 
                 # if the session lookup succeeded, we're OK
                 if respdict['success']:
+
+                    # set the current user item with the reported session info
+                    # from the authnzerver
                     self.current_user = response['session_info']
+
+                # if the session lookup failed, then delete all cookies and
+                # redirect to the home page so we can try to start fresh
                 else:
 
-                    # if the session lookup failed, then delete the cookie and
-                    # redirect to the home page
                     self.current_user = None
-                    self.clear_cookie('lccserver_session')
+                    self.clear_all_cookies()
                     self.redirect('/')
 
         # if the session token is not set, then set the secure cookie
@@ -332,7 +338,7 @@ class BaseHandler(tornado.web.RequestHandler):
                         response['session_token'],
                         expires_days=expires_days,
                         httponly=True,
-                        secure=self.csecure
+                        secure=self.csecure,
                     )
                 else:
 
@@ -558,7 +564,7 @@ class LoginHandler(BaseHandler):
                             response['session_token'],
                             expires_days=expires_days,
                             httponly=True,
-                            secure=self.csecure
+                            secure=self.csecure,
                         )
 
                         # redirect to the home page
@@ -581,6 +587,8 @@ class LoginHandler(BaseHandler):
                 # set the flash messages cookie with the failure messages
                 self.set_secure_cookie('lccserver_flashmsg',
                                        json.dumps(response['messages']),
+                                       httponly=True,
+                                       secure=self.csecure,
                                        expires_days=None)
 
                 # ask authnzerver for a session cookie for the anonymous user
