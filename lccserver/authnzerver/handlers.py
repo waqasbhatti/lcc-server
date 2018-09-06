@@ -267,8 +267,9 @@ class AuthHandler(tornado.web.RequestHandler):
         try:
 
             # get the request ID
+            # this is an integer
             reqid = payload['reqid']
-            if not reqid or squeeze(reqid.strip()) == '':
+            if reqid is None or reqid == 0:
                 raise ValueError("no request ID provided")
 
             # run the function associated with the request type
@@ -276,7 +277,7 @@ class AuthHandler(tornado.web.RequestHandler):
             response = await loop.run_in_executor(
                 self.executor,
                 request_functions[payload['request']],
-                payload
+                payload['body']
             )
 
             response_dict = {"status": response['success'],

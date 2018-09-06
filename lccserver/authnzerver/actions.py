@@ -23,10 +23,35 @@ LOGGER = logging.getLogger(__name__)
 ## IMPORTS ##
 #############
 
+try:
+    from datetime import datetime, timezone, timedelta
+    utc = timezone.utc
+except:
+    from datetime import datetime, timedelta, tzinfo
+
+    # we'll need to instantiate a tzinfo object because py2.7's datetime
+    # doesn't have the super convenient timezone object (seriously)
+    # https://docs.python.org/2/library/datetime.html#datetime.tzinfo.fromutc
+    ZERO = timedelta(0)
+
+    class UTC(tzinfo):
+        """UTC"""
+
+        def utcoffset(self, dt):
+            return ZERO
+
+        def tzname(self, dt):
+            return "UTC"
+
+        def dst(self, dt):
+            return ZERO
+
+    utc = UTC()
+
+
 import ipaddress
 import secrets
 import multiprocessing as mp
-from datetime import datetime, timedelta
 import socket
 
 from tornado.escape import squeeze
@@ -71,6 +96,7 @@ def auth_session_new(payload,
             return {
                 'success':False,
                 'session_token':None,
+                'expires':None,
                 'messages':["Invalid session initiation request. "
                             "Missing some parameters."]
             }
@@ -83,6 +109,16 @@ def auth_session_new(payload,
         # set the userid to anonuser@localhost if no user is provided
         if not payload['user_id']:
             payload['user_id'] = 2
+
+        # check if the payload expires key is a string and not a datetime.time
+        # and reform it to a datetime if necessary
+        if isinstance(payload['expires'],str):
+
+            # this is assuming UTC
+            payload['expires'] = datetime.strptime(
+                payload['expires'].replace('Z',''),
+                '%Y-%m-%dT%H:%M:%S.%f'
+            )
 
         # this checks if the database connection is live
         currproc = mp.current_process()
@@ -114,6 +150,7 @@ def auth_session_new(payload,
         return {
             'success':True,
             'session_token':session_token,
+            'expires':payload['expires'].isoformat(),
             'messages':["Generated session_token successfully. "
                         "Session initiated."]
         }
@@ -127,6 +164,7 @@ def auth_session_new(payload,
         return {
             'success':False,
             'session_token':None,
+            'expires':None,
             'messages':["Could not create a new session."],
         }
 
