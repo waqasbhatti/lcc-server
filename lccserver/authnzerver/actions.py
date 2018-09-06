@@ -1020,14 +1020,37 @@ def change_user_password(payload,
 
     users = currproc.table_meta.tables['users']
 
-    # verify the new password is OK
+    # get the current password
+    sel = select([
+        users.c.password,
+    ]).select_from(users).where(
+        (users.c.user_id == payload['user_id'])
+    )
+    result = currproc.connection.execute(sel)
+    rows = result.fetchone()
+    result.close()
+
     input_password = payload['password'][:1024]
+
+    # check if the new hashed password is the same as the old hashed password,
+    # meaning that the new password is just the old one
+    same_check = authdb.password_context.verify(input_password,
+                                                rows['password'])
+    if same_check:
+        return {
+            'changed':False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':['Your new password cannot '
+                        'be the same as your old password.']
+        }
 
     # hash the user's password
     hashed_password = authdb.password_context.hash(input_password)
 
     # validate the input password to see if it's OK
     # do this here to make sure the password hash completes at least once
+    # verify the new password is OK
     passok, messages = validate_input_password(
         payload['email'],
         input_password,
