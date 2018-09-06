@@ -446,11 +446,9 @@ def auth_session_exists(payload,
 
             serialized_result = dict(rows)
             return serialized_result
+
         except Exception as e:
-            LOGGER.warning(
-                'no existing and unexpired session info for token: %s'
-                % session_token
-            )
+
             return False
 
     except Exception as e:

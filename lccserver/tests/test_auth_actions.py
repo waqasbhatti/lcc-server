@@ -10,6 +10,7 @@ import os.path
 import os
 from datetime import datetime, timedelta
 import time
+import secrets
 
 import numpy as np
 from numpy.testing import assert_allclose
@@ -344,25 +345,145 @@ def test_login():
     assert login is False
 
 
+
+def test_login_timing():
+    '''This tests obfuscating the presence/absence of users based on password
+    checks.
+
+    '''
+
+    get_test_authdb()
+
+    # create the user
+    user_payload = {'email':'testuser@test.org',
+                    'password':'aROwQin9L8nNtPTEMLXd'}
+    user_created = actions.create_new_user(
+        user_payload,
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert user_created['user_added'] is True
+    assert user_created['user_email'] == 'testuser@test.org'
+    assert user_created['user_id'] == 4
+    assert ('User account created. Please verify your email address to log in.'
+            in user_created['messages'])
+
+    # create a new session token
+    session_payload = {
+        'user_id':2,
+        'client_header':'Mozzarella Killerwhale',
+        'expires':datetime.utcnow()+timedelta(hours=1),
+        'ip_address': '1.1.1.1',
+        'extra_info_json':{'pref_datasets_always_private':True}
+    }
+
+    # check creation of session
+    session_token1 = actions.auth_session_new(
+        session_payload,
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert (session_token1 is not None and session_token1 is not False)
+
+    # try logging in now with correct password
+    login = actions.auth_user_login(
+        {'session_token':session_token1,
+         'email': user_payload['email'],
+         'password':user_payload['password']},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+
+    # this should fail because we haven't verified our email yet
+    assert login is False
+
+    # verify our email
+    verify_user_id, verify_is_active, verify_user_role = (
+        actions.verify_user_email_address(
+            {'email':user_payload['email'],
+             'user_id': user_created['user_id']},
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+    )
+
+    assert verify_user_id == user_created['user_id']
+    assert verify_is_active is True
+    assert verify_user_role == 'authenticated'
+
+    # now make a new session token
+    session_payload = {
+        'user_id':2,
+        'client_header':'Mozzarella Killerwhale',
+        'expires':datetime.utcnow()+timedelta(hours=1),
+        'ip_address': '1.1.1.1',
+        'extra_info_json':{'pref_datasets_always_private':True}
+    }
+
+    # check creation of session
+    session_token2 = actions.auth_session_new(
+        session_payload,
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+    assert (session_token2 is not None and session_token2 is not False)
+
+    # and now try to log in again
+    login = actions.auth_user_login(
+        {'session_token':session_token2,
+         'email': user_payload['email'],
+         'password':user_payload['password']},
+        override_authdb_path='sqlite:///.authdb.sqlite'
+    )
+
+    assert login is not False
+    assert login == 4
+
     # basic tests for timing attacks
 
     # incorrect passwords
     incorrect_timings = []
     for _ in range(1000):
 
+        # now make a new session token
+        session_payload = {
+            'user_id':2,
+            'client_header':'Mozzarella Killerwhale',
+            'expires':datetime.utcnow()+timedelta(hours=1),
+            'ip_address': '1.1.1.1',
+            'extra_info_json':{'pref_datasets_always_private':True}
+        }
+
+        # check creation of session
+        session_token2 = actions.auth_session_new(
+            session_payload,
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+
         start = time.time()
         actions.auth_user_login(
             {'session_token':session_token2,
              'email': user_payload['email'],
-             'password':'helloworld'},
+             'password':secrets.token_urlsafe(16)},
             override_authdb_path='sqlite:///.authdb.sqlite'
         )
         end = time.time()
         incorrect_timings.append(end - start)
 
+
     # correct passwords
     correct_timings = []
     for _ in range(1000):
+
+        # now make a new session token
+        session_payload = {
+            'user_id':2,
+            'client_header':'Mozzarella Killerwhale',
+            'expires':datetime.utcnow()+timedelta(hours=1),
+            'ip_address': '1.1.1.1',
+            'extra_info_json':{'pref_datasets_always_private':True}
+        }
+
+        # check creation of session
+        session_token2 = actions.auth_session_new(
+            session_payload,
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
 
         start = time.time()
         actions.auth_user_login(
@@ -374,9 +495,55 @@ def test_login():
         end = time.time()
         correct_timings.append(end - start)
 
+
+    # wronguser passwords
+    wronguser_timings = []
+    for _ in range(1000):
+
+        # now make a new session token
+        session_payload = {
+            'user_id':2,
+            'client_header':'Mozzarella Killerwhale',
+            'expires':datetime.utcnow()+timedelta(hours=1),
+            'ip_address': '1.1.1.1',
+            'extra_info_json':{'pref_datasets_always_private':True}
+        }
+
+        # check creation of session
+        session_token2 = actions.auth_session_new(
+            session_payload,
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+
+        start = time.time()
+        actions.auth_user_login(
+            {'session_token':session_token2,
+             'email': secrets.token_urlsafe(16),
+             'password':secrets.token_urlsafe(16)},
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
+        end = time.time()
+        wronguser_timings.append(end - start)
+
+
     # broken requests
     broken_timings = []
     for _ in range(1000):
+
+        # now make a new session token
+        session_payload = {
+            'user_id':2,
+            'client_header':'Mozzarella Killerwhale',
+            'expires':datetime.utcnow()+timedelta(hours=1),
+            'ip_address': '1.1.1.1',
+            'extra_info_json':{'pref_datasets_always_private':True}
+        }
+
+        # check creation of session
+        session_token2 = actions.auth_session_new(
+            session_payload,
+            override_authdb_path='sqlite:///.authdb.sqlite'
+        )
 
         start = time.time()
         actions.auth_user_login(
@@ -392,21 +559,22 @@ def test_login():
     correct_timings = np.array(correct_timings)
     incorrect_timings = np.array(incorrect_timings)
     broken_timings = np.array(broken_timings)
+    wronguser_timings = np.array(wronguser_timings)
 
     correct_median = np.median(correct_timings)
     incorrect_median = np.median(incorrect_timings)
     broken_median = np.median(broken_timings)
+    wronguser_median = np.median(wronguser_timings)
 
     # should match within 2 milliseconds or so
     assert_allclose(correct_median, incorrect_median, atol=2.0e-3)
     assert_allclose(correct_median, broken_median, atol=2.0e-3)
-
-    # FIXME: maybe add a test for actual timing array values matching between
-    # random user name and password tries
+    assert_allclose(correct_median, wronguser_median, atol=2.0e-3)
 
 
 
 def test_login_logout():
+
     '''
     See if we can login and log out correctly.
 
