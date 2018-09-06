@@ -15,7 +15,7 @@
       <div class="card mt-4 mb-1">
         <div class="card-body">
           <div class="card-title" >
-            <h4>Sign in to your LCC-Server account</h4>
+            <h4>Sign up for an LCC-Server account</h4>
           </div>
           <div class="card-text" >
             <form action="/users/login" method="post">
@@ -30,11 +30,24 @@
               <div class="form-group" >
                 <label for="password" >Password</label>
                 <input type="password" class="form-control"
-                       autocomplete="current-password" minlength="12"
-                       name="password" id="password" required
+                       name="password" id="password"
+                       aria-describedby="passhelp" minlength="12"
+                       autocomplete="new-password" required
                        placeholder="Type in your password">
+                <small id="passhelp"
+                       class="form-text text-muted">
+                  Must be at least 12 characters long.
+                </small>
               </div>
-              <button type="submit" class="btn btn-primary" >Sign in</button>
+              <div class="form-group" >
+                <label for="passwordverify" >Password again</label>
+                <input type="password" class="form-control"
+                       name="passwordverify" id="passwordverify"
+                       minlength="12"
+                       autocomplete="new-password" required
+                       placeholder="Type in your password again to verify">
+              </div>
+              <button type="submit" class="btn btn-primary" >Sign up</button>
             </form>
           </div>
         </div>

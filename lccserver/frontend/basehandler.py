@@ -392,7 +392,6 @@ class LoginHandler(BaseHandler):
 
         current_user = self.current_user
 
-
         # if we have a session token ready, then prepare to log in
         if current_user:
 
@@ -411,7 +410,7 @@ class LoginHandler(BaseHandler):
 
                 self.render('login.html',
                             flash_messages=self.render_flash_messages(),
-                            page_title="Sign in",
+                            page_title="Sign in to your account",
                             lccserver_version=__version__,
                             siteinfo=self.siteinfo)
 
@@ -704,6 +703,40 @@ class NewUserHandler(BaseHandler):
 
         current_user = self.current_user
 
+        # if we have a session token ready, then prepare to log in
+        if current_user:
+
+            # if we're already logged in, redirect to the index page
+            # FIXME: in the future, this may redirect to /users/home
+            if ((current_user['user_role'] in
+                 ('authenticated', 'staff', 'superuser')) and
+                (current_user['user_id'] != 2)):
+
+                LOGGER.warning('user is already logged in')
+                self.redirect('/')
+
+            # if we're anonymous and we want to login, show the login page
+            elif ((current_user['user_role'] == 'anonymous') and
+                  (current_user['user_id'] == 2)):
+
+                self.render('signup.html',
+                            flash_messages=self.render_flash_messages(),
+                            page_title="Sign up for an account",
+                            lccserver_version=__version__,
+                            siteinfo=self.siteinfo)
+
+            # anything else is probably the locked user, turn them away
+            else:
+
+                self.set_status(403)
+                self.write('You are not authorized to view this page.')
+                self.finish()
+
+        # redirect us to the login page again so the anonymous session cookie
+        # gets set correctly. FIXME: does this make sense?
+        else:
+            self.redirect('/')
+
 
     @gen.coroutine
     def post(self):
@@ -714,7 +747,188 @@ class NewUserHandler(BaseHandler):
 
         current_user = self.current_user
 
-        # ask the authnzerver for confirmation
+        # get the provided email and password
+        try:
+            email = self.get_argument('email')
+            password = self.get_argument('password')
+            passwordverify = self.get_argument('passwordverify')
+
+            if passwordverify != password:
+
+                LOGGER.error('password and verify password are not the same')
+                self.set_secure_cookie(
+                    'lcc_flashmsg',
+                    json.dumps([
+                        'Password and verification password do not match.'
+                    ]),
+                    httponly=True,
+                    secure=self.csecure,
+                    expires_days=None
+                )
+                self.redirect('/users/new')
+
+        except Exception as e:
+
+            LOGGER.error('email and password are both required.')
+            self.set_secure_cookie(
+                'lcc_flashmsg',
+                json.dumps([
+                    'An email address and strong password are required.'
+                ]),
+                httponly=True,
+                secure=self.csecure,
+                expires_days=None
+            )
+            self.redirect('/users/new')
+
+        # talk to the authnzerver to login this user
+
+        reqtype = 'user-new'
+        reqbody = {
+            'session_token': current_user['session_token'],
+            'email':email,
+            'password':password
+        }
+        reqid = random.randint(0,5000)
+        req = {'request':reqtype,
+               'body':reqbody,
+               'reqid':reqid}
+        encrypted_req = yield self.executor.submit(
+            encrypt_request,
+            req,
+            self.fernetkey
+        )
+        auth_req = HTTPRequest(
+            self.authnzerver,
+            method='POST',
+            body=encrypted_req
+        )
+        encrypted_resp = yield self.httpclient.fetch(
+            auth_req, raise_error=False
+        )
+
+        if encrypted_resp.code != 200:
+
+            LOGGER.error('could not talk to the backend authnzerver. '
+                         'Will fail this request.')
+            raise tornado.web.HTTPError(statuscode=401)
+
+        else:
+
+            respdict = yield self.executor.submit(
+                decrypt_response,
+                encrypted_resp.body,
+                self.fernetkey
+            )
+            LOGGER.info(respdict)
+
+            response = respdict['response']
+
+            # FIXME: if the sign up succeeded, we will redirect to
+            # /users/verify, which will just tell the user that we sent a
+            # verification email to them with a sign up code (this will be
+            # generated using Fernet or itsdangerous). On /users/verify, we'll
+            # have a form to fill in the email address, password, and the
+            # token. Once the form POSTs OK, we will log the user in.
+            if respdict['success']:
+
+                do_success()
+
+            # if the user login did not succeed, redirect to /users/login with
+            # flash message returned by the authnzerver. we'll set a new session
+            # token
+            else:
+
+                # set the flash messages cookie with the failure messages
+                self.set_secure_cookie('lccserver_flashmsg',
+                                       json.dumps(response['messages']),
+                                       httponly=True,
+                                       secure=self.csecure,
+                                       expires_days=None)
+
+                # ask authnzerver for a session cookie for the anonymous user
+                reqtype = 'session-new'
+                reqbody = {
+                    'ip_address': self.request.remote_ip,
+                    'client_header':self.request.headers['User-Agent'],
+                    'user_id':2,
+                    'expires':(
+                        datetime.utcnow() + timedelta(days=self.session_expiry)
+                    ),
+                    'extra_info_json':{},
+                }
+                reqid = random.randint(0,5000)
+                req = {'request':reqtype,
+                       'body':reqbody,
+                       'reqid':reqid}
+                encrypted_req = yield self.executor.submit(
+                    encrypt_request,
+                    req,
+                    self.fernetkey
+                )
+                auth_req = HTTPRequest(
+                    self.authnzerver,
+                    method='POST',
+                    body=encrypted_req
+                )
+                encrypted_resp = yield self.httpclient.fetch(
+                    auth_req,
+                    raise_error=False
+                )
+
+                if encrypted_resp.code != 200:
+
+                    LOGGER.error('could not talk to the backend authnzerver. '
+                                 'Will fail this request.')
+                    raise tornado.web.HTTPError(statuscode=401)
+
+                else:
+
+                    respdict = yield self.executor.submit(
+                        decrypt_response,
+                        encrypted_resp.body,
+                        self.fernetkey
+                    )
+                    LOGGER.info(respdict)
+
+                    response = respdict['response']
+
+                    if respdict['success']:
+
+                        # get the expiry date from the response
+                        cookie_expiry = datetime.strptime(
+                            response['expires'].replace('Z',''),
+                            '%Y-%m-%dT%H:%M:%S.%f'
+                        )
+                        expires_days = cookie_expiry - datetime.utcnow()
+                        expires_days = expires_days.days
+
+                        LOGGER.info(
+                            'new session cookie for %s expires '
+                            'at %s, in %s days' %
+                            (response['session_token'],
+                             response['expires'],
+                             expires_days)
+                        )
+
+                        self.set_secure_cookie(
+                            'lccserver_session',
+                            response['session_token'],
+                            expires_days=expires_days,
+                            httponly=True,
+                            secure=self.csecure
+                        )
+
+                        # redirect back to us so we can show the message
+                        self.redirect('/users/login')
+
+                    else:
+
+                        LOGGER.error(
+                            'could not talk to the backend authnzerver. '
+                            'Will fail this request.'
+                        )
+                        raise tornado.web.HTTPError(statuscode=401)
 
 
 
