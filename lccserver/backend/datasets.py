@@ -1023,135 +1023,148 @@ def sqlite_get_dataset(basedir,
     row = cur.fetchone()
     db.close()
 
-    # update these in the returndict
-    returndict['created_on'] = row[0]
-    returndict['last_updated'] = row[1]
-    returndict['nobjects'] = row[2]
-    returndict['status'] = row[3]
+    # if the dataset entry in the DB exists, then return it
+    if row and len(row) > 0:
 
-    # the results are per-collection
-    returndict['collections'] = dataset['collections']
-    returndict['result'] = {}
+        # update these in the returndict
+        returndict['created_on'] = row[0]
+        returndict['last_updated'] = row[1]
+        returndict['nobjects'] = row[2]
+        returndict['status'] = row[3]
 
-    for coll in dataset['collections']:
+        # the results are per-collection
+        returndict['collections'] = dataset['collections']
+        returndict['result'] = {}
 
-        returndict['result'][coll] = {'data':dataset['result'][coll][::],
-                                      'success':dataset['success'][coll],
-                                      'message':dataset['message'][coll],
-                                      'nmatches':dataset['nmatches'][coll],
-                                      'columnspec':dataset['columnspec'][coll],
-                                      'collid':dataset['collid'][coll]}
+        for coll in dataset['collections']:
 
-    # if we're told to force complete the dataset, do so here
-    if forcecomplete and returndict['status'] != 'complete':
+            returndict['result'][coll] = {
+                'data':dataset['result'][coll][::],
+                'success':dataset['success'][coll],
+                'message':dataset['message'][coll],
+                'nmatches':dataset['nmatches'][coll],
+                'columnspec':dataset['columnspec'][coll],
+                'collid':dataset['collid'][coll]
+            }
 
-        datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
-        db = sqlite3.connect(
-            datasets_dbf,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
-        cur = db.cursor()
-        query = ("update lcc_datasets set last_updated = ?, "
-                 "nobjects = ?, status = ? where setid = ?")
-        params = (datetime.utcnow().isoformat(),
-                  sum(dataset['nmatches'][x] for x in dataset['collections']),
-                  'complete',
-                  dataset['setid'])
-        cur.execute(query, params)
-        db.commit()
-        db.close()
+        # if we're told to force complete the dataset, do so here
+        if forcecomplete and returndict['status'] != 'complete':
 
-        if not os.path.exists(returndict['lczip']):
-            returndict['lczip'] = None
+            datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+            db = sqlite3.connect(
+                datasets_dbf,
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            )
+            cur = db.cursor()
+            query = ("update lcc_datasets set last_updated = ?, "
+                     "nobjects = ?, status = ? where setid = ?")
+            params = (
+                datetime.utcnow().isoformat(),
+                sum(dataset['nmatches'][x] for x in dataset['collections']),
+                'complete',
+                dataset['setid']
+            )
+            cur.execute(query, params)
+            db.commit()
+            db.close()
 
-        # link the CSV LCs to the output csvlcs directory if available
-        # this should let these through to generate_dataset_tablerows even if
-        # the dataset is forced to completion
-        for collection in returndict['collections']:
-            for row in returndict['result'][collection]['data']:
+            if not os.path.exists(returndict['lczip']):
+                returndict['lczip'] = None
 
-                # NOTE: here we rely on the fact that the collection names
-                # are normalized by the CLI (assuming that's the only way
-                # people generate these collections). The generated collection
-                # IDs never include a '_', so we can safely change from the DB
-                # collection ID which can't have a '-' to a collection ID ==
-                # directory name on disk, which can't have a '_'
-                # this will probably come back to haunt me
+            # link the CSV LCs to the output csvlcs directory if available this
+            # should let these through to generate_dataset_tablerows even if the
+            # dataset is forced to completion
+            for collection in returndict['collections']:
+                for row in returndict['result'][collection]['data']:
 
-                csvlc_original = os.path.join(os.path.abspath(basedir),
+                    # NOTE: here we rely on the fact that the collection names
+                    # are normalized by the CLI (assuming that's the only way
+                    # people generate these collections). The generated
+                    # collection IDs never include a '_', so we can safely
+                    # change from the DB collection ID which can't have a '-' to
+                    # a collection ID == directory name on disk, which can't
+                    # have a '_' this will probably come back to haunt me
+
+                    csvlc_original = os.path.join(os.path.abspath(basedir),
+                                                  collection.replace('_','-'),
+                                                  'lightcurves',
+                                                  '%s-csvlc.gz' %
+                                                  row['db_oid'])
+                    csvlc_link = os.path.join(os.path.abspath(basedir),
+                                              'csvlcs',
                                               collection.replace('_','-'),
-                                              'lightcurves',
-                                              '%s-csvlc.gz' %
-                                              row['db_oid'])
-                csvlc_link = os.path.join(os.path.abspath(basedir),
-                                          'csvlcs',
-                                          collection.replace('_','-'),
-                                          '%s-csvlc.gz' % row['db_oid'])
+                                              '%s-csvlc.gz' % row['db_oid'])
 
-                if (os.path.exists(csvlc_original) and
-                    not os.path.exists(csvlc_link)):
+                    if (os.path.exists(csvlc_original) and
+                        not os.path.exists(csvlc_link)):
 
-                    os.symlink(os.path.abspath(csvlc_original),
-                               csvlc_link)
-                    csvlc = csvlc_link
+                        os.symlink(os.path.abspath(csvlc_original),
+                                   csvlc_link)
+                        csvlc = csvlc_link
 
-                elif (os.path.exists(csvlc_original) and
-                      os.path.exists(csvlc_link)):
+                    elif (os.path.exists(csvlc_original) and
+                          os.path.exists(csvlc_link)):
 
-                    csvlc = csvlc_link
+                        csvlc = csvlc_link
 
-                else:
+                    else:
 
-                    csvlc = None
+                        csvlc = None
 
-                if 'db_lcfname' in row:
-                    row['db_lcfname'] = csvlc
+                    if 'db_lcfname' in row:
+                        row['db_lcfname'] = csvlc
 
-                if 'lcfname' in row:
-                    row['lcfname'] = csvlc
+                    if 'lcfname' in row:
+                        row['lcfname'] = csvlc
 
-                # changing the row keys here also automatically changes the
-                # corresponding row key in the original dataset dict
-                # this shouldn't be happening though, because we (attempted to)
-                # make a copy of the dataset row list above (apparently not!)
+                    # changing the row keys here also automatically changes the
+                    # corresponding row key in the original dataset dict this
+                    # shouldn't be happening though, because we (attempted to)
+                    # make a copy of the dataset row list above (apparently
+                    # not!)
 
-        LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
-                   (returndict['status'], returndict['setid']))
+            LOGWARNING("forced 'complete' status for '%s' dataset: %s" %
+                       (returndict['status'], returndict['setid']))
 
-        # write the original dataset dict back to the pickle after the
-        # lcfname items have been censored
-        with gzip.open(dataset_fpath,'wb') as outfd:
-            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+            # write the original dataset dict back to the pickle after the
+            # lcfname items have been censored
+            with gzip.open(dataset_fpath,'wb') as outfd:
+                pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
-        LOGINFO('updated dataset pickle with CSVLC filenames')
+            LOGINFO('updated dataset pickle with CSVLC filenames')
 
-    elif forcecomplete and returndict['status'] == 'complete':
-        LOGERROR('not going to force completion '
-                 'for an already complete dataset: %s'
-                 % returndict['setid'])
+        elif forcecomplete and returndict['status'] == 'complete':
+            LOGERROR('not going to force completion '
+                     'for an already complete dataset: %s'
+                     % returndict['setid'])
 
-    # make the CSV at the end if told to do so
-    if generatecsv:
-        csv = generate_dataset_csv(
-            basedir,
-            returndict,
-            force=forcecsv,
-        )
-        returndict['dataset_csv'] = csv
+        # make the CSV at the end if told to do so
+        if generatecsv:
+            csv = generate_dataset_csv(
+                basedir,
+                returndict,
+                force=forcecsv,
+            )
+            returndict['dataset_csv'] = csv
+        else:
+            returndict['dataset_csv'] = None
+
+        # if we're returning JSON, do that
+        if returnjson:
+
+            retjson = json.dumps(returndict)
+            retjson = retjson.replace('nan','null')
+
+            return retjson
+
+        # otherwise, return the usual dict
+        else:
+            return returndict
+
     else:
-        returndict['dataset_csv'] = None
 
-    # if we're returning JSON, do that
-    if returnjson:
-
-        retjson = json.dumps(returndict)
-        retjson = retjson.replace('nan','null')
-
-        return retjson
-
-    # otherwise, return the usual dict
-    else:
-        return returndict
+        LOGERROR('requested dataset: %s does not exist in the DB' % setid)
+        return None
 
 
 
