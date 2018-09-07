@@ -201,12 +201,14 @@ def prepare_basedir(basedir,
 
     else:
 
-        siteinfo = {"project":site_project,
-                    "project_link":site_project_link,
-                    "department":site_department,
-                    "department_link":site_department_link,
-                    "institution":site_institution,
-                    "institution_link":site_institution_link}
+        siteinfo = {
+            "project":site_project,
+            "project_link":site_project_link,
+            "department":site_department,
+            "department_link":site_department_link,
+            "institution":site_institution,
+            "institution_link":site_institution_link,
+        }
 
         # check if the site institution logo file is not None and exists
         # if it does, copy it over to the basedir/docs/static directory
@@ -225,12 +227,40 @@ def prepare_basedir(basedir,
             siteinfo["institution_logo"] = None
 
 
-        # write site-json to the basedir
+        # set up the email settings file
+        emailsettings = {
+            "email_sender":"LCC-Server <smtp_user_name@example.email.server.org>",
+            "email_server":"smtp.example.email.server.org",
+            "email_port":587,
+            "email_user":"smtp_user_name",
+            "email_pass":"smtp_user_password",
+        }
+
+        # write the email secrets file to the basedir
+        with open(os.path.join(basedir,'.lccserver.secret-email'),
+                  'w') as outfd:
+            json.dump(emailsettings, outfd, indent=2)
+        # chmod this file to 600
+        os.chmod(os.path.join(basedir,'.lccserver-secret-email'), 0o100600)
+
+        # update the site-info.json with the location of the email secrets file
+        siteinfo["email_settings_file"] = (
+            os.path.abspath(os.path.join(basedir,'.lccserver-secret-email'))
+        )
+
+        # write site-info.json to the basedir
         with open(os.path.join(basedir,'site-info.json'),'w') as outfd:
             json.dump(siteinfo, outfd, indent=2)
 
+        # chmod this file to 600
+        os.chmod(os.path.join(basedir,'site-info.json'), 0o100600)
+
         LOGINFO('Created site-info.json: %s' %
                 os.path.join(basedir,'site-info.json'))
+        LOGINFO('Please review this file and fill in details as appropriate.')
+        LOGINFO("Edit the file pointed to by the 'email_settings_file' key "
+                "in site-info.json to set up an email server "
+                "(for notifications, etc.). ")
 
     #
     # generate doc-index.json and barebones citation.md and lcformat.md
