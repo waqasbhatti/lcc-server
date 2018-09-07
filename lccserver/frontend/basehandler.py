@@ -17,6 +17,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import random
 from textwrap import dedent as twd
+import secrets
 
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
@@ -142,6 +143,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
         self.authnzerver = authnzerver
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.executor = executor
         self.session_expiry = session_expiry
         self.httpclient = AsyncHTTPClient(force_instance=True)
@@ -713,17 +715,56 @@ class NewUserHandler(BaseHandler):
                 expires_days=self.session_expiry,
             )
 
-            # FIXME: we need a background request to authnzerver to make it send
-            # a verification email
-            self.save_flash_messages(
-                "Thanks for signing up! We've sent a verification "
-                "request to your email address. "
-                "Please complete user registration by "
-                "entering the code you received.",
-                "primary"
+            #
+            # send the background request to authnzerver to send an email
+            #
+
+            # get the email info from site-info.json
+            smtp_sender = self.siteinfo['email_sender']
+            smtp_user = self.siteinfo['email_user']
+            smtp_pass = self.siteinfo['email_pass']
+            smtp_server = self.siteinfo['email_server']
+            smtp_port = self.siteinfo['email_port']
+
+            # generate a fernet verification token that is timestamped. we'll
+            # give it 2 hours to expire and decrypt it using:
+            # self.ferneter.decrypt(token, ttl=2*60*60)
+            fernet_verification_token = self.ferneter.encrypt(
+                secrets.token_urlsafe(32).encode()
             )
 
-            self.redirect('/users/verify')
+            ok, resp, msgs = yield self.authnzerver_request(
+                'user-signup-email',
+                {'email_address':email,
+                 'user_id':resp['user_id'],
+                 'session_token':new_session,
+                 'smtp_server':smtp_server,
+                 'smtp_sender':smtp_sender,
+                 'smtp_user':smtp_user,
+                 'smtp_pass':smtp_pass,
+                 'smtp_server':smtp_server,
+                 'smtp_port':smtp_port,
+                 'fernet_verification_token':fernet_verification_token,
+                 'created_info':resp}
+            )
+
+            if ok:
+
+                self.save_flash_messages(
+                    "Thanks for signing up! We've sent a verification "
+                    "request to your email address. "
+                    "Please complete user registration by "
+                    "entering the code you received.",
+                    "primary"
+                )
+                self.redirect('/users/verify')
+
+            # FIXME: if the backend breaks here, the user is left in limbo
+            # what to do?
+            else:
+
+                self.save_flash_messages(msgs,'warning')
+                self.redirect('/users/new')
 
 
 

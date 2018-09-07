@@ -24,14 +24,13 @@ LOGGER = logging.getLogger(__name__)
 #############
 
 try:
+
     from datetime import datetime, timezone, timedelta
     utc = timezone.utc
-except Exception as e:
-    from datetime import datetime, timedelta, tzinfo
 
-    # we'll need to instantiate a tzinfo object because py2.7's datetime
-    # doesn't have the super convenient timezone object (seriously)
-    # https://docs.python.org/2/library/datetime.html#datetime.tzinfo.fromutc
+except Exception as e:
+
+    from datetime import datetime, timedelta, tzinfo
     ZERO = timedelta(0)
 
     class UTC(tzinfo):
@@ -47,7 +46,6 @@ except Exception as e:
             return ZERO
 
     utc = UTC()
-
 
 import ipaddress
 import secrets
@@ -672,9 +670,9 @@ def change_user_role(payload,
 
 
 
-###################
-## USER HANDLING ##
-###################
+#######################
+## PASSWORD HANDLING ##
+#######################
 
 def validate_input_password(email,
                             password,
@@ -755,6 +753,154 @@ def validate_input_password(email,
     )
 
 
+
+def change_user_password(payload,
+                         raiseonfail=False,
+                         override_authdb_path=None,
+                         min_pass_length=12,
+                         max_similarity=30):
+    '''This changes the user's password.
+
+    This requires a successful email verification challenge. We'll use this both
+    for forgotten passwords and actual password change requests.
+
+    This will immediately invalidate the current session after the password is
+    changed so the user has to login with their new password.
+
+    '''
+    if 'email' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':['Invalid change password request.'],
+        }
+    if 'password' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':['Invalid change password request.'],
+        }
+    if 'user_id' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':['Invalid change password request.'],
+        }
+
+    # this checks if the database connection is live
+    currproc = mp.current_process()
+    engine = getattr(currproc, 'engine', None)
+
+    if override_authdb_path:
+        currproc.auth_db_path = override_authdb_path
+
+    if not engine:
+        currproc.engine, currproc.connection, currproc.table_meta = (
+            authdb.get_auth_db(
+                currproc.auth_db_path,
+                echo=raiseonfail
+            )
+        )
+
+    users = currproc.table_meta.tables['users']
+
+    # get the current password
+    sel = select([
+        users.c.password,
+    ]).select_from(users).where(
+        (users.c.user_id == payload['user_id'])
+    )
+    result = currproc.connection.execute(sel)
+    rows = result.fetchone()
+    result.close()
+
+    input_password = payload['password'][:1024]
+
+    # check if the new hashed password is the same as the old hashed password,
+    # meaning that the new password is just the old one
+    same_check = authdb.password_context.verify(input_password,
+                                                rows['password'])
+    if same_check:
+        return {
+            'success':False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':['Your new password cannot '
+                        'be the same as your old password.']
+        }
+
+    # hash the user's password
+    hashed_password = authdb.password_context.hash(input_password)
+
+    # validate the input password to see if it's OK
+    # do this here to make sure the password hash completes at least once
+    # verify the new password is OK
+    passok, messages = validate_input_password(
+        payload['email'],
+        input_password,
+        min_length=min_pass_length,
+        max_match_threshold=max_similarity
+    )
+
+    if passok:
+
+        # update the table for this user
+        upd = users.update(
+        ).where(
+            users.c.user_id == payload['user_id']
+        ).where(
+            users.c.is_active == True
+        ).where(
+            users.c.email == payload['email']
+        ).values({
+            'password': hashed_password
+        })
+        result = currproc.connection.execute(upd)
+
+        sel = select([
+            users.c.password,
+        ]).select_from(users).where(
+            (users.c.user_id == payload['user_id'])
+        )
+        result = currproc.connection.execute(sel)
+        rows = result.fetchone()
+        result.close()
+
+        if rows and rows['password'] == hashed_password:
+            messages.append('Password changed successfully.')
+            return {
+                'success':True,
+                'user_id':payload['user_id'],
+                'email':payload['email'],
+                'messages':messages
+            }
+
+        else:
+            messages.append('Password could not be changed.')
+            return {
+                'success':False,
+                'user_id':payload['user_id'],
+                'email':payload['email'],
+                'messages':messages
+            }
+
+    else:
+        messages.append('Password could not be changed.')
+        return {
+            'success':False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages': messages
+        }
+
+
+
+###################
+## USER HANDLING ##
+###################
 
 def create_new_user(payload,
                     min_pass_length=12,
@@ -967,6 +1113,92 @@ def create_new_user(payload,
 
 
 
+def delete_user(payload,
+                raiseonfail=False,
+                override_authdb_path=None):
+    '''
+    This deletes the user.
+
+    This can only be called by the user themselves or the superuser.
+
+    This will immediately invalidate all sessions corresponding to this user.
+
+    Superuser accounts cannot be deleted.
+
+    '''
+    if 'email' not in payload:
+        return {
+            'success': False,
+            'user_id':None,
+            'email':None,
+            'messages':["Invalid user deleteion request."],
+        }
+    if 'user_id' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':["Invalid user deletion request."],
+        }
+
+    # this checks if the database connection is live
+    currproc = mp.current_process()
+    engine = getattr(currproc, 'engine', None)
+
+    if override_authdb_path:
+        currproc.auth_db_path = override_authdb_path
+
+    if not engine:
+        currproc.engine, currproc.connection, currproc.table_meta = (
+            authdb.get_auth_db(
+                currproc.auth_db_path,
+                echo=raiseonfail
+            )
+        )
+
+    users = currproc.table_meta.tables['users']
+    sessions = currproc.table_meta.tables['sessions']
+
+    delete = users.delete().where(
+        users.c.user_id == payload['user_id']
+    ).where(
+        users.c.email == payload['email']
+    ).where(
+        users.c.user_role != 'superuser'
+    )
+    result = currproc.connection.execute(delete)
+    result.close()
+
+    sel = select([
+        users.c.user_id,
+        users.c.email,
+        sessions.c.session_token
+    ]).select_from(
+        users.join(sessions)
+    ).where(
+        users.c.user_id == payload['user_id']
+    )
+
+    result = currproc.connection.execute(sel)
+    rows = result.fetchall()
+
+    if rows and len(rows) > 0:
+        return {
+            'success': False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':["Could not delete user from DB."]
+        }
+    else:
+        return {
+            'success': True,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':["User successfully deleted from DB."]
+        }
+
+
+
 ####################
 ## SENDING EMAILS ##
 ####################
@@ -1169,6 +1401,7 @@ def send_signup_verification_email(payload,
                 'smtp_pass',
                 'smtp_server',
                 'smtp_port',
+                'fernet_verification_token',
                 'created_info'):
 
         if key not in payload:
@@ -1456,235 +1689,6 @@ def verify_user_email_address(payload,
             'messages':["Email verification request failed."]
         }
 
-
-
-def delete_user(payload,
-                raiseonfail=False,
-                override_authdb_path=None):
-    '''
-    This deletes the user.
-
-    This can only be called by the user themselves or the superuser.
-
-    This will immediately invalidate all sessions corresponding to this user.
-
-    Superuser accounts cannot be deleted.
-
-    '''
-    if 'email' not in payload:
-        return {
-            'success': False,
-            'user_id':None,
-            'email':None,
-            'messages':["Invalid user deleteion request."],
-        }
-    if 'user_id' not in payload:
-        return {
-            'success':False,
-            'user_id':None,
-            'email':None,
-            'messages':["Invalid user deletion request."],
-        }
-
-    # this checks if the database connection is live
-    currproc = mp.current_process()
-    engine = getattr(currproc, 'engine', None)
-
-    if override_authdb_path:
-        currproc.auth_db_path = override_authdb_path
-
-    if not engine:
-        currproc.engine, currproc.connection, currproc.table_meta = (
-            authdb.get_auth_db(
-                currproc.auth_db_path,
-                echo=raiseonfail
-            )
-        )
-
-    users = currproc.table_meta.tables['users']
-    sessions = currproc.table_meta.tables['sessions']
-
-    delete = users.delete().where(
-        users.c.user_id == payload['user_id']
-    ).where(
-        users.c.email == payload['email']
-    ).where(
-        users.c.user_role != 'superuser'
-    )
-    result = currproc.connection.execute(delete)
-    result.close()
-
-    sel = select([
-        users.c.user_id,
-        users.c.email,
-        sessions.c.session_token
-    ]).select_from(
-        users.join(sessions)
-    ).where(
-        users.c.user_id == payload['user_id']
-    )
-
-    result = currproc.connection.execute(sel)
-    rows = result.fetchall()
-
-    if rows and len(rows) > 0:
-        return {
-            'success': False,
-            'user_id':payload['user_id'],
-            'email':payload['email'],
-            'messages':["Could not delete user from DB."]
-        }
-    else:
-        return {
-            'success': True,
-            'user_id':payload['user_id'],
-            'email':payload['email'],
-            'messages':["User successfully deleted from DB."]
-        }
-
-
-
-def change_user_password(payload,
-                         raiseonfail=False,
-                         override_authdb_path=None,
-                         min_pass_length=12,
-                         max_similarity=30):
-    '''This changes the user's password.
-
-    This requires a successful email verification challenge. We'll use this both
-    for forgotten passwords and actual password change requests.
-
-    This will immediately invalidate the current session after the password is
-    changed so the user has to login with their new password.
-
-    '''
-    if 'email' not in payload:
-        return {
-            'success':False,
-            'user_id':None,
-            'email':None,
-            'messages':['Invalid change password request.'],
-        }
-    if 'password' not in payload:
-        return {
-            'success':False,
-            'user_id':None,
-            'email':None,
-            'messages':['Invalid change password request.'],
-        }
-    if 'user_id' not in payload:
-        return {
-            'success':False,
-            'user_id':None,
-            'email':None,
-            'messages':['Invalid change password request.'],
-        }
-
-    # this checks if the database connection is live
-    currproc = mp.current_process()
-    engine = getattr(currproc, 'engine', None)
-
-    if override_authdb_path:
-        currproc.auth_db_path = override_authdb_path
-
-    if not engine:
-        currproc.engine, currproc.connection, currproc.table_meta = (
-            authdb.get_auth_db(
-                currproc.auth_db_path,
-                echo=raiseonfail
-            )
-        )
-
-    users = currproc.table_meta.tables['users']
-
-    # get the current password
-    sel = select([
-        users.c.password,
-    ]).select_from(users).where(
-        (users.c.user_id == payload['user_id'])
-    )
-    result = currproc.connection.execute(sel)
-    rows = result.fetchone()
-    result.close()
-
-    input_password = payload['password'][:1024]
-
-    # check if the new hashed password is the same as the old hashed password,
-    # meaning that the new password is just the old one
-    same_check = authdb.password_context.verify(input_password,
-                                                rows['password'])
-    if same_check:
-        return {
-            'success':False,
-            'user_id':payload['user_id'],
-            'email':payload['email'],
-            'messages':['Your new password cannot '
-                        'be the same as your old password.']
-        }
-
-    # hash the user's password
-    hashed_password = authdb.password_context.hash(input_password)
-
-    # validate the input password to see if it's OK
-    # do this here to make sure the password hash completes at least once
-    # verify the new password is OK
-    passok, messages = validate_input_password(
-        payload['email'],
-        input_password,
-        min_length=min_pass_length,
-        max_match_threshold=max_similarity
-    )
-
-    if passok:
-
-        # update the table for this user
-        upd = users.update(
-        ).where(
-            users.c.user_id == payload['user_id']
-        ).where(
-            users.c.is_active == True
-        ).where(
-            users.c.email == payload['email']
-        ).values({
-            'password': hashed_password
-        })
-        result = currproc.connection.execute(upd)
-
-        sel = select([
-            users.c.password,
-        ]).select_from(users).where(
-            (users.c.user_id == payload['user_id'])
-        )
-        result = currproc.connection.execute(sel)
-        rows = result.fetchone()
-        result.close()
-
-        if rows and rows['password'] == hashed_password:
-            messages.append('Password changed successfully.')
-            return {
-                'success':True,
-                'user_id':payload['user_id'],
-                'email':payload['email'],
-                'messages':messages
-            }
-
-        else:
-            messages.append('Password could not be changed.')
-            return {
-                'success':False,
-                'user_id':payload['user_id'],
-                'email':payload['email'],
-                'messages':messages
-            }
-
-    else:
-        messages.append('Password could not be changed.')
-        return {
-            'success':False,
-            'user_id':payload['user_id'],
-            'email':payload['email'],
-            'messages': messages
-        }
 
 
 #########################
