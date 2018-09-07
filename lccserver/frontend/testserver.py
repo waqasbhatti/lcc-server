@@ -269,6 +269,34 @@ def main():
           'session_expiry':SESSION_EXPIRY,
           'siteinfo':SITEINFO}),
 
+        # this is step 1 page for forgotten passwords
+        (r'/users/forgot-password-step1',
+         bh.ForgotPassStep1Handler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is the verification page for verifying email addresses
+        (r'/users/forgot-password-step2',
+         bh.ForgotPassStep2Handler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is the verification page for verifying email addresses
+        (r'/users/password-change',
+         bh.ChangePassHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+
         # this is an example protected page for the user containing their prefs
         (r'/users/home',
          bh.UserHomeHandler,

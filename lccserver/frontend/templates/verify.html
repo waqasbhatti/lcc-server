@@ -15,42 +15,40 @@
       <div class="card mt-4 mb-1">
         <div class="card-body">
           <div class="card-title" >
-            <h4>Sign up for an LCC-Server account</h4>
+            <h4>Verify your account sign up request</h4>
           </div>
           <div class="card-text" >
-            <form action="/users/new" method="post">
+            <form action="/users/verify" method="post">
               {% module xsrf_form_html() %}
 
               <div class="form-group" >
                 <label for="email" >Email address</label>
-                <input type="email" class="form-control"
-                       name="email" id="email" required
+                <input type="text" class="form-control-plaintext"
+                       name="email" id="email" readonly
                        minlength="4" maxlength="280"
-                       placeholder="user@example.org">
+                       value="{{ email_address }}" >
               </div>
 
               <div class="form-group" >
                 <label for="password" >Password</label>
                 <input type="password" class="form-control"
-                       name="password" id="password"
-                       aria-describedby="passhelp"
-                       autocomplete="new-password" required
+                       autocomplete="current-password"
                        minlength="12" maxlength="1024"
-                       placeholder="Type in a password">
-                <small id="passhelp"
-                       class="form-text text-muted">
-                  Must be at least 12 characters long.
-                </small>
+                       name="password" id="password" required
+                       placeholder="Enter your password">
               </div>
 
-              <button type="submit" class="btn btn-primary" >Sign up</button>
+              <div class="form-group" >
+                <label for="verificationcode" >Verification code</label>
+                <input type="text" class="form-control"
+                       minlength="12" maxlength="1024"
+                       name="verificationcode" id="verificationcode" required
+                       placeholder="Enter the verification code you received">
+              </div>
+
+              <button type="submit" class="btn btn-primary" >Verify sign up</button>
 
             </form>
-
-            <div class="mt-2 text-right" >
-              <a href="/users/login" >Already have an account? Sign in.</a>
-            </div>
-
           </div>
         </div>
       </div>

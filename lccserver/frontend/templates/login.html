@@ -25,17 +25,30 @@
                 <label for="email" >Email address</label>
                 <input type="email" class="form-control"
                        name="email" id="email" required
+                       minlength="4" maxlength="280"
                        placeholder="user@example.org">
               </div>
+
               <div class="form-group" >
                 <label for="password" >Password</label>
                 <input type="password" class="form-control"
-                       autocomplete="current-password" minlength="12"
+                       autocomplete="current-password"
+                       minlength="12" maxlength="1024"
                        name="password" id="password" required
                        placeholder="Type in your password">
               </div>
+
               <button type="submit" class="btn btn-primary" >Sign in</button>
+
             </form>
+
+            <div class="mt-2 text-right" >
+              <a href="/users/forgot-password-step1" >Forgot your password? Reset it.</a>
+            </div>
+            <div class="text-right">
+              <a href="/users/new" >New user? Create an account.</a>
+            </div>
+
           </div>
         </div>
       </div>
