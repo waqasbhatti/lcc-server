@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block pagecontent %}
+
+<div class="container" >
+
+  <div class="row justify-content-center" >
+    <div class="col-sm-12 col-md-9" >
+      {% raw flash_messages %}
+    </div>
+  </div>
+
+  <div class="row" >
+    <div class="col-sm-12" >
+      <h2>Hello! This is your user home page.</h2>
+    </div>
+  </div>
+
+  <div class="row" >
+
+    <div class="col-sm-12 col-md-4">
+
+      <h3>Your user account</h3>
+
+      <ul class="list-unstyled">
+        <li><a href="/users/password-change">Change your password</a></li>
+      </ul>
+
+      <form class="mt-2" action="/users/logout" method="POST" >
+        {% module xsrf_form_html() %}
+        <button type="submit" class="btn btn-warning btn-sm">Sign out</button>
+      </form>
+
+    </div>
+
+    <div class="col-sm-12 col-md-4">
+      <h3>Recent searches</h3>
+    </div>
+
+    <div class="col-sm-12 col-md-4">
+      <h3>Recent datasets</h3>
+    </div>
+
+  </div>
+
+</div>
+
+{% end %}
