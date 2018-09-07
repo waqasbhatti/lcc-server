@@ -53,6 +53,10 @@ import ipaddress
 import secrets
 import multiprocessing as mp
 import socket
+from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
+import smtplib
+import time
 
 from tornado.escape import squeeze
 from sqlalchemy import select
@@ -959,6 +963,396 @@ def create_new_user(payload,
             'user_id':None,
             'send_verification':False,
             'messages':messages
+        }
+
+
+
+####################
+## SENDING EMAILS ##
+####################
+
+SIGNUP_VERIFICATION_EMAIL_SUBJECT = (
+    '[LCC-Server] Please verify your account sign up request'
+)
+SIGNUP_VERIFICATION_EMAIL_TEMPLATE = '''\
+Hello,
+
+This is an automated message from the LCC-Server at:
+
+{server_hostname}
+
+We received an account sign up request from: {user_email}.
+
+Please use the following code to verify that you initiated this request:
+
+{verification_code}
+
+This sign up request was initiated using the browser:
+
+{browser_identifier}
+
+from the IP address: {ip_address}
+
+If you do not recognize the browser and IP address above or did not
+initiate this request, someone else may have used your email address
+in error. Feel free to ignore this email.
+
+Thanks!
+
+- {server_hostname}
+'''
+
+
+FORGOTPASS_VERIFICATION_EMAIL_SUBJECT = (
+    '[LCC-Server] Please verify your password reset request'
+)
+FORGOTPASS_VERIFICATION_EMAIL_TEMPLATE = '''\
+This is an automated message from the LCC-Server at:
+
+{server_hostname}
+
+We received a password reset request from: {user_email}.
+
+Please use the following code to verify that you initiated this request:
+
+{verification_code}
+
+This password reset request was initiated using the browser:
+
+{browser_identifier}
+
+from the IP address: {ip_address}
+
+If you do not recognize the browser and IP address above or did not
+initiate this request, someone else may have used your email address
+in error. Feel free to ignore this email.
+
+Thanks!
+
+- {server_hostname}
+'''
+
+
+CHANGEPASS_VERIFICATION_EMAIL_SUBJECT = (
+    '[LCC-Server] Please verify your password change request'
+)
+CHANGEPASS_VERIFICATION_EMAIL_TEMPLATE = '''\
+This is an automated message from the LCC-Server at:
+
+{server_hostname}
+
+We received a password change request from: {user_email}.
+
+Please use the following code to verify that you initiated this request:
+
+{verification_code}
+
+This password change request was initiated using the browser:
+
+{browser_identifier}
+
+from the IP address: {ip_address}
+
+If you do not recognize the browser and IP address above or did not
+initiate this request, someone else may have used your email address
+in error. Feel free to ignore this email.
+
+Thanks!
+
+- {server_hostname}
+'''
+
+
+def send_email(
+        sender,
+        subject,
+        text,
+        recipients,
+        server,
+        user,
+        password,
+        port=587
+):
+    '''
+    This is a utility function to send email.
+
+    '''
+
+    msg = MIMEText(text)
+    msg['From'] = sender
+    msg['To'] = ', '.join(recipients)
+    msg['Message-Id'] = make_msgid()
+    msg['Subject'] = subject
+    msg['Date'] = formatdate(time.time())
+
+    # next, we'll try to login to the SMTP server
+    try:
+
+        server = smtplib.SMTP(server, port)
+        server_ehlo_response = server.ehlo()
+
+        if server.has_extn('STARTTLS'):
+
+            try:
+
+                tls_start_response = server.starttls()
+                tls_ehlo_response = server.ehlo()
+
+                login_response = server.login(
+                    user,
+                    password
+                )
+
+                send_response = server.sendmail(
+                    sender,
+                    recipients,
+                    msg.as_string()
+                )
+
+                quit_response = server.quit()
+                return True
+
+            except Exception as e:
+
+                LOGGER.exception(
+                    "could not send the email to %s, "
+                    "subject: %s because of an exception"
+                    % (recipients, subject)
+                )
+                quit_response = server.quit()
+                return False
+        else:
+
+            LOGGER.error('email server: %s does not support TLS, '
+                         'will not send an email.' % server)
+            quit_response = server.quit()
+            return False
+
+    except Exception as e:
+
+        LOGGER.exception(
+            "could not send the email to %s, "
+            "subject: %s because of an exception"
+            % (recipients, subject)
+        )
+        quit_response = server.quit()
+        return False
+
+
+
+def send_signup_verification_email(payload,
+                                   raiseonfail=False,
+                                   override_authdb_path=None):
+    '''This actually sends the verification email.
+
+    The payload must contain:
+
+    - the email_address
+    - the current user_id
+    - the current session token
+    - the output dict from the create_new_user function as created_info
+
+    - the username, password, address, and port for an SMTP server to use
+      (these should be set in the site.json file from the frontend and the
+      frontend should pass these to us)
+
+    '''
+
+    for key in ('email_address',
+                'user_id',
+                'session_token',
+                'smtp_sender',
+                'smtp_user',
+                'smtp_pass',
+                'smtp_server',
+                'smtp_port',
+                'created_info'):
+
+        if key not in payload:
+            return {
+                'success':False,
+                'user_id':None,
+                'email_address':None,
+                'verifyemail_sent_datetime':None,
+                'messages':([
+                    "Invalid verification email request."
+                ])
+            }
+
+    # check if we don't need to send an email to this user
+    if payload['created_info']['send_verification'] is False:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Not allowed to send an email verification request."
+            ])
+        }
+
+    # this checks if the database connection is live
+    currproc = mp.current_process()
+    engine = getattr(currproc, 'engine', None)
+
+    if override_authdb_path:
+        currproc.auth_db_path = override_authdb_path
+
+    if not engine:
+        currproc.engine, currproc.connection, currproc.table_meta = (
+            authdb.get_auth_db(
+                currproc.auth_db_path,
+                echo=raiseonfail
+            )
+        )
+
+    users = currproc.table_meta.tables['users']
+
+    # first, we'll verify the user was created successfully, their account is
+    # currently set to inactive and their role is 'locked'. then, we'll verify
+    # if the session token provided exists and get the IP address and the
+    # browser identifier out of it.
+    # look up the provided user
+    user_sel = select([
+        users.c.user_id,
+        users.c.email,
+        users.c.is_active,
+        users.c.user_role,
+    ]).select_from(users).where(users.c.email == payload['email_address'])
+    user_results = currproc.connection.execute(user_sel)
+    user_info = user_results.fetchone()
+    user_results.close()
+
+    if not user_info:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Invalid verification email request."
+            ])
+        }
+
+    if user_info['is_active'] or user_info['user_role'] != 'locked':
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Not sending an email verification request to an existing user."
+            ])
+        }
+
+    # check if the email address we're supposed to send to is the same as the
+    # one for the user
+    if payload['email_address'] != user_info['email']:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Not sending an email verification "
+                "request to a nonexistent user."
+            ])
+        }
+
+
+    # check the session
+    session_info = auth_session_exists(
+        {'session_token':payload['session_token']},
+        raiseonfail=raiseonfail,
+        override_authdb_path=override_authdb_path
+    )
+
+    if not session_info['success']:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Invalid verification email request."
+            ])
+        }
+
+    # get the IP address and browser ID from the session
+    ip_addr = session_info['ip_address']
+    browser = session_info['client_header']
+
+    # TODO: we'll use geoip to get the location of the person who initiated the
+    # request.
+
+    # generate the email message
+    msgtext = SIGNUP_VERIFICATION_EMAIL_TEMPLATE.format(
+        server_hostname=socket.getfqdn(),
+        verification_code=secrets.token_urlsafe(32),
+        browser_identifier=browser.replace('_',' '),
+        ip_address=ip_addr
+    )
+    sender = 'LCC-Server admin <%s>' % payload['smtp_sender']
+    recipients = [user_info['email']]
+
+    # send the email
+    email_sent = send_email(
+        sender,
+        SIGNUP_VERIFICATION_EMAIL_SUBJECT,
+        msgtext,
+        recipients,
+        payload['smtp_server'],
+        payload['smtp_user'],
+        payload['stmp_pass'],
+        port=payload['smtp_port']
+    )
+
+    if email_sent:
+
+        emailverify_sent_datetime = datetime.utcnow()
+
+        # finally, we'll update the users table with the actual
+        # verifyemail_sent_datetime if sending succeeded.
+        upd = users.update(
+        ).where(
+            users.c.user_id == payload['user_id']
+        ).where(
+            users.c.is_active == False
+        ).where(
+            users.c.email == payload['email']
+        ).values({
+            'emailverify_sent_datetime': emailverify_sent_datetime,
+        })
+        result = currproc.connection.execute(upd)
+        result.close()
+
+        return {
+            'success':False,
+            'user_id':user_info['user_id'],
+            'email_address':user_info['email'],
+            'verifyemail_sent_datetime':emailverify_sent_datetime,
+            'messages':([
+                "Email verification request sent successfully to %s"
+                % recipients
+            ])
+        }
+
+    else:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Could not send email to %s for the user verification request."
+                % recipients
+            ])
         }
 
 

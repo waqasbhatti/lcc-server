@@ -207,6 +207,20 @@ def main():
     with open(siteinfojson,'r') as infd:
         SITEINFO = json.load(infd)
 
+    # get the email info file if it exists
+    if ('email_settings_file' in SITEINFO and
+        os.path.exists(os.path.abspath(SITEINFO['email_settings_file']))):
+
+        with open(SITEINFO['email_settings_file'],'r') as infd:
+            email_settings = json.loads(infd)
+
+        if email_settings['email_server'] != "smtp.example.email.server.org":
+            SITEINFO.update(email_settings)
+        else:
+            SITEINFO['email_server'] = None
+    else:
+        SITEINFO['email_server'] = None
+
 
     ####################################
     ## PERSISTENT BACKGROUND EXECUTOR ##
