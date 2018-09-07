@@ -1156,6 +1156,9 @@ def send_signup_verification_email(payload,
       (these should be set in the site.json file from the frontend and the
       frontend should pass these to us)
 
+    - a time-stamped Fernet verification token that is set to expire in 1 hour
+      in payload['fernet_verification_token'].
+
     '''
 
     for key in ('email_address',
@@ -1293,7 +1296,7 @@ def send_signup_verification_email(payload,
     # generate the email message
     msgtext = SIGNUP_VERIFICATION_EMAIL_TEMPLATE.format(
         server_hostname=socket.getfqdn(),
-        verification_code=secrets.token_urlsafe(32),
+        verification_code=payload['fernet_verification_token'],
         browser_identifier=browser.replace('_',' '),
         ip_address=ip_addr
     )
