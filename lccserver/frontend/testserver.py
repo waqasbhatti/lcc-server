@@ -212,13 +212,22 @@ def main():
         os.path.exists(os.path.abspath(SITEINFO['email_settings_file']))):
 
         with open(SITEINFO['email_settings_file'],'r') as infd:
-            email_settings = json.loads(infd)
+            email_settings = json.load(infd)
 
         if email_settings['email_server'] != "smtp.example.email.server.org":
             SITEINFO.update(email_settings)
+
+            LOGGER.info('email server to use: %s:%s' %
+                        (email_settings['email_server'],
+                         email_settings['email_port']))
+            LOGGER.info('email server sender to use: %s' %
+                        email_settings['email_sender'])
+
         else:
+            LOGGER.warning('no email server is set up')
             SITEINFO['email_server'] = None
     else:
+        LOGGER.warning('no email server is set up')
         SITEINFO['email_server'] = None
 
 

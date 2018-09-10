@@ -1659,7 +1659,7 @@ def verify_user_email_address(payload,
         users.c.is_active,
         users.c.user_role,
     ]).select_from(users).where(
-        (users.c.user_id == payload['user_id'])
+        (users.c.email == payload['email'])
     )
     result = currproc.connection.execute(sel)
     rows = result.fetchone()

@@ -158,16 +158,21 @@ class BaseHandler(tornado.web.RequestHandler):
         '''
 
         if isinstance(messages,list):
+
             outmsg = json.dumps({
                 'text':messages,
                 'type':alert_type
             })
 
         elif isinstance(messages,str):
+
             outmsg = json.dumps({
                 'text':[messages],
                 'type':alert_type
             })
+
+        else:
+            outmsg = ''
 
         self.set_secure_cookie(
             'lccserver_messages',
@@ -747,6 +752,7 @@ class NewUserHandler(BaseHandler):
             # what to do?
             else:
 
+                LOGGER.error('failed to send an email. %r' % msgs)
                 self.save_flash_messages(msgs,'warning')
                 self.redirect('/users/new')
 
@@ -831,10 +837,13 @@ class VerifyUserHandler(BaseHandler):
                 ttl=15*60
             )
 
+            LOGGER.info('%s: decrypted verification token OK and unexpired' %
+                        email)
+
             # if all looks OK, verify the email address
             verified_ok, resp, msgs = yield self.authnzerver_request(
                 'user-verify-email',
-                email
+                {'email':email},
             )
 
             # if we successfully set the user is_active = True, then we'll log
