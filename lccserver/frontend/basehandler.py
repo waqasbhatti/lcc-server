@@ -70,6 +70,7 @@ LOGGER = logging.getLogger(__name__)
 import tornado.web
 from base64 import b64encode, b64decode
 from tornado import gen
+from tornado.escape import xhtml_escape
 
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from cryptography.fernet import Fernet, InvalidToken
@@ -510,7 +511,7 @@ class LoginHandler(BaseHandler):
         # get the provided email and password
         try:
 
-            email = self.get_argument('email')
+            email = xhtml_escape(self.get_argument('email'))
             password = self.get_argument('password')
 
         except Exception as e:
@@ -649,12 +650,14 @@ class NewUserHandler(BaseHandler):
 
     @gen.coroutine
     def post(self):
-        '''
-        This handles user sign-up by talking to the authnzerver.
+        '''This handles user sign-up by talking to the authnzerver.
 
         The verification email request to the authnzerver should contain an IP
         address and browser header so we can include this info in the
         verification request (and geolocate the IP address if possible).
+
+        FIXME: if the user account already exists, we should complete the
+        process anyway, so no information on who has an account leaks
 
         '''
 
@@ -663,7 +666,7 @@ class NewUserHandler(BaseHandler):
         # get the provided email and password
         try:
 
-            email = self.get_argument('email')
+            email = xhtml_escape(self.get_argument('email'))
             password = self.get_argument('password')
 
         except Exception as e:
@@ -683,37 +686,14 @@ class NewUserHandler(BaseHandler):
              'password':password}
         )
 
-        if not ok:
+        # generate a new anon session token in any case
+        new_session = yield self.new_session_token(
+            user_id=2,
+            expires_days=self.session_expiry,
+        )
 
-            new_session = yield self.new_session_token(
-                user_id=2,
-                expires_days=self.session_expiry,
-            )
-            self.save_flash_messages(msgs,"warning")
-            self.redirect('/users/new')
-
-        # if we succeeded, we need to go through the user verification process
-        else:
-
-            # FIXME: if the sign up succeeded, we will redirect to
-            # /users/verify, which will just tell the user that we sent a
-            # verification email to them with a sign up code (this will be
-            # generated using Fernet or itsdangerous). On /users/verify, we'll
-            # have a form to fill in the email address (this will be a readonly
-            # item), password, and the token. Once the form POSTs OK, we will
-            # log the user in.
-
-            # we generate a new session token with the user's new user ID, and
-            # set the lccserver_session cookie. We then redirect to
-            # /users/verify, which will read the cookie, match the session token
-            # with an existing session, look up the user info. If it sees that
-            # the user is not active and verification email was sent, it will
-            # set up the form to ask the user for their verification code
-            # (following the procedure above)
-            new_session = yield self.new_session_token(
-                user_id=resp['user_id'],
-                expires_days=self.session_expiry,
-            )
+        # if the sign up request is successful, send the email
+        if ok:
 
             #
             # send the background request to authnzerver to send an email
@@ -727,16 +707,20 @@ class NewUserHandler(BaseHandler):
             smtp_port = self.siteinfo['email_port']
 
             # generate a fernet verification token that is timestamped. we'll
-            # give it 2 hours to expire and decrypt it using:
-            # self.ferneter.decrypt(token, ttl=2*60*60)
+            # give it 15 minutes to expire and decrypt it using:
+            # self.ferneter.decrypt(token, ttl=15*60)
             fernet_verification_token = self.ferneter.encrypt(
                 secrets.token_urlsafe(32).encode()
             )
 
+            # get this LCC-Server's base URL
+            lccserver_baseurl = '%s://%s' % (self.request.protocol,
+                                             self.request.host)
+
             ok, resp, msgs = yield self.authnzerver_request(
                 'user-signup-email',
                 {'email_address':email,
-                 'user_id':resp['user_id'],
+                 'lccserver_baseurl':lccserver_baseurl,
                  'session_token':new_session,
                  'smtp_server':smtp_server,
                  'smtp_sender':smtp_sender,
@@ -767,6 +751,20 @@ class NewUserHandler(BaseHandler):
                 self.redirect('/users/new')
 
 
+        # if the sign up request fails, tell the user we've sent an email but do
+        # nothing
+        else:
+
+            self.save_flash_messages(
+                "Thanks for signing up! We've sent a verification "
+                "request to your email address. "
+                "Please complete user registration by "
+                "entering the code you received.",
+                "primary"
+            )
+            self.redirect('/users/verify')
+
+
 
 class VerifyUserHandler(BaseHandler):
 
@@ -779,11 +777,9 @@ class VerifyUserHandler(BaseHandler):
 
         current_user = self.current_user
 
-        # only proceed to verification if this is a valid verification request
-        if (current_user and
-            current_user['user_id'] > 3 and
-            not current_user['is_active'] and
-            not current_user['email_verified']):
+        # only proceed to verification if the user is not logged in as an actual
+        # user
+        if current_user and current_user['user_id'] == 2:
 
             # we'll render the verification form.
             self.render('verify.html',
@@ -793,17 +789,16 @@ class VerifyUserHandler(BaseHandler):
                         lccserver_version=__version__,
                         siteinfo=self.siteinfo)
 
+        # if the user is already logged in, then redirect them back to their
+        # home page
         else:
 
             # tell the user that their verification request is invalid
             # and redirect them to the login page
             self.save_flash_messages(
-                "Sign in with your existing account credentials. "
-                "If you do not have a user account, "
-                "please <a href=\"/users/new\">sign up</a>.",
-                "primary"
+                "You are already logged in."
             )
-            self.redirect('/users/login')
+            self.redirect('/users/home')
 
 
     @gen.coroutine
@@ -821,6 +816,101 @@ class VerifyUserHandler(BaseHandler):
         TODO: finish this
 
         '''
+
+        current_user = self.current_user
+
+        try:
+
+            email = xhtml_escape(self.get_argument('email'))
+            password = self.get_argument('password')
+            verification = xhtml_escape(self.get_argument('verificationcode'))
+
+            # check the verification code to see if it's valid
+            decrypted = self.ferneter.decrypt(
+                verification.encode(),
+                ttl=15*60
+            )
+
+            # if all looks OK, verify the email address
+            verified_ok, resp, msgs = yield self.authnzerver_request(
+                'user-verify-email',
+                email
+            )
+
+            # if we successfully set the user is_active = True, then we'll log
+            # them in by checking the provided email address and password
+            if verified_ok:
+
+                login_ok, resp, msgs = yield self.authnzerver_request(
+                    'user-login',
+                    {'session_token':current_user['session_token'],
+                     'email':email,
+                     'password':password}
+                )
+
+                if login_ok:
+
+                    # generate a new session token matching the user_id
+                    new_session_token = yield self.new_session_token(
+                        user_id=resp['user_id'],
+                        expires_days=self.session_expiry
+                    )
+                    self.save_flash_messages(
+                        "Thanks for verifying your email address! "
+                        "Your account is now fully activated.",
+                        "primary"
+                    )
+
+                    # redirect to their home page
+                    self.redirect('/users/home')
+
+                else:
+
+                    new_session_token = yield self.new_session_token()
+                    self.save_flash_messages(
+                        "Sorry, there was a problem verifying "
+                        "your account sign up. "
+                        "Please try again or contact us if this doesn't work.",
+                        "warning"
+                    )
+                    self.redirect('/users/verify')
+
+            else:
+
+                new_session_token = yield self.new_session_token()
+                self.save_flash_messages(
+                    "Sorry, there was a problem verifying "
+                    "your account sign up. "
+                    "Please try again or contact us if this doesn't work.",
+                    "warning"
+                )
+                self.redirect('/users/verify')
+
+
+        except InvalidToken as e:
+
+            new_session_token = yield self.new_session_token()
+            self.save_flash_messages(
+                "Sorry, there was a problem verifying your account sign up. "
+                "Please try again or contact us if this doesn't work.",
+                "warning",
+            )
+            LOGGER.exception(
+                'verification token did not match for account: %s' %
+                email
+            )
+
+            self.redirect('/users/verify')
+
+        except Exception as e:
+
+            new_session_token = yield self.new_session_token()
+            self.save_flash_messages(
+                "Sorry, there was a problem verifying your account sign up. "
+                "Please try again or contact us if this doesn't work.",
+                "warning"
+            )
+            self.redirect('/users/verify')
 
 
 

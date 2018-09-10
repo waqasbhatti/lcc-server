@@ -166,7 +166,8 @@ request_functions = {
     'user-login':actions.auth_user_login,
     'user-logout':actions.auth_user_logout,
     'user-new':actions.create_new_user,
-    'user-verifyemail':actions.verify_user_email_address,
+    'user-signup-email':actions.send_signup_verification_email,
+    'user-verify-email':actions.verify_user_email_address,
     'user-delete':actions.delete_user,
     'user-changepass':actions.change_user_password,
 }

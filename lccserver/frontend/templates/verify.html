@@ -23,10 +23,10 @@
 
               <div class="form-group" >
                 <label for="email" >Email address</label>
-                <input type="text" class="form-control-plaintext"
-                       name="email" id="email" readonly
+                <input type="email" class="form-control"
+                       name="email" id="email" required
                        minlength="4" maxlength="280"
-                       value="{{ email_address }}" >
+                       placeholder="Enter your email address">
               </div>
 
               <div class="form-group" >
@@ -46,7 +46,9 @@
                        placeholder="Enter the verification code you received">
               </div>
 
-              <button type="submit" class="btn btn-primary" >Verify sign up</button>
+              <button type="submit" class="btn btn-primary" >
+                Verify sign up and log in
+              </button>
 
             </form>
           </div>

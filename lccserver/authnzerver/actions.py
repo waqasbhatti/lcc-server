@@ -1211,27 +1211,33 @@ Hello,
 
 This is an automated message from the LCC-Server at:
 
-{server_hostname}
+{lccserver_baseurl}
 
-We received an account sign up request from: {user_email}.
-
-Please use the following code to verify that you initiated this request:
-
-{verification_code}
-
-This sign up request was initiated using the browser:
+We received an account sign up request from: {user_email}. This request
+was initiated using the browser:
 
 {browser_identifier}
 
 from the IP address: {ip_address}
 
+Please enter this code:
+
+{verification_code}
+
+into the verification form at:
+
+{lccserver_baseurl}/users/verify
+
+to verify that you initiated this request. This code will expire in 15
+minutes. You will also need to enter your email address and password
+to log in.
+
 If you do not recognize the browser and IP address above or did not
 initiate this request, someone else may have used your email address
 in error. Feel free to ignore this email.
 
-Thanks!
-
-- {server_hostname}
+Thanks,
+LCC-Server admins for {lccserver_baseurl}
 '''
 
 
@@ -1243,17 +1249,18 @@ This is an automated message from the LCC-Server at:
 
 {server_hostname}
 
-We received a password reset request from: {user_email}.
+We received a password reset request from: {user_email}. This request
+was initiated using the browser:
+
+{browser_identifier}
+
+from the IP address: {ip_address}.
 
 Please use the following code to verify that you initiated this request:
 
 {verification_code}
 
-This password reset request was initiated using the browser:
-
-{browser_identifier}
-
-from the IP address: {ip_address}
+This code will expire in 15 minutes.
 
 If you do not recognize the browser and IP address above or did not
 initiate this request, someone else may have used your email address
@@ -1273,17 +1280,18 @@ This is an automated message from the LCC-Server at:
 
 {server_hostname}
 
-We received a password change request from: {user_email}.
+We received a password change request from: {user_email}. This request
+was initiated using the browser:
+
+{browser_identifier}
+
+from the IP address: {ip_address}
 
 Please use the following code to verify that you initiated this request:
 
 {verification_code}
 
-This password change request was initiated using the browser:
-
-{browser_identifier}
-
-from the IP address: {ip_address}
+This code will expire in 15 minutes.
 
 If you do not recognize the browser and IP address above or did not
 initiate this request, someone else may have used your email address
@@ -1380,7 +1388,6 @@ def send_signup_verification_email(payload,
     The payload must contain:
 
     - the email_address
-    - the current user_id
     - the current session token
     - the output dict from the create_new_user function as created_info
 
@@ -1394,14 +1401,14 @@ def send_signup_verification_email(payload,
     '''
 
     for key in ('email_address',
-                'user_id',
+                'lccserver_baseurl',
                 'session_token',
+                'fernet_verification_token',
                 'smtp_sender',
                 'smtp_user',
                 'smtp_pass',
                 'smtp_server',
                 'smtp_port',
-                'fernet_verification_token',
                 'created_info'):
 
         if key not in payload:
@@ -1520,18 +1527,19 @@ def send_signup_verification_email(payload,
         }
 
     # get the IP address and browser ID from the session
-    ip_addr = session_info['ip_address']
-    browser = session_info['client_header']
+    ip_addr = session_info['session_info']['ip_address']
+    browser = session_info['session_info']['client_header']
 
     # TODO: we'll use geoip to get the location of the person who initiated the
     # request.
 
     # generate the email message
     msgtext = SIGNUP_VERIFICATION_EMAIL_TEMPLATE.format(
-        server_hostname=socket.getfqdn(),
+        lccserver_baseurl=payload['lccserver_baseurl'],
         verification_code=payload['fernet_verification_token'],
         browser_identifier=browser.replace('_',' '),
-        ip_address=ip_addr
+        ip_address=ip_addr,
+        user_email=payload['email_address'],
     )
     sender = 'LCC-Server admin <%s>' % payload['smtp_sender']
     recipients = [user_info['email']]
@@ -1544,7 +1552,7 @@ def send_signup_verification_email(payload,
         recipients,
         payload['smtp_server'],
         payload['smtp_user'],
-        payload['stmp_pass'],
+        payload['smtp_pass'],
         port=payload['smtp_port']
     )
 
@@ -1556,11 +1564,11 @@ def send_signup_verification_email(payload,
         # verifyemail_sent_datetime if sending succeeded.
         upd = users.update(
         ).where(
-            users.c.user_id == payload['user_id']
+            users.c.user_id == payload['created_info']['user_id']
         ).where(
             users.c.is_active == False
         ).where(
-            users.c.email == payload['email']
+            users.c.email == payload['created_info']['user_email']
         ).values({
             'emailverify_sent_datetime': emailverify_sent_datetime,
         })
@@ -1568,7 +1576,7 @@ def send_signup_verification_email(payload,
         result.close()
 
         return {
-            'success':False,
+            'success':True,
             'user_id':user_info['user_id'],
             'email_address':user_info['email'],
             'verifyemail_sent_datetime':emailverify_sent_datetime,
@@ -1598,7 +1606,7 @@ def verify_user_email_address(payload,
                               override_authdb_path=None):
     '''This verifies the email address of the user.
 
-    payload must have the following keys: email, user_id
+    payload must have the following keys: email
 
     This is called by the frontend after it verifies that the token challenge to
     verify the user's email succeeded and has not yet expired. This will set the
@@ -1607,16 +1615,6 @@ def verify_user_email_address(payload,
     '''
 
     if 'email' not in payload:
-
-        return {
-            'success':False,
-            'user_id':None,
-            'is_active': False,
-            'user_role':'locked',
-            'messages':["Invalid email verification request."]
-        }
-
-    if 'user_id' not in payload:
 
         return {
             'success':False,
@@ -1645,8 +1643,6 @@ def verify_user_email_address(payload,
 
     # update the table for this user
     upd = users.update(
-    ).where(
-        users.c.user_id == payload['user_id']
     ).where(
         users.c.is_active == False
     ).where(
