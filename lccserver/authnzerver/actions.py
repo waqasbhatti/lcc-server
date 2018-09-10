@@ -1209,24 +1209,20 @@ SIGNUP_VERIFICATION_EMAIL_SUBJECT = (
 SIGNUP_VERIFICATION_EMAIL_TEMPLATE = '''\
 Hello,
 
-This is an automated message from the LCC-Server at:
+This is an automated message from the LCC-Server at: {lccserver_baseurl}.
 
-{lccserver_baseurl}
-
-We received an account sign up request from: {user_email}. This request
+We received an account sign up request for: {user_email}. This request
 was initiated using the browser:
 
 {browser_identifier}
 
-from the IP address: {ip_address}
+from the IP address: {ip_address}.
 
 Please enter this code:
 
 {verification_code}
 
-into the verification form at:
-
-{lccserver_baseurl}/users/verify
+into the verification form at: {lccserver_baseurl}/users/verify
 
 to verify that you initiated this request. This code will expire in 15
 minutes. You will also need to enter your email address and password
@@ -1237,7 +1233,8 @@ initiate this request, someone else may have used your email address
 in error. Feel free to ignore this email.
 
 Thanks,
-LCC-Server admins for {lccserver_baseurl}
+LCC-Server admins
+{lccserver_baseurl}
 '''
 
 
@@ -1245,30 +1242,33 @@ FORGOTPASS_VERIFICATION_EMAIL_SUBJECT = (
     '[LCC-Server] Please verify your password reset request'
 )
 FORGOTPASS_VERIFICATION_EMAIL_TEMPLATE = '''\
-This is an automated message from the LCC-Server at:
+Hello,
 
-{server_hostname}
+This is an automated message from the LCC-Server at: {lccserver_baseurl}.
 
-We received a password reset request from: {user_email}. This request
+We received a password reset request for: {user_email}. This request
 was initiated using the browser:
 
 {browser_identifier}
 
 from the IP address: {ip_address}.
 
-Please use the following code to verify that you initiated this request:
+Please enter this code:
 
 {verification_code}
 
-This code will expire in 15 minutes.
+into the verification form at: {lccserver_baseurl}/users/forgot-password-step2
+
+to verify that you initiated this request. This code will expire in 15
+minutes.
 
 If you do not recognize the browser and IP address above or did not
 initiate this request, someone else may have used your email address
 in error. Feel free to ignore this email.
 
-Thanks!
-
-- {server_hostname}
+Thanks,
+LCC-Server admins
+{lccserver_baseurl}
 '''
 
 
@@ -1276,30 +1276,33 @@ CHANGEPASS_VERIFICATION_EMAIL_SUBJECT = (
     '[LCC-Server] Please verify your password change request'
 )
 CHANGEPASS_VERIFICATION_EMAIL_TEMPLATE = '''\
-This is an automated message from the LCC-Server at:
+Hello,
 
-{server_hostname}
+This is an automated message from the LCC-Server at: {lccserver_baseurl}.
 
-We received a password change request from: {user_email}. This request
+We received a password change request for: {user_email}. This request
 was initiated using the browser:
 
 {browser_identifier}
 
-from the IP address: {ip_address}
+from the IP address: {ip_address}.
 
-Please use the following code to verify that you initiated this request:
+Please enter this code:
 
 {verification_code}
 
-This code will expire in 15 minutes.
+into the verification form at: {lccserver_baseurl}/users/password-change
+
+to verify that you initiated this request. This code will expire in 15
+minutes.
 
 If you do not recognize the browser and IP address above or did not
 initiate this request, someone else may have used your email address
 in error. Feel free to ignore this email.
 
-Thanks!
-
-- {server_hostname}
+Thanks,
+LCC-Server admins
+{lccserver_baseurl}
 '''
 
 

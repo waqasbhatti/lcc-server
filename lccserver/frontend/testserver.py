@@ -165,7 +165,7 @@ def main():
     ## DEFINING URL HANDLERS ##
     ###########################
 
-    from lccserver.frontend import basehandler as bh
+    from lccserver.frontend import auth_handlers as ah
     from lccserver.authnzerver import authdb
 
     ###################
@@ -249,7 +249,7 @@ def main():
 
         # this is the index page
         (r'/',
-         bh.IndexHandler,
+         ah.IndexHandler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -258,7 +258,7 @@ def main():
 
         # this is the login page
         (r'/users/login',
-         bh.LoginHandler,
+         ah.LoginHandler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -267,7 +267,7 @@ def main():
 
         # this is the logout page
         (r'/users/logout',
-         bh.LogoutHandler,
+         ah.LogoutHandler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -276,7 +276,7 @@ def main():
 
         # this is the new user page
         (r'/users/new',
-         bh.NewUserHandler,
+         ah.NewUserHandler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -285,7 +285,7 @@ def main():
 
         # this is the verification page for verifying email addresses
         (r'/users/verify',
-         bh.VerifyUserHandler,
+         ah.VerifyUserHandler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -294,7 +294,7 @@ def main():
 
         # this is step 1 page for forgotten passwords
         (r'/users/forgot-password-step1',
-         bh.ForgotPassStep1Handler,
+         ah.ForgotPassStep1Handler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -303,7 +303,7 @@ def main():
 
         # this is the verification page for verifying email addresses
         (r'/users/forgot-password-step2',
-         bh.ForgotPassStep2Handler,
+         ah.ForgotPassStep2Handler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -312,7 +312,7 @@ def main():
 
         # this is the verification page for verifying email addresses
         (r'/users/password-change',
-         bh.ChangePassHandler,
+         ah.ChangePassHandler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
@@ -322,7 +322,7 @@ def main():
 
         # this is an example protected page for the user containing their prefs
         (r'/users/home',
-         bh.UserHomeHandler,
+         ah.UserHomeHandler,
          {'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
