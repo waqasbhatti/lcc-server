@@ -30,8 +30,8 @@
     <!-- the top bar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
 
-      <a class="navbar-brand" href="/">
-        <img class="icon-logo"
+      <a class="navbar-brand" href="/" title="LCC-Server front page">
+        <img class="icon-logo" alt="LCC-Server logo"
              src="{{ static_url('images/lcc-logo-web.svg') }}">
       </a>
 
@@ -46,16 +46,34 @@
       </button>
 
       <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-        <div class="navbar-nav">
+
+        <div class="navbar-nav mr-auto">
           <a class="nav-item nav-link active">
             <strong>LCC server docs</strong>
             <span class="sr-only">(current)</span>
           </a>
         </div>
+
+        <form class="form-inline" action="/users/logout" method="POST" >
+          {% module xsrf_form_html() %}
+          {% raw user_account_box %}
+        </form>
+
       </div>
 
     </nav>
     {% end %}
+
+    <!-- this is where all the alerts go -->
+    <div class="container-fluid">
+      <div class="row mt-2">
+        <div class="col-12">
+          <div id="alert-box">
+            {% raw flash_messages %}
+          </div>
+        </div>
+      </div>
+    </div>
 
     {% block pagecontent %}
     <div class="container-fluid">

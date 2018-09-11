@@ -19,6 +19,7 @@ import numpy as np
 from datetime import datetime, timedelta
 
 
+
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
 ######################################
@@ -53,12 +54,16 @@ class FrontendEncoder(json.JSONEncoder):
 # tornado.web.RequestHandler.write(dict) is called.
 json._default_encoder = FrontendEncoder()
 
+
+
 #############
 ## LOGGING ##
 #############
 
 # get a logger
 LOGGER = logging.getLogger(__name__)
+
+
 
 #####################
 ## TORNADO IMPORTS ##
@@ -76,6 +81,8 @@ import markdown
 import secrets
 import itsdangerous
 
+
+
 ###################
 ## LOCAL IMPORTS ##
 ###################
@@ -85,6 +92,7 @@ from ..backend import datasets
 from ..backend import dbsearch
 
 from .basehandler import BaseHandler
+
 
 
 #####################
@@ -141,9 +149,439 @@ class IndexHandler(BaseHandler):
         )
 
 
+
+###################
+## DOCS HANDLERS ##
+###################
+
+def doc_render_worker(docpage,
+                      basedir,
+                      serverindex,
+                      siteindex):
+    '''This is a worker that renders Markdown to HTML markup.
+
+    Works in a background Executor.
+
+    serverindex and siteindex are the dicts containing server and site doc page
+    titles and doc page names.
+
+    '''
+
+    # find the doc page requested
+    if docpage in serverindex:
+        page_title = serverindex[docpage]
+        doc_md_file = os.path.join(os.path.dirname(__file__),
+                                   '..',
+                                   'server-docs',
+                                   '%s.md' % docpage)
+    elif docpage in siteindex:
+        page_title = siteindex[docpage]
+        doc_md_file = os.path.join(basedir,'docs',
+                                   '%s.md' % docpage)
+
+    # if the doc page is not found in either index, then it doesn't exist
+    else:
+        return None, None
+
+    LOGGER.info('opening %s for docs page: %s...' % (doc_md_file, docpage))
+
+    # we'll open in 'r' mode since we want unicode for markdown
+    with open(doc_md_file,'r') as infd:
+        doc_markdown = infd.read()
+
+    # render the markdown to HTML
+    doc_html = markdown.markdown(
+        doc_markdown,
+        output_format='html5',
+        extensions=['markdown.extensions.extra',
+                    'markdown.extensions.codehilite',
+                    'markdown.extensions.toc',
+                    'markdown.extensions.tables'],
+        extension_configs={
+            'markdown.extensions.codehilite':{
+                'guess_lang': False
+            },
+            'markdown.extensions.toc':{
+                'anchorlink': True
+            },
+        }
+    )
+
+    return doc_html, page_title
+
+
+
+class DocsHandler(BaseHandler):
+    '''This handles the docs index page and all other docs requests.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   templatepath,
+                   assetpath,
+                   executor,
+                   basedir,
+                   serverdocs,
+                   sitedocs,
+                   siteinfo,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.executor = executor
+        self.basedir = basedir
+        self.siteinfo = siteinfo
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+
+        #
+        # these are the doc index JSONs parsed into dicts
+        #
+
+        # this is the lcc-server doc index
+        self.server_docindex = serverdocs
+
+        # this is the site-specific documentation index
+        self.site_docindex = sitedocs
+
+        # this generates the server url for use in documentation
+        if 'X-Real-Host' in self.request.headers:
+            self.req_hostname = self.request.headers['X-Real-Host']
+        else:
+            self.req_hostname = self.request.host
+
+        self.server_url = "%s://%s" % (
+            self.request.protocol,
+            self.req_hostname,
+        )
+
+
+    @tornado.web.removeslash
+    @gen.coroutine
+    def get(self, docpage):
+        '''This handles GET requests for docs
+
+        '''
+
+        if not docpage or len(docpage) == 0:
+
+            self.render('docs-index.html',
+                        page_title="Documentation index",
+                        serverdocs=self.server_docindex,
+                        sitedocs=self.site_docindex,
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo,
+                        flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box())
+
+        # get a specific documentation page
+        elif docpage and len(docpage) > 0:
+
+            docpage = xhtml_escape(docpage)
+
+            try:
+                rendered, page_title = yield self.executor.submit(
+                    doc_render_worker,
+                    docpage,
+                    self.basedir,
+                    self.server_docindex,
+                    self.site_docindex
+                )
+
+                if rendered and page_title:
+
+                    # this is because the rendering doesn't seem to figure out
+                    # that there's a template tag left in. FIXME: figure out how
+                    # to do this cleanly
+                    rendered = rendered.replace('{{ server_url }}',
+                                                self.server_url)
+                    self.render('docs-page.html',
+                                page_title=page_title,
+                                page_content=rendered,
+                                lccserver_version=__version__,
+                                siteinfo=self.siteinfo,
+                                flash_messages=self.render_flash_messages(),
+                                user_account_box=self.render_user_account_box())
+
+                else:
+
+                    self.set_status(404)
+
+                    self.render(
+                        'errorpage.html',
+                        page_title='404 - no docs available',
+                        error_message=('Could not find a docs page '
+                                       'for the requested item.'),
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo,
+                        flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box()
+                    )
+
+            except Exception as e:
+
+                LOGGER.exception('failed to render doc page: %s' % docpage)
+                self.set_status(404)
+
+                self.render(
+                    'errorpage.html',
+                    page_title='404 - no docs available',
+                    error_message=('Could not find a docs page '
+                                   'for the requested item.'),
+                    lccserver_version=__version__,
+                    siteinfo=self.siteinfo,
+                    flash_messages=self.render_flash_messages(),
+                    user_account_box=self.render_user_account_box()
+                )
+
+
+
+#############################
+## COLLECTION LIST HANDLER ##
+#############################
+
+class CollectionListHandler(BaseHandler):
+    '''
+    This handles the collections list API.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   apiversion,
+                   templatepath,
+                   assetpath,
+                   executor,
+                   basedir,
+                   signer,
+                   fernet,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.apiversion = apiversion
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.executor = executor
+        self.basedir = basedir
+        self.signer = signer
+        self.fernet = fernet
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+
+        # this is used to render collection descriptions to HTML
+        self.markdowner = markdown.Markdown(
+            output_format='html5',
+            extensions=['markdown.extensions.extra',
+                        'markdown.extensions.tables'],
+        )
+
+
+
+    @gen.coroutine
+    def get(self):
+        '''This gets the list of collections currently available.
+
+        '''
+
+        collections = yield self.executor.submit(
+            dbsearch.sqlite_list_collections,
+            self.basedir,
+            incoming_userid=self.current_user['user_id'],
+            incoming_role=self.current_user['user_role'],
+        )
+
+        collection_info = collections['info']
+        collection_info['description'] = list(collection_info['description'])
+
+        # get the descriptions and turn them into markdown if needed
+        for collind, coll, desc in zip(
+                range(len(collection_info['collection_id'])),
+                collection_info['collection_id'],
+                collection_info['description']
+        ):
+            if desc and desc.startswith('#!MKD '):
+                try:
+                    desc = self.markdowner.convert(desc[6:])
+                    collection_info['description'][collind] = desc
+                except Exception as e:
+                    LOGGER.warning('markdown convert failed '
+                                   'for description for collection: %s' %
+                                   coll)
+                    desc = desc[6:]
+                    collection_info['description'][collind] = desc
+                self.markdowner.reset()
+
+        all_columns = collections['columns']
+        all_indexed_columns = collections['indexedcols']
+        all_fts_columns = collections['ftscols']
+
+        # censor some bits
+        del collection_info['kdtree_pkl_path']
+        del collection_info['object_catalog_path']
+
+        # we'll reform the lcformatdesc path so it can be downloaded directly
+        # from the LCC server
+        lcformatdesc = collection_info['lcformatdesc']
+        lcformatdesc = [
+            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
+        ]
+        collection_info['lcformatdesc'] = lcformatdesc
+
+        returndict = {
+            'status':'ok',
+            'result':{'available_columns':all_columns,
+                      'available_indexed_columns':all_indexed_columns,
+                      'available_fts_columns':all_fts_columns,
+                      'collections':collection_info},
+            'message':(
+                'found %s collections in total' %
+                len(collection_info['collection_id'])
+            )
+        }
+
+        # return to sender
+        self.write(returndict)
+        self.finish()
+
+
+
+##########################
+## DATASET LIST HANDLER ##
+##########################
+
+class DatasetListHandler(BaseHandler):
+    '''
+    This handles the dataset list API.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   apiversion,
+                   templatepath,
+                   assetpath,
+                   executor,
+                   basedir,
+                   signer,
+                   fernet,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.apiversion = apiversion
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.executor = executor
+        self.basedir = basedir
+        self.signer = signer
+        self.fernet = fernet
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+
+
+    @gen.coroutine
+    def get(self):
+        '''This gets the list of datasets currently available.
+
+        '''
+
+        try:
+            nrecent = self.get_argument('nsets')
+            nrecent = int(xhtml_escape(nrecent))
+        except Exception as e:
+            nrecent = 25
+
+        dataset_info = yield self.executor.submit(
+            datasets.sqlite_list_datasets,
+            self.basedir,
+            nrecent=nrecent,
+            require_status='complete',
+            incoming_userid=self.current_user['user_id'],
+            incoming_role=self.current_user['user_role'],
+        )
+
+        # we'll have to censor stuff here as well
+        dataset_list = []
+
+        for dataset in dataset_info['result']:
+
+            if isinstance(dataset, dict):
+
+                # this should always be there
+                try:
+                    dataset_fpath = dataset['dataset_fpath']
+                    dataset_fpath = dataset_fpath.replace(
+                        os.path.join(self.basedir,'datasets'),
+                        '/d'
+                    )
+                except Exception as e:
+                    dataset_fpath = None
+
+                try:
+                    dataset_csv = dataset['dataset_csv']
+                    dataset_csv = dataset_csv.replace(
+                        os.path.join(self.basedir,'datasets'),
+                        '/d'
+                    )
+                except Exception as e:
+                    dataset_csv = None
+
+                try:
+                    lczip_fpath = dataset['lczip_fpath']
+                    lczip_fpath = lczip_fpath.replace(
+                        os.path.join(self.basedir,'products'),
+                        '/p'
+                    )
+                except Exception as e:
+                    lczip_fpath = None
+
+                # update this listing
+                dataset['dataset_fpath'] = dataset_fpath
+                dataset['dataset_csv'] = dataset_csv
+                dataset['lczip_fpath'] = lczip_fpath
+
+                dataset_list.append(dataset)
+
+        dataset_info['result'] = dataset_list
+
+        self.write(dataset_info)
+        self.finish()
+
+
+
 ######################
 ## API KEY HANDLERS ##
 ######################
+
+# TODO: make all of these use POST instead of GET
+# TODO: make these inherit from BaseHandler
+
+# TODO: need to decide if anonymous people should be able to get API Keys
 
 class APIKeyHandler(tornado.web.RequestHandler):
     '''This handles API key generation
@@ -361,387 +799,3 @@ class APIAuthHandler(tornado.web.RequestHandler):
             self.set_status(401)
             self.write(retdict)
             self.finish()
-
-
-#########################################
-## DOCS HANDLING FUNCTIONS AND CLASSES ##
-#########################################
-
-def doc_render_worker(docpage,
-                      basedir,
-                      serverindex,
-                      siteindex):
-    '''This is a worker that renders Markdown to HTML markup.
-
-    Works in a background Executor.
-
-    serverindex and siteindex are the dicts containing server and site doc page
-    titles and doc page names.
-
-    '''
-
-    # find the doc page requested
-    if docpage in serverindex:
-        page_title = serverindex[docpage]
-        doc_md_file = os.path.join(os.path.dirname(__file__),
-                                   '..',
-                                   'server-docs',
-                                   '%s.md' % docpage)
-    elif docpage in siteindex:
-        page_title = siteindex[docpage]
-        doc_md_file = os.path.join(basedir,'docs',
-                                   '%s.md' % docpage)
-
-    # if the doc page is not found in either index, then it doesn't exist
-    else:
-        return None, None
-
-    LOGGER.info('opening %s for docs page: %s...' % (doc_md_file, docpage))
-
-    # we'll open in 'r' mode since we want unicode for markdown
-    with open(doc_md_file,'r') as infd:
-        doc_markdown = infd.read()
-
-    # render the markdown to HTML
-    doc_html = markdown.markdown(
-        doc_markdown,
-        output_format='html5',
-        extensions=['markdown.extensions.extra',
-                    'markdown.extensions.codehilite',
-                    'markdown.extensions.toc',
-                    'markdown.extensions.tables'],
-        extension_configs={
-            'markdown.extensions.codehilite':{
-                'guess_lang': False
-            },
-            'markdown.extensions.toc':{
-                'anchorlink': True
-            },
-        }
-    )
-
-    return doc_html, page_title
-
-
-
-class DocsHandler(tornado.web.RequestHandler):
-    '''This handles the docs index page and all other docs requests.
-
-    '''
-
-    def initialize(self,
-                   currentdir,
-                   templatepath,
-                   assetpath,
-                   executor,
-                   basedir,
-                   serverdocs,
-                   sitedocs,
-                   siteinfo):
-        '''
-        handles initial setup.
-
-        '''
-
-        self.currentdir = currentdir
-        self.templatepath = templatepath
-        self.assetpath = assetpath
-        self.executor = executor
-        self.basedir = basedir
-        self.siteinfo = siteinfo
-
-        #
-        # these are the doc index JSONs parsed into dicts
-        #
-
-        # this is the lcc-server doc index
-        self.server_docindex = serverdocs
-
-        # this is the site-specific documentation index
-        self.site_docindex = sitedocs
-
-        # this generates the server url for use in documentation
-        if 'X-Real-Host' in self.request.headers:
-            self.req_hostname = self.request.headers['X-Real-Host']
-        else:
-            self.req_hostname = self.request.host
-
-        self.server_url = "%s://%s" % (
-            self.request.protocol,
-            self.req_hostname,
-        )
-
-
-    @tornado.web.removeslash
-    @gen.coroutine
-    def get(self, docpage):
-        '''This handles GET requests for docs
-
-        '''
-
-        if not docpage or len(docpage) == 0:
-
-            self.render('docs-index.html',
-                        page_title="Documentation index",
-                        serverdocs=self.server_docindex,
-                        sitedocs=self.site_docindex,
-                        lccserver_version=__version__,
-                        siteinfo=self.siteinfo)
-
-        # get a specific documentation page
-        elif docpage and len(docpage) > 0:
-
-            docpage = xhtml_escape(docpage)
-
-            try:
-                rendered, page_title = yield self.executor.submit(
-                    doc_render_worker,
-                    docpage,
-                    self.basedir,
-                    self.server_docindex,
-                    self.site_docindex
-                )
-
-                if rendered and page_title:
-
-                    # this is because the rendering doesn't seem to figure out
-                    # that there's a template tag left in. FIXME: figure out how
-                    # to do this cleanly
-                    rendered = rendered.replace('{{ server_url }}',
-                                                self.server_url)
-                    self.render('docs-page.html',
-                                page_title=page_title,
-                                page_content=rendered,
-                                lccserver_version=__version__,
-                                siteinfo=self.siteinfo)
-
-                else:
-
-                    self.set_status(404)
-
-                    self.render(
-                        'errorpage.html',
-                        page_title='404 - no docs available',
-                        error_message=('Could not find a docs page '
-                                       'for the requested item.'),
-                        lccserver_version=__version__,
-                        siteinfo=self.siteinfo
-                    )
-
-            except Exception as e:
-
-                LOGGER.exception('failed to render doc page: %s' % docpage)
-                self.set_status(404)
-
-                self.render(
-                    'errorpage.html',
-                    page_title='404 - no docs available',
-                    error_message=('Could not find a docs page '
-                                   'for the requested item.'),
-                    lccserver_version=__version__,
-                    siteinfo=self.siteinfo
-                )
-
-
-
-
-class CollectionListHandler(tornado.web.RequestHandler):
-    '''
-    This handles the collections list API.
-
-    '''
-
-    def initialize(self,
-                   currentdir,
-                   apiversion,
-                   templatepath,
-                   assetpath,
-                   executor,
-                   basedir,
-                   signer,
-                   fernet):
-        '''
-        handles initial setup.
-
-        '''
-
-        self.currentdir = currentdir
-        self.apiversion = apiversion
-        self.templatepath = templatepath
-        self.assetpath = assetpath
-        self.executor = executor
-        self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
-
-        # this is used to render collection descriptions to HTML
-        self.markdowner = markdown.Markdown(
-            output_format='html5',
-            extensions=['markdown.extensions.extra',
-                        'markdown.extensions.tables'],
-        )
-
-
-
-    @gen.coroutine
-    def get(self):
-        '''This gets the list of collections currently available.
-
-        '''
-
-        collections = yield self.executor.submit(
-            dbsearch.sqlite_list_collections,
-            self.basedir
-        )
-
-        collection_info = collections['info']
-        collection_info['description'] = list(collection_info['description'])
-
-        # get the descriptions and turn them into markdown if needed
-        for collind, coll, desc in zip(
-                range(len(collection_info['collection_id'])),
-                collection_info['collection_id'],
-                collection_info['description']
-        ):
-            if desc and desc.startswith('#!MKD '):
-                try:
-                    desc = self.markdowner.convert(desc[6:])
-                    collection_info['description'][collind] = desc
-                except Exception as e:
-                    LOGGER.warning('markdown convert failed '
-                                   'for description for collection: %s' %
-                                   coll)
-                    desc = desc[6:]
-                    collection_info['description'][collind] = desc
-                self.markdowner.reset()
-
-        all_columns = collections['columns']
-        all_indexed_columns = collections['indexedcols']
-        all_fts_columns = collections['ftscols']
-
-        # censor some bits
-        del collection_info['kdtree_pkl_path']
-        del collection_info['object_catalog_path']
-
-        # we'll reform the lcformatdesc path so it can be downloaded directly
-        # from the LCC server
-        lcformatdesc = collection_info['lcformatdesc']
-        lcformatdesc = [
-            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
-        ]
-        collection_info['lcformatdesc'] = lcformatdesc
-
-        returndict = {
-            'status':'ok',
-            'result':{'available_columns':all_columns,
-                      'available_indexed_columns':all_indexed_columns,
-                      'available_fts_columns':all_fts_columns,
-                      'collections':collection_info},
-            'message':(
-                'found %s collections in total' %
-                len(collection_info['collection_id'])
-            )
-        }
-
-        # return to sender
-        self.write(returndict)
-        self.finish()
-
-
-
-class DatasetListHandler(tornado.web.RequestHandler):
-    '''
-    This handles the dataset list API.
-
-    '''
-
-    def initialize(self,
-                   currentdir,
-                   apiversion,
-                   templatepath,
-                   assetpath,
-                   executor,
-                   basedir,
-                   signer,
-                   fernet):
-        '''
-        handles initial setup.
-
-        '''
-
-        self.currentdir = currentdir
-        self.apiversion = apiversion
-        self.templatepath = templatepath
-        self.assetpath = assetpath
-        self.executor = executor
-        self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
-
-
-    @gen.coroutine
-    def get(self):
-        '''This gets the list of datasets currently available.
-
-        '''
-
-        try:
-            nrecent = self.get_argument('nsets')
-            nrecent = int(xhtml_escape(nrecent))
-        except Exception as e:
-            nrecent = 25
-
-        dataset_info = yield self.executor.submit(
-            datasets.sqlite_list_datasets,
-            self.basedir,
-            nrecent=nrecent,
-            require_status='complete',
-            require_ispublic=True
-        )
-
-        # we'll have to censor stuff here as well
-        dataset_list = []
-
-        for dataset in dataset_info['result']:
-
-            if isinstance(dataset, dict):
-
-                # this should always be there
-                try:
-                    dataset_fpath = dataset['dataset_fpath']
-                    dataset_fpath = dataset_fpath.replace(
-                        os.path.join(self.basedir,'datasets'),
-                        '/d'
-                    )
-                except Exception as e:
-                    dataset_fpath = None
-
-                try:
-                    dataset_csv = dataset['dataset_csv']
-                    dataset_csv = dataset_csv.replace(
-                        os.path.join(self.basedir,'datasets'),
-                        '/d'
-                    )
-                except Exception as e:
-                    dataset_csv = None
-
-                try:
-                    lczip_fpath = dataset['lczip_fpath']
-                    lczip_fpath = lczip_fpath.replace(
-                        os.path.join(self.basedir,'products'),
-                        '/p'
-                    )
-                except Exception as e:
-                    lczip_fpath = None
-
-                # update this listing
-                dataset['dataset_fpath'] = dataset_fpath
-                dataset['dataset_csv'] = dataset_csv
-                dataset['lczip_fpath'] = lczip_fpath
-
-                dataset_list.append(dataset)
-
-        dataset_info['result'] = dataset_list
-
-        self.write(dataset_info)
-        self.finish()
