@@ -66,6 +66,7 @@ import tornado.httpserver
 import tornado.web
 
 from tornado.escape import xhtml_escape
+from tornado.httpclient import AsyncHTTPClient
 from tornado import gen
 
 
@@ -77,12 +78,14 @@ from .. import __version__
 from ..backend import dbsearch
 from ..backend import datasets
 
+from .basehandler import BaseHandler
+
 
 #############################
 ## DATASET DISPLAY HANDLER ##
 #############################
 
-class DatasetHandler(tornado.web.RequestHandler):
+class DatasetHandler(BaseHandler):
     '''
     This handles loading a dataset.
 
@@ -97,7 +100,10 @@ class DatasetHandler(tornado.web.RequestHandler):
                    basedir,
                    signer,
                    fernet,
-                   siteinfo):
+                   siteinfo,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -112,6 +118,10 @@ class DatasetHandler(tornado.web.RequestHandler):
         self.signer = signer
         self.fernet = fernet,
         self.siteinfo = siteinfo
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
 
@@ -119,7 +129,44 @@ class DatasetHandler(tornado.web.RequestHandler):
     def get(self, setid):
         '''This runs the query.
 
-        '''
+        no args (used for populating the dataset page) -> sqlite_get_dataset(
+                     self.basedir, setid, 'json-header',
+                     incoming_userid=self.current_user['user_id'],
+                     incoming_role=self.current_user['user_role']
+        )
+
+        ?json=1 -> sqlite_get_dataset(
+                     self.basedir, setid, 'json-preview',
+                     incoming_userid=self.current_user['user_id'],
+                     incoming_role=self.current_user['user_role']
+        )
+
+        ?json=1&strformat=1 -> sqlite_get_dataset(
+                     self.basedir, setid, 'strjson-preview',
+                     incoming_userid=self.current_user['user_id'],
+                     incoming_role=self.current_user['user_role']
+        )
+
+        ?json=1&page=XX -> sqlite_get_dataset(
+                     self.basedir, setid, 'json-page-XX',
+                     incoming_userid=self.current_user['user_id'],
+                     incoming_role=self.current_user['user_role']
+        )
+
+        ?json=1&strformat=1&page=XX -> sqlite_get_dataset(
+                     self.basedir, setid, 'strjson-page-XX',
+                     incoming_userid=self.current_user['user_id'],
+                     incoming_role=self.current_user['user_role']
+        )
+
+        'json-header'      -> only the dataset header
+        'json-preview'     -> header + first page of data table
+        'strjson-preview'  -> header + first page of strformatted data table
+        'json-page-XX'     -> requested page XX of the data table
+        'strjson-page-XX'  -> requested page XX of the strformatted data table
+
+       '''
+
         # get the returnjson argument
         try:
             returnjson = xhtml_escape(self.get_argument('json',default='0'))
@@ -129,7 +176,7 @@ class DatasetHandler(tornado.web.RequestHandler):
 
         if returnjson:
 
-            # get the returnjson argument
+            # get the strformat argument
             try:
                 strformat = xhtml_escape(self.get_argument('strformat',
                                                            default='0'))
@@ -137,8 +184,26 @@ class DatasetHandler(tornado.web.RequestHandler):
             except Exception as e:
                 strformat = False
 
+            # get any page argument
+            try:
+
+                setpage = abs(
+                    int(
+                        xhtml_escape(self.get_argument('page', default=1))
+                    )
+                )
+                if setpage == 0:
+                    setpage = 1
+
+            except Exception as e:
+
+                setpage = None
+
         else:
+
             strformat = False
+            setpage = None
+
 
         if setid is None or len(setid) == 0:
 
@@ -155,11 +220,15 @@ class DatasetHandler(tornado.web.RequestHandler):
 
             else:
 
-                self.render('errorpage.html',
-                            error_message=message,
-                            page_title='404 - no dataset by that name exists',
-                            lccserver_version=__version__,
-                            siteinfo=self.siteinfo)
+                self.render(
+                    'errorpage.html',
+                    error_message=message,
+                    page_title='404 - No dataset with that setid',
+                    lccserver_version=__version__,
+                    siteinfo=self.siteinfo,
+                    flash_messages=self.render_flash_messages(),
+                    user_account_box=self.render_user_account_box()
+                )
 
 
         #
@@ -169,19 +238,41 @@ class DatasetHandler(tornado.web.RequestHandler):
         # get the setid
         setid = xhtml_escape(setid)
 
-        # retrieve this dataset. we'll not provide returnjson to the backend
-        # because we want to censor some things before sending them back
+        # figure out the spec for the backend function
+        if returnjson is False:
+
+            func_spec = 'json-header'
+
+        else:
+
+            func_spec = []
+
+            if strformat is True:
+                func_spec.append('strjson')
+            else:
+                func_spec.append('json')
+
+            if setpage is not None:
+                func_spec.append('page-%s' % setpage)
+            else:
+                func_spec.append('preview')
+
+            func_spec = '-'.join(func_spec)
+
+        # retrieve this dataset based on the func_spec
         ds = yield self.executor.submit(
             datasets.sqlite_get_dataset,
-            self.basedir, setid,
+            self.basedir, setid, func_spec,
+            incoming_userid=self.current_user['user_id'],
+            incoming_role=self.current_user['user_role']
         )
 
         # if there's no dataset at all, then return an error
         if ds is None:
 
             message = (
-                "No dataset ID was provided or provided "
-                "dataset ID: %s doesn't exist." % setid
+                "The requested dataset with setid: %s doesn't exist, "
+                "or you don't have access to it." % setid
             )
 
             if returnjson:
@@ -197,7 +288,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                             error_message=message,
                             page_title='404 - Dataset %s not found' % setid,
                             lccserver_version=__version__,
-                            siteinfo=self.siteinfo)
+                            siteinfo=self.siteinfo,
+                            flash_messages=self.render_flash_messages(),
+                            user_account_box=self.render_user_account_box())
 
 
         # next, if the dataset is returned but status is 'broken'
@@ -221,35 +314,45 @@ class DatasetHandler(tornado.web.RequestHandler):
                             page_title=('404 - Dataset %s missing or broken' %
                                         setid),
                             lccserver_version=__version__,
-                            siteinfo=self.siteinfo)
+                            siteinfo=self.siteinfo,
+                            flash_messages=self.render_flash_messages(),
+                            user_account_box=self.render_user_account_box())
 
-        # next, if the dataset is returned but status is 'in progress'
+
+        # next, if the dataset is returned but is in progress
         elif ds is not None and ds['status'] == 'in progress':
+
+            # first, we'll censor some bits
+            dataset_pickle = '/d/dataset-%s.pkl.gz' % setid
+            ds['dataset_pickle'] = dataset_pickle
+
+            if os.path.exists(os.path.join(self.basedir,
+                                           'datasets',
+                                           'dataset-%s.csv' % setid)):
+                dataset_csv = '/d/dataset-%s.csv' % setid
+                ds['dataset_csv'] = dataset_csv
+
+            else:
+                dataset_csv = None
+                ds['dataset_csv'] = None
+
+            if os.path.exists(ds['lczipfpath']):
+
+                dataset_lczip = ds['lczipfpath'].replace(
+                    os.path.join(self.basedir, 'products'),
+                    '/p'
+                )
+                ds['lczipfpath'] = dataset_lczip
+
+            else:
+
+                ds['lczipfpath'] = None
+
 
             # if we're returning JSON
             if returnjson:
 
-                jsondict = {
-                    'setid':setid,
-                    'created':'%sZ' % ds['created_on'],
-                    'updated':'%sZ' % ds['last_updated'],
-                    'status':'in progress',
-                    'public':ds['ispublic'],
-                    'searchtype':'not available yet...',
-                    'searchargs':'not available yet...',
-                    'collections':[],
-                    'columns':[],
-                    'nobjects':0,
-                    'coldesc':None,
-                    'rows':[],
-                    'name':None,
-                    'desc':None,
-                    'dataset_pickle':None,
-                    'dataset_csv':None,
-                    'lczip':None,
-                }
-
-                dsjson = json.dumps(jsondict)
+                dsjson = json.dumps(ds)
                 dsjson = dsjson.replace('nan','null').replace('NaN','null')
                 self.set_header('Content-Type',
                                 'application/json; charset=UTF-8')
@@ -259,36 +362,21 @@ class DatasetHandler(tornado.web.RequestHandler):
             # otherwise, we'll return the dataset rendered page
             else:
 
-                header = {
-                    'setid':setid,
-                    'created':'%sZ' % ds['created_on'],
-                    'updated':'%sZ' % ds['last_updated'],
-                    'status':'in progress',
-                    'public':ds['ispublic'],
-                    'searchtype':'not available yet...',
-                    'searchargs':'not available yet...',
-                    'collections':[],
-                    'columns':[],
-                    'nobjects':0,
-                    'coldesc':None
-                }
-
-                self.render('dataset-async.html',
-                            page_title='LCC Dataset %s' % setid,
-                            setid=setid,
-                            header=header,
-                            setpickle=None,
-                            setcsv=None,
-                            setcsv_shasum=None,
-                            lczip=None,
-                            pfzip=None,
-                            lccserver_version=__version__,
-                            siteinfo=self.siteinfo)
+                self.render(
+                    'dataset-async.html',
+                    page_title='LCC Dataset %s' % setid,
+                    setid=setid,
+                    header=ds,
+                    lccserver_version=__version__,
+                    siteinfo=self.siteinfo,
+                    flash_messages=self.render_flash_messages(),
+                    user_account_box=self.render_user_account_box(),
+                )
 
                 raise tornado.web.Finish()
 
         #
-        # if everything went as planned, retrieve the data in specified format
+        # if the dataset is complete
         #
         elif ds is not None and ds['status'] == 'complete':
 
@@ -307,122 +395,42 @@ class DatasetHandler(tornado.web.RequestHandler):
                 ds['dataset_csv'] = None
 
 
-            if os.path.exists(ds['lczip']):
-                dataset_lczip = ds['lczip'].replace(os.path.join(self.basedir,
-                                                                 'products'),
-                                                    '/p')
-                ds['lczip'] = dataset_lczip
-            else:
-                ds['lczip'] = None
+            if os.path.exists(ds['lczipfpath']):
 
+                dataset_lczip = ds['lczipfpath'].replace(
+                    os.path.join(self.basedir, 'products'),
+                    '/p'
+                )
+                ds['lczipfpath'] = dataset_lczip
 
-            # check if there are too many rows in the dataset and don't return
-            # data if there more than 3000 rows
-            if ds['nobjects'] > 3000:
-
-                LOGGER.warning('more than 3000 objects '
-                               'in dataset!')
-
-                if returnjson:
-
-                    # this automatically does the censoring LCs bit
-                    jsondict, datarows = yield self.executor.submit(
-                        datasets.generate_dataset_tablerows,
-                        self.basedir, ds,
-                        strformat=strformat,
-                        endatrow=3000
-                    )
-
-                    LOGGER.info('returning JSON for %s' % setid)
-
-                    jsondict.update({
-                        'rows':datarows,
-                        'name':ds['name'],
-                        'desc':ds['desc'],
-                        'dataset_pickle':dataset_pickle,
-                        'dataset_csv':dataset_csv,
-                        'lczip':ds['lczip'],
-                        'rowstatus':'showing only the top 3000 rows'
-                    })
-
-                    dsjson = json.dumps(jsondict)
-                    dsjson = dsjson.replace('nan','null').replace('NaN','null')
-                    self.set_header('Content-Type',
-                                    'application/json; charset=UTF-8')
-                    self.write(dsjson)
-                    self.finish()
-
-                else:
-
-                    # this automatically does the censoring LCs bit
-                    header = yield self.executor.submit(
-                        datasets.generate_dataset_tablerows,
-                        self.basedir, ds,
-                        headeronly=True
-                    )
-
-                    self.render('dataset-async.html',
-                                page_title='LCC Dataset %s' % setid,
-                                setid=setid,
-                                header=header,
-                                setpickle=dataset_pickle,
-                                setcsv=dataset_csv,
-                                lczip=ds['lczip'],
-                                lccserver_version=__version__,
-                                siteinfo=self.siteinfo)
-
-
-            # if there are less than 3000 objects, show all of them
             else:
 
-                # if we're returning JSON, censor LC filenames and then return
-                if returnjson:
+                ds['lczipfpath'] = None
 
-                    # this automatically does the censoring LCs bit
-                    jsondict, datarows = yield self.executor.submit(
-                        datasets.generate_dataset_tablerows,
-                        self.basedir, ds,
-                        strformat=strformat
-                    )
+            # if we're returning JSON
+            if returnjson:
 
-                    LOGGER.info('returning JSON for %s' % setid)
+                dsjson = json.dumps(ds)
+                dsjson = dsjson.replace('nan','null').replace('NaN','null')
+                self.set_header('Content-Type',
+                                'application/json; charset=UTF-8')
+                self.write(dsjson)
+                raise tornado.web.Finish()
 
-                    jsondict.update({
-                        'rows':datarows,
-                        'name':ds['name'],
-                        'desc':ds['desc'],
-                        'dataset_pickle':dataset_pickle,
-                        'dataset_csv':dataset_csv,
-                        'lczip':ds['lczip'],
-                        'rowstatus':'showing all rows',
-                    })
+            # otherwise, we'll return the dataset rendered page
+            else:
 
-                    dsjson = json.dumps(jsondict)
-                    dsjson = dsjson.replace('nan','null').replace('NaN','null')
-                    self.set_header('Content-Type',
-                                    'application/json; charset=UTF-8')
-                    self.write(dsjson)
-                    self.finish()
+                self.render(
+                    'dataset-async.html',
+                    page_title='LCC Dataset %s' % setid,
+                    setid=setid,
+                    header=ds,
+                    lccserver_version=__version__,
+                    siteinfo=self.siteinfo,
+                    flash_messages=self.render_flash_messages(),
+                    user_account_box=self.render_user_account_box(),
+                )
 
-                # otherwise, we're going to render the dataset to a template
-                else:
-
-                    # this automatically does the censoring LCs bit
-                    header = yield self.executor.submit(
-                        datasets.generate_dataset_tablerows,
-                        self.basedir, ds,
-                        headeronly=True
-                    )
-
-                    self.render('dataset-async.html',
-                                page_title='LCC Dataset %s' % setid,
-                                setid=setid,
-                                header=header,
-                                setpickle=dataset_pickle,
-                                setcsv=dataset_csv,
-                                lczip=ds['lczip'],
-                                lccserver_version=__version__,
-                                siteinfo=self.siteinfo)
 
         # if we somehow get here, everything is broken
         else:
@@ -444,7 +452,9 @@ class DatasetHandler(tornado.web.RequestHandler):
                             error_message=message,
                             page_title='404 - no dataset by that name exists',
                             lccserver_version=__version__,
-                            siteinfo=self.siteinfo)
+                            siteinfo=self.siteinfo,
+                            flash_messages=self.render_flash_messages(),
+                            user_account_box=self.render_user_account_box())
 
 
 
@@ -528,7 +538,7 @@ class DatasetAJAXHandler(tornado.web.RequestHandler):
 ## DATASET LISTING HANDLER ##
 #############################
 
-class AllDatasetsHandler(tornado.web.RequestHandler):
+class AllDatasetsHandler(BaseHandler):
     '''
     This handles the column search API.
 
@@ -540,7 +550,10 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
                    assetpath,
                    executor,
                    basedir,
-                   siteinfo):
+                   siteinfo,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -552,6 +565,10 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.siteinfo = siteinfo
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
     @gen.coroutine
@@ -563,4 +580,6 @@ class AllDatasetsHandler(tornado.web.RequestHandler):
         self.render('dataset-list.html',
                     page_title='All datasets',
                     lccserver_version=__version__,
-                    siteinfo=self.siteinfo)
+                    siteinfo=self.siteinfo,
+                    flash_messages=self.render_flash_messages(),
+                    user_account_box=self.render_user_account_box())

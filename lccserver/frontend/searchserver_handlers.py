@@ -807,15 +807,33 @@ class BackgroundQueryMixin(object):
                 # if we didn't find anything, return immediately
                 else:
 
+                    # better messaging for no results
+                    query_type = query_spec['name']
+
+                    if query_type == 'conesearch':
+                        message = (
+                            "Query <code>%s</code> failed. "
+                            "No matching objects were found in any "
+                            "searched LC collection. The object you searched "
+                            "for may be outside the footprint of the "
+                            "available LC collections." %
+                            self.setid
+                        )
+                    else:
+                        message = (
+                            "Query <code>%s</code> failed. "
+                            "No matching objects were found in any "
+                            "searched LC collection." %
+                            self.setid
+                        )
+
                     retdict = {
                         "status":"failed",
                         "result":{
                             "setid":self.setid,
                             "nobjects":0
                         },
-                        "message":("Query <code>%s</code> failed. "
-                                   "No matching objects were found" %
-                                   self.setid),
+                        "message":message,
                         "time":'%sZ' % datetime.utcnow().isoformat()
                     }
                     self.write(retdict)
@@ -823,10 +841,29 @@ class BackgroundQueryMixin(object):
 
             else:
 
+                # better messaging for no results
+                query_type = query_spec['name']
+
+                if query_type == 'conesearch':
+                    message = (
+                        "Query <code>%s</code> failed. "
+                        "No matching objects were found. "
+                        "The object you searched "
+                        "for may be outside the footprint of the "
+                        "<a href=\"#collections\">"
+                        "available LC collections</a>." %
+                        self.setid
+                    )
+                else:
+                    message = (
+                        "Query <code>%s</code> failed. "
+                        "No matching objects were found in any "
+                        "searched LC collection." %
+                        self.setid
+                    )
+
                 retdict = {
-                    "message":("Query <code>%s</code> failed. "
-                               "No matching objects were found" %
-                               self.setid),
+                    "message":message,
                     "status":"failed",
                     "result":{
                         "setid":self.setid,

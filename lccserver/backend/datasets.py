@@ -524,13 +524,6 @@ def sqlite_new_dataset(basedir,
     # add in the rows to turn the header into the complete dataset pickle
     dataset['result'] = rows
 
-    # 2. write the pickle to the datasets directory
-    with gzip.open(dataset_fpath,'wb') as outfd:
-        pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
-
-    LOGINFO('wrote dataset pickle for search results to %s, setid: %s' %
-            (dataset_fpath, setid))
-
     # open the datasets database
     datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
     db = sqlite3.connect(
@@ -598,6 +591,10 @@ def sqlite_new_dataset(basedir,
     csvlcs_to_generate = []
     csvlcs_ready = []
 
+    # this lets the frontend track which LCs are missing and update these later
+    # this contains (objectid, collection) tuples
+    objectids_later_csvlcs = []
+
     # we'll iterate by pages
     for page, pgslice in enumerate(page_slices):
 
@@ -648,6 +645,11 @@ def sqlite_new_dataset(basedir,
                      entry['collection'],
                      csvlc_path)
                 )
+                objectids_later_csvlcs.append(
+                    (entry['db_oid'],
+                     entry['collection'])
+                )
+
                 entry['db_lcfname'] = '/l/%s/%s' % (
                     entry['collection'].replace('_','-'),
                     csvlc
@@ -670,6 +672,11 @@ def sqlite_new_dataset(basedir,
                      entry['collection'],
                      csvlc_path)
                 )
+                objectids_later_csvlcs.append(
+                    (entry['db_oid'],
+                     entry['collection'])
+                )
+
                 entry['lcfname'] = '/l/%s/%s' % (
                     entry['collection'].replace('_','-'),
                     csvlc
@@ -717,7 +724,20 @@ def sqlite_new_dataset(basedir,
 
         LOGINFO('wrote page %s pickles: %s and %s, for setid: %s' %
                 (page_number, page_rows_pkl, page_rows_strpkl, setid))
+
     #
+    # write the pickle to the datasets directory
+    #
+
+    # add in the pointers to unready CSVLCs
+    dataset['csvlcs_in_progress'] = objectids_later_csvlcs
+
+    with gzip.open(dataset_fpath,'wb') as outfd:
+        pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+    LOGINFO('wrote dataset pickle for search results to %s, setid: %s' %
+            (dataset_fpath, setid))
+
     # finish up the CSV when we're done with all of the pages
     #
     csvfd.close()
