@@ -66,11 +66,16 @@ LOGGER = logging.getLogger(__name__)
 ## TORNADO IMPORTS ##
 #####################
 
-import tornado.web
 from base64 import b64encode, b64decode
+
+import itsdangerous
+
+import tornado.web
+from tornado.escape import utf8
+from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+from tornado.web import _time_independent_equals
 from tornado import gen
 
-from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from cryptography.fernet import Fernet, InvalidToken
 
 ###################
@@ -313,10 +318,28 @@ class BaseHandler(tornado.web.RequestHandler):
                 '''
             ).format(current_user=current_user['email'])
 
-        # anything should not be possible because the user is locked
+        # anything else will be shown the usual box because either the user is
+        # locked or this is a complete new session
         else:
 
-            user_account_box = ''
+            user_account_box = twd(
+                '''\
+                <div class="user-signin-box">
+                <a class="nav-item nav-link"
+                title="Sign in to your LCC-Server account"
+                href="/users/login">
+                Sign in
+                </a>
+                </div>
+                <div class="user-signup-box">
+                <a class="nav-item nav-link"
+                title="Sign up for an LCC-Server account"
+                href="/users/new">
+                Sign up
+                </a>
+                </div>
+                '''
+            )
 
         return user_account_box
 
@@ -501,8 +524,213 @@ class BaseHandler(tornado.web.RequestHandler):
         # if the session token is not set, then create a new session
         else:
 
-            new_session_token = yield self.new_session_token(
+            yield self.new_session_token(
                 user_id=2,
                 expires_days=self.session_expiry,
                 extra_info={}
             )
+
+
+
+    def check_apikey(self):
+        '''
+        This checks the API key.
+
+        '''
+        try:
+
+            authorization = self.request.headers.get('Authorization')
+
+            if authorization:
+
+                key = authorization.split()[1].strip()
+                uns = self.signer.loads(key, max_age=86400.0)
+
+                # match the remote IP and API version
+                keyok = ((self.request.remote_ip == uns['ip']) and
+                         (self.apiversion == uns['ver']))
+
+            else:
+
+                LOGGER.error('no Authorization header key found')
+                retdict = {
+                    'status':'failed',
+                    'message':('No credentials provided or '
+                               'they could not be parsed safely'),
+                    'result':None
+                }
+
+                self.set_status(401)
+                return retdict
+
+
+            if not keyok:
+
+                if 'X-Real-Host' in self.request.headers:
+                    self.req_hostname = self.request.headers['X-Real-Host']
+                else:
+                    self.req_hostname = self.request.host
+
+                newkey_url = "%s://%s/api/key" % (
+                    self.request.protocol,
+                    self.req_hostname,
+                )
+
+                LOGGER.error('API key is valid, but IP or API version mismatch')
+                retdict = {
+                    'status':'failed',
+                    'message':('API key invalid for current LCC API '
+                               'version: %s or your IP address has changed. '
+                               'Get an up-to-date key from %s' %
+                               (self.apiversion, newkey_url)),
+                    'result':None
+                }
+
+                self.set_status(401)
+                return retdict
+
+            # SUCCESS HERE ONLY
+            else:
+
+                LOGGER.warning('successful API key auth: %r' % uns)
+
+                retdict = {
+                    'status':'ok',
+                    'message':('API key verified successfully. Expires: %s' %
+                               uns['expiry']),
+                    'result':{'expiry':uns['expiry']},
+                }
+
+                return retdict
+
+        except itsdangerous.SignatureExpired:
+
+            LOGGER.error('API key "%s" from %s has expired' %
+                         (key, self.request.remote_ip))
+
+            if 'X-Real-Host' in self.request.headers:
+                self.req_hostname = self.request.headers['X-Real-Host']
+            else:
+                self.req_hostname = self.request.host
+
+            newkey_url = "%s://%s/api/key" % (
+                self.request.protocol,
+                self.req_hostname,
+            )
+
+            retdict = {
+                'status':'failed',
+                'message':('API key has expired. '
+                           'Get a new one from %s' % newkey_url),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+        except itsdangerous.BadSignature:
+
+            LOGGER.error('API key "%s" from %s did not pass verification' %
+                         (key, self.request.remote_ip))
+
+            retdict = {
+                'status':'failed',
+                'message':'API key could not be verified or has expired.',
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+        except Exception as e:
+
+            LOGGER.exception('API key "%s" from %s did not pass verification' %
+                             (key, self.request.remote_ip))
+
+            retdict = {
+                'status':'failed',
+                'message':('API key was not provided, '
+                           'could not be verified, '
+                           'or has expired.'),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+
+
+    def tornado_check_xsrf_cookie(self):
+        '''This is the original Tornado XSRF token checker.
+
+        From: http://www.tornadoweb.org
+              /en/stable/_modules/tornado/web.html
+              #RequestHandler.check_xsrf_cookie
+
+        Modified a bit to not immediately raise 403s since we want to return
+        JSON all the time.
+
+        '''
+
+        token = (self.get_argument("_xsrf", None) or
+                 self.request.headers.get("X-Xsrftoken") or
+                 self.request.headers.get("X-Csrftoken"))
+
+        if not token:
+
+            retdict = {
+                'status':'failed',
+                'message':("'_xsrf' argument missing from POST'"),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+        _, token, _ = self._decode_xsrf_token(token)
+        _, expected_token, _ = self._get_raw_xsrf_token()
+
+        if not token:
+
+            retdict = {
+                'status':'failed',
+                'message':("'_xsrf' argument missing from POST"),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+
+        if not _time_independent_equals(utf8(token),
+                                        utf8(expected_token)):
+
+            retdict = {
+                'status':'failed',
+                'message':("XSRF cookie does not match POST argument"),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+
+
+    def check_xsrf_cookie(self):
+        '''This overrides the usual Tornado XSRF checker.
+
+        We use this because we want the same endpoint to support POSTs from an
+        API or from the browser.
+
+        '''
+
+        xsrf_auth = (self.get_argument("_xsrf", None) or
+                     self.request.headers.get("X-Xsrftoken") or
+                     self.request.headers.get("X-Csrftoken"))
+
+        if xsrf_auth:
+            LOGGER.info('using tornado XSRF auth...')
+            self.keycheck = self.tornado_check_xsrf_cookie()
+        else:
+            LOGGER.info('using API Authorization header auth...')
+            self.keycheck = self.check_apikey()
