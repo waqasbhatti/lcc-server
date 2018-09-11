@@ -235,6 +235,98 @@ class BaseHandler(tornado.web.RequestHandler):
         )
 
 
+    def render_user_account_box(self):
+        '''
+        This renders the user login/logout box.
+
+        '''
+
+        current_user = self.current_user
+
+        # the user is not logged in - so the anonymous session is in play
+        if current_user and current_user['user_id'] == 2:
+
+            user_account_box = twd(
+                '''\
+                <div class="user-signin-box">
+                <a class="nav-item nav-link"
+                title="Sign in to your LCC-Server account"
+                href="/users/login">
+                Sign in
+                </a>
+                </div>
+                <div class="user-signup-box">
+                <a class="nav-item nav-link"
+                title="Sign up for an LCC-Server account"
+                href="/users/new">
+                Sign up
+                </a>
+                </div>
+                '''
+            )
+
+        # normal authenticated user
+        elif current_user and current_user['user_id'] > 3:
+
+            user_account_box = twd(
+                '''\
+                <div class="user-prefs-box">
+                <a class="nav-item nav-link user-prefs-link"
+                title="Change user preferences"
+                href="/users/home">
+                {current_user}
+                </a>
+                </div>
+                <div class="user-signout-box">
+                <form class="mt-2" action="/users/logout" method="POST" >
+                {% module xsrf_form_html() %}
+                <button type="submit" class="btn btn-warning btn-sm">
+                Sign out
+                </button>
+                </form>
+                </div>
+                '''
+            ).format(current_user=current_user['email'])
+
+
+        # the first superuser
+        elif current_user and current_user['user_id'] == 1:
+
+            user_account_box = twd(
+                '''\
+                <div class="superuser-admin-box">
+                <a class="nav-item nav-link admin-portal-link"
+                title="LCC-Server admin portal"
+                href="/admin">
+                Admin
+                </a>
+                </div>
+                <div class="user-prefs-box">
+                <a class="nav-item nav-link user-prefs-link"
+                title="Change user preferences"
+                href="/users/home">
+                {current_user}
+                </a>
+                </div>
+                <div class="user-signout-box">
+                <form class="mt-2" action="/users/logout" method="POST" >
+                {% module xsrf_form_html() %}
+                <button type="submit" class="btn btn-warning btn-sm">
+                Sign out
+                </button>
+                </form>
+                </div>
+                '''
+            ).format(current_user=current_user['email'])
+
+        # anything should not be possible because the user is locked
+        else:
+
+            user_account_box = ''
+
+        return user_account_box
+
+
 
     @gen.coroutine
     def authnzerver_request(self,

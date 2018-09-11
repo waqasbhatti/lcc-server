@@ -138,6 +138,18 @@ define('cpaddr',
              'used to get individual object info.'),
        type=str)
 
+## this tells the testserver about the backend authnzerver
+define('authnzerver',
+       default='http://127.0.0.1:12600',
+       help=('This tells the lcc-server the address of '
+             'the local authentication and authorization server.'),
+       type=str)
+
+## this tells the testserver about the default session expiry time in days
+define('sessionexpiry',
+       default=7,
+       help=('This tells the lcc-server the session-expiry time in days.'),
+       type=int)
 
 ############
 ### MAIN ###
@@ -236,6 +248,30 @@ def main():
     with open(siteinfojson,'r') as infd:
         SITEINFO = json.load(infd)
 
+    # get the email info file if it exists
+    if ('email_settings_file' in SITEINFO and
+        os.path.exists(os.path.abspath(SITEINFO['email_settings_file']))):
+
+        with open(SITEINFO['email_settings_file'],'r') as infd:
+            email_settings = json.load(infd)
+
+        if email_settings['email_server'] != "smtp.example.email.server.org":
+            SITEINFO.update(email_settings)
+
+            LOGGER.info('email server to use: %s:%s' %
+                        (email_settings['email_server'],
+                         email_settings['email_port']))
+            LOGGER.info('email server sender to use: %s' %
+                        email_settings['email_sender'])
+
+        else:
+            LOGGER.warning('no email server is set up')
+            SITEINFO['email_server'] = None
+    else:
+        LOGGER.warning('no email server is set up')
+        SITEINFO['email_server'] = None
+
+
     #
     # server docs
     #
@@ -246,6 +282,12 @@ def main():
     with open(os.path.join(SERVER_DOCSPATH,'doc-index.json'),'r') as infd:
         SERVER_DOCINDEX = json.load(infd)
 
+
+    #
+    # authentication server options
+    #
+    AUTHNZERVER = options.authnzerver
+    SESSION_EXPIRY = options.sessionexpiry
 
 
     ####################################
@@ -272,7 +314,10 @@ def main():
           'assetpath':ASSETPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # docs page index and other subdirs, renders markdown to HTML
         # (r'/docs/?(\S*)',

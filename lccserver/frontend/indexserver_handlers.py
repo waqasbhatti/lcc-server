@@ -68,6 +68,7 @@ import tornado.web
 
 from tornado.escape import xhtml_escape
 from tornado import gen
+from tornado.httpclient import AsyncHTTPClient
 
 import markdown
 import secrets
@@ -81,12 +82,14 @@ from .. import __version__
 from ..backend import datasets
 from ..backend import dbsearch
 
+from .basehandler import BaseHandler
+
 
 #####################
 ## MAIN INDEX PAGE ##
 #####################
 
-class IndexHandler(tornado.web.RequestHandler):
+class IndexHandler(BaseHandler):
     '''This handles the index page.
 
     This page shows the current project.
@@ -99,7 +102,10 @@ class IndexHandler(tornado.web.RequestHandler):
                    assetpath,
                    executor,
                    basedir,
-                   siteinfo):
+                   siteinfo,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -111,6 +117,12 @@ class IndexHandler(tornado.web.RequestHandler):
         self.executor = executor
         self.basedir = basedir
         self.siteinfo = siteinfo
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+
+
 
     def get(self):
         '''This handles GET requests to the index page.
@@ -119,9 +131,11 @@ class IndexHandler(tornado.web.RequestHandler):
 
         self.render(
             'index.html',
+            flash_messages=self.render_flash_messages(),
+            user_account_box=self.render_user_account_box(),
             page_title='LCC Server',
             lccserver_version=__version__,
-            siteinfo=self.siteinfo
+            siteinfo=self.siteinfo,
         )
 
 

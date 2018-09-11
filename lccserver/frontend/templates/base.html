@@ -59,32 +59,6 @@
         </div>
       </div>
 
-      <!-- <form class="form-inline" id="quicksearch-form" -->
-      <!--       action="/api/conesearch" method="post"> -->
-
-      <!--   {% module xsrf_form_html() %} -->
-
-      <!--   <select class="custom-select form-control" id="qt" name="qt"> -->
-      <!--     <option value="conesearch" selected>Quick cone search</option> -->
-      <!--     <option value="objectidsearch">Quick object search</option> -->
-      <!--     <option value="xmatchsearch">Quick cross-match search</option> -->
-      <!--   </select> -->
-
-      <!--   <div class="input-group"> -->
-
-      <!--     <input class="form-control ml-sm-2" id="q" name="q" -->
-      <!--            type="search" -->
-      <!--            placeholder="[RA] [Dec] [optional radius (arcmin)]" -->
-      <!--            aria-label="Search"> -->
-      <!--     <div class="input-group-append"> -->
-      <!--       <button class="btn btn-outline-success my-2 my-sm-0" -->
-      <!--               type="submit">Go</button> -->
-      <!--     </div> -->
-
-      <!--   </div> -->
-
-      <!-- </form> -->
-
       <div class="ml-auto topright-link-list">
         <a class="nav-item nav-link"
            title="Read the docs"
@@ -92,6 +66,8 @@
           Docs
         </a>
       </div>
+
+      {% raw user_account_box %}
 
     </nav>
     {% end %}
