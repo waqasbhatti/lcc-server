@@ -34,6 +34,8 @@ class FrontendEncoder(json.JSONEncoder):
 
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
         elif isinstance(obj, bytes):
             return obj.decode()
         elif isinstance(obj, complex):

@@ -278,12 +278,9 @@ class BaseHandler(tornado.web.RequestHandler):
                 </a>
                 </div>
                 <div class="user-signout-box">
-                <form class="mt-2" action="/users/logout" method="POST" >
-                {% module xsrf_form_html() %}
                 <button type="submit" class="btn btn-warning btn-sm">
                 Sign out
                 </button>
-                </form>
                 </div>
                 '''
             ).format(current_user=current_user['email'])
@@ -309,12 +306,9 @@ class BaseHandler(tornado.web.RequestHandler):
                 </a>
                 </div>
                 <div class="user-signout-box">
-                <form class="mt-2" action="/users/logout" method="POST" >
-                {% module xsrf_form_html() %}
                 <button type="submit" class="btn btn-warning btn-sm">
                 Sign out
                 </button>
-                </form>
                 </div>
                 '''
             ).format(current_user=current_user['email'])

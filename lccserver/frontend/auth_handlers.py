@@ -15,6 +15,43 @@ how to authenticate a user.
 import logging
 import secrets
 
+######################################
+## CUSTOM JSON ENCODER FOR FRONTEND ##
+######################################
+
+# we need this to send objects with the following types to the frontend:
+# - bytes
+# - ndarray
+# - datetime
+import json
+import numpy as np
+from datetime import datetime
+
+class FrontendEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, bytes):
+            return obj.decode()
+        elif isinstance(obj, complex):
+            return (obj.real, obj.imag)
+        elif (isinstance(obj, (float, np.float64, np.float_)) and
+              not np.isfinite(obj)):
+            return None
+        elif isinstance(obj, (np.int8, np.int16, np.int32, np.int64)):
+            return int(obj)
+        else:
+            return json.JSONEncoder.default(self, obj)
+
+# this replaces the default encoder and makes it so Tornado will do the right
+# thing when it converts dicts to JSON when a
+# tornado.web.RequestHandler.write(dict) is called.
+json._default_encoder = FrontendEncoder()
+
 #############
 ## LOGGING ##
 #############
@@ -104,6 +141,7 @@ class LoginHandler(BaseHandler):
 
                 self.render('login.html',
                             flash_messages=self.render_flash_messages(),
+                            user_account_box=self.render_user_account_box(),
                             page_title="Sign in to your account",
                             lccserver_version=__version__,
                             siteinfo=self.siteinfo)
@@ -180,7 +218,7 @@ class LoginHandler(BaseHandler):
                 expires_days=self.session_expiry
             )
 
-            self.redirect('/users/home')
+            self.redirect('/')
 
 
 
@@ -217,7 +255,7 @@ class LogoutHandler(BaseHandler):
                 'You have signed out of your account. Have a great day!',
                 "primary"
             )
-            self.redirect('/users/login')
+            self.redirect('/')
 
         else:
 
@@ -225,7 +263,7 @@ class LogoutHandler(BaseHandler):
                 'You are not signed in, so you cannot sign out.',
                 "warning"
             )
-            self.redirect('/users/login')
+            self.redirect('/')
 
 
 
@@ -262,6 +300,7 @@ class NewUserHandler(BaseHandler):
 
                 self.render('signup.html',
                             flash_messages=self.render_flash_messages(),
+                            user_account_box=self.render_user_account_box(),
                             page_title="Sign up for an account",
                             lccserver_version=__version__,
                             siteinfo=self.siteinfo)
@@ -412,6 +451,7 @@ class VerifyUserHandler(BaseHandler):
             self.render('verify.html',
                         email_address=current_user['email'],
                         flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box(),
                         page_title="Verify your sign up request",
                         lccserver_version=__version__,
                         siteinfo=self.siteinfo)
@@ -559,6 +599,7 @@ class ForgotPassStep1Handler(BaseHandler):
             # we'll render the verification form.
             self.render('passreset-step1.html',
                         email_address=current_user['email'],
+                        user_account_box=self.render_user_account_box(),
                         flash_messages=self.render_flash_messages(),
                         page_title="Reset your password",
                         lccserver_version=__version__,
@@ -612,6 +653,7 @@ class ForgotPassStep2Handler(BaseHandler):
             # we'll render the verification form.
             self.render('passreset-step1.html',
                         email_address=current_user['email'],
+                        user_account_box=self.render_user_account_box(),
                         flash_messages=self.render_flash_messages(),
                         page_title="Reset your password",
                         lccserver_version=__version__,
@@ -683,6 +725,7 @@ class ChangePassHandler(BaseHandler):
             # then, we'll render the verification form.
             self.render('passchange.html',
                         email_address=current_user['email'],
+                        user_account_box=self.render_user_account_box(),
                         flash_messages=self.render_flash_messages(),
                         page_title="Change your password",
                         lccserver_version=__version__,
@@ -744,6 +787,7 @@ class UserHomeHandler(BaseHandler):
             self.render(
                 'userhome.html',
                 current_user=current_user,
+                user_account_box=self.render_user_account_box(),
                 flash_messages=self.render_flash_messages(),
                 page_title="User home page",
                 lccserver_version=__version__,

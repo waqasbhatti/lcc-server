@@ -59,15 +59,22 @@
         </div>
       </div>
 
-      <div class="ml-auto topright-link-list">
-        <a class="nav-item nav-link"
-           title="Read the docs"
-           href="/docs">
-          Docs
-        </a>
-      </div>
+      <div class="justify-content-right"
 
-      {% raw user_account_box %}
+        <div class="topright-link-list">
+          <a class="nav-item nav-link"
+             title="Read the docs"
+             href="/docs">
+            Docs
+          </a>
+        </div>
+
+        <form class="form-inline" action="/users/logout" method="POST" >
+          {% module xsrf_form_html() %}
+          {% raw user_account_box %}
+        </form>
+
+      </div>
 
     </nav>
     {% end %}

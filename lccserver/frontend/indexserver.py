@@ -177,6 +177,7 @@ def main():
     from . import searchserver_handlers as sh
     from . import dataserver_handlers as dh
     from . import objectserver_handlers as oh
+    from . import auth_handlers as ah
 
     from ..authnzerver import authdb
 
@@ -318,6 +319,87 @@ def main():
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
           'fernetkey':FERNETSECRET}),
+
+        ########################
+        ## AUTH RELATED PAGES ##
+        ########################
+
+        # this is the login page
+        (r'/users/login',
+         ah.LoginHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is the logout page
+        (r'/users/logout',
+         ah.LogoutHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is the new user page
+        (r'/users/new',
+         ah.NewUserHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is the verification page for verifying email addresses
+        (r'/users/verify',
+         ah.VerifyUserHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is step 1 page for forgotten passwords
+        (r'/users/forgot-password-step1',
+         ah.ForgotPassStep1Handler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is the verification page for verifying email addresses
+        (r'/users/forgot-password-step2',
+         ah.ForgotPassStep2Handler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is the verification page for verifying email addresses
+        (r'/users/password-change',
+         ah.ChangePassHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+        # this is user-prefs page
+        (r'/users/home',
+         ah.UserHomeHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
+
+
+        ################
+        ## DOCS PAGES ##
+        ################
 
         # docs page index and other subdirs, renders markdown to HTML
         # (r'/docs/?(\S*)',
