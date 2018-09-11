@@ -278,7 +278,7 @@ class BaseHandler(tornado.web.RequestHandler):
                 </a>
                 </div>
                 <div class="user-signout-box">
-                <button type="submit" class="btn btn-warning btn-sm">
+                <button type="submit" class="btn btn-secondary btn-sm">
                 Sign out
                 </button>
                 </div>
@@ -306,7 +306,7 @@ class BaseHandler(tornado.web.RequestHandler):
                 </a>
                 </div>
                 <div class="user-signout-box">
-                <button type="submit" class="btn btn-warning btn-sm">
+                <button type="submit" class="btn btn-secondary btn-sm">
                 Sign out
                 </button>
                 </div>

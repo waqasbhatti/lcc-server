@@ -35,11 +35,6 @@
              src="{{ static_url('images/lcc-logo-web.svg') }}">
       </a>
 
-      <a class="nav-item nav-link"
-         title="See all public datasets"
-         href="/datasets">
-        Datasets
-      </a>
 
       <button class="navbar-toggler"
               type="button"
@@ -52,21 +47,24 @@
       </button>
 
       <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-        <div class="navbar-nav">
-          <a class="nav-item nav-link active">
-            <strong>{{ page_title }}</strong> <span class="sr-only">(current)</span>
-          </a>
-        </div>
-      </div>
+        <div class="navbar-nav mr-auto">
 
-      <div class="justify-content-right"
-
-        <div class="topright-link-list">
           <a class="nav-item nav-link"
              title="Read the docs"
              href="/docs">
             Docs
           </a>
+
+          <a class="nav-item nav-link"
+             title="See all public datasets"
+             href="/datasets">
+            Datasets
+          </a>
+
+          <a class="nav-item nav-link active">
+            <strong>{{ page_title }}</strong> <span class="sr-only">(current)</span>
+          </a>
+
         </div>
 
         <form class="form-inline" action="/users/logout" method="POST" >
