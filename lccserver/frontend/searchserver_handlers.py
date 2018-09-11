@@ -19,6 +19,8 @@ import numpy as np
 from datetime import datetime, timedelta
 import re
 
+
+
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
 ######################################
@@ -34,6 +36,8 @@ class FrontendEncoder(json.JSONEncoder):
 
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
         elif isinstance(obj, bytes):
             return obj.decode()
         elif isinstance(obj, complex):
@@ -51,12 +55,16 @@ class FrontendEncoder(json.JSONEncoder):
 # tornado.web.RequestHandler.write(dict) is called.
 json._default_encoder = FrontendEncoder()
 
+
+
 #############
 ## LOGGING ##
 #############
 
 # get a logger
 LOGGER = logging.getLogger(__name__)
+
+
 
 #####################
 ## TORNADO IMPORTS ##
@@ -66,11 +74,11 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 
-from tornado.escape import xhtml_escape, squeeze, utf8
+from tornado.escape import xhtml_escape, squeeze
+from tornado.httpclient import AsyncHTTPClient
 from tornado import gen
 
-# for signing/verifying tokens
-import itsdangerous
+
 
 ###################
 ## LOCAL IMPORTS ##
@@ -79,8 +87,12 @@ import itsdangerous
 from ..backend import dbsearch
 from ..backend import datasets
 
-from astrobase.coordutils import hms_to_decimal, dms_to_decimal, \
+from .basehandler import BaseHandler
+
+from astrobase.coordutils import (
+    hms_to_decimal, dms_to_decimal,
     hms_str_to_tuple, dms_str_to_tuple
+)
 
 
 
@@ -345,6 +357,7 @@ def parse_xmatch_input(inputtext, matchradtext,
         return None, None
 
 
+
 def parse_conditions(conditions, maxlength=1000):
     '''This parses conditions provided in the query args.
 
@@ -391,6 +404,7 @@ def parse_conditions(conditions, maxlength=1000):
         return None
 
 
+
 ###################################################
 ## QUERY HANDLER MIXIN FOR RUNNING IN BACKGROUND ##
 ###################################################
@@ -401,18 +415,120 @@ class BackgroundQueryMixin(object):
 
     """
 
+    def get_userinfo_datasetvis_resultspecs(self):
+        '''This gets the incoming user_id, role,
+        dataset visibility and sharedwith, and
+        sortspec, samplespec, limitspec.
+
+        '''
+
+        # get the incoming user_id and role from session info
+        incoming_userid = self.current_user['user_id']
+        incoming_role = self.current_user['user_role']
+
+        # get the final dataset's visibility and sharedwith values from the
+        # query args
+
+        #
+        # dataset visibility
+        #
+        dataset_visibility = self.get_argument('dataset_visibility',
+                                               default='public')
+        if dataset_visibility:
+            dataset_visibility = xhtml_escape(dataset_visibility)
+
+        if dataset_visibility not in ('public','private','shared'):
+            dataset_visibility = 'public'
+
+
+        #
+        # dataset sharedwith
+        #
+        # FIXME: In the future, we'll make user profiles and allow users to
+        # connect with each other or make their email_address public. Once a
+        # user has a list of connected users, we'll show them in an autocomplete
+        # box on the frontend. The provided input for dataset_sharedwith will be
+        # a list of user email addresses (their account names). We'll then do an
+        # async request to authnzerver to look up the user IDs associated with
+        # those account names and fill this list in appropriately.
+
+        # FIXME: we'll set this to None for now and not expose the controls
+        dataset_sharedwith = None
+
+
+        # get the final dataset's limitspec, sortspec, and random samplespec
+        # from the query args
+
+        #
+        # sortspec
+        #
+        results_sortspec = self.get_argument('sortspec', default=None)
+
+        if results_sortspec:
+            try:
+                # sortspec is a list of tuples: (column name, asc|desc)
+                results_sortspec = json.load(xhtml_escape(results_sortspec))
+            except Exception as e:
+                results_sortspec = None
+
+        #
+        # limitspec
+        #
+        results_limitspec = self.get_argument('limitspec', default=None)
+
+        if results_limitspec:
+
+            # limitspec is a single integer for the number of rows to return
+            try:
+                results_limitspec = abs(int(xhtml_escape(results_limitspec)))
+                if results_limitspec == 0:
+                    results_limitspec = None
+            except Exception as e:
+                results_limitspec = None
+
+        #
+        # samplespec
+        #
+        results_samplespec = self.get_argument('samplespec', default=None)
+
+        if results_samplespec:
+
+            # samplespec is a single integer for the number of rows to sample
+            try:
+                results_samplespec = abs(int(xhtml_escape(results_samplespec)))
+                if results_samplespec == 0:
+                    results_samplespec = None
+            except Exception as e:
+                results_samplespec = None
+
+
+        return (incoming_userid, incoming_role,
+                dataset_visibility, dataset_sharedwith,
+                results_sortspec, results_limitspec, results_samplespec)
+
+
+
     @gen.coroutine
     def background_query(self,
                          query_function,
                          query_args,
                          query_kwargs,
-                         query_spec):
+                         query_spec,
+                         incoming_userid=2,
+                         incoming_role='anonymous',
+                         dataset_visibility='public',
+                         dataset_sharedwith=None,
+                         results_sortspec=None,
+                         results_limitspec=None,
+                         results_samplespec=None):
 
         # Q1. prepare the dataset
         setinfo = yield self.executor.submit(
             datasets.sqlite_prepare_dataset,
             self.basedir,
-            ispublic=self.result_ispublic,
+            dataset_owner=incoming_userid,
+            dataset_visibility=dataset_visibility,
+            dataset_sharedwith=dataset_sharedwith
         )
 
         self.setid, self.creationdt = setinfo
@@ -436,6 +552,12 @@ class BackgroundQueryMixin(object):
         yield self.flush()
 
         # Q2. execute the query and get back a future
+
+        # add in the incoming_userid and role to check access
+        query_kwargs['incoming_userid'] = incoming_userid
+        query_kwargs['incoming_role'] = incoming_role
+
+        # this is the query Future
         self.query_result_future = self.executor.submit(
             query_function,
             *query_args,
@@ -445,7 +567,7 @@ class BackgroundQueryMixin(object):
         try:
 
             # here, we'll yield with_timeout
-            # give 15 seconds to the query
+            # give 15 seconds to the query to complete
             self.query_result = yield gen.with_timeout(
                 timedelta(seconds=15.0),
                 self.query_result_future
@@ -477,27 +599,28 @@ class BackgroundQueryMixin(object):
 
                     # Q3. make the dataset pickle and finish dataset row in the
                     # DB
-                    dspkl_setid = yield self.executor.submit(
+                    (dspkl_setid,
+                     csvlcs_to_generate,
+                     csvlcs_ready,
+                     all_original_lcs) = yield self.executor.submit(
                         datasets.sqlite_new_dataset,
                         self.basedir,
                         self.setid,
                         self.creationdt,
                         self.query_result,
-                        ispublic=self.result_ispublic
+                        results_sortspec=results_sortspec,
+                        results_limitspec=results_limitspec,
+                        results_samplespec=results_samplespec,
+                        incoming_userid=incoming_userid,
+                        incoming_role=incoming_role,
+                        dataset_visibility=dataset_visibility,
+                        dataset_sharedwith=dataset_sharedwith,
                     )
 
                     # only collect the LCs into a pickle if the user requested
                     # less than 20000 light curves. generating bigger ones is
                     # something we'll handle later
                     if nrows > 20000:
-
-                        # early-collect the dataset to generate its CSV
-                        setdict = yield self.executor.submit(
-                            datasets.sqlite_get_dataset,
-                            self.basedir,
-                            dspkl_setid,
-                            forcecomplete=True
-                        )
 
                         dataset_url = "%s://%s/set/%s" % (
                             self.request.protocol,
@@ -550,10 +673,14 @@ class BackgroundQueryMixin(object):
                     # zipping can take some time
                     #
 
+                    # this is the LC zipping future
                     self.lczip_future = self.executor.submit(
                         datasets.sqlite_make_dataset_lczip,
                         self.basedir,
                         dspkl_setid,
+                        csvlcs_to_generate,
+                        csvlcs_ready,
+                        all_original_lcs,
                         override_lcdir=self.uselcdir  # useful when testing LCC
                                                       # server
                     )
@@ -582,12 +709,14 @@ class BackgroundQueryMixin(object):
                         yield self.flush()
 
 
-                        # Q5. load the dataset to make sure it looks OK and
-                        # automatically generate the CSV for it
+                        # Q5. load the dataset to make sure it loads OK
                         setdict = yield self.executor.submit(
                             datasets.sqlite_get_dataset,
                             self.basedir,
                             dspkl_setid,
+                            'json-header',
+                            incoming_userid=incoming_userid,
+                            incoming_role=incoming_role,
                         )
 
                         # A5. finish request by sending back the dataset URL
@@ -602,11 +731,16 @@ class BackgroundQueryMixin(object):
                             "result":{
                                 "setid":dspkl_setid,
                                 "seturl":dataset_url,
-                                "created":setdict['created_on'],
-                                "updated":setdict['last_updated'],
+                                "created":setdict['created'],
+                                "updated":setdict['updated'],
+                                "owner":setdict['owner'],
+                                "visibility":setdict['visibility'],
+                                "sharedwith":setdict['sharedwith'],
                                 "backend_function":setdict['searchtype'],
                                 "backend_parsedargs":setdict['searchargs'],
-                                "nobjects":setdict['nobjects']
+                                "total_nmatches":setdict['total_nmatches'],
+                                "npages":setdict['npages'],
+                                "rows_per_page":setdict['rowsperpage'],
                             },
                             "time":'%sZ' % datetime.utcnow().isoformat()
                         }
@@ -616,6 +750,9 @@ class BackgroundQueryMixin(object):
 
                         self.finish()
 
+
+                    # this handles a timeout when generating light curve ZIP
+                    # files
                     except gen.TimeoutError:
 
                         dataset_url = "%s://%s/set/%s" % (
@@ -647,7 +784,7 @@ class BackgroundQueryMixin(object):
                         self.write(retdict)
                         self.finish()
 
-                        # here, we'll yield to the uncancelled lczip_future
+                        # here, we'll re-yield to the uncancelled lczip_future
                         lczip = yield self.lczip_future
 
                         # finalize the dataset
@@ -655,6 +792,9 @@ class BackgroundQueryMixin(object):
                             datasets.sqlite_get_dataset,
                             self.basedir,
                             dspkl_setid,
+                            'json-header',
+                            incoming_userid=incoming_userid,
+                            incoming_role=incoming_role,
                         )
 
                         LOGGER.info('background LC zip for setid: %s finished' %
@@ -742,27 +882,28 @@ class BackgroundQueryMixin(object):
 
                 # Q3. make the dataset pickle and finish dataset row in the
                 # DB
-                dspkl_setid = yield self.executor.submit(
+                (dspkl_setid,
+                 csvlcs_to_generate,
+                 csvlcs_ready,
+                 all_original_lcs) = yield self.executor.submit(
                     datasets.sqlite_new_dataset,
                     self.basedir,
                     self.setid,
                     self.creationdt,
                     self.query_result,
-                    ispublic=self.result_ispublic
+                    result_sortspec=query_kwargs['result_sortspec'],
+                    result_limitspec=query_kwargs['result_limitspec'],
+                    result_samplespec=query_kwargs['result_samplespec'],
+                    incoming_userid=incoming_userid,
+                    incoming_role=incoming_role,
+                    dataset_visibility=dataset_visibility,
+                    dataset_sharedwith=dataset_sharedwith,
                 )
 
                 # only collect the LCs into a pickle if the user requested
                 # less than 20000 light curves. generating bigger ones is
                 # something we'll handle later
                 if nrows > 20000:
-
-                    # early-collect the dataset to generate its CSV
-                    setdict = yield self.executor.submit(
-                        datasets.sqlite_get_dataset,
-                        self.basedir,
-                        dspkl_setid,
-                        forcecomplete=True
-                    )
 
                     LOGGER.warning(
                         '> 20k LCs requested for zipping in the '
@@ -774,20 +915,27 @@ class BackgroundQueryMixin(object):
                 else:
 
                     # Q4. collect light curve ZIP files
+                    # this is the LC zipping future
                     lczip = yield self.executor.submit(
                         datasets.sqlite_make_dataset_lczip,
                         self.basedir,
                         dspkl_setid,
+                        csvlcs_to_generate,
+                        csvlcs_ready,
+                        all_original_lcs,
                         override_lcdir=self.uselcdir  # useful when testing LCC
-                        # server
+                                                      # server
                     )
 
                     # Q5. load the dataset to make sure it looks OK and
-                    # automatically generate the CSV for it
+                    # finalize the dataset
                     setdict = yield self.executor.submit(
                         datasets.sqlite_get_dataset,
                         self.basedir,
                         dspkl_setid,
+                        'json-header',
+                        incoming_userid=incoming_userid,
+                        incoming_role=incoming_role,
                     )
 
                     LOGGER.warning('background LC zip for '
@@ -809,8 +957,7 @@ class BackgroundQueryMixin(object):
 ## COLUMN SEARCH HANDLER ##
 ###########################
 
-class ColumnSearchHandler(tornado.web.RequestHandler,
-                          BackgroundQueryMixin):
+class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
     '''
     This handles the column search API.
 
@@ -825,7 +972,10 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
                    basedir,
                    uselcdir,
                    signer,
-                   fernet):
+                   fernet,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -840,6 +990,10 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
 
@@ -894,8 +1048,6 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
 
         conditions
 
-        result_ispublic: either 1 or 0
-
         sort col and sort order
 
         optional params
@@ -929,7 +1081,9 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
 
             # get the other arguments for the server
 
+            #
             # REQUIRED: sort column
+            #
             sortcol = xhtml_escape(
                 self.get_argument('sortcol',
                                   default='sdssr')
@@ -938,12 +1092,6 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
 
             if sortorder not in ('asc','desc'):
                 sortorder = 'asc'
-
-            # OPTIONAL: result_ispublic
-            self.result_ispublic = (
-                True if int(xhtml_escape(self.get_argument('result_ispublic')))
-                else False
-            )
 
             # OPTIONAL: columns
             getcolumns = self.get_arguments('columns[]')
@@ -954,7 +1102,9 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
                 getcolumns = None
 
 
+            #
             # OPTIONAL: collections
+            #
             lcclist = self.get_arguments('collections[]')
 
             if lcclist is not None:
@@ -999,21 +1149,46 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
 
+        # get user info, dataset disposition, and result sort/sample/limit specs
+        (incoming_userid,
+         incoming_role,
+         dataset_visibility,
+         dataset_sharedwith,
+         results_sortspec,
+         results_limitspec,
+         results_samplespec) = self.get_userinfo_datasetvis_resultspecs()
+
         # send the query to the background worker
+        # pass along user_id, role, dataset visibility, sharedwith
+        # pass along limitspec, sortspec, samplespec
         yield self.background_query(
+            # query function
             dbsearch.sqlite_column_search,
+            # query args
             (self.basedir,),
+            # query kwargs
             {"conditions":conditions,
              "sortby":"%s %s" % (sortcol, sortorder),
              "getcolumns":getcolumns,
              "lcclist":lcclist},
+            # query spec
             {"name":"columnsearch",
              "args":{"conditions":conditions,
-                     "sortcol":sortcol,
-                     "sortorder":sortorder,
-                     "result_ispublic":self.result_ispublic,
+                     "results_sortspec":results_sortspec,
+                     "results_limitspec":results_limitspec,
+                     "results_samplespec":results_samplespec,
+                     "dataset_visibility":dataset_visibility,
+                     "dataset_sharedwith":dataset_sharedwith,
                      "collections":lcclist,
-                     "getcolumns":getcolumns}}
+                     "getcolumns":getcolumns}},
+            # dataset options and permissions handling
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            dataset_visibility=dataset_visibility,
+            dataset_sharedwith=dataset_sharedwith,
+            results_sortspec=results_sortspec,
+            results_limitspec=results_limitspec,
+            results_samplespec=results_samplespec
         )
 
 
@@ -1021,8 +1196,7 @@ class ColumnSearchHandler(tornado.web.RequestHandler,
 ## CONE SEARCH HANDLER ##
 #########################
 
-class ConeSearchHandler(tornado.web.RequestHandler,
-                        BackgroundQueryMixin):
+class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
     '''
     This handles the cone search API.
 
@@ -1037,7 +1211,10 @@ class ConeSearchHandler(tornado.web.RequestHandler,
                    basedir,
                    uselcdir,
                    signer,
-                   fernet):
+                   fernet,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -1052,6 +1229,10 @@ class ConeSearchHandler(tornado.web.RequestHandler,
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
 
@@ -1107,8 +1288,6 @@ class ConeSearchHandler(tornado.web.RequestHandler,
         coords: the coord string containing <ra> <dec> <searchradius>
                 in either sexagesimal or decimal format
 
-        result_ispublic: either 1 or 0
-
         optional params
         ---------------
 
@@ -1151,13 +1330,9 @@ class ConeSearchHandler(tornado.web.RequestHandler,
 
             # get the other arguments for the server
 
-            # OPTIONAL: result_ispublic
-            self.result_ispublic = (
-                True if int(xhtml_escape(self.get_argument('result_ispublic')))
-                else False
-            )
-
+            #
             # OPTIONAL: columns
+            #
             getcolumns = self.get_arguments('columns[]')
 
             if getcolumns is not None:
@@ -1181,7 +1356,9 @@ class ConeSearchHandler(tornado.web.RequestHandler,
                 lcclist = None
 
 
+            #
             # OPTIONAL: conditions
+            #
             conditions = self.get_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
@@ -1228,31 +1405,57 @@ class ConeSearchHandler(tornado.web.RequestHandler,
         LOGGER.info('lcclist = %s' % lcclist)
         LOGGER.info('conditions = %s' % conditions)
 
+        # get user info, dataset disposition, and result sort/sample/limit specs
+        (incoming_userid,
+         incoming_role,
+         dataset_visibility,
+         dataset_sharedwith,
+         results_sortspec,
+         results_limitspec,
+         results_samplespec) = self.get_userinfo_datasetvis_resultspecs()
+
+
         # send the query to the background worker
         yield self.background_query(
+            # query function
             dbsearch.sqlite_kdtree_conesearch,
+            # query args
             (self.basedir,
              center_ra,
              center_decl,
              radius_arcmin),
+            # query kwargs
             {"conditions":conditions,
              "getcolumns":getcolumns,
              "lcclist":lcclist},
+            # query spec
             {"name":"conesearch",
              "args":{"coords":coordstr,
+                     "results_sortspec":results_sortspec,
+                     "results_limitspec":results_limitspec,
+                     "results_samplespec":results_samplespec,
+                     "dataset_visibility":dataset_visibility,
+                     "dataset_sharedwith":dataset_sharedwith,
                      "conditions":conditions,
-                     "result_ispublic":self.result_ispublic,
                      "collections":lcclist,
-                     "getcolumns":getcolumns}}
+                     "getcolumns":getcolumns}},
+            # dataset options and permissions handling
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            dataset_visibility=dataset_visibility,
+            dataset_sharedwith=dataset_sharedwith,
+            results_sortspec=results_sortspec,
+            results_limitspec=results_limitspec,
+            results_samplespec=results_samplespec
         )
+
 
 
 #############################
 ## FULLTEXT SEARCH HANDLER ##
 #############################
 
-class FTSearchHandler(tornado.web.RequestHandler,
-                      BackgroundQueryMixin):
+class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
     '''
     This handles the FTS API.
 
@@ -1267,7 +1470,10 @@ class FTSearchHandler(tornado.web.RequestHandler,
                    basedir,
                    uselcdir,
                    signer,
-                   fernet):
+                   fernet,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -1282,6 +1488,10 @@ class FTSearchHandler(tornado.web.RequestHandler,
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
 
@@ -1337,8 +1547,6 @@ class FTSearchHandler(tornado.web.RequestHandler,
         ftstext: the coord string containing <ra> <dec> <searchradius>
                 in either sexagesimal or decimal format
 
-        result_ispublic: either 1 or 0
-
         optional params
         ---------------
 
@@ -1375,13 +1583,9 @@ class FTSearchHandler(tornado.web.RequestHandler,
 
             # get the other arguments for the server
 
-            # OPTIONAL: result_ispublic
-            self.result_ispublic = (
-                True if int(xhtml_escape(self.get_argument('result_ispublic')))
-                else False
-            )
-
+            #
             # OPTIONAL: columns
+            #
             getcolumns = self.get_arguments('columns[]')
 
             if getcolumns is not None:
@@ -1390,7 +1594,9 @@ class FTSearchHandler(tornado.web.RequestHandler,
                 getcolumns = None
 
 
+            #
             # OPTIONAL: collections
+            #
             lcclist = self.get_arguments('collections[]')
 
             if lcclist is not None:
@@ -1405,7 +1611,9 @@ class FTSearchHandler(tornado.web.RequestHandler,
                 lcclist = None
 
 
+            #
             # OPTIONAL: conditions
+            #
             conditions = self.get_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
@@ -1451,20 +1659,45 @@ class FTSearchHandler(tornado.web.RequestHandler,
         LOGGER.info('lcclist = %s' % lcclist)
         LOGGER.info('conditions = %s' % conditions)
 
+        # get user info, dataset disposition, and result sort/sample/limit specs
+        (incoming_userid,
+         incoming_role,
+         dataset_visibility,
+         dataset_sharedwith,
+         results_sortspec,
+         results_limitspec,
+         results_samplespec) = self.get_userinfo_datasetvis_resultspecs()
+
         # send the query to the background worker
         yield self.background_query(
+            # query func
             dbsearch.sqlite_fulltext_search,
+            # query args
             (self.basedir,
              ftstext),
+            # query kwargs
             {"conditions":conditions,
              "getcolumns":getcolumns,
              "lcclist":lcclist},
+            # query spec
             {"name":"ftsquery",
              "args":{"ftstext":ftstext,
                      "conditions":conditions,
+                     "results_sortspec":results_sortspec,
+                     "results_limitspec":results_limitspec,
+                     "results_samplespec":results_samplespec,
+                     "dataset_visibility":dataset_visibility,
+                     "dataset_sharedwith":dataset_sharedwith,
                      "collections":lcclist,
-                     "result_ispublic":self.result_ispublic,
-                     "getcolumns":getcolumns}}
+                     "getcolumns":getcolumns}},
+            # dataset options and permissions handling
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            dataset_visibility=dataset_visibility,
+            dataset_sharedwith=dataset_sharedwith,
+            results_sortspec=results_sortspec,
+            results_limitspec=results_limitspec,
+            results_samplespec=results_samplespec
         )
 
 
@@ -1473,10 +1706,7 @@ class FTSearchHandler(tornado.web.RequestHandler,
 ## XMATCH SEARCH HANDLER ##
 ###########################
 
-from tornado.web import _time_independent_equals
-
-class XMatchHandler(tornado.web.RequestHandler,
-                    BackgroundQueryMixin):
+class XMatchHandler(BaseHandler, BackgroundQueryMixin):
     '''
     This handles the xmatch search API.
 
@@ -1490,7 +1720,10 @@ class XMatchHandler(tornado.web.RequestHandler,
                    basedir,
                    uselcdir,
                    signer,
-                   fernet):
+                   fernet,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -1505,6 +1738,10 @@ class XMatchHandler(tornado.web.RequestHandler,
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
 
@@ -1545,211 +1782,6 @@ class XMatchHandler(tornado.web.RequestHandler,
             }
 
         self.write(retdict)
-
-
-
-    def check_apikey(self):
-        '''
-        This checks the API key.
-
-        '''
-        try:
-
-            authorization = self.request.headers.get('Authorization')
-
-            if authorization:
-
-                key = authorization.split()[1].strip()
-                uns = self.signer.loads(key, max_age=86400.0)
-
-                # match the remote IP and API version
-                keyok = ((self.request.remote_ip == uns['ip']) and
-                         (self.apiversion == uns['ver']))
-
-            else:
-
-                LOGGER.error('no Authorization header key found')
-                retdict = {
-                    'status':'failed',
-                    'message':('No credentials provided or '
-                               'they could not be parsed safely'),
-                    'result':None
-                }
-
-                self.set_status(401)
-                return retdict
-
-
-            if not keyok:
-
-                if 'X-Real-Host' in self.request.headers:
-                    self.req_hostname = self.request.headers['X-Real-Host']
-                else:
-                    self.req_hostname = self.request.host
-
-                newkey_url = "%s://%s/api/key" % (
-                    self.request.protocol,
-                    self.req_hostname,
-                )
-
-                LOGGER.error('API key is valid, but IP or API version mismatch')
-                retdict = {
-                    'status':'failed',
-                    'message':('API key invalid for current LCC API '
-                               'version: %s or your IP address has changed. '
-                               'Get an up-to-date key from %s' %
-                               (self.apiversion, newkey_url)),
-                    'result':None
-                }
-
-                self.set_status(401)
-                return retdict
-
-            # SUCCESS HERE ONLY
-            else:
-
-                LOGGER.warning('successful API key auth: %r' % uns)
-
-                retdict = {
-                    'status':'ok',
-                    'message':('API key verified successfully. Expires: %s' %
-                               uns['expiry']),
-                    'result':{'expiry':uns['expiry']},
-                }
-
-                return retdict
-
-        except itsdangerous.SignatureExpired:
-
-            LOGGER.error('API key "%s" from %s has expired' %
-                         (key, self.request.remote_ip))
-
-            if 'X-Real-Host' in self.request.headers:
-                self.req_hostname = self.request.headers['X-Real-Host']
-            else:
-                self.req_hostname = self.request.host
-
-            newkey_url = "%s://%s/api/key" % (
-                self.request.protocol,
-                self.req_hostname,
-            )
-
-            retdict = {
-                'status':'failed',
-                'message':('API key has expired. '
-                           'Get a new one from %s' % newkey_url),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-        except itsdangerous.BadSignature:
-
-            LOGGER.error('API key "%s" from %s did not pass verification' %
-                         (key, self.request.remote_ip))
-
-            retdict = {
-                'status':'failed',
-                'message':'API key could not be verified or has expired.',
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-        except Exception as e:
-
-            LOGGER.exception('API key "%s" from %s did not pass verification' %
-                             (key, self.request.remote_ip))
-
-            retdict = {
-                'status':'failed',
-                'message':('API key was not provided, '
-                           'could not be verified, '
-                           'or has expired.'),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-
-
-    def tornado_check_xsrf_cookie(self):
-        '''This is the original Tornado XSRF token checker.
-
-        From: http://www.tornadoweb.org
-              /en/stable/_modules/tornado/web.html
-              #RequestHandler.check_xsrf_cookie
-
-        Modified a bit to not immediately raise 403s since we want to return
-        JSON all the time.
-
-        '''
-
-        token = (self.get_argument("_xsrf", None) or
-                 self.request.headers.get("X-Xsrftoken") or
-                 self.request.headers.get("X-Csrftoken"))
-
-        if not token:
-
-            retdict = {
-                'status':'failed',
-                'message':("'_xsrf' argument missing from POST'"),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-        _, token, _ = self._decode_xsrf_token(token)
-        _, expected_token, _ = self._get_raw_xsrf_token()
-
-        if not token:
-
-            retdict = {
-                'status':'failed',
-                'message':("'_xsrf' argument missing from POST"),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-
-        if not _time_independent_equals(utf8(token),
-                                        utf8(expected_token)):
-
-            retdict = {
-                'status':'failed',
-                'message':("XSRF cookie does not match POST argument"),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-
-
-    def check_xsrf_cookie(self):
-        '''This overrides the usual Tornado XSRF checker.
-
-        We use this because we want the same endpoint to support POSTs from an
-        API or from the browser.
-
-        '''
-
-        xsrf_auth = (self.get_argument("_xsrf", None) or
-                     self.request.headers.get("X-Xsrftoken") or
-                     self.request.headers.get("X-Csrftoken"))
-
-        if xsrf_auth:
-            LOGGER.info('using tornado XSRF auth...')
-            self.keycheck = self.tornado_check_xsrf_cookie()
-        else:
-            LOGGER.info('using API Authorization header auth...')
-            self.keycheck = self.check_apikey()
 
 
 
@@ -1800,7 +1832,9 @@ class XMatchHandler(tornado.web.RequestHandler,
             else:
                 self.req_hostname = self.request.host
 
+            #
             # OPTIONAL: conditions
+            #
             conditions = self.get_body_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
@@ -1814,15 +1848,9 @@ class XMatchHandler(tornado.web.RequestHandler,
             # get the other arguments for the server
             #
 
-            # OPTIONAL: result_ispublic
-            self.result_ispublic = (
-                True if int(xhtml_escape(
-                    self.get_body_argument('result_ispublic'))
-                )
-                else False
-            )
-
+            #
             # OPTIONAL: columns
+            #
             getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
@@ -1830,7 +1858,9 @@ class XMatchHandler(tornado.web.RequestHandler,
             else:
                 getcolumns = None
 
+            #
             # OPTIONAL: collections
+            #
             lcclist = self.get_body_arguments('collections[]')
 
             if lcclist is not None:
@@ -1876,26 +1906,46 @@ class XMatchHandler(tornado.web.RequestHandler,
         LOGGER.info('xmq = %s' % parsed_xmq)
         LOGGER.info('xmd = %s' % parsed_xmd)
 
-        #
-        # we'll use line-delimited JSON to respond
-        #
+        # get user info, dataset disposition, and result sort/sample/limit specs
+        (incoming_userid,
+         incoming_role,
+         dataset_visibility,
+         dataset_sharedwith,
+         results_sortspec,
+         results_limitspec,
+         results_samplespec) = self.get_userinfo_datasetvis_resultspecs()
 
         # send the query to the background worker
-        # send the query to the background worker
         yield self.background_query(
+            # query func
             dbsearch.sqlite_xmatch_search,
+            # query args
             (self.basedir,
              parsed_xmq),
+            # query kwargs
             {"xmatch_dist_arcsec":parsed_xmd,
              "xmatch_closest_only":False,
              "conditions":conditions,
              "getcolumns":getcolumns,
              "lcclist":lcclist},
+            # query spec
             {"name":"xmatch",
              "args":{"xmq":xmq,
                      "xmd":xmd,
                      "conditions":conditions,
-                     "result_ispublic":self.result_ispublic,
+                     "results_sortspec":results_sortspec,
+                     "results_limitspec":results_limitspec,
+                     "results_samplespec":results_samplespec,
+                     "dataset_visibility":dataset_visibility,
+                     "dataset_sharedwith":dataset_sharedwith,
                      "collections":lcclist,
-                     "getcolumns":getcolumns}}
+                     "getcolumns":getcolumns}},
+            # dataset options and permissions handling
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            dataset_visibility=dataset_visibility,
+            dataset_sharedwith=dataset_sharedwith,
+            results_sortspec=results_sortspec,
+            results_limitspec=results_limitspec,
+            results_samplespec=results_samplespec
         )

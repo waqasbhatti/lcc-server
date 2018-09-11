@@ -412,7 +412,10 @@ def main():
           'basedir':BASEDIR,
           'serverdocs':SERVER_DOCINDEX,
           'sitedocs':SITE_DOCINDEX,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         ###################################
         ## STATIC FILE DOWNLOAD HANDLERS ##
@@ -477,7 +480,10 @@ def main():
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'signer':SIGNER,
-          'fernet':FERNET}),
+          'fernet':FERNET,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # this returns a JSON list of the currently available datasets
         (r'/api/datasets',
@@ -489,7 +495,10 @@ def main():
           'executor':EXECUTOR,
           'basedir':BASEDIR,
           'signer':SIGNER,
-          'fernet':FERNET}),
+          'fernet':FERNET,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
 
         ##################################
@@ -507,7 +516,10 @@ def main():
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
           'signer':SIGNER,
-          'fernet':FERNET}),
+          'fernet':FERNET,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # this is the cone search API endpoint
         (r'/api/conesearch',
@@ -520,7 +532,10 @@ def main():
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
           'signer':SIGNER,
-          'fernet':FERNET}),
+          'fernet':FERNET,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # this is the FTS search API endpoint
         (r'/api/ftsquery',
@@ -533,7 +548,10 @@ def main():
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
           'signer':SIGNER,
-          'fernet':FERNET}),
+          'fernet':FERNET,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # this is the xmatch search API endpoint
         (r'/api/xmatch',
@@ -546,7 +564,10 @@ def main():
           'basedir':BASEDIR,
           'uselcdir':USELCDIR,
           'signer':SIGNER,
-          'fernet':FERNET}),
+          'fernet':FERNET,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
 
         ##############################################
@@ -564,7 +585,10 @@ def main():
           'basedir':BASEDIR,
           'signer':SIGNER,
           'fernet':FERNET,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # this just shows all datasets in a big table
         (r'/datasets',
@@ -574,7 +598,10 @@ def main():
           'assetpath':ASSETPATH,
           'executor':EXECUTOR,
           'basedir':BASEDIR,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
 
         ################################################
@@ -593,7 +620,10 @@ def main():
           'signer':SIGNER,
           'fernet':FERNET,
           'cpsharedkey':CPKEY,
-          'cpaddress':CPADDR}),
+          'cpaddress':CPADDR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # renders objectinfo from API above to an HTML page for easy viewing
         (r'/obj/(\S+)/(\S+)',
@@ -608,7 +638,10 @@ def main():
           'fernet':FERNET,
           'cpsharedkey':CPKEY,
           'cpaddress':CPADDR,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
     ]
 

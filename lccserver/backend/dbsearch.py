@@ -57,15 +57,16 @@ import sqlite3
 import pickle
 import json
 from functools import reduce, partial
-from random import sample
 
 from tornado.escape import squeeze, xhtml_unescape
 import numpy as np
 
-from astrobase.coordutils import make_kdtree, conesearch_kdtree, \
+from astrobase.coordutils import (
+    make_kdtree, conesearch_kdtree,
     xmatch_kdtree, great_circle_dist
+)
 
-from ..authnzerver.authdb import check_user_access, check_role_limits
+from ..authnzerver.authdb import check_user_access
 
 
 ###########################
