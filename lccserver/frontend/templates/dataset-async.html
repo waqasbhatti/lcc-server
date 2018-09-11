@@ -50,7 +50,7 @@
 
                 <tr>
                   <th width="80">objects</th>
-                  <td><span id="dataset-nobjects">{{ header['nobjects'] }}</span></td>
+                  <td><span id="dataset-nobjects">{{ header['total_nmatches'] }}</span></td>
                 </tr>
 
                 <tr>
@@ -64,8 +64,18 @@
                 </tr>
 
                 <tr>
-                  <th width="200">dataset is public</th>
-                  <td>{{ header['public'] }}</td>
+                  <th width="200">dataset owner</th>
+                  <td>{{ header['owner'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="200">dataset visibility</th>
+                  <td>{{ header['visibility'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="200">dataset shared with</th>
+                  <td>{{ header['sharedwith'] }}</td>
                 </tr>
 
                 <tr>
@@ -107,8 +117,8 @@
 
                 <tr>
                   <th width="200">dataset pickle</th>
-                  {% if setpickle is not None %}
-                  <td id="dataset-setpickle"><a rel="nofollow" href="{{ setpickle }}">download file</a></td>
+                  {% if header['dataset_pickle'] is not None %}
+                  <td id="dataset-setpickle"><a rel="nofollow" href="{{ header['dataset_pickle'] }}">download file</a></td>
                   {% else %}
                   <td id="dataset-setpickle">not available yet...</a></td>
                   {% end %}
@@ -116,8 +126,8 @@
 
                 <tr>
                   <th width="200">dataset table CSV</th>
-                  {% if setcsv is not None %}
-                  <td id="dataset-setcsv"><a rel="nofollow" href="{{ setcsv }}">download file</a></td>
+                  {% if header['dataset_csv'] is not None %}
+                  <td id="dataset-setcsv"><a rel="nofollow" href="{{ header['dataset_csv'] }}">download file</a></td>
                   {% else %}
                   <td id="dataset-setcsv">not available yet...</td>
                   {% end %}
@@ -125,8 +135,8 @@
 
                 <tr>
                   <th width="200">light curves ZIP</th>
-                  {% if lczip is not None %}
-                  <td id="dataset-lczip"><a rel="nofollow" href="{{ lczip }}">download file</a></td>
+                  {% if header['lczipfpath'] is not None %}
+                  <td id="dataset-lczip"><a rel="nofollow" href="{{ header['lczipfpath'] }}">download file</a></td>
                   {% else %}
                   <td id="dataset-lczip">not available yet...</td>
                   {% end %}

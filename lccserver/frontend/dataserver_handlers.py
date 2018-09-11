@@ -348,6 +348,9 @@ class DatasetHandler(BaseHandler):
 
                 ds['lczipfpath'] = None
 
+            # FIXME: look up the user ID of the dataset owner and get their
+            # account name.
+
 
             # if we're returning JSON
             if returnjson:

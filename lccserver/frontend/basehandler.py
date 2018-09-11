@@ -469,6 +469,16 @@ class BaseHandler(tornado.web.RequestHandler):
            cookie with this session token and set self.current_user variable
            with session dict.
 
+        TODO: add in the use of api keys
+
+        1. if the Authorization: Bearer <token> pattern is present in the
+           header, assume that we're using API key authentication.
+
+        2. if using the provided API key, check if it's unexpired and is
+        associated with a valid user account. If it is, go ahead and populate
+        the self.current_user with the user information. If it's not and we've
+        assumed that we're using the API key method, fail the request.
+
         '''
 
         # FIXME: cookie secure=True won't work if
