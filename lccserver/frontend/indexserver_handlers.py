@@ -522,7 +522,7 @@ class DatasetListHandler(BaseHandler):
             nrecent=nrecent,
             require_status='complete',
             incoming_userid=self.current_user['user_id'],
-            incoming_role=self.current_user['user_role'],
+            incoming_role=self.current_user['user_role']
         )
 
         # we'll have to censor stuff here as well
@@ -560,10 +560,37 @@ class DatasetListHandler(BaseHandler):
                 except Exception as e:
                     lczip_fpath = None
 
-                # update this listing
+                # update this listing with the URLs of the products
                 dataset['dataset_fpath'] = dataset_fpath
                 dataset['dataset_csv'] = dataset_csv
                 dataset['lczip_fpath'] = lczip_fpath
+
+                # update this listing to indicate if the current user is the
+                # owner of this dataset. this only works for authenticated
+                # users.
+                if (self.current_user['user_id'] not in (2,3) and
+                    self.current_user['user_id'] == dataset['dataset_owner']):
+
+                    dataset['owned'] = True
+
+                # otherwise, if the current user's session_token matches the
+                # session_token used to create the dataset, they're the
+                # owner. this will only hold true until the session token
+                # expires, which is in 7 days from when they first hit the
+                # site. this should be OK. if people want more than 7 days of
+                # history, they can sign up.
+                elif (self.current_user['session_token'] ==
+                      dataset['dataset_sessiontoken']):
+
+                    dataset['owned'] = True
+
+                # otherwise, this is a dataset not owned by the current user
+                else:
+
+                    dataset['owned'] = False
+
+                # censor the session token
+                dataset['dataset_sessiontoken'] = 'redacted'
 
                 dataset_list.append(dataset)
 
@@ -600,7 +627,7 @@ class APIKeyHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
     def get(self):
-        '''This doesn't actually run the query.
+        '''This generates an API key.
 
         It is used to generate a token to be used in place of an XSRF token for
         the POST functions (or possibly other API enabled functions later). This
