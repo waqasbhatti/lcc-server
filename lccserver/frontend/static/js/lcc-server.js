@@ -713,10 +713,9 @@ var lcc_ui = {
             var message = data.message;
 
             // if something broke, alert the user
-            if (status != 'ok') {
+            if (status != 'ok' || result === null || result.length == 0) {
                 lcc_ui.alert_box(message, 'danger');
             }
-
 
             // otherwise, fill in the datasets table
             else {
@@ -864,8 +863,8 @@ var lcc_ui = {
                 'datasets from the LCC server backend';
 
             if (xhr.status == 500) {
-                message = 'Something went wrong with the server backend ' +
-                    ' while trying to fetch a list of recent datasets';
+                message = 'Something went wrong with the LCC-Server backend ' +
+                    ' while trying to fetch a list of recent datasets.';
             }
 
             lcc_ui.alert_box(message, 'danger');
@@ -1103,8 +1102,8 @@ var lcc_ui = {
                 'LC collections from the LCC server backend';
 
             if (xhr.status == 500) {
-                message = 'Something went wrong with the LCC server backend ' +
-                    'while trying to fetch a list of all LC collections';
+                message = 'Something went wrong with the LCC-Server backend ' +
+                    'while trying to fetch a list of all LC collections.';
             }
 
             lcc_ui.alert_box(message, 'danger');
@@ -2221,12 +2220,12 @@ var lcc_datasets = {
                 }
 
 
-                if (data.lczip != null && data.lczip != undefined) {
+                if (data.lczipfpath != null && data.lczipfpath != undefined) {
                     // 12. lczip
                     $('#dataset-lczip')
                         .html('<a download rel="nofollow" href="' +
                               data.lczip + '">download file</a>');
-               }
+                }
                 else {
                     $('#dataset-lczip').html('not available');
                 }
@@ -2331,8 +2330,8 @@ var lcc_datasets = {
                 'from the LCC server backend.';
 
             if (xhr.status == 500) {
-                message = 'Something went wrong with the server backend ' +
-                    'while trying to fetch the dataset.';
+                message = 'Something went wrong with the LCC-Server backend ' +
+                    'while trying to fetch this dataset.';
             }
 
             lcc_ui.alert_box(message, 'danger');

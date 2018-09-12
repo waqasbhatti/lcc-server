@@ -484,90 +484,100 @@ def sqlite_get_collections(basedir,
             )
         ]
 
-        results = list(zip(*list(results)))
+        if len(results) > 0:
 
-        (collection_id, object_catalog_path,
-         kdtree_pkl_path, columnlist,
-         indexedcols, ftsindexedcols, name,
-         description, project, datarelease,
-         minra, maxra, mindecl, maxdecl,
-         nobjects, lcformatkey, lcformatdesc, columnjson,
-         collection_owner,
-         collection_visibility,
-         collection_sharedwith) = results
+            results = list(zip(*list(results)))
 
-        dbnames = [x.replace('-','_') for x in collection_id]
+            (collection_id, object_catalog_path,
+             kdtree_pkl_path, columnlist,
+             indexedcols, ftsindexedcols, name,
+             description, project, datarelease,
+             minra, maxra, mindecl, maxdecl,
+             nobjects, lcformatkey, lcformatdesc, columnjson,
+             collection_owner,
+             collection_visibility,
+             collection_sharedwith) = results
 
-        # this is the intersection of all columns available across all
-        # collections.  effectively defines the cross-collection columns
-        # available for use in queries
-        collection_columns = [set(x.split(',')) for x in columnlist]
-        columns_available = reduce(lambda x,y: x.intersection(y),
-                                   collection_columns)
+            dbnames = [x.replace('-','_') for x in collection_id]
 
-        # the same, but for columns that have indexes on them
-        indexed_columns = [set(x.split(',')) for x in indexedcols]
-        indexed_cols_available = reduce(lambda x,y: x.intersection(y),
-                                        indexed_columns)
+            # this is the intersection of all columns available across all
+            # collections.  effectively defines the cross-collection columns
+            # available for use in queries
+            collection_columns = [set(x.split(',')) for x in columnlist]
+            columns_available = reduce(lambda x,y: x.intersection(y),
+                                       collection_columns)
 
-        # the same but for columns that have FTS indexes on them
-        fts_columns = [set(x.split(',')) for x in ftsindexedcols]
-        ftsindexed_cols_available = reduce(lambda x,y: x.intersection(y),
-                                           fts_columns)
+            # the same, but for columns that have indexes on them
+            indexed_columns = [set(x.split(',')) for x in indexedcols]
+            indexed_cols_available = reduce(lambda x,y: x.intersection(y),
+                                            indexed_columns)
 
-        if return_connection:
+            # the same but for columns that have FTS indexes on them
+            fts_columns = [set(x.split(',')) for x in ftsindexedcols]
+            ftsindexed_cols_available = reduce(lambda x,y: x.intersection(y),
+                                               fts_columns)
 
-            # this is the connection we will return
-            newconn = sqlite3.connect(
-                ':memory:',
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-            )
-            newconn.row_factory = sqlite3.Row
-            newcur = newconn.cursor()
+            if return_connection:
 
-            for dbn, catpath in zip(dbnames, object_catalog_path):
-                newcur.execute("attach database '%s' as %s" % (catpath, dbn))
+                # this is the connection we will return
+                newconn = sqlite3.connect(
+                    ':memory:',
+                    detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+                )
+                newconn.row_factory = sqlite3.Row
+                newcur = newconn.cursor()
 
-        else:
+                for dbn, catpath in zip(dbnames, object_catalog_path):
+                    newcur.execute("attach database '%s' as %s" % (catpath, dbn))
 
-            newconn = None
-            newcur = None
+            else:
+
+                newconn = None
+                newcur = None
 
 
-        outdict = {
-            'connection':newconn,
-            'cursor':newcur,
-            'databases':dbnames,
-            'columns':list(columns_available),
-            'indexedcols':list(indexed_cols_available),
-            'ftscols':list(ftsindexed_cols_available),
-            'info':{
-                'collection_id':collection_id,
-                'db_collection_id':[d.replace('-','_') for d in collection_id],
-                'object_catalog_path':object_catalog_path,
-                'kdtree_pkl_path':kdtree_pkl_path,
-                'columnlist':columnlist,
-                'indexedcols':indexedcols,
-                'ftsindexedcols':ftsindexedcols,
-                'collection_owner':collection_owner,
-                'collection_visibility':collection_visibility,
-                'collection_sharedwith':collection_sharedwith,
-                'name':name,
-                'description':description,
-                'project':project,
-                'datarelease':datarelease,
-                'minra':minra,
-                'maxra':maxra,
-                'mindecl':mindecl,
-                'maxdecl':maxdecl,
-                'nobjects':nobjects,
-                'lcformatkey':lcformatkey,
-                'lcformatdesc':lcformatdesc,
-                'columnjson': [json.loads(c) for c in columnjson]
+            outdict = {
+                'connection':newconn,
+                'cursor':newcur,
+                'databases':dbnames,
+                'columns':list(columns_available),
+                'indexedcols':list(indexed_cols_available),
+                'ftscols':list(ftsindexed_cols_available),
+                'info':{
+                    'collection_id':collection_id,
+                    'db_collection_id':[d.replace('-','_') for d in collection_id],
+                    'object_catalog_path':object_catalog_path,
+                    'kdtree_pkl_path':kdtree_pkl_path,
+                    'columnlist':columnlist,
+                    'indexedcols':indexedcols,
+                    'ftsindexedcols':ftsindexedcols,
+                    'collection_owner':collection_owner,
+                    'collection_visibility':collection_visibility,
+                    'collection_sharedwith':collection_sharedwith,
+                    'name':name,
+                    'description':description,
+                    'project':project,
+                    'datarelease':datarelease,
+                    'minra':minra,
+                    'maxra':maxra,
+                    'mindecl':mindecl,
+                    'maxdecl':maxdecl,
+                    'nobjects':nobjects,
+                    'lcformatkey':lcformatkey,
+                    'lcformatdesc':lcformatdesc,
+                    'columnjson': [json.loads(c) for c in columnjson]
+                }
             }
-        }
 
-        return outdict
+            return outdict
+
+        # if no collections match the incoming user_id, role, then return
+        # nothing
+        else:
+            LOGERROR('no viewable collections found for '
+                     'incoming_userid = %s, incoming_role = %s' %
+                     (incoming_userid, incoming_role))
+            return None
 
     else:
 

@@ -408,58 +408,80 @@ class CollectionListHandler(BaseHandler):
             incoming_role=self.current_user['user_role'],
         )
 
-        collection_info = collections['info']
-        collection_info['description'] = list(collection_info['description'])
+        if collections is not None:
 
-        # get the descriptions and turn them into markdown if needed
-        for collind, coll, desc in zip(
-                range(len(collection_info['collection_id'])),
-                collection_info['collection_id'],
+            collection_info = collections['info']
+            collection_info['description'] = list(
                 collection_info['description']
-        ):
-            if desc and desc.startswith('#!MKD '):
-                try:
-                    desc = self.markdowner.convert(desc[6:])
-                    collection_info['description'][collind] = desc
-                except Exception as e:
-                    LOGGER.warning('markdown convert failed '
-                                   'for description for collection: %s' %
-                                   coll)
-                    desc = desc[6:]
-                    collection_info['description'][collind] = desc
-                self.markdowner.reset()
-
-        all_columns = collections['columns']
-        all_indexed_columns = collections['indexedcols']
-        all_fts_columns = collections['ftscols']
-
-        # censor some bits
-        del collection_info['kdtree_pkl_path']
-        del collection_info['object_catalog_path']
-
-        # we'll reform the lcformatdesc path so it can be downloaded directly
-        # from the LCC server
-        lcformatdesc = collection_info['lcformatdesc']
-        lcformatdesc = [
-            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
-        ]
-        collection_info['lcformatdesc'] = lcformatdesc
-
-        returndict = {
-            'status':'ok',
-            'result':{'available_columns':all_columns,
-                      'available_indexed_columns':all_indexed_columns,
-                      'available_fts_columns':all_fts_columns,
-                      'collections':collection_info},
-            'message':(
-                'found %s collections in total' %
-                len(collection_info['collection_id'])
             )
-        }
 
-        # return to sender
-        self.write(returndict)
-        self.finish()
+            # get the descriptions and turn them into markdown if needed
+            for collind, coll, desc in zip(
+                    range(len(collection_info['collection_id'])),
+                    collection_info['collection_id'],
+                    collection_info['description']
+            ):
+                if desc and desc.startswith('#!MKD '):
+                    try:
+                        desc = self.markdowner.convert(desc[6:])
+                        collection_info['description'][collind] = desc
+                    except Exception as e:
+                        LOGGER.warning('markdown convert failed '
+                                       'for description for collection: %s' %
+                                       coll)
+                        desc = desc[6:]
+                        collection_info['description'][collind] = desc
+                    self.markdowner.reset()
+
+            all_columns = collections['columns']
+            all_indexed_columns = collections['indexedcols']
+            all_fts_columns = collections['ftscols']
+
+            # censor some bits
+            del collection_info['kdtree_pkl_path']
+            del collection_info['object_catalog_path']
+
+            # we'll reform the lcformatdesc path so it can be downloaded
+            # directly from the LCC server
+            lcformatdesc = collection_info['lcformatdesc']
+            lcformatdesc = [
+                '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
+            ]
+            collection_info['lcformatdesc'] = lcformatdesc
+
+            returndict = {
+                'status':'ok',
+                'result':{'available_columns':all_columns,
+                          'available_indexed_columns':all_indexed_columns,
+                          'available_fts_columns':all_fts_columns,
+                          'collections':collection_info},
+                'message':(
+                    'found %s collections in total' %
+                    len(collection_info['collection_id'])
+                )
+            }
+
+            # return to sender
+            self.write(returndict)
+            self.finish()
+
+        # if no collections are found for the incoming_userid and role, return
+        # an error
+        else:
+
+            returndict = {
+                'status':'failed',
+                'result':{'available_columns':[],
+                          'available_indexed_columns':[],
+                          'available_fts_columns':[],
+                          'collections':None},
+                'message':(
+                    'Sorry, no collections viewable by '
+                    'the current user were found.'
+                )
+            }
+            self.write(returndict)
+            self.finish()
 
 
 
@@ -524,6 +546,12 @@ class DatasetListHandler(BaseHandler):
             incoming_userid=self.current_user['user_id'],
             incoming_role=self.current_user['user_role']
         )
+
+        # if there aren't any datasets yet, return immediately
+        if dataset_info['result'] is None:
+
+            self.write(dataset_info)
+            raise tornado.web.Finish()
 
         # we'll have to censor stuff here as well
         dataset_list = []

@@ -523,16 +523,6 @@ def sqlite_new_dataset(basedir,
     csvheader = json.dumps(dataset, indent=2)
     csvheader = indent(csvheader, '# ')
 
-    # 1. write the header pickle to the datasets directory
-    dataset_header_pkl = os.path.join(datasetdir,
-                                      'dataset-%s-header.pkl' % setid)
-
-    with open(dataset_header_pkl,'wb') as outfd:
-        pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
-
-    LOGINFO('wrote dataset header pickle: %s for dataset setid: %s' %
-            (dataset_header_pkl, setid))
-
     # add in the rows to turn the header into the complete dataset pickle
     dataset['result'] = rows
 
@@ -544,7 +534,7 @@ def sqlite_new_dataset(basedir,
     )
     cur = db.cursor()
 
-    # 3. generate the entry in the lcc-datasets.sqlite table and commit it
+    # generate the entry in the lcc-datasets.sqlite table and commit it
     query = (
         "update lcc_datasets set "
         "name = ?, "
@@ -585,7 +575,7 @@ def sqlite_new_dataset(basedir,
             (setid, total_nmatches))
 
 
-    # 4. we'll now create the auxiliary files in datasets/ for this dataset
+    # we'll now create the auxiliary files in datasets/ for this dataset
     # FIXME: some of these will have to be regenerated if people edit datasets
     #
     # - dataset-<setid>-rows-page1.pkl -> pageX.pkl as required
@@ -746,11 +736,22 @@ def sqlite_new_dataset(basedir,
     # add in the pointers to unready CSVLCs
     dataset['csvlcs_in_progress'] = objectids_later_csvlcs
 
+    # write the full pickle
     with gzip.open(dataset_fpath,'wb') as outfd:
         pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
     LOGINFO('wrote dataset pickle for search results to %s, setid: %s' %
             (dataset_fpath, setid))
+
+    # write the header pickle
+    dataset_header_pkl = os.path.join(datasetdir,
+                                      'dataset-%s-header.pkl' % setid)
+
+    with open(dataset_header_pkl,'wb') as outfd:
+        pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+    LOGINFO('wrote dataset header pickle: %s for dataset setid: %s' %
+            (dataset_header_pkl, setid))
 
     # finish up the CSV when we're done with all of the pages
     #
@@ -1216,7 +1217,7 @@ def sqlite_list_datasets(basedir,
         returndict = {
             'status':'failed',
             'result': None,
-            'message':'found no datasets matching query parameters'
+            'message':'No datasets matching query parameters were found.'
         }
 
     db.close()
