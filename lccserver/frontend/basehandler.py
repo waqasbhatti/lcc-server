@@ -471,13 +471,17 @@ class BaseHandler(tornado.web.RequestHandler):
 
         TODO: add in the use of api keys
 
-        1. if the Authorization: Bearer <token> pattern is present in the
+        1. If the Authorization: Bearer <token> pattern is present in the
            header, assume that we're using API key authentication.
 
-        2. if using the provided API key, check if it's unexpired and is
-        associated with a valid user account. If it is, go ahead and populate
-        the self.current_user with the user information. If it's not and we've
-        assumed that we're using the API key method, fail the request.
+        2. If using the provided API key, check if it's unexpired and is
+           associated with a valid user account.
+
+        3. If it is, go ahead and populate the self.current_user with the user
+           information. The API key will be used as the session_token.
+
+        4. If it's not and we've assumed that we're using the API key method,
+           fail the request.
 
         '''
 
@@ -492,53 +496,83 @@ class BaseHandler(tornado.web.RequestHandler):
         else:
             self.csecure = False
 
-        # check the session cookie
-        session_token = self.get_secure_cookie(
-            'lccserver_session',
-            max_age_days=self.session_expiry
-        )
+        # check if there's an authorization header in the request
+        authorization = self.request.headers.get('Authorization')
 
-        # get the flash messages if any
-        self.flash_messages = self.get_secure_cookie(
-            'lccserver_messages'
-        )
-        # clear the cookie so we can re-use it later
-        self.clear_cookie('lccserver_messages')
+        # if there's no authorization header in the request,
+        # we'll assume that we're using normal session tokens
+        if not authorization:
 
-        LOGGER.info('session_token = %s' % session_token)
-
-        # if a session token is found in the cookie, we'll see who it belongs to
-        if session_token is not None:
-
-            ok, resp, msgs = yield self.authnzerver_request(
-                'session-exists',
-                {'session_token': session_token}
+            # check the session cookie
+            session_token = self.get_secure_cookie(
+                'lccserver_session',
+                max_age_days=self.session_expiry
             )
 
-            # if we found the session successfully, set the current_user
-            # attribute for this request
-            if ok:
+            # get the flash messages if any
+            self.flash_messages = self.get_secure_cookie(
+                'lccserver_messages'
+            )
+            # clear the lccserver_messages cookie so we can re-use it later
+            self.clear_cookie('lccserver_messages')
 
-                self.current_user = resp['session_info']
-                self.user_id = self.current_user['user_id']
-                self.user_role = self.current_user['user_role']
+            # if a session token is found in the cookie, we'll see who it
+            # belongs to
+            if session_token is not None:
 
+                LOGGER.info('session_token = %s' % session_token)
+
+                ok, resp, msgs = yield self.authnzerver_request(
+                    'session-exists',
+                    {'session_token': session_token}
+                )
+
+                # if we found the session successfully, set the current_user
+                # attribute for this request
+                if ok:
+
+                    self.current_user = resp['session_info']
+                    self.user_id = self.current_user['user_id']
+                    self.user_role = self.current_user['user_role']
+
+                else:
+                    # if the session token provided did not match any existing
+                    # session in the DB, we'll clear all the cookies and
+                    # redirect the user to the front page so they can start
+                    # over.
+                    self.current_user = None
+                    self.clear_all_cookies()
+                    self.redirect('/')
+
+            # if the session token is not set, then create a new session
             else:
-                # if the session token provided did not match any existing
-                # session in the DB, we'll clear all the cookies and redirect
-                # the user to the front page so they can start over.
-                self.current_user = None
-                self.clear_all_cookies()
-                self.redirect('/')
 
-        # if the session token is not set, then create a new session
+                yield self.new_session_token(
+                    user_id=2,
+                    expires_days=self.session_expiry,
+                    extra_info={}
+                )
+
+        # if using the API Key
         else:
 
-            yield self.new_session_token(
-                user_id=2,
-                expires_days=self.session_expiry,
-                extra_info={}
-            )
+            apikey_info = self.check_apikey()
+
+            if apikey_info['status'] != 'success':
+
+                self.write(apikey_info)
+                self.finish()
+
+            # FIXME: here, if the apikey expiry check succeeds, we'll need to
+            # set the session token appropriately. we'll need an
+            # apikey-session-new command for the authnzerver. this should take
+            # in the provided apikey and set it as the session_token in the
+            # sessions table.
+
+            # FIXME: we might also need a apikey-check command for authnzerver
+            # to look up apikeys and get their user IDs (although we should
+            # probably encode this info into the API key itself and then encrypt
+            # it)
 
 
 
@@ -554,7 +588,12 @@ class BaseHandler(tornado.web.RequestHandler):
             if authorization:
 
                 key = authorization.split()[1].strip()
-                uns = self.signer.loads(key, max_age=86400.0)
+
+                # the key lifetime is the same as that for the session
+                uns = self.signer.loads(
+                    key,
+                    max_age=self.session_expiry*86400.0
+                )
 
                 # match the remote IP and API version
                 keyok = ((self.request.remote_ip == uns['ip']) and
