@@ -432,8 +432,8 @@ class BackgroundQueryMixin(object):
         #
         # dataset visibility
         #
-        dataset_visibility = self.get_argument('dataset_visibility',
-                                               default='public')
+        dataset_visibility = self.get_body_argument('dataset_visibility',
+                                                    default='public')
         if dataset_visibility:
             dataset_visibility = xhtml_escape(dataset_visibility)
 
@@ -462,7 +462,7 @@ class BackgroundQueryMixin(object):
         #
         # sortspec
         #
-        results_sortspec = self.get_argument('sortspec', default=None)
+        results_sortspec = self.get_body_argument('sortspec', default=None)
 
         if results_sortspec:
             try:
@@ -474,7 +474,7 @@ class BackgroundQueryMixin(object):
         #
         # limitspec
         #
-        results_limitspec = self.get_argument('limitspec', default=None)
+        results_limitspec = self.get_body_argument('limitspec', default=None)
 
         if results_limitspec:
 
@@ -489,7 +489,7 @@ class BackgroundQueryMixin(object):
         #
         # samplespec
         #
-        results_samplespec = self.get_argument('samplespec', default=None)
+        results_samplespec = self.get_body_argument('samplespec', default=None)
 
         if results_samplespec:
 
@@ -516,6 +516,7 @@ class BackgroundQueryMixin(object):
                          query_spec,
                          incoming_userid=2,
                          incoming_role='anonymous',
+                         incoming_session_token=None,
                          dataset_visibility='public',
                          dataset_sharedwith=None,
                          results_sortspec=None,
@@ -613,6 +614,7 @@ class BackgroundQueryMixin(object):
                         results_samplespec=results_samplespec,
                         incoming_userid=incoming_userid,
                         incoming_role=incoming_role,
+                        incoming_session_token=incoming_session_token,
                         dataset_visibility=dataset_visibility,
                         dataset_sharedwith=dataset_sharedwith,
                     )
@@ -1077,7 +1079,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
     @gen.coroutine
-    def get(self):
+    def post(self):
         '''This runs the query.
 
         URL: /api/columnsearch?<params>
@@ -1109,7 +1111,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
             # REQUIRED: conditions
-            conditions = self.get_argument('filters', default=None)
+            conditions = self.get_body_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
             if conditions:
@@ -1124,16 +1126,18 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             # REQUIRED: sort column
             #
             sortcol = xhtml_escape(
-                self.get_argument('sortcol',
-                                  default='sdssr')
+                self.get_body_argument('sortcol',
+                                       default='sdssr')
             ).strip()
-            sortorder = xhtml_escape(self.get_argument('sortorder')).strip()
+            sortorder = xhtml_escape(
+                self.get_body_argument('sortorder')
+            ).strip()
 
             if sortorder not in ('asc','desc'):
                 sortorder = 'asc'
 
             # OPTIONAL: columns
-            getcolumns = self.get_arguments('columns[]')
+            getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
                 getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
@@ -1144,7 +1148,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
             # OPTIONAL: collections
             #
-            lcclist = self.get_arguments('collections[]')
+            lcclist = self.get_body_arguments('collections[]')
 
             if lcclist is not None:
 
@@ -1223,6 +1227,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             # dataset options and permissions handling
             incoming_userid=incoming_userid,
             incoming_role=incoming_role,
+            incoming_session_token=self.current_user['session_token'],
             dataset_visibility=dataset_visibility,
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,
@@ -1316,7 +1321,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
     @gen.coroutine
-    def get(self):
+    def post(self):
         '''This runs the query.
 
         URL: /api/conesearch?<params>
@@ -1347,7 +1352,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
             # REQUIRED: coords
-            coordstr = xhtml_escape(self.get_argument('coords'))
+            coordstr = xhtml_escape(self.get_body_argument('coords'))
 
             # make sure to truncate to avoid weirdos. clearly, if 280
             # characters is good enough for Twitter, it's good for us too
@@ -1372,7 +1377,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
             # OPTIONAL: columns
             #
-            getcolumns = self.get_arguments('columns[]')
+            getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
                 getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
@@ -1381,7 +1386,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
             # OPTIONAL: collections
-            lcclist = self.get_arguments('collections[]')
+            lcclist = self.get_body_arguments('collections[]')
 
             if lcclist is not None:
 
@@ -1398,7 +1403,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
             # OPTIONAL: conditions
             #
-            conditions = self.get_argument('filters', default=None)
+            conditions = self.get_body_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
             if conditions:
@@ -1481,6 +1486,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             # dataset options and permissions handling
             incoming_userid=incoming_userid,
             incoming_role=incoming_role,
+            incoming_session_token=self.current_user['session_token'],
             dataset_visibility=dataset_visibility,
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,
@@ -1575,7 +1581,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
     @gen.coroutine
-    def get(self):
+    def post(self):
         '''This runs the query.
 
         URL: /api/ftsquery?<params>
@@ -1608,7 +1614,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
             # REQUIRED: ftstext
-            ftstext = xhtml_escape(self.get_argument('ftstext'))
+            ftstext = xhtml_escape(self.get_body_argument('ftstext'))
             ftstext = ftstext.replace('\n','')
 
             # make sure the length matches what we want
@@ -1625,7 +1631,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
             # OPTIONAL: columns
             #
-            getcolumns = self.get_arguments('columns[]')
+            getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
                 getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
@@ -1636,7 +1642,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
             # OPTIONAL: collections
             #
-            lcclist = self.get_arguments('collections[]')
+            lcclist = self.get_body_arguments('collections[]')
 
             if lcclist is not None:
 
@@ -1653,7 +1659,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
             # OPTIONAL: conditions
             #
-            conditions = self.get_argument('filters', default=None)
+            conditions = self.get_body_argument('filters', default=None)
 
             # yield when parsing the conditions because they might be huge
             if conditions:
@@ -1732,6 +1738,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             # dataset options and permissions handling
             incoming_userid=incoming_userid,
             incoming_role=incoming_role,
+            incoming_session_token=self.current_user['session_token'],
             dataset_visibility=dataset_visibility,
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,
@@ -1982,6 +1989,7 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             # dataset options and permissions handling
             incoming_userid=incoming_userid,
             incoming_role=incoming_role,
+            incoming_session_token=self.current_user['session_token'],
             dataset_visibility=dataset_visibility,
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,

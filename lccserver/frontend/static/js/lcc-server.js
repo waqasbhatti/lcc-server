@@ -1580,15 +1580,17 @@ var lcc_search = {
         // get the value of the _xsrf token
         var _xsrf = $('#xmatch-form > input[type="hidden"]').val();
 
-
+        // put together the request params
         var posturl = '/api/xmatch';
-        var postparams = {xmq: xmatchtext,
-                          xmd: xmatchdistance,
-                          _xsrf:_xsrf,
-                          result_ispublic: ispublic,
-                          collections: collections,
-                          columns: columns,
-                          filters: filters};
+        var postparams = {
+            _xsrf:_xsrf,
+            xmq: xmatchtext,
+            xmd: xmatchdistance,
+            result_ispublic: ispublic,
+            collections: collections,
+            columns: columns,
+            filters: filters
+        };
 
         if (proceed_step1 && proceed_step2) {
 
@@ -1695,13 +1697,19 @@ var lcc_search = {
             columns.push(sortcol);
         }
 
-        var geturl = '/api/columnsearch';
-        var getparams = {result_ispublic: ispublic,
-                         collections: collections,
-                         columns: columns,
-                         filters: filters,
-                         sortcol: sortcol,
-                         sortorder: sortorder};
+        // get the value of the _xsrf token
+        var _xsrf = $('#columnsearch-form > input[type="hidden"]').val();
+
+        var posturl = '/api/columnsearch';
+        var postparams = {
+            _xsrf:_xsrf,
+            result_ispublic: ispublic,
+            collections: collections,
+            columns: columns,
+            filters: filters,
+            sortcol: sortcol,
+            sortorder: sortorder
+        };
 
         if (proceed) {
 
@@ -1722,9 +1730,9 @@ var lcc_search = {
                                        '</span>');
 
             // use the run_search_query to hit the backend
-            nrun = lcc_search.run_search_query(geturl,
-                                               getparams,
-                                               'GET',
+            nrun = lcc_search.run_search_query(posturl,
+                                               postparams,
+                                               'POST',
                                                'columnsearch',
                                                ispublic,
                                                nrun);
@@ -1785,12 +1793,18 @@ var lcc_search = {
             }
         }
 
-        var geturl = '/api/ftsquery';
-        var getparams = {ftstext: ftstext,
-                         result_ispublic: ispublic,
-                         collections: collections,
-                         columns: columns,
-                         filters: filters};
+        // get the value of the _xsrf token
+        var _xsrf = $('#ftsquery-form > input[type="hidden"]').val();
+
+        var posturl = '/api/ftsquery';
+        var postparams = {
+            _xsrf:_xsrf,
+            ftstext: ftstext,
+            result_ispublic: ispublic,
+            collections: collections,
+            columns: columns,
+            filters: filters
+        };
 
         if (proceed) {
 
@@ -1811,9 +1825,9 @@ var lcc_search = {
                                        '</span>');
 
             // use the run_search_query function to hit the backend
-            nrun = lcc_search.run_search_query(geturl,
-                                               getparams,
-                                               'GET',
+            nrun = lcc_search.run_search_query(posturl,
+                                               postparams,
+                                               'POST',
                                                'ftsquery',
                                                ispublic,
                                                nrun);
@@ -1873,12 +1887,18 @@ var lcc_search = {
             }
         }
 
-        var geturl = '/api/conesearch';
-        var getparams = {coords: coords,
-                         result_ispublic: ispublic,
-                         collections: collections,
-                         columns: columns,
-                         filters: filters};
+        // get the value of the _xsrf token
+        var _xsrf = $('#conesearch-form > input[type="hidden"]').val();
+
+        var posturl = '/api/conesearch';
+        var postparams = {
+            _xsrf: _xsrf,
+            coords: coords,
+            result_ispublic: ispublic,
+            collections: collections,
+            columns: columns,
+            filters: filters
+        };
 
         if (proceed) {
 
@@ -1899,9 +1919,9 @@ var lcc_search = {
                                        '</span>');
 
             // use the run_search_query function to hit the backend
-            nrun = lcc_search.run_search_query(geturl,
-                                               getparams,
-                                               'GET',
+            nrun = lcc_search.run_search_query(posturl,
+                                               postparams,
+                                               'POST',
                                                'conesearch',
                                                ispublic,
                                                nrun);
