@@ -199,11 +199,12 @@ class LoginHandler(BaseHandler):
         # back to /users/login
         if not ok:
 
+            # FIXME: a new session token is not required if login failed
             # we have to get a new session with the same user ID (anon)
-            new_session = yield self.new_session_token(
-                user_id=2,
-                expires_days=self.session_expiry
-            )
+            # yield self.new_session_token(
+            #     user_id=2,
+            #     expires_days=self.session_expiry
+            # )
 
             LOGGER.error(' '.join(msgs))
             self.save_flash_messages(msgs, "warning")
@@ -213,7 +214,7 @@ class LoginHandler(BaseHandler):
         else:
 
             # we have to get a new session with the same user ID (anon)
-            new_session = yield self.new_session_token(
+            yield self.new_session_token(
                 user_id=resp['user_id'],
                 expires_days=self.session_expiry
             )
@@ -247,7 +248,7 @@ class LogoutHandler(BaseHandler):
                 {'session_token':current_user['session_token']}
             )
 
-            new_session = yield self.new_session_token(
+            yield self.new_session_token(
                 user_id=2,
                 expires_days=self.session_expiry
             )
@@ -347,11 +348,12 @@ class NewUserHandler(BaseHandler):
              'password':password}
         )
 
-        # generate a new anon session token in any case
-        new_session = yield self.new_session_token(
-            user_id=2,
-            expires_days=self.session_expiry,
-        )
+        # FIXME: don't generate a new sesion token here yet
+        # # generate a new anon session token in any case
+        # new_session = yield self.new_session_token(
+        #     user_id=2,
+        #     expires_days=self.session_expiry,
+        # )
 
         # if the sign up request is successful, send the email
         if ok:
@@ -382,7 +384,7 @@ class NewUserHandler(BaseHandler):
                 'user-signup-email',
                 {'email_address':email,
                  'lccserver_baseurl':lccserver_baseurl,
-                 'session_token':new_session,
+                 'session_token':current_user['session_token'],
                  'smtp_server':smtp_server,
                  'smtp_sender':smtp_sender,
                  'smtp_user':smtp_user,
@@ -484,10 +486,7 @@ class VerifyUserHandler(BaseHandler):
             verification = xhtml_escape(self.get_argument('verificationcode'))
 
             # check the verification code to see if it's valid
-            decrypted = self.ferneter.decrypt(
-                verification.encode(),
-                ttl=15*60
-            )
+            self.ferneter.decrypt(verification.encode(), ttl=15*60)
 
             LOGGER.info('%s: decrypted verification token OK and unexpired' %
                         email)
@@ -511,8 +510,16 @@ class VerifyUserHandler(BaseHandler):
 
                 if login_ok:
 
+                    # this is saved so we can change the ownership of the anon
+                    # user's current datasets.
+                    current_session_token = self.current_user['session_token']
+
+                    # change the ownership for all of the datasets that the user
+                    # made with their current session_token
+
                     # generate a new session token matching the user_id
-                    new_session_token = yield self.new_session_token(
+                    # when we login successfully
+                    yield self.new_session_token(
                         user_id=resp['user_id'],
                         expires_days=self.session_expiry
                     )
@@ -527,7 +534,10 @@ class VerifyUserHandler(BaseHandler):
 
                 else:
 
-                    new_session_token = yield self.new_session_token()
+                    # FIXME: a new session token is not required for a failed
+                    # login
+                    # new_session_token = yield self.new_session_token()
+
                     self.save_flash_messages(
                         "Sorry, there was a problem verifying "
                         "your account sign up. "
@@ -538,7 +548,10 @@ class VerifyUserHandler(BaseHandler):
 
             else:
 
-                new_session_token = yield self.new_session_token()
+                # FIXME: a new session token is not required for a failed
+                # login
+                # new_session_token = yield self.new_session_token()
+
                 self.save_flash_messages(
                     "Sorry, there was a problem verifying "
                     "your account sign up. "
@@ -550,7 +563,10 @@ class VerifyUserHandler(BaseHandler):
 
         except InvalidToken as e:
 
-            new_session_token = yield self.new_session_token()
+            # FIXME: a new session token is not required for a failed
+            # login
+            # new_session_token = yield self.new_session_token()
+
             self.save_flash_messages(
                 "Sorry, there was a problem verifying your account sign up. "
                 "Please try again or contact us if this doesn't work.",
@@ -565,10 +581,14 @@ class VerifyUserHandler(BaseHandler):
 
         except Exception as e:
 
+            # FIXME: a new session token is not required for a failed
+            # login
+            # new_session_token = yield self.new_session_token()
+
             LOGGER.exception(
                 'could not verify user sign up: %s' % email
             )
-            new_session_token = yield self.new_session_token()
+
             self.save_flash_messages(
                 "Sorry, there was a problem verifying your account sign up. "
                 "Please try again or contact us if this doesn't work.",
