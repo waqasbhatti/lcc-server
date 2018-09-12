@@ -740,7 +740,7 @@ class BackgroundQueryMixin(object):
                                 "backend_parsedargs":setdict['searchargs'],
                                 "total_nmatches":setdict['total_nmatches'],
                                 "npages":setdict['npages'],
-                                "rows_per_page":setdict['rowsperpage'],
+                                "rows_per_page":setdict['rows_per_page'],
                             },
                             "time":'%sZ' % datetime.utcnow().isoformat()
                         }
@@ -813,10 +813,12 @@ class BackgroundQueryMixin(object):
                     if query_type == 'conesearch':
                         message = (
                             "Query <code>%s</code> failed. "
-                            "No matching objects were found in any "
-                            "searched LC collection. The object you searched "
+                            "No matching objects were found. "
+                            "The object you searched "
                             "for may be outside the footprint of the "
-                            "available LC collections." %
+                            "<a href=\"#collections\" "
+                            "class=\"collection-link\">"
+                            "available LC collections</a>." %
                             self.setid
                         )
                     else:
@@ -850,7 +852,7 @@ class BackgroundQueryMixin(object):
                         "No matching objects were found. "
                         "The object you searched "
                         "for may be outside the footprint of the "
-                        "<a href=\"#collections\">"
+                        "<a href=\"#collections\" class=\"collection-link\">"
                         "available LC collections</a>." %
                         self.setid
                     )

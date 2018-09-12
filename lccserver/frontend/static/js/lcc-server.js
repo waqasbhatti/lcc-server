@@ -538,6 +538,14 @@ var lcc_ui = {
 
         });
 
+        // bind link to collections tab
+        $('#alert-box').on('click','.collection-link', function (e) {
+
+            e.preventDefault();
+            $('#collections-tab').click();
+
+        });
+
         // bind the filter-delete button
         $('.tab-pane').on('click', '.lcc-filterbucket-remove', function(e) {
 
@@ -1328,7 +1336,7 @@ var lcc_search = {
                     // inform the user their query finished
                     var alertmsg = 'Query <code>' + msg_setid +
                         '</code> finished successfully. <strong>' +
-                        + msgdata.result.nobjects +
+                        + msgdata.result.total_nmatches +
                         '</strong> matched objects found. ' +
                         '<a target="_blank" ' +
                         'rel="nofollow noreferer noopener" href="' +
