@@ -88,6 +88,7 @@ create table lcc_datasets (
   dataset_owner integer default 1,
   dataset_visibility text default 'public',
   dataset_sharedwith text,
+  dataset_sessiontoken text,
   primary key (setid)
 );
 
@@ -361,6 +362,7 @@ def sqlite_new_dataset(basedir,
                        results_samplespec=None,
                        incoming_userid=2,
                        incoming_role='anonymous',
+                       incoming_session_token=None,
                        dataset_visibility='public',
                        dataset_sharedwith=None,
                        make_dataset_csv=True,
@@ -383,6 +385,16 @@ def sqlite_new_dataset(basedir,
 
     searchtype = searchresult['search']
     searchargs = searchresult['args']
+
+
+    # add in the sortspec, samplespec, limitspec, visibility, and sharedwith to
+    # searchargs so these can be stored in the DB and the pickle for later
+    # retrieval
+    searchargs['sortspec'] = results_sortspec
+    searchargs['limitspec'] = results_sortspec
+    searchargs['samplespec'] = results_sortspec
+    searchargs['visibility'] = dataset_visibility
+    searchargs['sharedwith'] = dataset_sharedwith
 
     # get the columnspecs and actual collectionids for each collection searched
     # so we can return the column names and descriptions as well
@@ -542,6 +554,7 @@ def sqlite_new_dataset(basedir,
         "dataset_owner = ?, "
         "dataset_visibility = ?, "
         "dataset_sharedwith = ?, "
+        "dataset_sessiontoken = ?, "
         "status = ?, "
         "queried_collections = ?, "
         "query_type = ?, "
@@ -557,6 +570,7 @@ def sqlite_new_dataset(basedir,
         dataset['owner'],
         dataset['visibility'],
         dataset['sharedwith'],
+        incoming_session_token,
         'in progress',
         ', '.join(collections),
         searchtype,
@@ -988,38 +1002,6 @@ def sqlite_make_dataset_lczip(basedir,
 
 
 
-# LATER
-def sqlite_remove_dataset(basedir,
-                          setid,
-                          incoming_userid=2,
-                          incoming_role='anonymous'):
-    '''
-    This removes the specified dataset.
-
-    The default incoming_userid is set to 2 -> anonymous user for safety.
-
-    the action to test is 'delete'
-
-    '''
-
-
-# LATER
-def sqlite_update_dataset(basedir,
-                          setid,
-                          updatedict,
-                          incoming_userid=2,
-                          incoming_role='anonymous'):
-    '''
-    This updates a dataset.
-
-    The default incoming_userid is set to 2 -> anonymous user for safety.
-
-    the action to test is 'edit'
-
-    '''
-
-
-
 ######################################
 ## LISTING AND GETTING DATASET INFO ##
 ######################################
@@ -1134,6 +1116,7 @@ def sqlite_list_datasets(basedir,
     dataset_owner
     dataset_visibility
     dataset_sharedwith
+    dataset_sessiontoken
 
     dataset_fpath
     lczip_fpath
@@ -1165,7 +1148,8 @@ def sqlite_list_datasets(basedir,
     query = ("select setid, created_on, last_updated, nobjects, "
              "name, description, citation, "
              "queried_collections, query_type, query_params, "
-             "dataset_owner, dataset_visibility, dataset_sharedwith "
+             "dataset_owner, dataset_visibility, "
+             "dataset_sharedwith, dataset_sessiontoken "
              "from "
              "lcc_datasets where status = ?"
              "order by last_updated desc limit ?")
@@ -1440,6 +1424,43 @@ def sqlite_get_dataset(basedir,
         )
         db.close()
         return None
+
+
+
+# LATER
+def sqlite_remove_dataset(basedir,
+                          setid,
+                          incoming_userid=2,
+                          incoming_role='anonymous'):
+    '''
+    This removes the specified dataset.
+
+    The default incoming_userid is set to 2 -> anonymous user for safety.
+
+    the action to test is 'delete'
+
+    '''
+
+
+# LATER
+def sqlite_update_dataset(basedir,
+                          setid,
+                          updatedict=None,
+                          updatedb=None,
+                          incoming_userid=2,
+                          incoming_role='anonymous'):
+    '''This updates a dataset.
+
+    updatedict is a dict containing the keys to update in the dataset pickle.
+
+    updatedb is a list of tuples containing the columns and new values for the
+    columns to update the lcc_datasets table listing for this dataset.
+
+    The default incoming_userid is set to 2 -> anonymous user for safety.
+
+    the action to test is 'edit'
+
+    '''
 
 
 #####################################
