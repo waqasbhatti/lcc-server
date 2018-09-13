@@ -618,14 +618,12 @@ def sqlite_fulltext_search(
         ftsquerystr,
         getcolumns=None,
         conditions=None,
-        randomsample=None,
-        sortby=None,
-        limit=None,
         lcclist=None,
         raiseonfail=False,
         incoming_userid=2,
         incoming_role='anonymous',
-        fail_if_conditions_invalid=True
+        fail_if_conditions_invalid=True,
+        censor_searchargs=False
 ):
 
     '''This searches the specified collections for a full-text match.
@@ -651,11 +649,9 @@ def sqlite_fulltext_search(
     that the conditions provided in conditions kwarg don't pass
     validate_sqlite_filters().
 
-    FIXME: this and other search functions currently return all results grouped
-    by collection. That's not really what we want on the frontend, so we'll
-    reform them using the results pipeline functions above later.
-
-    FIXME: turn off permissions checking here.
+    censor_searchargs removes the ftsquerystr from the 'args' key of the output
+    dict. This might be useful for running searches on otherwise private LC
+    collections and generating public datasets out of them.
 
     FIXME: use the readonly authorizer here for sqlite3_to_memory calls.
 
@@ -980,10 +976,12 @@ def sqlite_fulltext_search(
     results['databases'] = available_lcc
     results['columns'] = available_columns
 
-    results['args'] = {'ftsquerystr':ftsquerystr,
-                       'getcolumns':rescolumns + ['collection'],
-                       'lcclist':lcclist,
-                       'conditions':conditions}
+    results['args'] = {
+        'ftsquerystr':ftsquerystr if not censor_searchargs else 'redacted',
+        'getcolumns':rescolumns + ['collection'],
+        'lcclist':lcclist,
+        'conditions':conditions if not censor_searchargs else 'redacted'
+    }
     results['search'] = 'sqlite_fulltext_search'
 
     return results
@@ -999,15 +997,11 @@ def sqlite_column_search(basedir,
                          raiseonfail=False,
                          fail_if_conditions_invalid=True,
                          incoming_userid=2,
-                         incoming_role='anonymous'):
+                         incoming_role='anonymous',
+                         censor_searchargs=False):
     '''This runs an arbitrary column search.
 
     basedir is the directory where lcc-index.sqlite is located.
-
-    ftsquerystr is string to query against the FTS indexed columns. this is in
-    the usual FTS syntax:
-
-    https://www.sqlite.org/fts5.html#full_text_query_syntax
 
     getcolumns is a list that specifies which columns to return after the query
     is complete.
@@ -1316,11 +1310,13 @@ def sqlite_column_search(basedir,
     results['databases'] = available_lcc
     results['columns'] = available_columns
 
-    results['args'] = {'getcolumns':rescolumns + ['collection'],
-                       'conditions':conditions,
-                       'sortby':sortby,
-                       'limit':limit,
-                       'lcclist':lcclist}
+    results['args'] = {
+        'getcolumns':rescolumns + ['collection'],
+        'conditions':conditions if not censor_searchargs else 'redacted',
+        'sortby':sortby,
+        'limit':limit,
+        'lcclist':lcclist
+    }
     results['search'] = 'sqlite_column_search'
 
     return results
@@ -1333,7 +1329,8 @@ def sqlite_sql_search(basedir,
                       fail_if_sql_invalid=True,
                       incoming_userid=2,
                       incoming_role='anonymous',
-                      raiseonfail=False):
+                      raiseonfail=False,
+                      censor_searchargs=False):
     '''This runs an arbitrary SQL statement search.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -1371,7 +1368,8 @@ def sqlite_kdtree_conesearch(basedir,
                              incoming_role='anonymous',
                              fail_if_conditions_invalid=True,
                              conesearchworkers=1,
-                             raiseonfail=False):
+                             raiseonfail=False,
+                             censor_searchargs=False):
     '''This does a cone-search using searchparams over all lcc in lcclist.
 
     - do an overlap between footprint of lcc and cone size
@@ -1517,7 +1515,7 @@ def sqlite_kdtree_conesearch(basedir,
 
         # validate this string
         conditions = validate_sqlite_filters(conditions,
-                                                  columnlist=available_columns)
+                                             columnlist=available_columns)
 
         if not conditions and fail_if_conditions_invalid:
             LOGERROR("fail_if_conditions_invalid = True and "
@@ -1842,12 +1840,14 @@ def sqlite_kdtree_conesearch(basedir,
     results['databases'] = available_lcc
     results['columns'] = available_columns
 
-    results['args'] = {'center_ra':center_ra,
-                       'center_decl':center_decl,
-                       'radius_arcmin':radius_arcmin,
-                       'getcolumns':rescolumns + ['collection'],
-                       'conditions':conditions,
-                       'lcclist':lcclist}
+    results['args'] = {
+        'center_ra':center_ra if not censor_searchargs else None,
+        'center_decl':center_decl if not censor_searchargs else None,
+        'radius_arcmin':radius_arcmin,
+        'getcolumns':rescolumns + ['collection'],
+        'conditions':conditions if not censor_searchargs else 'redacted',
+        'lcclist':lcclist
+    }
 
     results['search'] = 'sqlite_kdtree_conesearch'
 
@@ -1872,7 +1872,8 @@ def sqlite_xmatch_search(basedir,
                          incoming_userid=2,
                          incoming_role='anonymous',
                          max_matchradius_arcsec=30.0,
-                         raiseonfail=False):
+                         raiseonfail=False,
+                         censor_searchargs=False):
     '''This does an xmatch between the input and LCC databases.
 
     - xmatch using coordinates and kdtrees
@@ -2433,14 +2434,16 @@ def sqlite_xmatch_search(basedir,
         results['databases'] = available_lcc
         results['columns'] = available_columns
 
-        results['args'] = {'inputdata':inputdata,
-                           'xmatch_dist_arcsec':xmatch_dist_arcsec,
-                           'xmatch_closest_only':xmatch_closest_only,
-                           'inputmatchcol':inputmatchcol,
-                           'dbmatchcol':dbmatchcol,
-                           'getcolumns':rescolumns + ['collection'],
-                           'conditions':conditions,
-                           'lcclist':lcclist}
+        results['args'] = {
+            'inputdata':inputdata if not censor_searchargs else 'redacted',
+            'xmatch_dist_arcsec':xmatch_dist_arcsec,
+            'xmatch_closest_only':xmatch_closest_only,
+            'inputmatchcol':inputmatchcol,
+            'dbmatchcol':dbmatchcol,
+            'getcolumns':rescolumns + ['collection'],
+            'conditions':conditions if not censor_searchargs else 'redacted',
+            'lcclist':lcclist
+        }
         results['search'] = 'sqlite_xmatch_search'
 
         return results
@@ -2719,14 +2722,16 @@ def sqlite_xmatch_search(basedir,
         results['databases'] = available_lcc
         results['columns'] = available_columns
 
-        results['args'] = {'inputdata':inputdata,
-                           'xmatch_dist_arcsec':xmatch_dist_arcsec,
-                           'xmatch_closest_only':xmatch_closest_only,
-                           'inputmatchcol':inputmatchcol,
-                           'dbmatchcol':dbmatchcol,
-                           'getcolumns':rescolumns + ['collection'],
-                           'conditions':conditions,
-                           'lcclist':lcclist}
+        results['args'] = {
+            'inputdata':inputdata if not censor_searchargs else 'redacted',
+            'xmatch_dist_arcsec':xmatch_dist_arcsec,
+            'xmatch_closest_only':xmatch_closest_only,
+            'inputmatchcol':inputmatchcol,
+            'dbmatchcol':dbmatchcol,
+            'getcolumns':rescolumns + ['collection'],
+            'conditions':conditions if not censor_searchargs else 'redacted',
+            'lcclist':lcclist
+        }
         results['search'] = 'sqlite_xmatch_search'
 
         db.close()
