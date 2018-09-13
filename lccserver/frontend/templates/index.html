@@ -261,6 +261,7 @@
 
               <div class="row mt-4" >
                 <div class="col-12" >
+
                   <h4>Add column filters</h4>
                   <div class="form-inline">
 
@@ -277,6 +278,8 @@
                       <option value="eq">=</option>
                       <option value="ne">&ne;</option>
                       <option value="ct">contains</option>
+                      <option value="isnull">is null</option>
+                      <option value="notnull">not null</option>
                     </select>
 
                     <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
@@ -302,6 +305,83 @@
                         <div class="lcc-filterbucket" id="conesearch-filterbucket">
 
                         </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="row mt-2" >
+                <div class="col-12" >
+
+                  <h4>Add result filters</h4>
+
+                  <div class="row">
+
+                    <div class="col-7">
+                      <div class="form-group">
+                        <label for="conesearch-sortcolumn-select">
+                          Sort results using column
+                        </label>
+                        <select class="custom-select lcc-sortcolumn-select"
+                                id="conesearch-sortcolumn-select"
+                                data-target="conesearch">
+                          <option value="matchdist" selected>match distance</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="col-5">
+                      <div class="form-group">
+                        <label for="conesearch-sortorder-select">
+                          Use sort order
+                        </label>
+                        <select class="custom-select lcc-sortorder-select"
+                                id="conesearch-sortorder-select"
+                                data-target="conesearch">
+                          <option value="asc">ascending</option>
+                          <option value="desc">descending</option>
+                        </select>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div class="row" >
+                    <div class="col-12" >
+
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-samplecheck"
+                                 type="checkbox" id="conesearch-samplecheck">
+                          <label class="form-check-label" for="conesearch-samplecheck">
+                            Random sample result rows:
+                          </label>
+                        </div>
+                        <input type="text" class="ml-auto form-control lcc-result-samplerows"
+                               data-searchtype="conesearch" placeholder="sample size"
+                               id="conesearch-samplerows" disabled>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <div class="row mt-2" >
+                    <div class="col-12" >
+
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-limitcheck"
+                                 type="checkbox" id="conesearch-limitcheck">
+                          <label class="form-check-label" for="conesearch-limitcheck">
+                            Limit result rows:
+                          </label>
+                        </div>
+                        <input type="text" class="ml-auto form-control lcc-result-limitrows"
+                               data-searchtype="conesearch" placeholder="max rows"
+                               id="conesearch-limitrows" disabled>
                       </div>
 
                     </div>
@@ -457,6 +537,8 @@
                       <option value="eq">=</option>
                       <option value="ne">&ne;</option>
                       <option value="ct">contains</option>
+                      <option value="isnull">is null</option>
+                      <option value="notnull">not null</option>
                     </select>
 
                     <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
@@ -489,6 +571,84 @@
 
                 </div>
               </div>
+
+              <div class="row mt-2" >
+                <div class="col-12" >
+
+                  <h4>Add result filters</h4>
+
+                  <div class="row">
+
+                    <div class="col-7">
+                      <div class="form-group">
+                        <label for="ftsquery-sortcolumn-select">
+                          Sort results using column
+                        </label>
+                        <select class="custom-select lcc-sortcolumn-select"
+                                id="ftsquery-sortcolumn-select"
+                                data-target="ftsquery">
+                          <option value="relevance" selected>relevance</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="col-5">
+                      <div class="form-group">
+                        <label for="ftsquery-sortorder-select">
+                          Use sort order
+                        </label>
+                        <select class="custom-select lcc-sortorder-select"
+                                id="ftsquery-sortorder-select"
+                                data-target="ftsquery">
+                          <option value="asc">ascending</option>
+                          <option value="desc" selected>descending</option>
+                        </select>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div class="row" >
+                    <div class="col-12" >
+
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-samplecheck"
+                                 type="checkbox" id="ftsquery-samplecheck">
+                          <label class="form-check-label" for="ftsquery-samplecheck">
+                            Random sample result rows:
+                          </label>
+                        </div>
+                        <input type="text" class="ml-auto form-control lcc-result-samplerows"
+                               data-searchtype="ftsquery" placeholder="sample size"
+                               id="ftsquery-samplerows" disabled>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <div class="row mt-2" >
+                    <div class="col-12" >
+
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-limitcheck"
+                                 type="checkbox" id="ftsquery-limitcheck">
+                          <label class="form-check-label" for="ftsquery-limitcheck">
+                            Limit result rows:
+                          </label>
+                        </div>
+                        <input type="text" class="ml-auto form-control lcc-result-limitrows"
+                               data-searchtype="ftsquery" placeholder="max rows"
+                               id="ftsquery-limitrows" disabled>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
 
             </div>
 
@@ -582,7 +742,35 @@
 
               <div class="row" >
                 <div class="col-12" >
-                  <h4>Add column filters and sort conditions</h4>
+
+                  <form id="columnsearch-form"
+                        action="/api/columnsearch" method="post">
+                    {% module xsrf_form_html() %}
+
+                    <div class="form-row align-items-center justify-content-end">
+                      <div class="col-sm-9">
+                        <div class="form-check">
+                          <input class="form-check-input lcc-result-ispublic"
+                                 type="checkbox" id="columnsearch-ispublic" checked="">
+                          <label class="form-check-label" for="columnsearch-ispublic">
+                            Make dataset from query result publicly visible
+                          </label>
+                        </div>
+                      </div>
+                      <div class="d-flex col-sm-3">
+                        <button class="btn btn-primary flex-grow-1"
+                                type="submit" id="columnsearch-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </form>
+
+                </div>
+              </div>
+
+              <div class="row mt-4" >
+                <div class="col-12" >
+                  <h4>Add column filters</h4>
                   <div class="form-inline">
 
                     <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
@@ -598,6 +786,8 @@
                       <option value="eq">=</option>
                       <option value="ne">&ne;</option>
                       <option value="ct">contains</option>
+                      <option value="isnull">is null</option>
+                      <option value="notnull">not null</option>
                     </select>
 
                     <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
@@ -628,12 +818,20 @@
                     </div>
                   </div>
 
-                  <div class="row mt-2">
+                </div>
+              </div>
+
+              <div class="row mt-2" >
+                <div class="col-12" >
+
+                  <h4>Add result filters</h4>
+
+                  <div class="row">
 
                     <div class="col-7">
                       <div class="form-group">
                         <label for="columnsearch-sortcolumn-select">
-                          Column to sort results by
+                          Sort results using column
                         </label>
                         <select class="custom-select lcc-sortcolumn-select"
                                 id="columnsearch-sortcolumn-select"
@@ -658,35 +856,43 @@
 
                   </div>
 
+                  <div class="row" >
+                    <div class="col-12" >
 
-                </div>
-              </div>
-
-              <div class="row" >
-                <div class="col-12" >
-
-                  <form id="columnsearch-form"
-                        action="/api/columnsearch" method="post">
-                    {% module xsrf_form_html() %}
-
-                    <div class="form-row align-items-center justify-content-end">
-                      <div class="col-sm-9">
-                        <div class="form-check">
-                          <input class="form-check-input lcc-result-ispublic"
-                                 type="checkbox" id="columnsearch-ispublic" checked="">
-                          <label class="form-check-label" for="columnsearch-ispublic">
-                            Make dataset from query result publicly visible
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-samplecheck"
+                                 type="checkbox" id="columnsearch-samplecheck">
+                          <label class="form-check-label" for="columnsearch-samplecheck">
+                            Random sample result rows:
                           </label>
                         </div>
+                        <input type="text" class="ml-auto form-control lcc-result-samplerows"
+                               data-searchtype="columnsearch" placeholder="sample size"
+                               id="columnsearch-samplerows" disabled>
                       </div>
-                      <div class="d-flex col-sm-3">
-                        <button class="btn btn-primary flex-grow-1"
-                                type="submit" id="columnsearch-submit">Search</button>
-                      </div>
+
                     </div>
+                  </div>
 
-                  </form>
+                  <div class="row mt-2" >
+                    <div class="col-12" >
 
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-limitcheck"
+                                 type="checkbox" id="columnsearch-limitcheck">
+                          <label class="form-check-label" for="columnsearch-limitcheck">
+                            Limit result rows:
+                          </label>
+                        </div>
+                        <input type="text" class="ml-auto form-control lcc-result-limitrows"
+                               data-searchtype="columnsearch" placeholder="max rows"
+                               id="columnsearch-limitrows" disabled>
+                      </div>
+
+                    </div>
+                  </div>
 
                 </div>
               </div>
@@ -766,6 +972,28 @@
                 <div class="row">
                   <div class="col-12">
 
+                    <div class="form-row align-items-center justify-content-end">
+                      <div class="col-sm-9">
+                        <div class="form-check">
+                          <input class="form-check-input lcc-result-ispublic"
+                                 type="checkbox" id="xmatch-ispublic" checked="">
+                          <label class="form-check-label" for="xmatch-ispublic">
+                            Make dataset from query result publicly visible
+                          </label>
+                        </div>
+                      </div>
+                      <div class="d-flex col-sm-3">
+                        <button class="btn btn-primary flex-grow-1"
+                                type="submit" id="xmatch-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <div class="row mt-4">
+                  <div class="col-12">
+
                     <div class="form-group">
                       <label for="xmatch-query">Type or paste in <code>[Object Name] [RA] [Dec]</code>
                         rows separated by line breaks
@@ -794,74 +1022,137 @@
                   </div>
                 </div>
 
-                <div class="row">
-                  <div class="col-12">
-
-                    <div class="form-row align-items-center justify-content-end">
-                      <div class="col-sm-9">
-                        <div class="form-check">
-                          <input class="form-check-input lcc-result-ispublic"
-                                 type="checkbox" id="xmatch-ispublic" checked="">
-                          <label class="form-check-label" for="xmatch-ispublic">
-                            Make dataset from query result publicly visible
-                          </label>
-                        </div>
-                      </div>
-                      <div class="d-flex col-sm-3">
-                        <button class="btn btn-primary flex-grow-1"
-                                type="submit" id="xmatch-submit">Search</button>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
               </form>
 
             </div>
 
 
             <div class="col-sm-12 col-md-4">
-              <h3>Add column filters</h3>
 
-              <div class="form-inline">
+              <div class="row" >
+                <div class="col-12" >
 
-                <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
-                        id="xmatch-filtercolumn-select">
-                </select>
+                  <h3>Add column filters</h3>
 
-                <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
-                        id="xmatch-filtercondition-select">
-                  <option value="lt" selected>&lt;</option>
-                  <option value="gt">&gt;</option>
-                  <option value="le">&le;</option>
-                  <option value="ge">&ge;</option>
-                  <option value="eq">=</option>
-                  <option value="ne">&ne;</option>
-                  <option value="ct">contains</option>
-                </select>
+                  <div class="form-inline">
 
-                <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
-                       data-searchtype="xmatch" placeholder="value"
-                       id="xmatch-filtertarget">
+                    <select class="custom-select lcc-filtercolumn-select w-25 flex-grow-1"
+                            id="xmatch-filtercolumn-select">
+                    </select>
 
-                <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
-                        type="button"
-                        data-searchtype="xmatch"
-                        id="xmatch-filter-add">
-                  <img class="icon-svg"
-                       alt="add this column filter"
-                       src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
-                </button>
+                    <select class="custom-select lcc-filtercondition-select flex-shrink-1 ml-2"
+                            id="xmatch-filtercondition-select">
+                      <option value="lt" selected>&lt;</option>
+                      <option value="gt">&gt;</option>
+                      <option value="le">&le;</option>
+                      <option value="ge">&ge;</option>
+                      <option value="eq">=</option>
+                      <option value="ne">&ne;</option>
+                      <option value="ct">contains</option>
+                      <option value="isnull">is null</option>
+                      <option value="notnull">not null</option>
+                    </select>
 
+                    <input type="text" class="form-control lcc-filtertarget w-25 ml-2"
+                           data-searchtype="xmatch" placeholder="value"
+                           id="xmatch-filtertarget">
+
+                    <button class="btn btn-secondary lcc-filter-add flex-shrink-1 ml-2 p-0"
+                            type="button"
+                            data-searchtype="xmatch"
+                            id="xmatch-filter-add">
+                      <img class="icon-svg"
+                           alt="add this column filter"
+                           src="{{ static_url('images/twotone-add-reverse-24px.svg') }}">
+                    </button>
+
+                  </div>
+
+                  <div class="row mt-2">
+                    <div class="col-12">
+
+                      <div class="card px-2 py-2" >
+                        <h6 class="text-muted">Active column filters</h6>
+                        <div class="lcc-filterbucket" id="xmatch-filterbucket">
+
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
-              <div class="row mt-2">
-                <div class="col-12">
+              <div class="row mt-2" >
+                <div class="col-12" >
 
-                  <div class="card px-2 py-2" >
-                    <h6 class="text-muted">Active column filters</h6>
-                    <div class="lcc-filterbucket" id="xmatch-filterbucket">
+                  <h4>Add result filters</h4>
+
+                  <div class="row">
+
+                    <div class="col-7">
+                      <div class="form-group">
+                        <label for="xmatch-sortcolumn-select">
+                          Sort results using column
+                        </label>
+                        <select class="custom-select lcc-sortcolumn-select"
+                                id="xmatch-sortcolumn-select"
+                                data-target="xmatch">
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="col-5">
+                      <div class="form-group">
+                        <label for="xmatch-sortorder-select">
+                          Use sort order
+                        </label>
+                        <select class="custom-select lcc-sortorder-select"
+                                id="xmatch-sortorder-select"
+                                data-target="xmatch">
+                          <option value="asc">ascending</option>
+                          <option value="desc">descending</option>
+                        </select>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div class="row" >
+                    <div class="col-12" >
+
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-samplecheck"
+                                 type="checkbox" id="ftsquery-samplecheck">
+                          <label class="form-check-label" for="ftsquery-samplecheck">
+                            Random sample result rows:
+                          </label>
+                        </div>
+                        <input type="text" class="ml-auto form-control lcc-result-samplerows"
+                               data-searchtype="ftsquery" placeholder="sample size"
+                               id="ftsquery-samplerows" disabled>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <div class="row mt-2" >
+                    <div class="col-12" >
+
+                      <div class="form-inline" >
+                        <div class="form-group" >
+                          <input class="form-check-input lcc-result-limitcheck"
+                                 type="checkbox" id="ftsquery-limitcheck">
+                          <label class="form-check-label" for="ftsquery-limitcheck">
+                            Limit result rows:
+                          </label>
+                        </div>
+                        <input type="text" class="ml-auto form-control lcc-result-limitrows"
+                               data-searchtype="ftsquery" placeholder="max rows"
+                               id="ftsquery-limitrows" disabled>
+                      </div>
 
                     </div>
                   </div>

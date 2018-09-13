@@ -453,12 +453,11 @@ def sqlite_new_dataset(basedir,
     if results_sortspec is not None:
         rows = results_sort_by_keys(rows, sorts=results_sortspec)
 
-    if results_limitspec is not None:
-        rows = results_limit_rows(rows,
-                                  rowlimit=results_limitspec,
-                                  incoming_userid=incoming_userid,
-                                  incoming_role=incoming_role)
-
+    # this is always applied so we can restrict the number of rows by role
+    rows = results_limit_rows(rows,
+                              rowlimit=results_limitspec,
+                              incoming_userid=incoming_userid,
+                              incoming_role=incoming_role)
 
     # updated date
     last_updated = datetime.utcnow().isoformat()

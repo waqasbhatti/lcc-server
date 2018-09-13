@@ -136,12 +136,36 @@ var lcc_ui = {
         sort_selectboxes.each(function () {
 
             var thisbox = $(this);
+            var thistarget = thisbox.attr('data-target');
+            console.log(thistarget);
 
-            // clear it out
-            thisbox.empty();
+            if (thistarget == 'conesearch' || thistarget == 'xmatch') {
+
+                thisbox.empty();
+                thisbox.append('<option value="' +
+                               'matchdist' +
+                               '" selected>' +
+                               'match distance' +
+                               '</option>');
+
+            }
+            else if (thistarget == 'ftsquery') {
+
+                thisbox.empty();
+                thisbox.append('<option value="' +
+                               'relevance' +
+                               '" selected>' +
+                               'relevance' +
+                               '</option>');
+
+            }
+            else {
+                // clear it out
+                thisbox.empty();
+            }
+
 
             var column_ind = 0;
-
             for (column_ind; column_ind < columns.length; column_ind++) {
 
                 thisbox.append('<option value="' +
@@ -149,25 +173,29 @@ var lcc_ui = {
                                '">' +
                                columns[column_ind] +
                                '</option>');
-
             }
 
-            // find either the sdssr column or the objectid column in the
-            // columns to select them as a default sort col
-            var sdssr_ok = columns.find(function (elem) {
-                return elem == 'sdssr';
-            });
-            var objectid_ok = columns.find(function (elem) {
-                return elem == 'objectid';
-            });
 
-            if (sdssr_ok) {
-                thisbox.children('option[value="sdssr"]').attr('selected',true);
-            }
-            else if (objectid_ok) {
-                thisbox.children('option[value="objectid"]').attr('selected',true);
-            }
+            if (thistarget == 'columnsearch') {
 
+                // find either the sdssr column or the objectid column in the
+                // columns to select them as a default sort col
+                var sdssr_ok = columns.find(function (elem) {
+                    return elem == 'sdssr';
+                });
+                var objectid_ok = columns.find(function (elem) {
+                    return elem == 'objectid';
+                });
+
+                if (sdssr_ok) {
+                    thisbox.children('option[value="sdssr"]')
+                        .attr('selected',true);
+                }
+                else if (objectid_ok) {
+                    thisbox.children('option[value="objectid"]')
+                        .attr('selected',true);
+                }
+            }
 
         });
 
@@ -175,9 +203,6 @@ var lcc_ui = {
         $('#ftsquery-column-list')
             .html(fts_columns.sort().join(', '));
 
-        // update the indexed column list
-        $('#columnsearch-indexed-columnlist')
-            .html(indexed_columns.sort().join(', '));
     },
 
 
@@ -403,6 +428,12 @@ var lcc_ui = {
             else if (filter_opstr == 'ct') {
                 filter_op = 'contains';
             }
+            else if (filter_opstr == 'isnull') {
+                filter_op = 'is null';
+            }
+            else if (filter_opstr == 'notnull') {
+                filter_op = 'not null';
+            }
 
             // look up the dtype of the column
             // this is done in two steps
@@ -416,34 +447,51 @@ var lcc_ui = {
 
             // check if the filter val and operator matches the expected dtype
 
-            // float
-            if (filter_dtype.indexOf('f') != -1) {
+            // the isnull, notnull operators take no operand
+            if ((filter_opstr == 'isnull') || (filter_opstr == 'notnull')) {
 
-                filter_check = (
-                    !(isNaN(parseFloat(filter_val.trim()))) &&
-                        filter_opstr != 'ct'
-                );
-
-            }
-
-            // integer (usually counts of some sort, so we enforce !< 0)
-            else if (filter_dtype.indexOf('i') != -1) {
-
-                filter_check = (
-                    !(isNaN(parseInt(filter_val.trim()))) &&
-                        (filter_opstr != 'ct') &&
-                        !(parseInt(filter_val.trim()) < 0)
-                );
+                if (filter_val.trim().length == 0) {
+                    filter_check = true;
+                }
+                else {
+                    filter_check = false;
+                }
 
             }
 
-            // string
-            else if (filter_val.trim().length > 0 &&
-                     ((filter_opstr == 'eq') ||
-                      (filter_opstr == 'ne') ||
-                      (filter_opstr == 'ct')) ) {
+            // check the other operators
+            else {
 
-                filter_check = true;
+                // float
+                if (filter_dtype.indexOf('f') != -1) {
+
+                    filter_check = (
+                        !(isNaN(parseFloat(filter_val.trim()))) &&
+                            filter_opstr != 'ct'
+                    );
+
+                }
+
+                // integer (usually counts of some sort, so we enforce !< 0)
+                else if (filter_dtype.indexOf('i') != -1) {
+
+                    filter_check = (
+                        !(isNaN(parseInt(filter_val.trim()))) &&
+                            (filter_opstr != 'ct') &&
+                            !(parseInt(filter_val.trim()) < 0)
+                    );
+
+                }
+
+                // string
+                else if (filter_val.trim().length > 0 &&
+                         ((filter_opstr == 'eq') ||
+                          (filter_opstr == 'ne') ||
+                          (filter_opstr == 'ct')) ) {
+
+                    filter_check = true;
+
+                }
 
             }
 
@@ -676,7 +724,13 @@ var lcc_ui = {
                 fval = "'" + fval + "'";
             }
 
-            var thisfilter = '(' + col + ' ' + oper + ' ' + fval + ')';
+            var thisfilter = '';
+            if (oper == 'isnull' || oper == 'notnull') {
+                thisfilter = '(' + col + ' ' + oper + ')';
+            }
+            else {
+                thisfilter = '(' + col + ' ' + oper + ' ' + fval + ')';
+            }
 
             // check if this card has a chainer operator
             var chain_op = $(this)
