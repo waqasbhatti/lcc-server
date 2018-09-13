@@ -628,7 +628,8 @@ var lcc_ui = {
             modal.find('#modal-objectid').html(objectid);
             modal.find('#modal-collectionid').html(collection);
 
-            if (lcfname.indexOf('unavailable') != -1) {
+            if (lcfname.indexOf('unavailable') != -1 ||
+                lcfname.indexOf('null') != -1) {
                 modal.find('#modal-downloadlc')
                     .addClass('disabled')
                     .html('No light curve available');
@@ -1983,7 +1984,11 @@ var lcc_datasets = {
             if (this_col == 'collection') {
                 colind_collection = colind;
             }
+
             if (this_col == 'db_lcfname') {
+                colind_lcfname = colind;
+            }
+            else if (this_col == 'lcfname') {
                 colind_lcfname = colind;
             }
 
@@ -2067,6 +2072,12 @@ var lcc_datasets = {
         var thisrow = null;
         var thisrow_lclink = null;
 
+        // populate the list of object IDs that have CSV LCs in progress
+        var objectids_csvlcs_in_progress = [];
+        for (let item of data.csvlcs_in_progress) {
+            objectids_csvlcs_in_progress.push(item[0]);
+        }
+
         for (rowind; rowind < max_rows; rowind++) {
 
             // get this object's db_oid and collection. we'll use these
@@ -2076,12 +2087,17 @@ var lcc_datasets = {
             thisrow = data.rows[rowind];
 
             // get this row's light curve if available
-            thisrow_lclink = $(thisrow[colind_lcfname]);
-            if (thisrow_lclink.text().indexOf('unavailable') != -1) {
-                thisrow_lclink = thisrow_lclink.text();
+            thisrow_lclink = thisrow[colind_lcfname];
+
+            // check the csvlcs_in_progress item to see if this LC is in there
+            if (objectids_csvlcs_in_progress
+                .indexOf(thisrow[colind_objectid]) != -1) {
+                thisrow[colind_lcfname] = 'not available yet';
             }
             else {
-                thisrow_lclink = thisrow_lclink.attr('href');
+                thisrow[colind_lcfname] =
+                    '<a download rel="nofollow" href="' +
+                    thisrow_lclink + '">download light curve</a>';
             }
 
             objectentry_firstcol = '<a href="#" rel="nofollow" role="button" ' +
@@ -2224,7 +2240,7 @@ var lcc_datasets = {
                     // 12. lczip
                     $('#dataset-lczip')
                         .html('<a download rel="nofollow" href="' +
-                              data.lczip + '">download file</a>');
+                              data.lczipfpath + '">download file</a>');
                 }
                 else {
                     $('#dataset-lczip').html('not available');
@@ -3077,9 +3093,7 @@ var lcc_objectinfo = {
         // get SIMBAD info if possible
         if (currcp.objectinfo.simbad_status != undefined) {
 
-            var formatted_simbad =
-                '<strong><em>SIMBAD query failed</em>:</strong> ' +
-                simbad_message;
+            var formatted_simbad = simbad_message;
             if (simbad_ok) {
 
                 var simbad_best_allids =
