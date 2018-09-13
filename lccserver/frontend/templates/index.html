@@ -328,7 +328,6 @@
                         <select class="custom-select lcc-sortcolumn-select"
                                 id="conesearch-sortcolumn-select"
                                 data-target="conesearch">
-                          <option value="matchdist" selected>match distance</option>
                         </select>
                       </div>
                     </div>
@@ -405,7 +404,7 @@
                     arcmin = 1.0 deg. If a search radius isn't
                     specified, 5.0 arcmin will be used by default.</p>
 
-                  <p>Results are returned in order of increasing
+                  <p>By default, results are returned in order of increasing
                     distance (in arcsec) from the center coordinates.</p>
 
                   <dl>
@@ -587,7 +586,6 @@
                         <select class="custom-select lcc-sortcolumn-select"
                                 id="ftsquery-sortcolumn-select"
                                 data-target="ftsquery">
-                          <option value="relevance" selected>relevance</option>
                         </select>
                       </div>
                     </div>
@@ -600,8 +598,8 @@
                         <select class="custom-select lcc-sortorder-select"
                                 id="ftsquery-sortorder-select"
                                 data-target="ftsquery">
-                          <option value="asc">ascending</option>
-                          <option value="desc" selected>descending</option>
+                          <option value="asc" selected>ascending</option>
+                          <option value="desc">descending</option>
                         </select>
                       </div>
                     </div>
@@ -668,8 +666,10 @@
 
               <p><code><span id="ftsquery-column-list"></span></code></p>
 
-              <p>Results are returned in order of
-                <a href="https://en.wikipedia.org/wiki/Okapi_BM25"> relevance</a>.</p>
+              <p>By default, results are returned in order of
+                <a href="https://en.wikipedia.org/wiki/Okapi_BM25">relevance</a> as
+                <a href="https://sqlite.org/fts5.html#the_bm25_function">implemented by SQLite</a>.
+              </p>
 
               <dl>
                 <dt>Examples:</dt>

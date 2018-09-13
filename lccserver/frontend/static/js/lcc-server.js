@@ -137,13 +137,12 @@ var lcc_ui = {
 
             var thisbox = $(this);
             var thistarget = thisbox.attr('data-target');
-            console.log(thistarget);
 
             if (thistarget == 'conesearch' || thistarget == 'xmatch') {
 
                 thisbox.empty();
                 thisbox.append('<option value="' +
-                               'matchdist' +
+                               'dist_arcsec' +
                                '" selected>' +
                                'match distance' +
                                '</option>');
@@ -155,7 +154,7 @@ var lcc_ui = {
                 thisbox.append('<option value="' +
                                'relevance' +
                                '" selected>' +
-                               'relevance' +
+                               'relevance rank' +
                                '</option>');
 
             }

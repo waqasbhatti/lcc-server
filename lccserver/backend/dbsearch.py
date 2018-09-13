@@ -724,7 +724,8 @@ def sqlite_fulltext_search(
               'a.decl as db_decl, a.lcfname as db_lcfname, '
               'a.object_owner as owner, '
               'a.object_visibility as visibility, '
-              'a.object_sharedwith as sharedwith')]
+              'a.object_sharedwith as sharedwith, '
+              'rank as relevance')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
@@ -734,7 +735,8 @@ def sqlite_fulltext_search(
                                        'db_lcfname',
                                        'owner',
                                        'visibility',
-                                       'sharedwith']
+                                       'sharedwith',
+                                       'relevance']
 
 
     # otherwise, if there are no columns, use the default ones
@@ -744,7 +746,8 @@ def sqlite_fulltext_search(
                      'a.decl as db_decl, a.lcfname as db_lcfname, '
                      'a.object_owner as owner, '
                      'a.object_visibility as visibility, '
-                     'a.object_sharedwith as sharedwith')
+                     'a.object_sharedwith as sharedwith, '
+                     'rank as relevance')
 
         rescolumns = ['db_oid',
                       'db_ra',
@@ -752,7 +755,8 @@ def sqlite_fulltext_search(
                       'db_lcfname',
                       'owner',
                       'visibility',
-                      'sharedwith']
+                      'sharedwith',
+                      'relevance']
 
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
@@ -803,6 +807,15 @@ def sqlite_fulltext_search(
         lcc_columnspec['db_lcfname'] = lcc_columnspec['lcfname']
         lcc_columnspec['db_lcfname']['title'] = 'database LC filename'
 
+        lcc_columnspec['relevance'] = {
+            'title': 'relevance',
+            'description':('SQLite FTS5 BM25 relevance '
+                           '(smaller values -> more relevant)'),
+            'dtype':'f8',
+            'format':'%f',
+            'index':False,
+            'ftsindex':False,
+        }
         lcc_columnspec['owner'] = {
             'title': 'object owner',
             'description':'userid of the owner of this object',
