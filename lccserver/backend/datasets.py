@@ -46,7 +46,7 @@ from zipfile import ZipFile
 import json
 from multiprocessing import Pool
 from textwrap import indent
-from functools import reduce
+from functools import reduce, partial
 import hashlib
 from datetime import datetime
 from random import sample
@@ -178,7 +178,37 @@ def sqlite_datasets_db_create(basedir):
 ## RESULT PIPELINE ##
 #####################
 
-def results_sort_by_keys(rows, sorts=()):
+def _sort_key(row, k=None, rev=False, dtype='f8'):
+    '''
+    This returns the sort key from the row element.
+
+    Handles case where row[k] may be None (or an SQL NULL).
+
+    '''
+
+    # if we're sorting in reverse order, sort None items to the end of the list
+    if row[k] is None and rev is True:
+
+        if 'f' in dtype or 'i' in dtype:
+            return -9999
+        else:
+            return 'zzzz'
+
+    # if we're sorting in forward order, sort None items to the end of the list
+    elif row[k] is None and rev is False:
+
+        if 'f' in dtype or 'i' in dtype:
+            return 9999
+        else:
+            return 'aaaa'
+
+    # if item is not None, return it directly
+    else:
+        return row[k]
+
+
+
+def results_sort_by_keys(rows, coldesc, sorts=()):
     '''
     This sorts the results by the given sorts list.
 
@@ -194,14 +224,24 @@ def results_sort_by_keys(rows, sorts=()):
 
     '''
 
-    # we iterate backwards from the last sort spec to the first
-    # to handle stuff like order by object asc, ndet desc, sdssr asc as expected
-    for s in sorts[::-1]:
-        key, order = s
-        if order == 'asc':
-            rows = sorted(rows, key=lambda row: row[key], reversed=False)
-        elif order == 'desc':
-            rows = sorted(rows, key=lambda row: row[key], reversed=True)
+    if len(rows) > 0:
+
+        # we iterate backwards from the last sort spec to the first to handle
+        # stuff like order by object asc, ndet desc, sdssr asc as expected
+        for s in sorts[::-1]:
+
+            key, order = s
+            dtype = coldesc[key]['dtype']
+
+            if order == 'asc':
+
+                keyfunc = partial(_sort_key, k=key, rev=False, dtype=dtype)
+                rows = sorted(rows, key=keyfunc, reverse=False)
+
+            elif order == 'desc':
+
+                keyfunc = partial(_sort_key, k=key, rev=True, dtype=dtype)
+                rows = sorted(rows, key=keyfunc, reverse=True)
 
     return rows
 
@@ -386,13 +426,12 @@ def sqlite_new_dataset(basedir,
     searchtype = searchresult['search']
     searchargs = searchresult['args']
 
-
     # add in the sortspec, samplespec, limitspec, visibility, and sharedwith to
     # searchargs so these can be stored in the DB and the pickle for later
     # retrieval
     searchargs['sortspec'] = results_sortspec
-    searchargs['limitspec'] = results_sortspec
-    searchargs['samplespec'] = results_sortspec
+    searchargs['limitspec'] = results_limitspec
+    searchargs['samplespec'] = results_samplespec
     searchargs['visibility'] = dataset_visibility
     searchargs['sharedwith'] = dataset_sharedwith
 
@@ -435,6 +474,19 @@ def sqlite_new_dataset(basedir,
     setname = 'New dataset using collections: %s' % ', '.join(collections)
     setdesc = 'Created at %s UTC, using query: %s' % (creationdt, searchtype)
 
+    # go through each column and get its info from colspec
+    # also build up the format string for the CSV
+    coldesc = {}
+
+    for col in reqcols:
+
+        coldesc[col] = {
+            'title': columnspec[collections[0]][col]['title'],
+            'desc': columnspec[collections[0]][col]['description'],
+            'dtype': columnspec[collections[0]][col]['dtype'],
+            'format': columnspec[collections[0]][col]['format'],
+        }
+
     # each collection result from the search backend is a list of dicts. we'll
     # collect all of them into a single data table. Each row returned by the
     # search backend has its collection noted in the row['collection'] key.
@@ -446,12 +498,13 @@ def sqlite_new_dataset(basedir,
     # apply the result pipeline to sort, limit, sample correctly
     # the search backend takes care of per object permissions
     # order of operations: sample -> sort -> rowlimit
-
     if results_samplespec is not None:
         rows = results_random_sample(rows, sample_count=results_samplespec)
 
     if results_sortspec is not None:
-        rows = results_sort_by_keys(rows, sorts=results_sortspec)
+        rows = results_sort_by_keys(rows,
+                                    coldesc,
+                                    sorts=results_sortspec)
 
     # this is always applied so we can restrict the number of rows by role
     rows = results_limit_rows(rows,
@@ -500,23 +553,13 @@ def sqlite_new_dataset(basedir,
         'page_slices':page_slices,
         'nmatches_by_collection':nmatches,
         'total_nmatches': total_nmatches,
+        'actual_nrows':len(rows),
         'columns': reqcols,
-        'coldesc': {},
+        'coldesc': coldesc,
         'dataset_csv':dataset_csv,
         'dataset_pickle':dataset_fpath,
         'lczipfpath':lczip_fpath,
     }
-
-    # go through each column and get its info from colspec
-    # also build up the format string for the CSV
-    for col in reqcols:
-
-        dataset['coldesc'][col] = {
-            'title': columnspec[collections[0]][col]['title'],
-            'desc': columnspec[collections[0]][col]['description'],
-            'dtype': columnspec[collections[0]][col]['dtype'],
-            'format': columnspec[collections[0]][col]['format'],
-        }
 
     # generate the JSON header for the CSV
     csvheader = json.dumps(dataset, indent=2)
@@ -551,16 +594,23 @@ def sqlite_new_dataset(basedir,
         "where setid = ?"
     )
 
+    # if the number of actual rows > 20000, then force this dataset to
+    # completion because we'll skip collection of LCs
+    if dataset['actual_nrows'] > 20000:
+        set_status = 'complete'
+    else:
+        set_status = 'in progress'
+
     params = (
         setname,
         setdesc,
         last_updated,
-        total_nmatches,
+        dataset['actual_nrows'],
         dataset['owner'],
         dataset['visibility'],
         dataset['sharedwith'],
         incoming_session_token,
-        'in progress',
+        set_status,
         ', '.join(collections),
         searchtype,
         json.dumps(searchargs),
@@ -758,7 +808,11 @@ def sqlite_new_dataset(basedir,
     LOGINFO('wrote CSV: %s for setid: %s' % (dataset_csv, setid))
 
     # return the setid
-    return setid, csvlcs_to_generate, csvlcs_ready, sorted(all_original_lcs)
+    return (setid,
+            csvlcs_to_generate,
+            csvlcs_ready,
+            sorted(all_original_lcs),
+            dataset['actual_nrows'])
 
 
 
@@ -917,7 +971,7 @@ def sqlite_make_dataset_lczip(basedir,
 
                 orig, oid, lcformatdesc, coll, outcsvlc = item
                 if not os.path.exists(outcsvlc):
-                    os.path.symlink(os.path.abspath(res), outcsvlc)
+                    os.symlink(os.path.abspath(res), outcsvlc)
 
             #
             # FINALLY, CARRY OUT THE ZIP OPERATION (IF NEEDED)
@@ -944,17 +998,25 @@ def sqlite_make_dataset_lczip(basedir,
 
                 # set up the zipfile
                 with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
-                    for lcf in zipfile_lclist:
+
+                    for ind_lcf, lcf in enumerate(zipfile_lclist):
+
                         if os.path.exists(lcf):
                             outzip.write(lcf, os.path.basename(lcf))
                         else:
-                            zipfile_lclist[os.path.basename(lcf)] = 'missing'
+                            zipfile_lclist[ind_lcf] = (
+                                '%s missing' % (os.path.basename(lcf))
+                            )
 
                     # add the manifest to the zipfile
-                    outzip.writestr('lczip-manifest.json',
-                                    json.dumps(zipfile_lclist,
-                                               ensure_ascii=True,
-                                               indent=2))
+                    outzip.writestr(
+                        'lczip-manifest.json',
+                        json.dumps(
+                            [os.path.basename(x) for x in zipfile_lclist],
+                            ensure_ascii=True,
+                            indent=2
+                        )
+                    )
 
                 LOGINFO('done, zip written successfully.')
 
