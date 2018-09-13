@@ -376,6 +376,43 @@ var lcc_ui = {
 
         });
 
+
+        // bind the lcc-result-samplecheck checkbox so a click will toggle the
+        // disabled state of the associated lcc-result-samplerows text box
+        $('.lcc-result-samplecheck').on('click', function (evt) {
+
+            var checked = $(this).prop('checked');
+            var searchtype = $(this).attr('data-searchtype');
+            var associated_inputbox = $('#' + searchtype + '-samplerows');
+
+            if (checked) {
+                associated_inputbox.attr('disabled',false);
+            }
+            else {
+                associated_inputbox.attr('disabled',true);
+            }
+
+        });
+
+
+        // bind the lcc-result-limitcheck checkbox so a click will toggle the
+        // disabled state of the associated lcc-result-limitrows text box
+        $('.lcc-result-limitcheck').on('click', function (evt) {
+
+            var checked = $(this).prop('checked');
+            var searchtype = $(this).attr('data-searchtype');
+            var associated_inputbox = $('#' + searchtype + '-limitrows');
+
+            if (checked) {
+                associated_inputbox.attr('disabled',false);
+            }
+            else {
+                associated_inputbox.attr('disabled',true);
+            }
+
+        });
+
+
         // bind the lcc-filtertarget so an Enter clicks the add-filter button
         $('.lcc-filtertarget').on('keyup', function (evt) {
 
@@ -388,6 +425,7 @@ var lcc_ui = {
             }
 
         });
+
 
         // bind the conesearch-filter-add button
         $('.lcc-filter-add').on('click', function (evt) {
@@ -585,13 +623,6 @@ var lcc_ui = {
 
         });
 
-        // bind link to collections tab
-        $('#alert-box').on('click','.collection-link', function (e) {
-
-            e.preventDefault();
-            $('#collections-tab').click();
-
-        });
 
         // bind the filter-delete button
         $('.tab-pane').on('click', '.lcc-filterbucket-remove', function(e) {
@@ -603,6 +634,15 @@ var lcc_ui = {
 
             // kill them
             $(thiscard).remove();
+
+        });
+
+
+        // bind link to collections tab
+        $('#alert-box').on('click','.collection-link', function (e) {
+
+            e.preventDefault();
+            $('#collections-tab').click();
 
         });
 
@@ -738,8 +778,7 @@ var lcc_ui = {
                 .children('select').val();
 
             if (chain_op != undefined && i > 0) {
-                thisfilter = chain_op + ' (' + col +
-                    ' ' + oper + ' ' + fval + ')';
+                thisfilter = chain_op + ' ' + thisfilter;
             }
 
             filters.push(thisfilter);
@@ -1267,7 +1306,6 @@ var lcc_search = {
                                 data,
                                 method,
                                 target,
-                                ispublic,
                                 nrun) {
 
         var oboe_options;
@@ -1371,7 +1409,7 @@ var lcc_search = {
                     }
 
                     // if the query is public, flash the dataset tab
-                    if (ispublic) {
+                    if (data.visibility == 'public') {
 
                         // hit the /api/datasets URL to update the datasets
                         // also highlight the row with our query result in it
@@ -1389,7 +1427,7 @@ var lcc_search = {
                     // inform the user their query finished
                     var alertmsg = 'Query <code>' + msg_setid +
                         '</code> finished successfully. <strong>' +
-                        + msgdata.result.total_nmatches +
+                        + msgdata.result.actual_nrows +
                         '</strong> matched objects found. ' +
                         '<a target="_blank" ' +
                         'rel="nofollow noreferer noopener" href="' +
@@ -1568,6 +1606,9 @@ var lcc_search = {
                     'danger'
                 );
 
+                // re-enable the submit button until we return
+                // FIXME: may need to turn on handler as well
+                $('#' + target + '-submit').attr('disabled',false);
 
             });
 
@@ -1605,16 +1646,6 @@ var lcc_search = {
             proceed_step2 = false;
         }
 
-        // get the ispublic parameter
-        var ispublic = $('#xmatch-ispublic').prop('checked');
-
-        if (ispublic) {
-            ispublic = 1;
-        }
-        else {
-            ispublic = 0;
-        }
-
         // parse the extra filters
         var [filters, filter_cols] = lcc_ui.parse_column_filters('xmatch');
 
@@ -1630,19 +1661,52 @@ var lcc_search = {
             }
         }
 
+        // get the visibility parameter
+        var visibility = $('#xmatch-visibility-select').val();
+
+        // get the sort spec
+        var sortcol = $('#xmatch-sortcolumn-select').val();
+        var sortorder = $('#xmatch-sortorder-select').val();
+
+        // this is a list of list items
+        var sortspec = JSON.stringify([[sortcol, sortorder]]);
+
+        // also, add the sortby column to the retrieval column list
+        var sortcol_in_columns = columns.find(function (elem) {
+            return elem == sortcol;
+        });
+        if (!sortcol_in_columns) {
+            columns.push(sortcol);
+        }
+
+        // get the sample spec
+        var samplespec = parseInt($('#xmatch-samplerows').val());
+        if (isNaN(samplespec) || !$('#xmatch-samplecheck').prop('checked')) {
+            samplespec = null;
+        }
+
+        // get the limit spec
+        var limitspec = parseInt($('#xmatch-limitrows').val());
+        if (isNaN(limitspec) || !$('#xmatch-limitcheck').prop('checked')) {
+            limitspec = null;
+        }
+
         // get the value of the _xsrf token
         var _xsrf = $('#xmatch-form > input[type="hidden"]').val();
 
         // put together the request params
         var posturl = '/api/xmatch';
         var postparams = {
-            _xsrf:_xsrf,
             xmq: xmatchtext,
             xmd: xmatchdistance,
-            result_ispublic: ispublic,
+            _xsrf:_xsrf,
             collections: collections,
             columns: columns,
-            filters: filters
+            filters: filters,
+            visibility: visibility,
+            sortspec: sortspec,
+            samplespec: samplespec,
+            limitspec: limitspec
         };
 
         if (proceed_step1 && proceed_step2) {
@@ -1670,7 +1734,6 @@ var lcc_search = {
                                                postparams,
                                                'POST',
                                                'xmatch',
-                                               ispublic,
                                                nrun);
 
         }
@@ -1699,16 +1762,6 @@ var lcc_search = {
         // get the columns to retrieve
         var columns = $('#columnsearch-column-select').val();
 
-        // get the ispublic parameter
-        var ispublic = $('#columnsearch-ispublic').prop('checked');
-
-        if (ispublic) {
-            ispublic = 1;
-        }
-        else {
-            ispublic = 0;
-        }
-
         // parse the extra filters
         var [filters, filter_cols] = lcc_ui.parse_column_filters('columnsearch');
 
@@ -1736,18 +1789,34 @@ var lcc_search = {
             proceed = true;
         }
 
-        // get the sort column and order
+        // get the visibility parameter
+        var visibility = $('#columnsearch-visibility-select').val();
+
+        // get the sort spec
         var sortcol = $('#columnsearch-sortcolumn-select').val();
         var sortorder = $('#columnsearch-sortorder-select').val();
 
-        // also, add the sortby column to the retrieval column list
+        // this is a list of list items
+        var sortspec = JSON.stringify([[sortcol, sortorder]]);
 
+        // also, add the sortby column to the retrieval column list
         var sortcol_in_columns = columns.find(function (elem) {
             return elem == sortcol;
         });
-
         if (!sortcol_in_columns) {
             columns.push(sortcol);
+        }
+
+        // get the sample spec
+        var samplespec = parseInt($('#columnsearch-samplerows').val());
+        if (isNaN(samplespec) || !$('#columnsearch-limitcheck').prop('checked')) {
+            samplespec = null;
+        }
+
+        // get the limit spec
+        var limitspec = parseInt($('#columnsearch-limitrows').val());
+        if (isNaN(limitspec) || !$('#columnsearch-limitcheck').prop('checked')) {
+            limitspec = null;
         }
 
         // get the value of the _xsrf token
@@ -1756,12 +1825,13 @@ var lcc_search = {
         var posturl = '/api/columnsearch';
         var postparams = {
             _xsrf:_xsrf,
-            result_ispublic: ispublic,
             collections: collections,
             columns: columns,
             filters: filters,
-            sortcol: sortcol,
-            sortorder: sortorder
+            visibility: visibility,
+            sortspec: sortspec,
+            samplespec: samplespec,
+            limitspec: limitspec
         };
 
         if (proceed) {
@@ -1787,7 +1857,6 @@ var lcc_search = {
                                                postparams,
                                                'POST',
                                                'columnsearch',
-                                               ispublic,
                                                nrun);
 
 
@@ -1821,16 +1890,6 @@ var lcc_search = {
             proceed = true;
         }
 
-        // get the ispublic parameter
-        var ispublic = $('#ftsquery-ispublic').prop('checked');
-
-        if (ispublic) {
-            ispublic = 1;
-        }
-        else {
-            ispublic = 0;
-        }
-
         // parse the extra filters
         var [filters, filter_cols] = lcc_ui.parse_column_filters('ftsquery');
 
@@ -1846,17 +1905,50 @@ var lcc_search = {
             }
         }
 
+        // get the visibility parameter
+        var visibility = $('#ftsquery-visibility-select').val();
+
+        // get the sort spec
+        var sortcol = $('#ftsquery-sortcolumn-select').val();
+        var sortorder = $('#ftsquery-sortorder-select').val();
+
+        // this is a list of list items
+        var sortspec = JSON.stringify([[sortcol, sortorder]]);
+
+        // also, add the sortby column to the retrieval column list
+        var sortcol_in_columns = columns.find(function (elem) {
+            return elem == sortcol;
+        });
+        if (!sortcol_in_columns) {
+            columns.push(sortcol);
+        }
+
+        // get the sample spec
+        var samplespec = parseInt($('#ftsquery-samplerows').val());
+        if (isNaN(samplespec) || !$('#ftsquery-samplecheck').prop('checked')) {
+            samplespec = null;
+        }
+
+        // get the limit spec
+        var limitspec = parseInt($('#ftsquery-limitrows').val());
+        if (isNaN(limitspec) || !$('#ftsquery-limitcheck').prop('checked')) {
+            limitspec = null;
+        }
+
         // get the value of the _xsrf token
         var _xsrf = $('#ftsquery-form > input[type="hidden"]').val();
 
         var posturl = '/api/ftsquery';
         var postparams = {
-            _xsrf:_xsrf,
             ftstext: ftstext,
-            result_ispublic: ispublic,
+            _xsrf:_xsrf,
             collections: collections,
             columns: columns,
-            filters: filters
+            filters: filters,
+            visibility: visibility,
+            sortspec: sortspec,
+            samplespec: samplespec,
+            limitspec: limitspec
         };
 
         if (proceed) {
@@ -1882,7 +1974,6 @@ var lcc_search = {
                                                postparams,
                                                'POST',
                                                'ftsquery',
-                                               ispublic,
                                                nrun);
 
         }
@@ -1915,16 +2006,6 @@ var lcc_search = {
             proceed = true;
         }
 
-        // get the ispublic parameter
-        var ispublic = $('#conesearch-ispublic').prop('checked');
-
-        if (ispublic) {
-            ispublic = 1;
-        }
-        else {
-            ispublic = 0;
-        }
-
         // parse the extra filters
         var [filters, filter_cols] = lcc_ui.parse_column_filters('conesearch');
 
@@ -1940,6 +2021,36 @@ var lcc_search = {
             }
         }
 
+        // get the visibility parameter
+        var visibility = $('#conesearch-visibility-select').val();
+
+        // get the sort spec
+        var sortcol = $('#conesearch-sortcolumn-select').val();
+        var sortorder = $('#conesearch-sortorder-select').val();
+
+        // this is a list of list items
+        var sortspec = JSON.stringify([[sortcol, sortorder]]);
+
+        // also, add the sortby column to the retrieval column list
+        var sortcol_in_columns = columns.find(function (elem) {
+            return elem == sortcol;
+        });
+        if (!sortcol_in_columns) {
+            columns.push(sortcol);
+        }
+
+        // get the sample spec
+        var samplespec = parseInt($('#conesearch-samplerows').val());
+        if (isNaN(samplespec) || !$('#conesearch-samplecheck').prop('checked')) {
+            samplespec = null;
+        }
+
+        // get the limit spec
+        var limitspec = parseInt($('#conesearch-limitrows').val());
+        if (isNaN(limitspec) || !$('#conesearch-limitcheck').prop('checked')) {
+            limitspec = null;
+        }
+
         // get the value of the _xsrf token
         var _xsrf = $('#conesearch-form > input[type="hidden"]').val();
 
@@ -1947,10 +2058,13 @@ var lcc_search = {
         var postparams = {
             _xsrf: _xsrf,
             coords: coords,
-            result_ispublic: ispublic,
             collections: collections,
             columns: columns,
-            filters: filters
+            filters: filters,
+            visibility: visibility,
+            sortspec: sortspec,
+            samplespec: samplespec,
+            limitspec: limitspec
         };
 
         if (proceed) {
@@ -1976,7 +2090,6 @@ var lcc_search = {
                                                postparams,
                                                'POST',
                                                'conesearch',
-                                               ispublic,
                                                nrun);
 
         }
@@ -2230,14 +2343,14 @@ var lcc_datasets = {
 
                 // 2a. created
                 var created_on = data.created;
-                created_on = created_on + ' <strong>(' +
-                    moment(created_on).fromNow() + ')<strong>';
+                created_on = created_on + ' UTC <strong>(' +
+                    moment(created_on + 'Z').fromNow() + ')<strong>';
                 $('#dataset-createdon').html(created_on);
 
                 // 2b. lastupdated
                 var last_updated = data.updated;
-                last_updated = last_updated + ' <strong>(' +
-                    moment(last_updated).fromNow() + ')<strong>';
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
                 $('#dataset-lastupdated').html(last_updated);
 
                 // 3. status
@@ -2273,19 +2386,19 @@ var lcc_datasets = {
 
 
                 // 11. nobjects
-                if ('rowstatus' in data) {
+                if ('actual_nrows' in data) {
                     $('#dataset-nobjects').html(
-                        data.nobjects +
-                            ' (' +
-                            data.rowstatus +
-                            ' &mdash; see the ' +
+                        data.actual_nrows +
+                            ' (showing ' +
+                            data.rows_per_page +
+                            ' per page &mdash; see the ' +
                             '<a download rel="nofollow" href="' +
                             data.dataset_csv + '">dataset CSV</a>' +
                             ' for complete table)'
                     );
                 }
                 else {
-                    $('#dataset-nobjects').html(data.nobjects);
+                    $('#dataset-nobjects').html(data.actual_nrows);
                 }
 
 
@@ -2330,14 +2443,14 @@ var lcc_datasets = {
 
                 // 2a. created
                 created_on = data.created;
-                created_on = created_on + ' <strong>(' +
-                    moment(created_on).fromNow() + ')<strong>';
+                created_on = created_on + ' UTC <strong>(' +
+                    moment(created_on + 'Z').fromNow() + ')<strong>';
                 $('#dataset-createdon').html(created_on);
 
                 // 2b. lastupdated
                 last_updated = data.updated;
-                last_updated = last_updated + ' <strong>(' +
-                    moment(last_updated).fromNow() + ')<strong>';
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
                 $('#dataset-lastupdated').html(last_updated);
 
                 // 3. status
@@ -2357,12 +2470,19 @@ var lcc_datasets = {
                                               '</pre></detail>');
 
                 // 6. nobjects
-                if ('rowstatus' in data) {
-                    $('#dataset-nobjects').html(data.nobjects +
-                                                ' (' + data.rowstatus + ')');
+                if ('actual_nrows' in data) {
+                    $('#dataset-nobjects').html(
+                        data.actual_nrows +
+                            ' (showing ' +
+                            data.rows_per_page +
+                            ' per page &mdash; see the ' +
+                            '<a download rel="nofollow" href="' +
+                            data.dataset_csv + '">dataset CSV</a>' +
+                            ' for complete table)'
+                    );
                 }
                 else {
-                    $('#dataset-nobjects').html(data.nobjects);
+                    $('#dataset-nobjects').html(data.actual_nrows);
                 }
 
                 // 7. collections
