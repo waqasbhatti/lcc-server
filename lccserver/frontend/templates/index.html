@@ -242,15 +242,24 @@
                       </div>
                     </div>
 
-                    <div class="form-row mt-2 align-items-center justify-content-start">
-                      <div class="col-12">
-                        <div class="form-check">
-                          <input class="form-check-input lcc-result-ispublic"
-                                 type="checkbox" id="conesearch-ispublic" checked="">
-                          <label class="form-check-label" for="conesearch-ispublic">
-                            Make dataset from query result publicly visible
+                    <div class="row mt-2">
+                      <div class="col-12" >
+
+                        <div class="form-inline visibility-form" data-target="conesearch">
+
+                          <label for="conesearch-visibility">
+                            Dataset from query result will be
                           </label>
+
+                          <select class="ml-2 custom-select lcc-visibility-select"
+                                  id="conesearch-visibility-select">
+                            <option value="public" selected>publicly visible</option>
+                            <!-- <option value="shared" >shared with</option> -->
+                            <option value="private" >private</option>
+                          </select>
+
                         </div>
+
                       </div>
                     </div>
 
@@ -354,7 +363,9 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-samplecheck"
-                                 type="checkbox" id="conesearch-samplecheck">
+                                 type="checkbox"
+                                 id="conesearch-samplecheck"
+                                 data-searchtype="conesearch">
                           <label class="form-check-label" for="conesearch-samplecheck">
                             Random sample result rows:
                           </label>
@@ -373,7 +384,9 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-limitcheck"
-                                 type="checkbox" id="conesearch-limitcheck">
+                                 type="checkbox"
+                                 id="conesearch-limitcheck"
+                                 data-searchtype="conesearch">
                           <label class="form-check-label" for="conesearch-limitcheck">
                             Limit result rows:
                           </label>
@@ -503,13 +516,22 @@
 
                     <div class="form-row mt-2 align-items-center justify-content-start">
                       <div class="col-12">
-                        <div class="form-check">
-                          <input class="form-check-input lcc-result-ispublic"
-                                 type="checkbox" id="ftsquery-ispublic" checked="">
-                          <label class="form-check-label" for="ftsquery-ispublic">
-                            Make dataset from query result publicly visible
+
+                        <div class="form-inline visibility-form" data-target="ftsquery">
+
+                          <label for="ftsquery-visibility">
+                            Dataset from query result will be
                           </label>
+
+                          <select class="ml-2 custom-select lcc-visibility-select"
+                                  id="ftsquery-visibility-select">
+                            <option value="public" selected>publicly visible</option>
+                            <!-- <option value="shared" >shared with</option> -->
+                            <option value="private" >private</option>
+                          </select>
+
                         </div>
+
                       </div>
                     </div>
 
@@ -612,7 +634,9 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-samplecheck"
-                                 type="checkbox" id="ftsquery-samplecheck">
+                                 type="checkbox"
+                                 id="ftsquery-samplecheck"
+                                 data-searchtype="ftsquery">
                           <label class="form-check-label" for="ftsquery-samplecheck">
                             Random sample result rows:
                           </label>
@@ -631,7 +655,9 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-limitcheck"
-                                 type="checkbox" id="ftsquery-limitcheck">
+                                 type="checkbox"
+                                 id="ftsquery-limitcheck"
+                                 data-searchtype="ftsquery">
                           <label class="form-check-label" for="ftsquery-limitcheck">
                             Limit result rows:
                           </label>
@@ -749,14 +775,24 @@
 
                     <div class="form-row align-items-center justify-content-end">
                       <div class="col-sm-9">
-                        <div class="form-check">
-                          <input class="form-check-input lcc-result-ispublic"
-                                 type="checkbox" id="columnsearch-ispublic" checked="">
-                          <label class="form-check-label" for="columnsearch-ispublic">
-                            Make dataset from query result publicly visible
+
+                        <div class="form-inline visibility-form" data-target="columnsearch">
+
+                          <label for="columnsearch-visibility">
+                            Dataset from query result will be
                           </label>
+
+                          <select class="ml-2 custom-select lcc-visibility-select"
+                                  id="columnsearch-visibility-select">
+                            <option value="public" selected>publicly visible</option>
+                            <!-- <option value="shared" >shared with</option> -->
+                            <option value="private" >private</option>
+                          </select>
+
                         </div>
+
                       </div>
+
                       <div class="d-flex col-sm-3">
                         <button class="btn btn-primary flex-grow-1"
                                 type="submit" id="columnsearch-submit">Search</button>
@@ -862,7 +898,8 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-samplecheck"
-                                 type="checkbox" id="columnsearch-samplecheck">
+                                 type="checkbox" id="columnsearch-samplecheck"
+                                 data-searchtype="columnsearch">
                           <label class="form-check-label" for="columnsearch-samplecheck">
                             Random sample result rows:
                           </label>
@@ -881,7 +918,8 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-limitcheck"
-                                 type="checkbox" id="columnsearch-limitcheck">
+                                 type="checkbox" id="columnsearch-limitcheck"
+                                 data-searchtype="columnsearch">
                           <label class="form-check-label" for="columnsearch-limitcheck">
                             Limit result rows:
                           </label>
@@ -974,14 +1012,24 @@
 
                     <div class="form-row align-items-center justify-content-end">
                       <div class="col-sm-9">
-                        <div class="form-check">
-                          <input class="form-check-input lcc-result-ispublic"
-                                 type="checkbox" id="xmatch-ispublic" checked="">
-                          <label class="form-check-label" for="xmatch-ispublic">
-                            Make dataset from query result publicly visible
+
+                        <div class="form-inline visibility-form" data-target="xmatch">
+
+                          <label for="xmatch-visibility">
+                            Dataset from query result will be
                           </label>
+
+                          <select class="ml-2 custom-select lcc-visibility-select"
+                                  id="xmatch-visibility-select">
+                            <option value="public" selected>publicly visible</option>
+                            <!-- <option value="shared" >shared with</option> -->
+                            <option value="private" >private</option>
+                          </select>
+
                         </div>
+
                       </div>
+
                       <div class="d-flex col-sm-3">
                         <button class="btn btn-primary flex-grow-1"
                                 type="submit" id="xmatch-submit">Search</button>
@@ -1125,14 +1173,15 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-samplecheck"
-                                 type="checkbox" id="ftsquery-samplecheck">
-                          <label class="form-check-label" for="ftsquery-samplecheck">
+                                 type="checkbox" id="xmatch-samplecheck"
+                                 data-searchtype="xmatch">
+                          <label class="form-check-label" for="xmatch-samplecheck">
                             Random sample result rows:
                           </label>
                         </div>
                         <input type="text" class="ml-auto form-control lcc-result-samplerows"
-                               data-searchtype="ftsquery" placeholder="sample size"
-                               id="ftsquery-samplerows" disabled>
+                               data-searchtype="xmatch" placeholder="sample size"
+                               id="xmatch-samplerows" disabled>
                       </div>
 
                     </div>
@@ -1144,14 +1193,15 @@
                       <div class="form-inline" >
                         <div class="form-group" >
                           <input class="form-check-input lcc-result-limitcheck"
-                                 type="checkbox" id="ftsquery-limitcheck">
-                          <label class="form-check-label" for="ftsquery-limitcheck">
+                                 type="checkbox" id="xmatch-limitcheck"
+                                 data-searchtype="xmatch">
+                          <label class="form-check-label" for="xmatch-limitcheck">
                             Limit result rows:
                           </label>
                         </div>
                         <input type="text" class="ml-auto form-control lcc-result-limitrows"
-                               data-searchtype="ftsquery" placeholder="max rows"
-                               id="ftsquery-limitrows" disabled>
+                               data-searchtype="xmatch" placeholder="max rows"
+                               id="xmatch-limitrows" disabled>
                       </div>
 
                     </div>
