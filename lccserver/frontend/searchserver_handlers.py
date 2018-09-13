@@ -467,8 +467,10 @@ class BackgroundQueryMixin(object):
         if results_sortspec:
             try:
                 # sortspec is a list of tuples: (column name, asc|desc)
-                results_sortspec = json.load(xhtml_escape(results_sortspec))
+                results_sortspec = json.loads(results_sortspec)
             except Exception as e:
+                LOGGER.exception('could not parse sortspec: %r' %
+                                 results_sortspec)
                 results_sortspec = None
 
         #
@@ -476,7 +478,7 @@ class BackgroundQueryMixin(object):
         #
         results_limitspec = self.get_body_argument('limitspec', default=None)
 
-        if results_limitspec:
+        if results_limitspec and len(results_limitspec) > 0:
 
             # limitspec is a single integer for the number of rows to return
             try:
@@ -484,14 +486,19 @@ class BackgroundQueryMixin(object):
                 if results_limitspec == 0:
                     results_limitspec = None
             except Exception as e:
+                LOGGER.exception('could not parse limitspec: %r' %
+                                 results_limitspec)
                 results_limitspec = None
+
+        else:
+            results_limitspec = None
 
         #
         # samplespec
         #
         results_samplespec = self.get_body_argument('samplespec', default=None)
 
-        if results_samplespec:
+        if results_samplespec and len(results_samplespec) > 0:
 
             # samplespec is a single integer for the number of rows to sample
             try:
@@ -499,7 +506,20 @@ class BackgroundQueryMixin(object):
                 if results_samplespec == 0:
                     results_samplespec = None
             except Exception as e:
+                LOGGER.exception('could not parse samplespec: %r' %
+                                 results_samplespec)
                 results_samplespec = None
+
+        else:
+            results_samplespec = None
+
+
+        LOGGER.info('samplespec = %r, type = %s' %
+                    (results_samplespec, type(results_samplespec)))
+        LOGGER.info('sortspec = %r, type = %s' %
+                    (results_sortspec, type(results_sortspec)))
+        LOGGER.info('limitspec = %r, type = %s' %
+                    (results_limitspec, type(results_limitspec)))
 
 
         return (incoming_userid, incoming_role,
@@ -590,7 +610,7 @@ class BackgroundQueryMixin(object):
                         "status":"running",
                         "result":{
                             "setid":self.setid,
-                            "nobjects":nrows
+                            "actual_nrows":nrows
                         },
                         "time":'%sZ' % datetime.utcnow().isoformat()
                     }
@@ -603,7 +623,7 @@ class BackgroundQueryMixin(object):
                     (dspkl_setid,
                      csvlcs_to_generate,
                      csvlcs_ready,
-                     all_original_lcs) = yield self.executor.submit(
+                     all_original_lcs, ds_nrows) = yield self.executor.submit(
                         datasets.sqlite_new_dataset,
                         self.basedir,
                         self.setid,
@@ -622,7 +642,7 @@ class BackgroundQueryMixin(object):
                     # only collect the LCs into a pickle if the user requested
                     # less than 20000 light curves. generating bigger ones is
                     # something we'll handle later
-                    if nrows > 20000:
+                    if ds_nrows > 20000:
 
                         dataset_url = "%s://%s/set/%s" % (
                             self.request.protocol,
@@ -741,6 +761,7 @@ class BackgroundQueryMixin(object):
                                 "backend_function":setdict['searchtype'],
                                 "backend_parsedargs":setdict['searchargs'],
                                 "total_nmatches":setdict['total_nmatches'],
+                                "actual_nrows":setdict['actual_nrows'],
                                 "npages":setdict['npages'],
                                 "rows_per_page":setdict['rows_per_page'],
                             },
@@ -835,7 +856,7 @@ class BackgroundQueryMixin(object):
                         "status":"failed",
                         "result":{
                             "setid":self.setid,
-                            "nobjects":0
+                            "actual_nrows":0
                         },
                         "message":message,
                         "time":'%sZ' % datetime.utcnow().isoformat()
@@ -871,7 +892,7 @@ class BackgroundQueryMixin(object):
                     "status":"failed",
                     "result":{
                         "setid":self.setid,
-                        "nobjects":0
+                        "actual_nrows":0
                     },
                     "time":'%sZ' % datetime.utcnow().isoformat()
                 }
@@ -1122,20 +1143,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             # get the other arguments for the server
 
-            #
-            # REQUIRED: sort column
-            #
-            sortcol = xhtml_escape(
-                self.get_body_argument('sortcol',
-                                       default='sdssr')
-            ).strip()
-            sortorder = xhtml_escape(
-                self.get_body_argument('sortorder')
-            ).strip()
-
-            if sortorder not in ('asc','desc'):
-                sortorder = 'asc'
-
             # OPTIONAL: columns
             getcolumns = self.get_body_arguments('columns[]')
 
@@ -1187,8 +1194,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
         LOGGER.info('********* PARSED ARGS *********')
         LOGGER.info('conditions = %s' % conditions)
-        LOGGER.info('sortcol = %s' % sortcol)
-        LOGGER.info('sortorder = %s' % sortorder)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
 
@@ -1211,7 +1216,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             (self.basedir,),
             # query kwargs
             {"conditions":conditions,
-             "sortby":"%s %s" % (sortcol, sortorder),
              "getcolumns":getcolumns,
              "lcclist":lcclist},
             # query spec
