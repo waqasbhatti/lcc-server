@@ -432,7 +432,7 @@ class BackgroundQueryMixin(object):
         #
         # dataset visibility
         #
-        dataset_visibility = self.get_body_argument('dataset_visibility',
+        dataset_visibility = self.get_body_argument('visibility',
                                                     default='public')
         if dataset_visibility:
             dataset_visibility = xhtml_escape(dataset_visibility)
@@ -514,6 +514,8 @@ class BackgroundQueryMixin(object):
             results_samplespec = None
 
 
+        LOGGER.info('visibility = %s, sharedwith = %r' % (dataset_visibility,
+                                                          dataset_sharedwith))
         LOGGER.info('samplespec = %r, type = %s' %
                     (results_samplespec, type(results_samplespec)))
         LOGGER.info('sortspec = %r, type = %s' %
