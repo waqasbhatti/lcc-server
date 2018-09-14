@@ -2657,7 +2657,7 @@ var lcc_datasets = {
     get_dataset_page: function (setid, pagenumber) {
 
         // do nothing if the page number is out of bounds
-        if (pagenumber > lcc_datasets.npages || pagenumber < 1) {
+        if ((pagenumber > lcc_datasets.npages) || (pagenumber < 1)) {
             return;
         }
 
@@ -2769,7 +2769,7 @@ var lcc_datasets = {
         if (!lcc_datasets.dataset_complete) {
 
             window.setTimeout(function () {
-                lcc_datasets.get_dataset_preview(setid);
+                lcc_datasets.get_dataset(setid, refresh);
             }, refresh*1000.0);
 
         }
