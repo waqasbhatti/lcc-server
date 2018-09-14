@@ -796,6 +796,65 @@ var lcc_ui = {
 
         });
 
+        // this handles the hover per objectid row to highlight the object in
+        // the finder chart
+        $('#objectinfo-container').on('mouseover','.gaia-objectlist-row', function (e) {
+
+            e.preventDefault();
+
+            var canvas = document.getElementById('finderchart');
+            var canvaswidth = canvas.width;
+            var canvasheight = canvas.height;
+            var ctx = canvas.getContext('2d');
+
+            // FIXME: check if astropy.wcs returns y, x and we've been doing
+            // this wrong all this time
+            var thisx = $(this).attr('data-xpos');
+            var thisy = $(this).attr('data-ypos');
+
+            var cnvx = thisx * canvaswidth/300.0;
+
+            // y is from the top of the image for canvas
+            // FITS coords are from the bottom of the image
+            var cnvy = (300.0 - thisy) * canvasheight/300.0;
+
+            // save the damaged part of the image
+            lcc_objectinfo.pixeltracker = ctx.getImageData(cnvx-20,cnvy-20,40,40);
+
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 3.0;
+            ctx.strokeRect(cnvx-7.5,cnvy-7.5,12.5,12.5);
+
+        });
+
+        // this handles the repair to the canvas after the user mouses out of
+        // the row
+        $('#objectinfo-container').on('mouseout','.gaia-objectlist-row', function (e) {
+
+            e.preventDefault();
+
+            var canvas = document.getElementById('finderchart');
+            var canvaswidth = canvas.width;
+            var canvasheight = canvas.height;
+            var ctx = canvas.getContext('2d');
+
+            var thisx = $(this).attr('data-xpos');
+            var thisy = $(this).attr('data-ypos');
+
+            var cnvx = thisx * canvaswidth/300.0;
+
+            // y is from the top of the image for canvas
+            // FITS coords are from the bottom of the image
+            var cnvy = (300.0 - thisy) * canvasheight/300.0;
+
+            // restore the imagedata if we have any
+            if (lcc_objectinfo.pixeltracker != null) {
+                ctx.putImageData(lcc_objectinfo.pixeltracker,
+                                 cnvx-20, cnvy-20);
+            }
+
+        });
+
 
     },
 
