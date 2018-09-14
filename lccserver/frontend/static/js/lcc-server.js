@@ -736,6 +736,71 @@ var lcc_ui = {
 
         });
 
+        // bind the neighbor links in the modals
+        $('#objectinfo-modal').on('click','.objectinfo-nbrlink', function (e) {
+
+            e.preventDefault();
+
+            // get the info on the neighbor
+            var objectid = $(this).attr('data-objectid');
+            var collection = $(this).attr('data-collection');
+
+            // fire the objectinfo function to get this neighbor's information
+            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
+
+            // get the pointer to neighbor's light curve
+            var modal = $('#objectinfo-modal');
+            var lcfbasename = objectid + '-csvlc.gz';
+            var lcfurl = '/l/' + collection.replace('_','-') + '/' + lcfbasename;
+            modal.find('#modal-downloadlc')
+                .attr('href',lcfurl)
+                .attr('download',lcfbasename);
+
+        });
+
+        // bind the next object links in the modals
+        $('#objectinfo-modal').on('click','.objectinfo-nextlink', function (e) {
+
+            e.preventDefault();
+
+            // get the info on the neighbor
+            var objectid = $(this).attr('data-objectid');
+            var collection = $(this).attr('data-collection');
+
+            // fire the objectinfo function to get this neighbor's information
+            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
+
+            // get the pointer to neighbor's light curve
+            var modal = $('#objectinfo-modal');
+            var lcfbasename = objectid + '-csvlc.gz';
+            var lcfurl = '/l/' + collection.replace('_','-') + '/' + lcfbasename;
+            modal.find('#modal-downloadlc')
+                .attr('href',lcfurl)
+                .attr('download',lcfbasename);
+
+        });
+
+        // bind the prev object links in the modals
+        $('#objectinfo-modal').on('click','.objectinfo-prevlink', function (e) {
+
+            e.preventDefault();
+
+            // get the info on the neighbor
+            var objectid = $(this).attr('data-objectid');
+            var collection = $(this).attr('data-collection');
+
+            // fire the objectinfo function to get this neighbor's information
+            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
+
+            // get the pointer to neighbor's light curve
+            var modal = $('#objectinfo-modal');
+            var lcfbasename = objectid + '-csvlc.gz';
+            var lcfurl = '/l/' + collection.replace('_','-') + '/' + lcfbasename;
+            modal.find('#modal-downloadlc')
+                .attr('href',lcfurl)
+                .attr('download',lcfbasename);
+
+        });
 
         // this handles the hover per objectid row to highlight the object in
         // the finder chart
@@ -2698,6 +2763,12 @@ var lcc_objectinfo = {
           GAIA neighbors
         </a>
 
+        <a class="nav-item nav-link" id="modal-varfeatures"
+           data-toggle="tab" href="#mtab-varfeatures" role="tab"
+           aria-controls="modal-varfeatures" aria-selected="false">
+          Variability features
+        </a>
+
       </div>
     </nav>
 
@@ -2750,6 +2821,7 @@ var lcc_objectinfo = {
 
       </div>
 
+
       <div class="tab-pane" id="mtab-phasedlcs"
            role="tabpanel" aria-labelledby="modal-phasedlcs">
 
@@ -2764,6 +2836,7 @@ var lcc_objectinfo = {
         </div>
 
       </div>
+
 
       <div class="tab-pane" id="mtab-gaianeighbors"
            role="tabpanel" aria-labelledby="modal-gaianeighbors">
@@ -2785,6 +2858,35 @@ var lcc_objectinfo = {
              </thead>
 
              <tbody id="gaia-neighbor-tbody">
+
+             </tbody>
+
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
+
+      <div class="tab-pane" id="mtab-varfeatures"
+           role="tabpanel" aria-labelledby="modal-varfeatures">
+
+        <div class="row mt-4 varfeatures-table-container">
+          <div class="col-12">
+
+            <table id="modal-varfeatures-table"
+                   class="table table-sm table-striped">
+
+             <thead>
+               <tr>
+                 <th>feature</th>
+                 <th>value</th>
+                 <th>description</th>
+               </tr>
+             </thead>
+
+             <tbody id="varfeatures-tbody">
 
              </tbody>
 
@@ -2873,7 +2975,7 @@ var lcc_objectinfo = {
         $(target).html(lcc_objectinfo.modal_template);
     },
 
-    render_infotable: function (currcp) {
+    render_infotable: function (currcp, collection) {
 
         // get the number of detections
         var objndet = currcp.objectinfo.ndet;
@@ -3330,6 +3432,7 @@ var lcc_objectinfo = {
 
             var formatted_neighbors =
                 '<strong><em>from LCs in collection</em>:</strong> 0<br>';
+
             if (currcp.objectinfo.neighbors > 0) {
 
                 formatted_neighbors =
@@ -3337,8 +3440,14 @@ var lcc_objectinfo = {
                     currcp.objectinfo.neighbors + '<br>' +
                     '<em>closest:</em> ' +
                     currcp.objectinfo.closestdistarcsec.toFixed(1) +
-                    '&Prime; &rarr; <span class="text-primary">N1: ' +
-                    currcp.neighbors[0]['objectid'] + '</span><br>';
+                    '&Prime; &rarr; ' +
+                    '<a href="#" title="look at objectinfo for this neighbor" ' +
+                    'class="objectinfo-nbrlink" ' +
+                    'data-objectid="' + currcp.neighbors[0]['objectid'] +
+                    '" ' +
+                    'data-collection="' +  collection + '">' +
+                    'N1: ' + currcp.neighbors[0]['objectid'] +
+                    '</a><br>';
             }
 
             var formatted_gaia =
@@ -3762,6 +3871,106 @@ var lcc_objectinfo = {
                         '<th>Variability tags</th>' +
                         '<td>' + vartags + '</td></tr>');
 
+
+            // add in the variability features if they exist to the variability
+            // features table
+            $('.varfeatures-tbody').empty();
+
+            if ('features' in currcp.varinfo) {
+
+                var varfeatures = currcp.varinfo.features;
+                var features_table = `
+<tr>
+  <td><code>amplitude</code></td>
+  <td>${varfeatures.amplitude.toFixed(3)}</td>
+  <td>Amplitude of variability of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>beyond1std</code></td>
+  <td>${varfeatures.beyond1std.toFixed(3)}</td>
+  <td>Fraction of observations beyond 1-stdev of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>eta</code></td>
+  <td>${(1.0/(varfeatures.eta_normal)).toFixed(3)}</td>
+  <td>The eta-inverse variability index of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>kurtosis</code></td>
+  <td>${varfeatures.kurtosis.toFixed(3)}</td>
+  <td>Distribution kurtosis of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>linear_fit_slope</code></td>
+  <td>${varfeatures.linear_fit_slope.toFixed(3)}</td>
+  <td>The slope of a linear fit to the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>mad</code></td>
+  <td>${varfeatures.mad.toFixed(3)}</td>
+  <td>Median absolute deviation of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>mags_iqr</code></td>
+  <td>${varfeatures.mag_iqr.toFixed(3)}</td>
+  <td>Interquartile range (75-25) of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>median</code></td>
+  <td>${varfeatures.median.toFixed(3)}</td>
+  <td>Median of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>ndetobslength_ratio</code></td>
+  <td>${varfeatures.ndetobslength_ratio.toFixed(3)}</td>
+  <td>Ratio of the number of observations to the length of observations</td>
+</tr>
+<tr>
+  <td><code>skew</code></td>
+  <td>${varfeatures.skew.toFixed(3)}</td>
+  <td>Distribution skew of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>stdev</code></td>
+  <td>${varfeatures.stdev.toFixed(3)}</td>
+  <td>Standard deviation of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>stetsonj</code></td>
+  <td>${varfeatures.stetsonj.toFixed(3)}</td>
+  <td>The Stetson J variability index of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>stetsonk</code></td>
+  <td>${varfeatures.stetsonk.toFixed(3)}</td>
+  <td>The Stetson K variability index of the magnitude time-series</td>
+</tr>
+<tr>
+  <td><code>timelength</code></td>
+  <td>${varfeatures.timelength.toFixed(3)}</td>
+  <td>Time difference in days between the last and first observation</td>
+</tr>
+<tr>
+  <td><code>wmean</code></td>
+  <td>${varfeatures.wmean.toFixed(3)}</td>
+  <td>Weighted mean of the magnitude time-series</td>
+</tr>
+`;
+                $('#varfeatures-tbody').html(features_table);
+
+            }
+
+            else {
+                $('.varfeatures-tbody')
+                    .html('<tr>' +
+                          '<td></td>' +
+                          '<td></td>' +
+                          '<td>No variability features found for this object.' +
+                          '</td>' +
+                          '</tr>');
+            }
+
+
         }
 
         // get the object tags -> .objectinfo-table
@@ -3920,7 +4129,7 @@ var lcc_objectinfo = {
             }
 
             // add in the object's info table
-            lcc_objectinfo.render_infotable(result);
+            lcc_objectinfo.render_infotable(result, collection);
 
             // render the object's lightcurve download link if we're in separate
             // page mode. also render the object's collection and title
