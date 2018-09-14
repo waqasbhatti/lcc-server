@@ -737,6 +737,66 @@ var lcc_ui = {
         });
 
 
+        // this handles the hover per objectid row to highlight the object in
+        // the finder chart
+        $('#objectinfo-modal').on('mouseover','.gaia-objectlist-row', function (e) {
+
+            e.preventDefault();
+
+            var canvas = document.getElementById('finderchart');
+            var canvaswidth = canvas.width;
+            var canvasheight = canvas.height;
+            var ctx = canvas.getContext('2d');
+
+            // FIXME: check if astropy.wcs returns y, x and we've been doing
+            // this wrong all this time
+            var thisx = $(this).attr('data-xpos');
+            var thisy = $(this).attr('data-ypos');
+
+            var cnvx = thisx * canvaswidth/300.0;
+
+            // y is from the top of the image for canvas
+            // FITS coords are from the bottom of the image
+            var cnvy = (300.0 - thisy) * canvasheight/300.0;
+
+            // save the damaged part of the image
+            lcc_objectinfo.pixeltracker = ctx.getImageData(cnvx-20,cnvy-20,40,40);
+
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 3.0;
+            ctx.strokeRect(cnvx-7.5,cnvy-7.5,12.5,12.5);
+
+        });
+
+        // this handles the repair to the canvas after the user mouses out of
+        // the row
+        $('#objectinfo-modal').on('mouseout','.gaia-objectlist-row', function (e) {
+
+            e.preventDefault();
+
+            var canvas = document.getElementById('finderchart');
+            var canvaswidth = canvas.width;
+            var canvasheight = canvas.height;
+            var ctx = canvas.getContext('2d');
+
+            var thisx = $(this).attr('data-xpos');
+            var thisy = $(this).attr('data-ypos');
+
+            var cnvx = thisx * canvaswidth/300.0;
+
+            // y is from the top of the image for canvas
+            // FITS coords are from the bottom of the image
+            var cnvy = (300.0 - thisy) * canvasheight/300.0;
+
+            // restore the imagedata if we have any
+            if (lcc_objectinfo.pixeltracker != null) {
+                ctx.putImageData(lcc_objectinfo.pixeltracker,
+                                 cnvx-20, cnvy-20);
+            }
+
+        });
+
+
     },
 
 
@@ -2573,6 +2633,12 @@ var lcc_objectinfo = {
           Period search results
         </a>
 
+        <a class="nav-item nav-link" id="modal-gaianeighbors"
+           data-toggle="tab" href="#mtab-gaianeighbors" role="tab"
+           aria-controls="modal-gaianeighbors" aria-selected="false">
+          GAIA neighbors
+        </a>
+
       </div>
     </nav>
 
@@ -2581,8 +2647,8 @@ var lcc_objectinfo = {
       <div class="tab-pane show active" id="mtab-objectinfo"
            role="tabpanel" aria-labelledby="modal-objectinfo">
 
-        <div class="row mt-2">
-          <div class="col-6">
+        <div class="row mt-4">
+          <div class="col-sm-12 col-md-6">
 
             <table id="objectinfo-basic"
                    class="table table-borderless objectinfo-table">
@@ -2608,7 +2674,7 @@ var lcc_objectinfo = {
 
           </div>
 
-          <div class="col-6">
+          <div class="col-sm-12 col-md-6">
 
             <table id="objectinfo-extra"
                    class="table table-borderless objectinfo-table">
@@ -2628,7 +2694,7 @@ var lcc_objectinfo = {
       <div class="tab-pane" id="mtab-phasedlcs"
            role="tabpanel" aria-labelledby="modal-phasedlcs">
 
-        <div class="row mt-2">
+        <div class="row mt-4">
           <div class="col-12">
 
             <div id="modal-phasedlc-container" class="phasedlc-container">
@@ -2639,6 +2705,37 @@ var lcc_objectinfo = {
         </div>
 
       </div>
+
+      <div class="tab-pane" id="mtab-gaianeighbors"
+           role="tabpanel" aria-labelledby="modal-gaianeighbors">
+
+        <div class="row mt-4 gaia-neighbor-table-container">
+          <div class="col-12">
+
+            <table id="modal-gaianeighbor-table"
+                   class="table table-sm table-hover">
+
+             <thead>
+               <tr>
+                 <th>GAIA source id<br>&nbsp;</th>
+                 <th>distance<br>[arcsec]</th>
+                 <th>parallax<br>[mas]</th>
+                 <th><em>G</em><br>[mag]</th>
+                 <th><em>M<sub>G</sub></em><br>[mag]</th>
+               </tr>
+             </thead>
+
+             <tbody id="gaia-neighbor-tbody">
+
+             </tbody>
+
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
 
     </div>
 
@@ -2745,25 +2842,33 @@ var lcc_objectinfo = {
             $('#obsinfo').html(hatinfo);
 
         }
+
         else if ('observatory' in currcp.objectinfo) {
 
-            var obsinfo = '<strong'> +
-                currcp.objectinfo.observatory + '</strong><br>' +
-                '<strong>LC points:</strong> ' + objndet;
-            $('#obsinfo').html(obsinfo);
+            if ('telescope' in currcp.objectinfo) {
 
-        }
-        else if ('telescope' in currcp.objectinfo) {
+                $('#obsinfo').html(
+                    '<strong>' +
+                        currcp.objectinfo.observatory + ':</strong> ' +
+                        currcp.objectinfo.telescope + '<br>' +
+                        '<strong>LC points:</strong> ' + objndet
+                );
 
-            var telinfo = '<strong'> +
-                currcp.objectinfo.telescope + '</strong><br>' +
-                '<strong>LC points:</strong> ' + objndet;
-            $('#obsinfo').html(telinfo);
+            }
+
+            else {
+
+                $('#obsinfo').html(
+                    '<strong>' + currcp.objectinfo.observatory + '</strong><br>' +
+                        '<strong>LC points:</strong> ' + objndet
+                );
+            }
 
         }
         else {
             $('#obsinfo').html('<strong>LC points:</strong> ' + objndet);
         }
+
 
         // get the GAIA status (useful for G mags, colors, etc.)
         var gaia_ok = false;
@@ -2916,11 +3021,13 @@ var lcc_objectinfo = {
         var gaiakcolor = '';
         var gaiaabsmag = 'N/A';
         if (gaia_ok) {
+
             gaiamag = currcp.objectinfo.gaia_mags[0].toFixed(3);
             if (currcp.objectinfo.gaiak_colors != null) {
                 gaiakcolor = currcp.objectinfo.gaiak_colors[0].toFixed(3);
             }
             gaiaabsmag = currcp.objectinfo.gaia_absolute_mags[0].toFixed(3);
+
         }
 
         //
@@ -3178,7 +3285,10 @@ var lcc_objectinfo = {
             var formatted_gaia =
                 '<strong><em>GAIA query failed</em>:</strong> ' +
                 gaia_message;
+            $('#gaia-neighbor-tbody').empty();
+
             if (gaia_ok) {
+
                 formatted_gaia =
                     '<strong><em>from GAIA</em>:</strong> ' +
                     (currcp.objectinfo.gaia_ids.length - 1) + '<br>' +
@@ -3202,6 +3312,236 @@ var lcc_objectinfo = {
                     "</tr>"
             );
 
+
+        }
+
+        var gi = 0;
+        var gaia_x = 0.0;
+        var gaia_y = 0.0;
+        var rowhtml = '';
+        var curr_gaia_dist = 0.0;
+        var curr_gaia_parallax = 0.0;
+        var curr_gaia_parallax_err = 0.0;
+        var curr_gaia_mag = 0.0;
+        var curr_gaia_absmag = 0.0;
+
+        // add in the GAIA neighbors to the table
+        if (gaia_ok) {
+
+            // for each gaia neighbor, put in a table row
+            for (gi; gi < currcp.objectinfo.gaia_ids.length; gi++) {
+
+                // format the current object's GAIA info
+                curr_gaia_dist = currcp.objectinfo.gaia_dists[gi];
+                curr_gaia_parallax = currcp.objectinfo.gaia_parallaxes[gi];
+                curr_gaia_parallax_err = currcp.objectinfo.gaia_parallax_errs[gi];
+                curr_gaia_mag = currcp.objectinfo.gaia_mags[gi];
+                curr_gaia_absmag = currcp.objectinfo.gaia_absolute_mags[gi];
+                if (curr_gaia_dist !== null) {
+                    curr_gaia_dist = curr_gaia_dist.toFixed(3);
+                }
+                else {
+                    curr_gaia_dist = 'N/A';
+                }
+                if (curr_gaia_parallax !== null) {
+                    curr_gaia_parallax = curr_gaia_parallax.toFixed(3);
+                }
+                else {
+                    curr_gaia_parallax = 'N/A';
+                }
+                if (curr_gaia_parallax_err !== null) {
+                    curr_gaia_parallax_err = curr_gaia_parallax_err.toFixed(3);
+                }
+                else {
+                    curr_gaia_parallax_err = 'N/A';
+                }
+                if (curr_gaia_mag !== null) {
+                    curr_gaia_mag = curr_gaia_mag.toFixed(3);
+                }
+                else {
+                    curr_gaia_mag = 'N/A';
+                }
+                if (curr_gaia_absmag !== null) {
+                    curr_gaia_absmag = curr_gaia_absmag.toFixed(3);
+                }
+                else {
+                    curr_gaia_absmag = 'N/A';
+                }
+
+                // get the current object's xy position on the finder based on
+                // GAIA coords
+                if (currcp.objectinfo.gaia_xypos != null) {
+                    gaia_x = currcp.objectinfo.gaia_xypos[gi][0];
+                }
+                else {
+                    gaia_x = 0.0;
+                }
+                if (currcp.objectinfo.gaia_xypos != null) {
+                    gaia_y = currcp.objectinfo.gaia_xypos[gi][1];
+                }
+                else {
+                    gaia_y = 0.0;
+                }
+
+
+                // special formatting for the object itself
+                if (gi == 0) {
+                    rowhtml = '<tr class="gaia-objectlist-row ' +
+                        'text-primary' +
+                        '" ' +
+                        'data-gaiaid="' +
+                        currcp.objectinfo.gaia_ids[gi] +
+                        '" data-xpos="' +
+                        gaia_x +
+                        '" data-ypos="' +
+                        gaia_y +
+                        '" >' +
+                        '<td>this object: ' +
+                        currcp.objectinfo.gaia_ids[gi] +
+                        '</td>' +
+                        '<td>' + curr_gaia_dist +
+                        '</td>' +
+                        '<td>' +
+                        curr_gaia_parallax +
+                        ' &plusmn; ' +
+                        curr_gaia_parallax_err +
+                        '</td>' +
+                        '<td>' +
+                        curr_gaia_mag +
+                        '</td>' +
+                        '<td>' +
+                        curr_gaia_absmag +
+                        '</td>' +
+                        '</tr>';
+                }
+
+                else {
+
+                    rowhtml = '<tr class="gaia-objectlist-row" ' +
+                        'data-gaiaid="' +
+                        currcp.objectinfo.gaia_ids[gi] +
+                        '" data-xpos="' +
+                        gaia_x +
+                        '" data-ypos="' +
+                        gaia_y +
+                        '" >' +
+                        '<td>' + currcp.objectinfo.gaia_ids[gi] +
+                        '</td>' +
+                        '<td>' +
+                        curr_gaia_dist +
+                        '</td>' +
+                        '<td>' +
+                        curr_gaia_parallax +
+                        ' &plusmn; ' +
+                        curr_gaia_parallax_err +
+                        '</td>' +
+                        '<td>' +
+                        curr_gaia_mag +
+                        '</td>' +
+                        '<td>' +
+                        curr_gaia_absmag +
+                        '</td>' +
+                        '</tr>';
+
+                }
+
+                $('#gaia-neighbor-tbody').append(rowhtml);
+
+            }
+
+        }
+
+        // if GAIA xmatch failed, fill in the table without special
+        // formatting if possible
+        else if (currcp.objectinfo.gaia_ids != undefined) {
+
+            // for each gaia neighbor, put in a table row
+            gi = 0;
+
+            // put in any rows of neighbors if there are any
+            for (gi; gi < currcp.objectinfo.gaia_ids.length; gi++) {
+
+                // format the current object's GAIA info
+                curr_gaia_dist = currcp.objectinfo.gaia_dists[gi];
+                curr_gaia_parallax = currcp.objectinfo.gaia_parallaxes[gi];
+                curr_gaia_parallax_err = currcp.objectinfo.gaia_parallax_errs[gi];
+                curr_gaia_mag = currcp.objectinfo.gaia_mags[gi];
+                curr_gaia_absmag = currcp.objectinfo.gaia_absolute_mags[gi];
+                if (curr_gaia_dist !== null) {
+                    curr_gaia_dist = curr_gaia_dist.toFixed(3);
+                }
+                else {
+                    curr_gaia_dist = 'N/A';
+                }
+                if (curr_gaia_parallax !== null) {
+                    curr_gaia_parallax = curr_gaia_parallax.toFixed(3);
+                }
+                else {
+                    curr_gaia_parallax = 'N/A';
+                }
+                if (curr_gaia_parallax_err !== null) {
+                    curr_gaia_parallax_err = curr_gaia_parallax_err.toFixed(3);
+                }
+                else {
+                    curr_gaia_parallax_err = 'N/A';
+                }
+                if (curr_gaia_mag !== null) {
+                    curr_gaia_mag = curr_gaia_mag.toFixed(3);
+                }
+                else {
+                    curr_gaia_mag = 'N/A';
+                }
+                if (curr_gaia_absmag !== null) {
+                    curr_gaia_absmag = curr_gaia_absmag.toFixed(3);
+                }
+                else {
+                    curr_gaia_absmag = 'N/A';
+                }
+
+                // get the current object's xy position on the finder based on
+                // GAIA coords
+                if (currcp.objectinfo.gaia_xypos != null) {
+                    gaia_x = currcp.objectinfo.gaia_xypos[gi][0];
+                }
+                else {
+                    gaia_x = 0.0;
+                }
+
+                if (currcp.objectinfo.gaia_xypos != null) {
+                    gaia_y = currcp.objectinfo.gaia_xypos[gi][1];
+                }
+                else {
+                    gaia_y = 0.0;
+                }
+
+                rowhtml = '<tr class="gaia-objectlist-row" ' +
+                    'data-gaiaid="' +
+                    currcp.objectinfo.gaia_ids[gi] +
+                    '" data-xpos="' +
+                    gaia_x +
+                    '" data-ypos="' +
+                    gaia_y +
+                    '" >' +
+                    '<td>' + currcp.objectinfo.gaia_ids[gi] +
+                    '</td>' +
+                    '<td>' +
+                    curr_gaia_dist +
+                    '</td>' +
+                    '<td>' +
+                    curr_gaia_parallax +
+                    ' &plusmn; ' +
+                    curr_gaia_parallax_err +
+                    '</td>' +
+                    '<td>' +
+                    curr_gaia_mag +
+                    '</td>' +
+                    '<td>' +
+                    curr_gaia_absmag +
+                    '</td>' +
+                    '</tr>';
+                $('#gaia-neighbor-tbody').append(rowhtml);
+
+            }
 
         }
 
