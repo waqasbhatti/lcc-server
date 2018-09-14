@@ -200,11 +200,6 @@ class ObjectInfoHandler(BaseHandler):
         if it exists, we'll ask the background checkplotserver for the checkplot
         info as JSON using the AsyncHTTPClient.
 
-        FIXME: FIXME: should probably check if the the object is actually public
-        before trying to fetch it (this can just be a
-        dbsearch.sqlite_column_search on this object's collection and objectid
-        to see if it's public. if it's not, then return 401)
-
         '''
 
         objectid = self.get_argument('objectid',default=None)
@@ -423,10 +418,6 @@ class ObjectInfoPageHandler(BaseHandler):
 
         That page has an async call to the objectinfo JSON API below.
 
-        FIXME: FIXME: should probably check if the the object is actually public
-        before trying to fetch it (this can just be a
-        dbsearch.sqlite_column_search on this object's collection and objectid
-        to see if it's public. if it's not, then return 401)
         '''
 
         try:

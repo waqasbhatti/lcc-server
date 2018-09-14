@@ -16,6 +16,9 @@ table.table-sm {
   font-size: 14px;
 }
 
+.primary-controlbox {
+  background: blanchedalmond;
+}
 
 span.fts-col {
   color: #d95f02;

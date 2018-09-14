@@ -1693,3 +1693,40 @@ def verify_user_email_address(payload,
 #########################
 ## PERMISSION HANDLING ##
 #########################
+
+
+
+######################
+## API KEY HANDLING ##
+######################
+
+def issue_new_apikey(payload,
+                     raiseonfail=False,
+                     override_authdb_path=None):
+    '''This issues a new API key.
+
+    payload must have the following keys:
+
+    user_id, expires_days, ip_address, client_header
+
+    API keys are tied to an IP address and client header combination. This will
+    return an signed and encrypted Fernet API key that contains the user_id,
+    random token, IP address, client header, and expiry date in ISO
+    format. We'll then be able to use this info to verify the API key without
+    hitting the database all the time.
+
+    '''
+
+
+
+def check_apikey(payload,
+                 raiseonfail=False,
+                 override_authdb_path=None):
+    '''This checks if an API key is valid.
+
+    payload requires the following keys: apikey, session_info
+
+    session_info contains the user_id, ip_address, and client_header to match
+    against the info stored in the API key.
+
+    '''
