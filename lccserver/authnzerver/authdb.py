@@ -136,8 +136,29 @@ Users = Table(
            nullable=False, index=True)
 )
 
-# FIXME: add a Groups table and figure out how to assign them to Roles and how
-# Users will work (especially sharing of items)
+
+# this is the groups table
+# groups can only be created by authenticated users and above
+Groups = Table(
+    'groups', AUTHDB_META,
+    Column('group_id', Integer, primary_key=True),
+    Column('group_name',String(length=280), nullable=False),
+    Column('visibility',String(length=100), nullable=False,
+           default='public', index=True),
+    Column('created_by', Integer, ForeignKey("users.user_id"),
+           nullable=False),
+    Column('is_active', Boolean(), default=False,
+           nullable=False, index=True),
+    Column('created_on', DateTime(),
+           default=datetime.utcnow,
+           nullable=False,index=True),
+    Column('last_updated', DateTime(),
+           onupdate=datetime.utcnow,
+           nullable=False,index=True),
+    Column('user_role', String(length=100),
+           ForeignKey("roles.name"),
+           nullable=False, index=True)
+)
 
 
 # user preferences - fairly freeform to allow extension
