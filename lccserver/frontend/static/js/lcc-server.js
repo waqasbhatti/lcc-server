@@ -1,4 +1,4 @@
-/*global $, moment, oboe, setTimeout, clearTimeout, Image */
+/*global $, moment, oboe, setTimeout, clearTimeout, Image, CodeMirror */
 
 /*
   lcc-server.js - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jun 2018
@@ -4239,5 +4239,25 @@ var lcc_objectinfo = {
 
     }
 
+};
+
+
+// this contains functions to drive the SQL query bits
+var lcc_sqlquery = {
+
+    // this is a function to set up the codemirror UI
+    action_setup: function() {
+
+        // attach the codemirror object to the textarea
+        // FIXME: see https://codemirror.net/mode/sql/index.html?mime=text/x-sql
+        var textarea = document.getElementById('sql-query');
+        lcc_sqlquery.codemirror = CodeMirror.fromTextArea(
+            textarea,
+            {mode: 'text/x-sql',
+             lineNumbers: true,
+             matchBrackets: true}
+        );
+
+    }
 
 };

@@ -1,10 +1,7 @@
 {% extends 'base.html' %}
 
 {% block pagecss %}
-
-<!-- Codemirror CSS -->
-<!-- <link rel="stylesheet" href="{{ static_url('css/codemirror.css') }}">
--->
+<link rel="stylesheet" href="{{ static_url('css/codemirror.css') }}">
 {% end %}
 
 
@@ -978,13 +975,117 @@
         <!-- SQL QUERY TAB -->
         <div class="tab-pane"
              id="sql" role="tabpanel" aria-labelledby="sql-tab">
-
           <div class="row mt-2">
-            <div class="col-12">
-              sql controls go here
-            </div>
-          </div>
 
+            <div class="col-sm-12 col-md-3">
+
+              <div class="row">
+                <div class="col-12">
+                  <h4>Available LC collections</h4>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-12">
+
+                  <select class="custom-select lcc-collection-select"
+                          id="sql-collection-select" size="3">
+
+                  </select>
+                  <small class="form-text text-muted">Click on a collection to see its description and columns.</small>
+
+                </div>
+              </div>
+              <div class="row mt-1" >
+                <div class="col-12 sqlquery-collection-description" >
+                  this shows the LC collection's database table name, description and number of objects.
+                </div>
+              </div>
+
+              <div class="row mt-4">
+                <div class="col-12">
+
+                  <h4>Columns in this LC collection</h4>
+
+                  <select class="custom-select lcc-column-select"
+                          id="sql-column-select" size="8">
+
+                  </select>
+                  <small class="form-text text-muted">Click on a column to see its description.</small>
+                </div>
+              </div>
+              <div class="row mt-1" >
+                <div class="col-12 sqlquery-column-description" >
+                  this shows the column name, description, dtype and index status.
+                </div>
+              </div>
+
+            </div>
+
+            <div class="col-sm-12 col-md-5" >
+
+              <form class="form" id="xmatch-form"
+                    action="/api/sqlquery" method="post">
+                {% module xsrf_form_html() %}
+
+                <div class="row">
+                  <div class="col-12 py-2 primary-controlbox">
+                    <h3>Write and run an SQL database query</h3>
+
+                    <div class="form-row align-items-center justify-content-end">
+                      <div class="col-sm-9">
+
+                        <div class="form-inline visibility-form" data-target="xmatch">
+
+                          <label for="xmatch-visibility">
+                            Dataset from query result will be
+                          </label>
+
+                          <select class="ml-2 custom-select lcc-visibility-select"
+                                  id="xmatch-visibility-select">
+                            <option value="public" selected>publicly visible</option>
+                            <!-- <option value="shared" >shared with</option> -->
+                            <option value="private" >private</option>
+                          </select>
+
+                        </div>
+
+                      </div>
+
+                      <div class="d-flex col-sm-3">
+                        <button class="btn btn-primary flex-grow-1"
+                                type="submit" id="xmatch-submit">Search</button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <div class="row mt-2">
+                  <div class="col-12">
+
+                    <div class="form-group">
+                      <label for="sql-query">
+                        Type in your SQL query. You may only run
+                        <code>SELECT</code> queries here.
+                      </label>
+                      <textarea id="sql-query" name="sqlquery" rows="18">
+                      </textarea>
+                    </div>
+
+                  </div>
+                </div>
+
+              </form>
+            </div>
+
+            <div class="col-sm-12 col-md-4" >
+              <h4>Search help</h4>
+
+
+            </div>
+
+          </div>
         </div>
 
 
@@ -1336,10 +1437,7 @@
 
 
 {% block pagejs_modules %}
-
-<!-- code mirror js -->
-<!-- <script src="{{ static_url('js/codemirror.min.js') }}"></script>
--->
+<script src="{{ static_url('js/codemirror.min.js') }}"></script>
 {% end %}
 
 
@@ -1356,6 +1454,8 @@ lcc_ui.get_recent_datasets(25);
 // UI action setup
 lcc_ui.action_setup();
 
+// set up the codemirror bits
+lcc_sqlquery.action_setup();
 
 
 });
