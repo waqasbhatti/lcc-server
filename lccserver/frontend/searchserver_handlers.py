@@ -611,8 +611,8 @@ class BackgroundQueryMixin(object):
                                    "building dataset..." % nrows),
                         "status":"running",
                         "result":{
-                            "setid":self.setid,
-                            "actual_nrows":nrows
+                            "setid": self.setid,
+                            "total_nmatches": nrows
                         },
                         "time":'%sZ' % datetime.utcnow().isoformat()
                     }
@@ -719,8 +719,7 @@ class BackgroundQueryMixin(object):
 
                         # A4. we're done with collecting light curves
                         retdict = {
-                            "message":("dataset LC ZIP complete. "
-                                       "generating dataset CSV..."),
+                            "message":("dataset LC ZIP complete. "),
                             "status":"running",
                             "result":{
                                 "setid":dspkl_setid,

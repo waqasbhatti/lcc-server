@@ -406,7 +406,7 @@ def sqlite_new_dataset(basedir,
                        dataset_visibility='public',
                        dataset_sharedwith=None,
                        make_dataset_csv=True,
-                       rows_per_page=500):
+                       rows_per_page=100):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
@@ -886,7 +886,6 @@ def sqlite_make_dataset_lczip(basedir,
         with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
-
         # 1. use the provided list of original LCs to generate a cache key.
         dataset_lczip_cachekey = generate_lczip_cachekey(
             dataset_all_original_lcs
@@ -1052,6 +1051,25 @@ def sqlite_make_dataset_lczip(basedir,
         cur.execute(query, params)
         db.commit()
         db.close()
+
+        # update the dataset pickle and dataset header pickle with the LC zip
+        # information and the fact that all LCs have been collected.
+
+        # update the header pickle
+        dataset_header_pkl = os.path.join(datasetdir,
+                                          'dataset-%s-header.pkl' % setid)
+        with open(dataset_header_pkl,'rb') as infd:
+            setheader = pickle.load(infd)
+        setheader['updated'] = datetime.utcnow().isoformat()
+        setheader['csvlcs_in_progress'] = []
+        with open(dataset_header_pkl,'wb') as outfd:
+            pickle.dump(setheader, outfd, pickle.HIGHEST_PROTOCOL)
+
+        # update the full dataset pickle
+        dataset['updated'] = datetime.utcnow().isoformat()
+        dataset['csvlcs_in_progress'] = []
+        with open(dataset_fpath,'wb') as outfd:
+            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
         LOGINFO('updated entry for setid: %s with LC zip cachekey' % setid)
         return dataset['lczipfpath']

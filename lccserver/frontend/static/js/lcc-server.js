@@ -555,15 +555,15 @@ var lcc_ui = {
                 var filter_card = '<div class="card filterbucket-card ' +
                     'mt-1 mx-1 p-1" ' +
                     'data-target="' +
-                    target.replace('"','').replace("'",'').trim() +
+                    target.replace(/"/g,'').replace(/'/g,'').trim() +
                     '" data-column="' +
-                    filter_col.replace('"','').replace("'",'').trim() +
+                    filter_col.replace(/"/g,'').replace(/'/g,'').trim() +
                     '" data-operator="' +
-                    filter_opstr.replace('"','').replace("'",'').trim() +
+                    filter_opstr.replace(/"/g,'').replace(/'/g,'').trim() +
                     '" data-filterval="' +
-                    filter_val.replace('"','').replace("'",'').trim() +
+                    filter_val.replace(/"/g,'').replace(/'/g,'').trim() +
                     '" data-dtype="' +
-                    filter_dtype.replace('"','').replace("'",'').trim() +
+                    filter_dtype.replace(/"/g,'').replace(/'/g,'').trim() +
                     '">' +
                     '<div class="card-body d-flex align-items-center p-2">' +
                     '<div class="mr-auto">' +
@@ -665,6 +665,25 @@ var lcc_ui = {
 
         });
 
+        // dataset page handling
+        $('.dataset-pagination-prev').on('click', function (evt) {
+
+            lcc_datasets.get_dataset_page(
+                lcc_datasets.setid,
+                lcc_datasets.currpage - 1
+            );
+
+        });
+        // dataset page handling
+        $('.dataset-pagination-next').on('click', function (evt) {
+
+            lcc_datasets.get_dataset_page(
+                lcc_datasets.setid,
+                lcc_datasets.currpage + 1
+            );
+
+        });
+
         // fancy zoom and pan effects for a phased LC tile
         // see https://codepen.io/ccrch/pen/yyaraz
         $('.modal-body')
@@ -751,7 +770,7 @@ var lcc_ui = {
             // get the pointer to neighbor's light curve
             var modal = $('#objectinfo-modal');
             var lcfbasename = objectid + '-csvlc.gz';
-            var lcfurl = '/l/' + collection.replace('_','-') + '/' + lcfbasename;
+            var lcfurl = '/l/' + collection.replace(/_/g,'-') + '/' + lcfbasename;
             modal.find('#modal-downloadlc')
                 .attr('href',lcfurl)
                 .attr('download',lcfbasename);
@@ -773,7 +792,7 @@ var lcc_ui = {
             // get the pointer to neighbor's light curve
             var modal = $('#objectinfo-modal');
             var lcfbasename = objectid + '-csvlc.gz';
-            var lcfurl = '/l/' + collection.replace('_','-') + '/' + lcfbasename;
+            var lcfurl = '/l/' + collection.replace(/_/g,'-') + '/' + lcfbasename;
             modal.find('#modal-downloadlc')
                 .attr('href',lcfurl)
                 .attr('download',lcfbasename);
@@ -795,7 +814,7 @@ var lcc_ui = {
             // get the pointer to neighbor's light curve
             var modal = $('#objectinfo-modal');
             var lcfbasename = objectid + '-csvlc.gz';
-            var lcfurl = '/l/' + collection.replace('_','-') + '/' + lcfbasename;
+            var lcfurl = '/l/' + collection.replace(/_/g,'-') + '/' + lcfbasename;
             modal.find('#modal-downloadlc')
                 .attr('href',lcfurl)
                 .attr('download',lcfbasename);
@@ -2294,8 +2313,7 @@ var lcc_datasets = {
 
     // these are set so that one doesn't need to redo rendering after the
     // dataset loads
-    table_rendered: false,
-    columdefs_rendered: false,
+    staticbits_rendered: false,
 
     // this renders the column definitions when they're received from the
     // backend
@@ -2464,7 +2482,7 @@ var lcc_datasets = {
             datarows_elem.append(
                 '<tr><td>' +
                     data.rows[rowind].join('</td><td>')
-                    .replace('href','rel="nofollow" href') +
+                    .replace(/href/g,'rel="nofollow" href') +
                     '</td></tr>'
             );
 
@@ -2487,27 +2505,8 @@ var lcc_datasets = {
     },
 
 
-    // this function gets the dataset from the backend and enters a refresh loop
-    // if the response indicates the dataset isn't available yet.  if the
-    // dataset becomes available, it will load the JSON and render the dataset's
-    // header and table rows
-    get_dataset: function (setid, refresh) {
-
-        // set the loading indicators
-        var load_indicator = $('#setload-indicator');
-        if (load_indicator.text() == '') {
-
-            $('#setload-indicator').html(
-                '<span class="text-warning">waiting for dataset... ' +
-                    '</span>'
-            );
-
-            $('#setload-icon').html(
-                '<img src="/static/images/twotone-sync-24px.svg' +
-                    '" class="animated flash infinite">'
-            );
-
-        }
+    // this just gets the header once and loads the first page
+    get_dataset_preview: function (setid) {
 
         var geturl = '/set/' + setid;
         var getparams = {json: 1,
@@ -2518,29 +2517,14 @@ var lcc_datasets = {
 
             var status = data.status;
 
-            // if status is 'complete', we'll load the data
-            if (status == 'complete') {
+            // fill in stuff that only needs to be done once
+            if (!lcc_datasets.staticbits_rendered) {
 
-                //////////////////////////////
-                // fill in the header first //
-                //////////////////////////////
-
-                // 2a. created
-                var created_on = data.created;
-                created_on = created_on + ' UTC <strong>(' +
-                    moment(created_on + 'Z').fromNow() + ')<strong>';
-                $('#dataset-createdon').html(created_on);
-
-                // 2b. lastupdated
-                var last_updated = data.updated;
-                last_updated = last_updated + ' UTC <strong>(' +
-                    moment(last_updated + 'Z').fromNow() + ')<strong>';
-                $('#dataset-lastupdated').html(last_updated);
-
-                // 3. status
-                $('#dataset-status').html('<span class="text-success">' +
-                                          status +
-                                          '</span>');
+                // save these to the object so we can refer to them later
+                [lcc_datasets.colind_objectid,
+                 lcc_datasets.colind_collection,
+                 lcc_datasets.colind_lcfname] =
+                    lcc_datasets.render_column_definitions(data);
 
                 // 4 and 5. searchtype and searchargs
                 $('#dataset-searchargs').html(
@@ -2585,117 +2569,68 @@ var lcc_datasets = {
                     $('#dataset-nobjects').html(data.actual_nrows);
                 }
 
+                // update the page number
+                $('.dataset-pagination-currpage').html(
+                    '<span id="page-indicator" data-currpage="' +
+                        data.currpage +
+                        '">Page 1 of ' + data.npages
+                );
 
-                if (data.lczipfpath != null && data.lczipfpath != undefined) {
-                    // 12. lczip
-                    $('#dataset-lczip')
-                        .html('<a download rel="nofollow" href="' +
-                              data.lczipfpath + '">download file</a>');
-                }
-                else {
-                    $('#dataset-lczip').html('not available');
-                }
+                // load the first page only once
+                lcc_datasets.render_datatable_rows(
+                    data,
+                    lcc_datasets.colind_objectid,
+                    lcc_datasets.colind_collection,
+                    lcc_datasets.colind_lcfname
+                );
 
-
-                /////////////////////////////////////
-                // fill in the column descriptions //
-                /////////////////////////////////////
-
-                var [colind_objectid,
-                     colind_collection,
-                     colind_lcfname] =
-                    lcc_datasets.render_column_definitions(data);
-
-                ////////////////////////////////////////
-                // finally, fill in the dataset table //
-                ////////////////////////////////////////
-
-                lcc_datasets.render_datatable_rows(data,
-                                                   colind_objectid,
-                                                   colind_collection,
-                                                   colind_lcfname);
-
-                // clear out the loading indicators at the end
-                $('#setload-icon').empty();
-                $('#setload-indicator').empty();
+                lcc_datasets.staticbits_rendered = true;
+                lcc_datasets.npages = data.npages;
+                lcc_datasets.currpage = 1;
+                lcc_datasets.setid = setid;
 
             }
 
-            // if status is not 'complete', we enter a loop based on the
-            // specified refresh interval and hit the backend again
-            else if (status == 'in progress') {
+            // the rest of the stuff can be called over again until we stop
 
-                // 2a. created
-                created_on = data.created;
-                created_on = created_on + ' UTC <strong>(' +
-                    moment(created_on + 'Z').fromNow() + ')<strong>';
-                $('#dataset-createdon').html(created_on);
+            // 2a. created
+            var created_on = data.created;
+            created_on = created_on + ' UTC <strong>(' +
+                moment(created_on + 'Z').fromNow() + ')<strong>';
+            $('#dataset-createdon').html(created_on);
 
-                // 2b. lastupdated
-                last_updated = data.updated;
-                last_updated = last_updated + ' UTC <strong>(' +
-                    moment(last_updated + 'Z').fromNow() + ')<strong>';
-                $('#dataset-lastupdated').html(last_updated);
+            // 2b. lastupdated
+            var last_updated = data.updated;
+            last_updated = last_updated + ' UTC <strong>(' +
+                moment(last_updated + 'Z').fromNow() + ')<strong>';
+            $('#dataset-lastupdated').html(last_updated);
 
-                // 3. status
-                $('#dataset-status').html('<span class="text-warning">' +
+            // show the LC ZIP URL
+            if (data.lczipfpath != null && data.lczipfpath != undefined) {
+                // 12. lczip
+                $('#dataset-lczip')
+                    .html('<a download rel="nofollow" href="' +
+                          data.lczipfpath + '">download file</a>');
+            }
+            else {
+                $('#dataset-lczip').html('not available yet');
+            }
+
+            // set the status indicator and kill the loading icon as appropriate
+            if (status == 'complete') {
+                $('#dataset-status').html('<span class="text-success">' +
                                           status +
                                           '</span>');
-
-                // 4 and 5. searchtype and searchargs
-                $('#dataset-searchargs').html('<details><summary>' +
-                                              data.searchtype
-                                              .replace('sqlite_','')
-                                              .replace('postgres_','') +
-                                              '</summary><pre>' +
-                                              JSON.stringify(data.searchargs,
-                                                             null,
-                                                             2) +
-                                              '</pre></detail>');
-
-                // 6. nobjects
-                if ('actual_nrows' in data) {
-                    $('#dataset-nobjects').html(
-                        data.actual_nrows +
-                            ' (showing ' +
-                            data.rows_per_page +
-                            ' per page &mdash; see the ' +
-                            '<a download rel="nofollow" href="' +
-                            data.dataset_csv + '">dataset CSV</a>' +
-                            ' for complete table)'
-                    );
-                }
-                else {
-                    $('#dataset-nobjects').html(data.actual_nrows);
-                }
-
-                // 7. collections
-                $('#dataset-collections').html(data.collections.join(', '));
-
-                // now wait for the next loop
-                window.setTimeout(function () {
-
-                    // call us again after the timeout expires
-                    lcc_datasets.get_dataset(setid, refresh);
-
-                }, refresh*1000.0);
-
-            }
-
-            // anything else is weird and broken
-            else {
-
-                var message = 'Could not retrieve the dataset ' +
-                    'from the LCC server backend.';
-
-                lcc_ui.alert_box(message, 'danger');
-
-                // clear out the loading indicators at the end
                 $('#setload-icon').empty();
                 $('#setload-indicator').empty();
-
+                lcc_datasets.dataset_complete = true;
             }
-
+            else {
+                $('#dataset-status').html('<span class="text-secondary">' +
+                                          status +
+                                          '</span>');
+                lcc_datasets.dataset_complete = false;
+            }
 
         }).fail(function (xhr) {
 
@@ -2714,6 +2649,130 @@ var lcc_datasets = {
             $('#setload-indicator').empty();
 
         });
+
+    },
+
+
+    // this gets an arbitrary dataset page
+    get_dataset_page: function (setid, pagenumber) {
+
+        // do nothing if the page number is out of bounds
+        if (pagenumber > lcc_datasets.npages || pagenumber < 1) {
+            return;
+        }
+
+        var geturl = '/set/' + setid;
+        var getparams = {json: 1,
+                         strformat: 1,
+                         page: pagenumber};
+
+        // here we do the retrieval
+        $.getJSON(geturl, getparams, function (data) {
+
+            var status = data.status;
+
+            //////////////////////////////
+            // fill in the header first //
+            //////////////////////////////
+
+            // 2a. created
+            var created_on = data.created;
+            created_on = created_on + ' UTC <strong>(' +
+                moment(created_on + 'Z').fromNow() + ')<strong>';
+            $('#dataset-createdon').html(created_on);
+
+            // 2b. lastupdated
+            var last_updated = data.updated;
+            last_updated = last_updated + ' UTC <strong>(' +
+                moment(last_updated + 'Z').fromNow() + ')<strong>';
+            $('#dataset-lastupdated').html(last_updated);
+
+            // 3. status
+            $('#dataset-status').html('<span class="text-success">' +
+                                      status +
+                                      '</span>');
+
+            // show the LC ZIP URL
+            if (data.lczipfpath != null && data.lczipfpath != undefined) {
+                // 12. lczip
+                $('#dataset-lczip')
+                    .html('<a download rel="nofollow" href="' +
+                          data.lczipfpath + '">download file</a>');
+            }
+            else {
+                $('#dataset-lczip').html('not available yet');
+            }
+
+            // update the page number
+            $('.dataset-pagination-currpage').html(
+                'Page ' + pagenumber + ' of ' + data.npages
+            );
+            lcc_datasets.currpage = pagenumber;
+
+            ////////////////////////////////////////
+            // finally, fill in the dataset table //
+            ////////////////////////////////////////
+
+            lcc_datasets.render_datatable_rows(data,
+                                               lcc_datasets.colind_objectid,
+                                               lcc_datasets.colind_collection,
+                                               lcc_datasets.colind_lcfname);
+
+        }).fail(function (xhr) {
+
+            var message = 'Could not retrieve the dataset ' +
+                'from the LCC server backend.';
+
+            if (xhr.status == 500) {
+                message = 'Something went wrong with the LCC-Server backend ' +
+                    'while trying to fetch this dataset.';
+            }
+
+            lcc_ui.alert_box(message, 'danger');
+
+            // clear out the loading indicators at the end
+            $('#setload-icon').empty();
+            $('#setload-indicator').empty();
+
+        });
+
+    },
+
+
+    // this function gets the dataset from the backend and enters a refresh loop
+    // if the response indicates the dataset isn't available yet.  if the
+    // dataset becomes available, it will load the JSON and render the dataset's
+    // header and table rows
+    get_dataset: function (setid, refresh) {
+
+        // set the loading indicators
+        var load_indicator = $('#setload-indicator');
+        if (load_indicator.text() == '') {
+
+            $('#setload-indicator').html(
+                '<span class="text-warning">waiting for dataset completion... ' +
+                    '</span>'
+            );
+
+            $('#setload-icon').html(
+                '<img src="/static/images/twotone-sync-24px.svg' +
+                    '" class="animated flash infinite">'
+            );
+
+        }
+
+        // call this once to render the initial bits
+        lcc_datasets.get_dataset_preview(setid);
+
+        // if the dataset is not noted as complete, call us again after refresh
+        // timeout has expired
+        if (!lcc_datasets.dataset_complete) {
+
+            window.setTimeout(function () {
+                lcc_datasets.get_dataset_preview(setid);
+            }, refresh*1000.0);
+
+        }
 
     }
 
@@ -4049,28 +4108,28 @@ var lcc_objectinfo = {
 
                 col1 = '<div class="col-3 px-0">' +
                     '<img src="data:image/png;base64,' +
-                    currcp[pfm].periodogram.replace('null','NaN') +
+                    currcp[pfm].periodogram.replace(/null/g,'NaN') +
                     '" ' +
                     'class="img-fluid zoomable-tile" id="periodogram-' +
                     pfm + '"></div>';
 
                 col2 = '<div class="col-3 px-0">' +
                     '<img src="data:image/png;base64,' +
-                    currcp[pfm]['phasedlc0']['plot'].replace('null','NaN') +
+                    currcp[pfm]['phasedlc0']['plot'].replace(/null/g,'NaN') +
                     '" ' +
                     'class="img-fluid zoomable-tile" id="phasedlc-0-' +
                     pfm + '"></div>';
 
                 col3 = '<div class="col-3 px-0">' +
                     '<img src="data:image/png;base64,' +
-                    currcp[pfm]['phasedlc1']['plot'].replace('null','NaN') +
+                    currcp[pfm]['phasedlc1']['plot'].replace(/null/g,'NaN') +
                     '" ' +
                     'class="img-fluid zoomable-tile" id="phasedlc-1-' +
                     pfm + '"></div>';
 
                 col4 = '<div class="col-3 px-0">' +
                     '<img src="data:image/png;base64,' +
-                    currcp[pfm]['phasedlc2']['plot'].replace('null','NaN') +
+                    currcp[pfm]['phasedlc2']['plot'].replace(/null/g,'NaN') +
                     '" ' +
                     'class="img-fluid zoomable-tile" id="phasedlc-2-' +
                     pfm + '"></div>';
@@ -4147,7 +4206,7 @@ var lcc_objectinfo = {
                     .addClass('mt-2')
                     .html('<div class="col-12"><h2>' + objectid +
                           ' in collection <code>' +
-                          collection.replace('-','_') + '</code></h2>');
+                          collection.replace(/-/g,'_') + '</code></h2>');
 
             }
 
