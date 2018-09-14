@@ -80,6 +80,8 @@ from urllib.parse import urlencode
 ###################
 
 from .. import __version__
+from .basehandler import BaseHandler
+from ..backend import dbsearch
 
 
 ###################################################
@@ -135,84 +137,7 @@ def check_for_checkplots(objectid, basedir, collection):
 
 
 
-class ObjectInfoPageHandler(tornado.web.RequestHandler):
-    '''
-    This just calls the handler below to load object info to a blank template.
-
-    This listens on /obj/<collection>/<objectid>.
-
-    '''
-
-    def initialize(self,
-                   currentdir,
-                   apiversion,
-                   templatepath,
-                   assetpath,
-                   executor,
-                   basedir,
-                   signer,
-                   fernet,
-                   cpsharedkey,
-                   cpaddress,
-                   siteinfo):
-        '''
-        handles initial setup.
-
-        '''
-
-        self.currentdir = currentdir
-        self.apiversion = apiversion
-        self.templatepath = templatepath
-        self.assetpath = assetpath
-        self.executor = executor
-        self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
-        self.cpkey = cpsharedkey
-        self.cpaddr = cpaddress
-        self.siteinfo = siteinfo
-
-
-    @gen.coroutine
-    def get(self, collection, objectid):
-        '''This runs the query.
-
-        Just renders templates/objectinfo-async.html.
-
-        That page has an async call to the objectinfo JSON API below.
-
-        FIXME: FIXME: should probably check if the the object is actually public
-        before trying to fetch it (this can just be a
-        dbsearch.sqlite_column_search on this object's collection and objectid
-        to see if it's public. if it's not, then return 401)
-        '''
-
-        try:
-
-            collection = url_unescape(xhtml_escape(collection))
-            objectid = url_unescape(xhtml_escape(objectid))
-
-            self.render(
-                'objectinfo-async.html',
-                page_title='LCC server object info',
-                collection=collection,
-                objectid=objectid,
-                lccserver_version=__version__,
-                siteinfo=self.siteinfo
-            )
-
-        except Exception as e:
-
-            self.set_status(400)
-            self.render('errorpage.html',
-                        page_title='400 - object request not valid',
-                        error_message='Could not parse your object request.',
-                        lccserver_version=__version__,
-                        siteinfo=self.siteinfo)
-
-
-
-class ObjectInfoHandler(tornado.web.RequestHandler):
+class ObjectInfoHandler(BaseHandler):
     '''
     This handles talking to the checkplotserver for checkplot info
     on a given object.
@@ -229,7 +154,10 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
                    signer,
                    fernet,
                    cpsharedkey,
-                   cpaddress):
+                   cpaddress,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
         '''
         handles initial setup.
 
@@ -245,6 +173,10 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
         self.fernet = fernet
         self.cpkey = cpsharedkey
         self.cpaddr = cpaddress
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
 
@@ -267,10 +199,6 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
 
         if it exists, we'll ask the background checkplotserver for the checkplot
         info as JSON using the AsyncHTTPClient.
-
-        FIXME: should we be able to search for objects in multiple collections?
-        probably yes. for now, we'll restrict this to the collection provided as
-        the argument.
 
         FIXME: FIXME: should probably check if the the object is actually public
         before trying to fetch it (this can just be a
@@ -304,97 +232,228 @@ class ObjectInfoHandler(tornado.web.RequestHandler):
         objectid = xhtml_escape(objectid)
         collection = xhtml_escape(collection)
 
-        # 1. get the canonical checkplot path
-        checkplot_fpath, checkplot_fglob = yield self.executor.submit(
-            check_for_checkplots,
-            objectid,
+        # check if we actually have access to this object
+        access_check = yield self.executor.submit(
+            dbsearch.sqlite_column_search,
             self.basedir,
-            collection
+            getcolumns=['objectid'],
+            conditions="objectid = '%s'" % objectid.strip(),
+            lcclist=[collection],
+            incoming_userid=self.current_user['user_id'],
+            incoming_role=self.current_user['user_role']
         )
 
-        LOGGER.info('fpath = %s, glob = %s' % (checkplot_fpath,
-                                               checkplot_fglob))
+        if access_check and len(access_check[collection]['result']) > 0:
 
-        # 2. ask the checkplotserver for this checkplot using our key
-        if checkplot_fpath is not None:
+            LOGGER.info('user_id = %s, role = %s, access OK for %s in %s' %
+                        (self.current_user['user_id'],
+                         self.current_user['user_role'],
+                         objectid,
+                         collection))
 
-            url = self.cpaddr + '/standalone'
-
-            # generate our request URL
-            req_url = url + '?' + urlencode(
-                {'cp':b64encode(checkplot_fpath.encode()),
-                 'key':self.cpkey}
+            # 1. get the canonical checkplot path
+            checkplot_fpath, checkplot_fglob = yield self.executor.submit(
+                check_for_checkplots,
+                objectid,
+                self.basedir,
+                collection
             )
 
-            client = AsyncHTTPClient(force_instance=True)
-            resp = yield client.fetch(req_url, raise_error=False)
+            LOGGER.info('fpath = %s, glob = %s' % (checkplot_fpath,
+                                                   checkplot_fglob))
 
-            if resp.code != 200:
+            # 2. ask the checkplotserver for this checkplot using our key
+            if checkplot_fpath is not None:
 
-                LOGGER.error('could not fetch checkplot: %s '
-                             'for object: %s in collection: %s '
-                             'from the backend checkplotserver at %s. '
-                             'the error code was: %s from: %s'
-                             % (checkplot_fpath,
-                                objectid,
-                                collection,
-                                self.cpaddr, resp.code, resp.effective_url))
-                self.set_status(resp.code)
+                url = self.cpaddr + '/standalone'
 
-            # the checkplot server returns a JSON in case of success or error,
-            # so that's what we'll forward to the client.
-            self.set_header('Content-Type',
-                            'application/json; charset=UTF-8')
-
-            try:
-
-                # make sure once again to remove NaNs. do this carefully because
-                # stray nulls can kill base64 encoded images
-
-                # first, we'll deserialize to JSON
-                # make sure to replace NaNs only in the right places
-                rettext = resp.body.decode()
-                rettext = (
-                    rettext.replace(
-                        ': NaN',': null'
-                    ).replace(
-                        ', NaN',', null'
-                    ).replace(
-                        '[NaN','[null'
-                    ).replace(
-                        'NaN]','null]'
-                    )
+                # generate our request URL
+                req_url = url + '?' + urlencode(
+                    {'cp':b64encode(checkplot_fpath.encode()),
+                     'key':self.cpkey}
                 )
 
-            except AttributeError as e:
+                resp = yield self.httpclient.fetch(req_url,
+                                                   raise_error=False)
 
-                rettext = json.dumps({
+                if resp.code != 200:
+
+                    LOGGER.error('could not fetch checkplot: %s '
+                                 'for object: %s in collection: %s '
+                                 'from the backend checkplotserver at %s. '
+                                 'the error code was: %s from: %s'
+                                 % (checkplot_fpath,
+                                    objectid,
+                                    collection,
+                                    self.cpaddr, resp.code, resp.effective_url))
+                    self.set_status(resp.code)
+
+                # the checkplot server returns a JSON in case of success or
+                # error, so that's what we'll forward to the client.
+                self.set_header('Content-Type',
+                                'application/json; charset=UTF-8')
+
+                try:
+
+                    # make sure once again to remove NaNs. do this carefully
+                    # because stray nulls can kill base64 encoded images
+
+                    # first, we'll deserialize to JSON
+                    # make sure to replace NaNs only in the right places
+                    rettext = resp.body.decode()
+                    rettext = (
+                        rettext.replace(
+                            ': NaN',': null'
+                        ).replace(
+                            ', NaN',', null'
+                        ).replace(
+                            '[NaN','[null'
+                        ).replace(
+                            'NaN]','null]'
+                        )
+                    )
+
+                except AttributeError as e:
+
+                    rettext = json.dumps({
+                        'status':'failed',
+                        'message':('could not fetch checkplot for '
+                                   'this object, checkplotserver '
+                                   'error code: %s' % resp.code),
+                        'result':None
+                    })
+
+                finally:
+
+                    self.write(rettext)
+                    self.finish()
+
+            else:
+
+                LOGGER.error(
+                    'could not find the requested checkplot using globs: %r' %
+                    checkplot_fglob
+                )
+                self.set_status(404)
+                retdict = {
                     'status':'failed',
-                    'message':('could not fetch checkplot for '
-                               'this object, checkplotserver '
-                               'error code: %s' % resp.code),
-                    'result':None
-                })
-
-            finally:
-
-                client.close()
-                self.write(rettext)
+                    'result':None,
+                    'message':('could not find information for '
+                               'object %s in collection %s' %
+                               (objectid, collection))
+                }
+                self.write(retdict)
                 self.finish()
 
+        # if we don't have access to this object.
         else:
 
             LOGGER.error(
-                'could not find the requested checkplot using globs: %r' %
-                checkplot_fglob
+                'incoming user_id = %s, role = %s has no '
+                'access to objectid %s in collection %s' %
+                (self.current_user['user_id'],
+                 self.current_user['user_role'],
+                 objectid, collection)
             )
-            self.set_status(404)
+            self.set_status(401)
+
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':('could not find information for '
-                           'object %s in collection %s' %
+                'message':("Sorry, you don't have access to "
+                           "object %s in collection %s" %
                            (objectid, collection))
             }
             self.write(retdict)
             self.finish()
+
+
+
+class ObjectInfoPageHandler(BaseHandler):
+    '''
+    This just calls the handler below to load object info to a blank template.
+
+    This listens on /obj/<collection>/<objectid>.
+
+    '''
+
+    def initialize(self,
+                   currentdir,
+                   apiversion,
+                   templatepath,
+                   assetpath,
+                   executor,
+                   basedir,
+                   signer,
+                   fernet,
+                   cpsharedkey,
+                   cpaddress,
+                   siteinfo,
+                   authnzerver,
+                   session_expiry,
+                   fernetkey):
+        '''
+        handles initial setup.
+
+        '''
+
+        self.currentdir = currentdir
+        self.apiversion = apiversion
+        self.templatepath = templatepath
+        self.assetpath = assetpath
+        self.executor = executor
+        self.basedir = basedir
+        self.signer = signer
+        self.fernet = fernet
+        self.cpkey = cpsharedkey
+        self.cpaddr = cpaddress
+        self.siteinfo = siteinfo
+        self.authnzerver = authnzerver
+        self.session_expiry = session_expiry
+        self.fernetkey = fernetkey
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+
+
+
+    @gen.coroutine
+    def get(self, collection, objectid):
+        '''This runs the query.
+
+        Just renders templates/objectinfo-async.html.
+
+        That page has an async call to the objectinfo JSON API below.
+
+        FIXME: FIXME: should probably check if the the object is actually public
+        before trying to fetch it (this can just be a
+        dbsearch.sqlite_column_search on this object's collection and objectid
+        to see if it's public. if it's not, then return 401)
+        '''
+
+        try:
+
+            collection = url_unescape(xhtml_escape(collection))
+            objectid = url_unescape(xhtml_escape(objectid))
+
+            self.render(
+                'objectinfo-async.html',
+                page_title='LCC server object info',
+                collection=collection,
+                objectid=objectid,
+                lccserver_version=__version__,
+                siteinfo=self.siteinfo,
+                flash_messages=self.render_flash_messages(),
+                user_account_box=self.render_user_account_box(),
+            )
+
+        except Exception as e:
+
+            LOGGER.exception('could not handle incoming object request')
+
+            self.set_status(400)
+            self.render('errorpage.html',
+                        page_title='400 - object request not valid',
+                        error_message='Could not parse your object request.',
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo,
+                        flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box(),)

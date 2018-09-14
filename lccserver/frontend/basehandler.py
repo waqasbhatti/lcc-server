@@ -575,6 +575,15 @@ class BaseHandler(tornado.web.RequestHandler):
             # it)
 
 
+    def on_finish(self):
+        '''
+        This just cleans up the httpclient.
+
+        '''
+
+        self.httpclient.close()
+
+
 
     def check_apikey(self):
         '''
