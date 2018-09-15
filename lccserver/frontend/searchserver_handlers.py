@@ -601,7 +601,7 @@ class BackgroundQueryMixin(object):
                             dspkl_setid
                         )
                         retdict = {
-                            "message":("Dataset now ready: %s" % dataset_url),
+                            "message":("Dataset now ready: %s." % dataset_url),
                             "status":"ok",
                             "result":{
                                 "setid":dspkl_setid,
@@ -638,7 +638,7 @@ class BackgroundQueryMixin(object):
                                 "Query is complete, "
                                 "but light curves of matching objects "
                                 "are still being zipped. "
-                                "Check %s for results later" %
+                                "Check %s for results later." %
                                 dataset_url
                             ),
                             "status":"background",
@@ -676,7 +676,7 @@ class BackgroundQueryMixin(object):
                             "Query <code>%s</code> failed. "
                             "No matching objects were found. The object you "
                             "searched for may be outside the "
-                            "footprint of the available LC collections" %
+                            "footprint of the available LC collections." %
                             self.setid
                         )
                     else:
@@ -743,7 +743,7 @@ class BackgroundQueryMixin(object):
             retdict = {
                 "message":("Query sent to background after 15 seconds. "
                            "Query is still running, "
-                           "check %s for results later" % dataset_url),
+                           "check %s for results later." % dataset_url),
                 "status":"background",
                 "result":{
                     "setid":self.setid,
