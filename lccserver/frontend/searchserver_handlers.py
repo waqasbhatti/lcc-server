@@ -424,7 +424,7 @@ class BackgroundQueryMixin(object):
         # A1. we have a setid, send this back to the client
         retdict = {
             "message":(
-                "query in run-queue. executing with set ID: %s..." % self.setid
+                "Query in run-queue. Executing with set ID: %s..." % self.setid
             ),
             "status":"queued",
             "result":{
@@ -465,9 +465,9 @@ class BackgroundQueryMixin(object):
                 if nrows > 0:
 
                     retdict = {
-                        "message":("query finished OK. "
-                                   "objects matched: %s, "
-                                   "building dataset..." % nrows),
+                        "message":("Query finished OK. "
+                                   "Objects matched: %s, "
+                                   "Building dataset..." % nrows),
                         "status":"running",
                         "result":{
                             "setid":self.setid,
@@ -537,8 +537,8 @@ class BackgroundQueryMixin(object):
                     # A3. we have the dataset pickle generated, send back an
                     # update
                     retdict = {
-                        "message":("dataset pickle generation complete. "
-                                   "collecting light curves into ZIP file..."),
+                        "message":("Dataset pickle generation complete. "
+                                   "Collecting light curves into ZIP file..."),
                         "status":"running",
                         "result":{
                             "setid":dspkl_setid,
@@ -572,8 +572,8 @@ class BackgroundQueryMixin(object):
 
                         # A4. we're done with collecting light curves
                         retdict = {
-                            "message":("dataset LC ZIP complete. "
-                                       "generating dataset CSV..."),
+                            "message":("Dataset LC ZIP complete. "
+                                       "Generating dataset CSV..."),
                             "status":"running",
                             "result":{
                                 "setid":dspkl_setid,
@@ -601,7 +601,7 @@ class BackgroundQueryMixin(object):
                             dspkl_setid
                         )
                         retdict = {
-                            "message":("dataset now ready: %s" % dataset_url),
+                            "message":("Dataset now ready: %s" % dataset_url),
                             "status":"ok",
                             "result":{
                                 "setid":dspkl_setid,
@@ -628,17 +628,17 @@ class BackgroundQueryMixin(object):
                             self.setid
                         )
 
-                        LOGGER.warning('query for setid: %s went to '
+                        LOGGER.warning('Query for setid: %s went to '
                                        'background while zipping light curves' %
                                        self.setid)
 
                         retdict = {
                             "message":(
-                                "query sent to background after 30 seconds. "
-                                "query is complete, "
+                                "Query sent to background after 30 seconds. "
+                                "Query is complete, "
                                 "but light curves of matching objects "
                                 "are still being zipped. "
-                                "check %s for results later" %
+                                "Check %s for results later" %
                                 dataset_url
                             ),
                             "status":"background",
@@ -671,15 +671,27 @@ class BackgroundQueryMixin(object):
                 # if we didn't find anything, return immediately
                 else:
 
+                    if query_spec['name'] == 'conesearch':
+                        message = (
+                            "Query <code>%s</code> failed. "
+                            "No matching objects were found. The object you "
+                            "searched for may be outside the "
+                            "footprint of the available LC collections" %
+                            self.setid
+                        )
+                    else:
+                        message = (
+                            "Query <code>%s</code> failed. "
+                            "No matching objects were found."
+                        )
+
                     retdict = {
                         "status":"failed",
                         "result":{
                             "setid":self.setid,
                             "nobjects":0
                         },
-                        "message":("Query <code>%s</code> failed. "
-                                   "No matching objects were found" %
-                                   self.setid),
+                        "message": message,
                         "time":'%sZ' % datetime.utcnow().isoformat()
                     }
                     self.write(retdict)
@@ -687,10 +699,22 @@ class BackgroundQueryMixin(object):
 
             else:
 
+                if query_spec['name'] == 'conesearch':
+                    message = (
+                        "Query <code>%s</code> failed. "
+                        "No matching objects were found. The object you "
+                        "searched for may be outside the "
+                        "footprint of the available LC collections." %
+                        self.setid
+                    )
+                else:
+                    message = (
+                        "Query <code>%s</code> failed. "
+                        "No matching objects were found."
+                    )
+
                 retdict = {
-                    "message":("Query <code>%s</code> failed. "
-                               "No matching objects were found" %
-                               self.setid),
+                    "message": message,
                     "status":"failed",
                     "result":{
                         "setid":self.setid,
@@ -717,8 +741,8 @@ class BackgroundQueryMixin(object):
                 self.setid
             )
             retdict = {
-                "message":("query sent to background after 15 seconds. "
-                           "query is still running, "
+                "message":("Query sent to background after 15 seconds. "
+                           "Query is still running, "
                            "check %s for results later" % dataset_url),
                 "status":"background",
                 "result":{
@@ -741,7 +765,7 @@ class BackgroundQueryMixin(object):
                 collections = self.query_result['databases']
                 nrows = sum(self.query_result[x]['nmatches']
                             for x in collections)
-                LOGGER.info('background query for setid: %s finished, '
+                LOGGER.info('Background query for setid: %s finished, '
                             'objects found: %s ' % (self.setid, nrows))
 
                 # Q3. make the dataset pickle and finish dataset row in the
@@ -1147,9 +1171,13 @@ class ConeSearchHandler(tornado.web.RequestHandler,
             if not coordok:
 
                 LOGGER.error('could not parse the input coordinate string')
-                retdict = {"status":"failed",
-                           "result":None,
-                           "message":"could not parse the input coords string"}
+                retdict = {
+                    "status":"failed",
+                    "result":None,
+                    "message":(
+                        "conesearch: could not parse the input coords string."
+                    )
+                }
                 self.write(retdict)
                 raise tornado.web.Finish()
 
@@ -1576,7 +1604,7 @@ class XMatchHandler(tornado.web.RequestHandler,
                 retdict = {
                     'status':'failed',
                     'message':('No credentials provided or '
-                               'they could not be parsed safely'),
+                               'they could not be parsed safely.'),
                     'result':None
                 }
 
@@ -1787,8 +1815,8 @@ class XMatchHandler(tornado.web.RequestHandler,
         # return early if we can't parse the input data
         if not parsed_xmq or not parsed_xmd:
 
-            msg = ("Could not parse the xmatch input or "
-                   " the match radius is invalid.")
+            msg = ("xmatch: could not parse the xmatch input or "
+                   "the provided match radius is invalid.")
 
             retdict = {'status':'failed',
                        'message':msg,
