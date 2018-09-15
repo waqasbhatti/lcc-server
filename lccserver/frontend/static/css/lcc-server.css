@@ -17,7 +17,9 @@ table.table-sm {
 }
 
 .primary-controlbox {
-  background: blanchedalmond;
+  background: #fff3cd;
+  border-radius: 5px;
+  border-color: #fff3cd;
 }
 
 span.fts-col {
@@ -79,7 +81,7 @@ code {
 }
 
 .lcc-filterbucket {
-  height: 14.575em;
+  height: 13em;
   overflow-y: auto;
 }
 
