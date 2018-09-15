@@ -1540,7 +1540,7 @@ def send_signup_verification_email(payload,
     msgtext = SIGNUP_VERIFICATION_EMAIL_TEMPLATE.format(
         lccserver_baseurl=payload['lccserver_baseurl'],
         verification_code=payload['fernet_verification_token'],
-        browser_identifier=browser.replace('_',' '),
+        browser_identifier=browser.replace('_','.'),
         ip_address=ip_addr,
         user_email=payload['email_address'],
     )
