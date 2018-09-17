@@ -1004,6 +1004,9 @@ var lcc_ui = {
                         var nobjects = result[rowind]['nobjects'];
 
                         // query type and params
+                        var set_name = result[rowind]['name'];
+                        var set_desc = result[rowind]['description'];
+                        var set_owned = result[rowind]['owned'];
                         var query_type = result[rowind]['query_type'];
                         var query_params = result[rowind]['query_params'];
 
@@ -1022,7 +1025,17 @@ var lcc_ui = {
                         var table_setid = '<td>' +
                             '<a rel="nofollow" href="/set/' +
                             setid + '">' +
-                            setid + '</a></td>';
+                            setid + '</a>' +
+                            '</td>';
+                        if (set_owned) {
+                            table_setid = '<td>' +
+                                '<a rel="nofollow" href="/set/' +
+                                setid + '">' +
+                                setid + '</a><br>' +
+                                '<span class="text-success">Your dataset</span>' +
+                                '</td>';
+                        }
+
 
                         //
                         // Objects column
@@ -1034,6 +1047,8 @@ var lcc_ui = {
                         // Query column
                         //
                         var table_query = '<td width="350">' +
+                            set_name + '<br>' +
+                            set_desc + '<br>' +
                             '<code><details><summary>' + query_type +
                             '</summary><pre>' +
                             JSON.stringify(JSON.parse(query_params),null,2) +
@@ -1310,7 +1325,6 @@ var lcc_ui = {
                         dataset_download + '<br>' +
                         csv_download + '<br>' +
                         lczip_download + '</td>';
-
 
                     //
                     // Last updated columns

@@ -49,6 +49,8 @@
 
               <table class="table table-borderless table-sm">
 
+                {% if header['owned'] %}
+
                 <tr>
                   <th width="200">dataset owner</th>
                   <td id="owner-label">{{ header['owner'] }}</td>
@@ -63,6 +65,8 @@
                   <th width="200">dataset shared with</th>
                   <td id="sharedwith-label">{{ header['sharedwith'] }}</td>
                 </tr>
+
+                {% end %}
 
                 <tr>
                   <th width="80">name</th>
