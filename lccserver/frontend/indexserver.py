@@ -178,6 +178,7 @@ def main():
     from . import dataserver_handlers as dh
     from . import objectserver_handlers as oh
     from . import auth_handlers as ah
+    from .basehandler import AuthEnabledStaticHandler
 
     from ..authnzerver import authdb
 
@@ -438,18 +439,45 @@ def main():
 
         # this handles static file downloads for dataset pickles
         (r'/d/(.*)',
-         tornado.web.StaticFileHandler,
-         {'path':os.path.join(BASEDIR,'datasets')}),
+         AuthEnabledStaticHandler,
+         {'path':os.path.join(BASEDIR,'datasets'),
+          'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # this handles static file downloads for dataset products
         (r'/p/(.*)',
-         tornado.web.StaticFileHandler,
-         {'path':os.path.join(BASEDIR,'products')}),
+         AuthEnabledStaticHandler,
+         {'path':os.path.join(BASEDIR,'products'),
+          'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
         # this handles static file downloads for individual light curves
         (r'/l/(.*)',
-         tornado.web.StaticFileHandler,
-         {'path':os.path.join(BASEDIR,'csvlcs')}),
+         AuthEnabledStaticHandler,
+         {'path':os.path.join(BASEDIR,'csvlcs'),
+          'currentdir':CURRENTDIR,
+          'templatepath':TEMPLATEPATH,
+          'assetpath':ASSETPATH,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'siteinfo':SITEINFO,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'fernetkey':FERNETSECRET}),
 
 
         ######################
