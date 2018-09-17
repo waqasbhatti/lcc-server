@@ -1383,7 +1383,8 @@ def sqlite_get_dataset(basedir,
 
     # get the dataset's info from the DB
     query = ("select created_on, last_updated, status, "
-             "dataset_owner, dataset_visibility, dataset_sharedwith "
+             "dataset_owner, dataset_visibility, dataset_sharedwith, "
+             "dataset_sessiontoken "
              "from lcc_datasets where setid = ?")
     cur.execute(query, (setid,))
     row = cur.fetchone()
@@ -1415,6 +1416,7 @@ def sqlite_get_dataset(basedir,
 
                 db.close()
                 outdict['status'] = dataset_status
+                outdict['session_token'] = row['dataset_sessiontoken']
                 return outdict
 
             elif returnspec == 'json-header':
@@ -1426,6 +1428,7 @@ def sqlite_get_dataset(basedir,
 
                 db.close()
                 header['status'] = dataset_status
+                header['session_token'] = row['dataset_sessiontoken']
                 return header
 
             elif returnspec == 'json-preview':
@@ -1449,6 +1452,7 @@ def sqlite_get_dataset(basedir,
                 header['rows'] = table_preview
                 header['status'] = dataset_status
                 header['currpage'] = 1
+                header['session_token'] = row['dataset_sessiontoken']
                 db.close()
                 return header
 
@@ -1473,6 +1477,7 @@ def sqlite_get_dataset(basedir,
                 header['rows'] = table_preview
                 header['status'] = dataset_status
                 header['currpage'] = 1
+                header['session_token'] = row['dataset_sessiontoken']
                 db.close()
                 return header
 
@@ -1499,6 +1504,7 @@ def sqlite_get_dataset(basedir,
                 header['rows'] = setrows
                 header['status'] = dataset_status
                 header['currpage'] = int(page_to_get)
+                header['session_token'] = row['dataset_sessiontoken']
                 db.close()
                 return header
 
@@ -1526,6 +1532,7 @@ def sqlite_get_dataset(basedir,
                 header['rows'] = setrows
                 header['status'] = dataset_status
                 header['currpage'] = int(page_to_get)
+                header['session_token'] = row['dataset_sessiontoken']
                 db.close()
                 return header
 
@@ -1586,12 +1593,3 @@ def sqlite_update_dataset(basedir,
     the action to test is 'edit'
 
     '''
-
-
-#####################################
-## SEARCHING FOR STUFF IN DATASETS ##
-#####################################
-
-# TODO: these functions search in the lcc-datasets.sqlite databases:
-# - full text match on dataset ID, description, name, searchargs
-# - cone search and overlapping query on dataset footprint

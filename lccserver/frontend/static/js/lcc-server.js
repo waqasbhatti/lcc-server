@@ -1220,6 +1220,9 @@ var lcc_ui = {
                     var nobjects = result[rowind]['nobjects'];
 
                     // query type and params
+                    var set_name = result[rowind]['name'];
+                    var set_desc = result[rowind]['description'];
+                    var set_owned = result[rowind]['owned'];
                     var query_type = result[rowind]['query_type'];
                     var query_params = result[rowind]['query_params'];
 
@@ -1238,7 +1241,16 @@ var lcc_ui = {
                     var table_setid = '<td>' +
                         '<a rel="nofollow" href="/set/' +
                         setid + '">' +
-                        setid + '</a></td>';
+                        setid + '</a>' +
+                        '</td>';
+                    if (set_owned) {
+                        table_setid = '<td>' +
+                            '<a rel="nofollow" href="/set/' +
+                            setid + '">' +
+                            setid + '</a><br>' +
+                            '<span class="text-success">Your dataset</span>' +
+                            '</td>';
+                    }
 
                     //
                     // Objects column
@@ -1250,6 +1262,8 @@ var lcc_ui = {
                     // Query column
                     //
                     var table_query = '<td width="350">' +
+                        set_name + '<br>' +
+                        set_desc + '<br>' +
                         '<code><details><summary>' + query_type +
                         '</summary><pre>' +
                         JSON.stringify(JSON.parse(query_params),null,2) +
@@ -2718,7 +2732,7 @@ var lcc_datasets = {
                  lcc_datasets.colind_lcfname] =
                     lcc_datasets.render_column_definitions(data);
 
-                // 4 and 5. searchtype and searchargs
+                // searchtype and searchargs
                 $('#dataset-searchargs').html(
                     '<details><summary>' +
                         data.searchtype
@@ -2731,21 +2745,21 @@ var lcc_datasets = {
                         '</pre></detail>'
                 );
 
-                // 6. collections
+                // collections queries
                 $('#dataset-collections').html( data.collections.join(', '));
 
-                // 7. setpickle
+                // setpickle URL
                 $('#dataset-setpickle')
                     .html('<a download rel="nofollow" href="' +
                           data.dataset_pickle + '">download file</a>');
 
-                // 9. setcsv
+                // setcsv URL
                 $('#dataset-setcsv')
                     .html('<a download rel="nofollow" href="' +
                           data.dataset_csv + '">download file</a>');
 
 
-                // 11. nobjects
+                // nobjects in this dataset
                 if ('actual_nrows' in data) {
                     $('#dataset-nobjects').html(
                         data.actual_nrows +
@@ -2761,7 +2775,7 @@ var lcc_datasets = {
                     $('#dataset-nobjects').html(data.actual_nrows);
                 }
 
-                // update the page number
+                // update the current page number
                 $('.dataset-pagination-currpage').html(
                     '<span id="page-indicator" data-currpage="' +
                         data.currpage +
@@ -2776,10 +2790,63 @@ var lcc_datasets = {
                     lcc_datasets.colind_lcfname
                 );
 
+                // set the bits for later rendering
                 lcc_datasets.staticbits_rendered = true;
                 lcc_datasets.npages = data.npages;
                 lcc_datasets.currpage = 1;
                 lcc_datasets.setid = setid;
+
+                // parse and display the dataset owner
+                if (data.owned) {
+
+                    let visibility_controls = `
+<details>
+<summary>Dataset is currently ${data.visibility}.</summary>
+<div class="form-inline">
+  <select class="custom-select" id="dataset-visibility-select">
+    <option value="public">Dataset is publicly visible</option>
+    <option value="private">Dataset is private</option>
+  </select>
+  <button class="ml-2 btn btn-secondary"
+          type="button" id="dataset-visibility-submit">Set new visibility</button>
+</div>
+</details>
+`;
+                    let name_controls = `
+<details>
+<summary>${data.name}</summary>
+<div class="form-inline">
+  <input type="text" class="form-control flex-grow-1" id="dataset-name-inputbox"
+         value="${data.name}" placeholder="type in a name for this dataset"
+         maxlength="280">
+  <button class="ml-2 btn btn-secondary"
+          type="button" id="dataset-name-submit">Set new name</button>
+</div>
+</details>
+`;
+
+                    let desc_controls = `
+<details>
+<summary>${data.desc}</summary>
+<div class="form-inline">
+  <input type="text" class="form-control flex-grow-1" id="dataset-name-inputbox"
+         value="${data.desc}" placeholder="type in a description for this dataset"
+         maxlength="1024">
+  <button class="ml-2 btn btn-secondary"
+          type="button" id="dataset-name-submit">Set new description</button>
+</div>
+</details>
+`;
+
+                    $('#owner-label').html(
+                        '<span class="text-success">You own this dataset.</span>'
+                    );
+                    $('#visibility-label').html(visibility_controls);
+                    $('#dataset-visibility-select').val(data.visibility);
+                    $('#dataset-name').html(name_controls);
+                    $('#dataset-desc').html(desc_controls);
+
+                }
 
             }
 

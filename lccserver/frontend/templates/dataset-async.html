@@ -43,10 +43,36 @@
           </div>
 
           <div id="collapseOne" class="collapse"
-               aria-labelledby="headingOne" data-parent="#dataset-info-accordion">
+               aria-labelledby="headingOne"
+               data-parent="#dataset-info-accordion">
             <div class="card-body">
 
               <table class="table table-borderless table-sm">
+
+                <tr>
+                  <th width="200">dataset owner</th>
+                  <td id="owner-label">{{ header['owner'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="200">dataset visibility</th>
+                  <td id="visibility-label">{{ header['visibility'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="200">dataset shared with</th>
+                  <td id="sharedwith-label">{{ header['sharedwith'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="80">name</th>
+                  <td id="dataset-name">{{ header['name'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="80">description</th>
+                  <td id="dataset-desc">{{ header['desc'] }}</td>
+                </tr>
 
                 <tr>
                   <th width="80">objects</th>
@@ -55,27 +81,14 @@
 
                 <tr>
                   <th width="200">created on</th>
-                  <td><span class="moment-format" id="dataset-createdon">{{ header['created'] }}</span></td>
+                  <td><span class="moment-format"
+                            id="dataset-createdon">{{ header['created'] }}</span></td>
                 </tr>
 
                 <tr>
                   <th width="200">last updated</th>
-                  <td><span class="moment-format" id="dataset-lastupdated">{{ header['updated'] }}</span></td>
-                </tr>
-
-                <tr>
-                  <th width="200">dataset owner</th>
-                  <td>{{ header['owner'] }}</td>
-                </tr>
-
-                <tr>
-                  <th width="200">dataset visibility</th>
-                  <td>{{ header['visibility'] }}</td>
-                </tr>
-
-                <tr>
-                  <th width="200">dataset shared with</th>
-                  <td>{{ header['sharedwith'] }}</td>
+                  <td><span class="moment-format"
+                            id="dataset-lastupdated">{{ header['updated'] }}</span></td>
                 </tr>
 
                 <tr>

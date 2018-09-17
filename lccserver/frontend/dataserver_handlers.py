@@ -322,6 +322,7 @@ class DatasetHandler(BaseHandler):
         # next, if the dataset is returned but is in progress
         elif ds is not None and ds['status'] == 'in progress':
 
+
             # first, we'll censor some bits
             dataset_pickle = '/d/dataset-%s.pkl.gz' % setid
             ds['dataset_pickle'] = dataset_pickle
@@ -348,9 +349,29 @@ class DatasetHandler(BaseHandler):
 
                 ds['lczipfpath'] = None
 
-            # FIXME: look up the user ID of the dataset owner and get their
-            # account name.
+            # check if the current user is the dataset's owner
+            if (self.current_user['user_id'] not in (2,3) and
+                self.current_user['user_id'] == ds['owner']):
 
+                ds['owned'] = True
+
+            # if the current user is anonymous but their session token matches
+            # that used to create the dataset, they're the owner
+            elif (self.current_user['session_token'] ==
+                  ds['session_token']):
+
+                ds['owned'] = True
+
+            # otherwise, this is a dataset not owned by the current user
+            else:
+
+                ds['owned'] = False
+
+            # censor the session_token
+            ds['session_token'] = 'redacted'
+
+            # FIXME: look up the user ID of the dataset owner and get their
+            # account name (maybe?)
 
             # if we're returning JSON
             if returnjson:
@@ -410,6 +431,30 @@ class DatasetHandler(BaseHandler):
 
                 ds['lczipfpath'] = None
 
+            # check if the current user is the dataset's owner
+            if (self.current_user['user_id'] not in (2,3) and
+                self.current_user['user_id'] == ds['owner']):
+
+                ds['owned'] = True
+
+            # if the current user is anonymous but their session token matches
+            # that used to create the dataset, they're the owner
+            elif (self.current_user['session_token'] ==
+                  ds['session_token']):
+
+                ds['owned'] = True
+
+            # otherwise, this is a dataset not owned by the current user
+            else:
+
+                ds['owned'] = False
+
+            # censor the session_token
+            ds['session_token'] = 'redacted'
+
+            # FIXME: look up the user ID of the dataset owner and get their
+            # account name (maybe?)
+
             # if we're returning JSON
             if returnjson:
 
@@ -460,81 +505,26 @@ class DatasetHandler(BaseHandler):
                             user_account_box=self.render_user_account_box())
 
 
-
-class DatasetAJAXHandler(tornado.web.RequestHandler):
-    '''
-    This handles the AJAX for /set/ urls.
-
-    '''
-
-    def initialize(self,
-                   currentdir,
-                   apiversion,
-                   templatepath,
-                   assetpath,
-                   executor,
-                   basedir,
-                   signer,
-                   fernet):
-        '''
-        handles initial setup.
-
-        '''
-
-        self.currentdir = currentdir
-        self.apiversion = apiversion
-        self.templatepath = templatepath
-        self.assetpath = assetpath
-        self.executor = executor
-        self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
-
-
     @gen.coroutine
-    def get(self, setid):
-        '''This runs the query.
+    def post(self, setid):
+        '''This handles POSTs to the /set/<setid> endpoint.
+
+        Used to handle changes to the dataset metadata and actual object lists.
+
+        This will check the user actually owns the dataset and then check if the
+        changes requested can be made.
+
+        Things that can be edited at the moment:
+
+        - visibility
+        - (>= authenticated only) name -> restricted to 280 characters
+        - (>= authenticated only) desc -> restricted to 1024 characters
+
+        TODO: the changes will need to be propagated to the database entry, the
+        full dataset pickle, the dataset header and page pickles. the dataset
+        CSV will not be regenerated.
 
         '''
-
-        collections = yield self.executor.submit(
-            dbsearch.sqlite_list_collections,
-            self.basedir
-        )
-
-        collection_info = collections['info']
-        all_columns = collections['columns']
-        all_indexed_columns = collections['indexedcols']
-        all_fts_columns = collections['ftscols']
-
-        # censor some bits
-        del collection_info['kdtree_pkl_path']
-        del collection_info['object_catalog_path']
-
-        # we'll reform the lcformatdesc path so it can be downloaded directly
-        # from the LCC server
-        lcformatdesc = collection_info['lcformatdesc']
-        lcformatdesc = [
-            '/c%s' % (x.replace(self.basedir,'')) for x in lcformatdesc
-        ]
-        collection_info['lcformatdesc'] = lcformatdesc
-
-        returndict = {
-            'status':'ok',
-            'result':{'available_columns':all_columns,
-                      'available_indexed_columns':all_indexed_columns,
-                      'available_fts_columns':all_fts_columns,
-                      'collections':collection_info},
-            'message':(
-                'found %s collections in total' %
-                len(collection_info['collection_id'])
-            )
-        }
-
-        # return to sender
-        self.write(returndict)
-        self.finish()
-
 
 
 #############################
