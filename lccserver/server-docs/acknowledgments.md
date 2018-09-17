@@ -48,6 +48,11 @@ following packages available on [PyPi](https://pypi.org):
 - [itsdangerous](https://www.palletsprojects.com/p/itsdangerous/)
 - [cryptography](https://cryptography.io/en/latest/)
 - [astrobase](https://github.com/waqasbhatti/astrobase)
+- [SQLAlchemy](http://www.sqlalchemy.org/)
+- [passlib](https://passlib.readthedocs.io/en/stable/)
+- [argon2-cffi](https://argon2-cffi.readthedocs.io/en/stable/)
+- [diskcache](https://github.com/grantjenks/python-diskcache)
+- [fuzzywuzzy](https://github.com/seatgeek/fuzzywuzzy)
 
 The databases used for the server include:
 
