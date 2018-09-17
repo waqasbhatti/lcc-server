@@ -199,12 +199,11 @@ class LoginHandler(BaseHandler):
         # back to /users/login
         if not ok:
 
-            # FIXME: a new session token is not required if login failed
             # we have to get a new session with the same user ID (anon)
-            # yield self.new_session_token(
-            #     user_id=2,
-            #     expires_days=self.session_expiry
-            # )
+            yield self.new_session_token(
+                user_id=2,
+                expires_days=self.session_expiry
+            )
 
             LOGGER.error(' '.join(msgs))
             self.save_flash_messages(msgs, "warning")
@@ -534,9 +533,7 @@ class VerifyUserHandler(BaseHandler):
 
                 else:
 
-                    # FIXME: a new session token is not required for a failed
-                    # login
-                    # new_session_token = yield self.new_session_token()
+                    new_session_token = yield self.new_session_token()
 
                     self.save_flash_messages(
                         "Sorry, there was a problem verifying "
@@ -548,9 +545,7 @@ class VerifyUserHandler(BaseHandler):
 
             else:
 
-                # FIXME: a new session token is not required for a failed
-                # login
-                # new_session_token = yield self.new_session_token()
+                new_session_token = yield self.new_session_token()
 
                 self.save_flash_messages(
                     "Sorry, there was a problem verifying "
@@ -563,9 +558,7 @@ class VerifyUserHandler(BaseHandler):
 
         except InvalidToken as e:
 
-            # FIXME: a new session token is not required for a failed
-            # login
-            # new_session_token = yield self.new_session_token()
+            new_session_token = yield self.new_session_token()
 
             self.save_flash_messages(
                 "Sorry, there was a problem verifying your account sign up. "
@@ -581,9 +574,7 @@ class VerifyUserHandler(BaseHandler):
 
         except Exception as e:
 
-            # FIXME: a new session token is not required for a failed
-            # login
-            # new_session_token = yield self.new_session_token()
+            new_session_token = yield self.new_session_token()
 
             LOGGER.exception(
                 'could not verify user sign up: %s' % email
