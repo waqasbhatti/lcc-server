@@ -968,138 +968,148 @@ var lcc_ui = {
                     lcc_ui.alert_box(message, 'danger');
                 }
 
-                // set up the dataset result header
-                var ndatasets = result.length;
-                if (ndatasets == 0) {
+                if (result === null) {
                     $('#dataset-result-header')
                         .html('No matching datasets found');
+                    $('#lcc-datasets-tablerows').empty();
                 }
-                else if (ndatasets == 1) {
-                    $('#dataset-result-header')
-                        .html('1 matching dataset found');
-                }
+
                 else {
-                    $('#dataset-result-header')
-                        .html(ndatasets + ' matching datasets found');
-                }
 
-                var rowind = 0;
-                $('#lcc-datasets-tablerows').empty();
-
-                for (rowind; rowind < result.length; rowind++) {
-
-                    // setid and queried collections
-                    var setid = result[rowind]['setid'];
-                    var queriedcolls = result[rowind]['queried_collections'];
-
-                    // number of objects
-                    var nobjects = result[rowind]['nobjects'];
-
-                    // query type and params
-                    var query_type = result[rowind]['query_type'];
-                    var query_params = result[rowind]['query_params'];
-
-                    // product download links
-                    var dataset_fpath = result[rowind]['dataset_fpath'];
-                    var dataset_csv = result[rowind]['dataset_csv'];
-                    var lczip_fpath = result[rowind]['lczip_fpath'];
-
-                    // last updated
-                    var lastupdated = result[rowind]['last_updated'];
-                    var createdon = result[rowind]['created_on'];
-
-                    //
-                    // Set ID column
-                    //
-                    var table_setid = '<td>' +
-                        '<a rel="nofollow" href="/set/' +
-                        setid + '">' +
-                        setid + '</a></td>';
-
-                    //
-                    // Objects column
-                    //
-                    var table_nobjects = '<td>' +
-                        nobjects +
-                        '</td>';
-                    //
-                    // Query column
-                    //
-                    var table_query = '<td width="350">' +
-                        '<code><details><summary>' + query_type +
-                        '</summary><pre>' +
-                        JSON.stringify(JSON.parse(query_params),null,2) +
-                        '</pre></details></code>' +
-                        'collections used: <code>' +
-                        queriedcolls + '</code>' +
-                        '</td>';
-                    table_query = table_query
-                        .replace('sqlite_','')
-                        .replace('postgres_','');
-
-                    //
-                    // Products column
-                    //
-                    var dataset_download = '';
-                    var csv_download = '';
-                    var lczip_download = '';
-
-                    if (dataset_fpath != null) {
-                        dataset_download = '<a download rel="nofollow" ' +
-                            'href="' + dataset_fpath +
-                            '" title="download search results pickle">' +
-                            'dataset pickle' +
-                            '</a>';
+                    // set up the dataset result header
+                    var ndatasets = result.length;
+                    if (ndatasets == 0) {
+                        $('#dataset-result-header')
+                            .html('No matching datasets found');
                     }
-                    if (dataset_csv != null) {
-                        csv_download = '<a download rel="nofollow" ' +
-                            'href="' + dataset_csv +
-                            '" title="download search results CSV">' +
-                            'dataset CSV' +
-                            '</a>';
+                    else if (ndatasets == 1) {
+                        $('#dataset-result-header')
+                            .html('1 matching dataset found');
+                    }
+                    else {
+                        $('#dataset-result-header')
+                            .html(ndatasets + ' matching datasets found');
                     }
 
-                    if (lczip_fpath != null) {
-                        lczip_download = '<a download rel="nofollow" ' +
-                            'href="' + lczip_fpath +
-                            '" title="download light curves ZIP">' +
-                            'light curve ZIP' +
-                            '</a>';
+                    var rowind = 0;
+                    $('#lcc-datasets-tablerows').empty();
+
+                    for (rowind; rowind < result.length; rowind++) {
+
+                        // setid and queried collections
+                        var setid = result[rowind]['setid'];
+                        var queriedcolls = result[rowind]['queried_collections'];
+
+                        // number of objects
+                        var nobjects = result[rowind]['nobjects'];
+
+                        // query type and params
+                        var query_type = result[rowind]['query_type'];
+                        var query_params = result[rowind]['query_params'];
+
+                        // product download links
+                        var dataset_fpath = result[rowind]['dataset_fpath'];
+                        var dataset_csv = result[rowind]['dataset_csv'];
+                        var lczip_fpath = result[rowind]['lczip_fpath'];
+
+                        // last updated
+                        var lastupdated = result[rowind]['last_updated'];
+                        var createdon = result[rowind]['created_on'];
+
+                        //
+                        // Set ID column
+                        //
+                        var table_setid = '<td>' +
+                            '<a rel="nofollow" href="/set/' +
+                            setid + '">' +
+                            setid + '</a></td>';
+
+                        //
+                        // Objects column
+                        //
+                        var table_nobjects = '<td>' +
+                            nobjects +
+                            '</td>';
+                        //
+                        // Query column
+                        //
+                        var table_query = '<td width="350">' +
+                            '<code><details><summary>' + query_type +
+                            '</summary><pre>' +
+                            JSON.stringify(JSON.parse(query_params),null,2) +
+                            '</pre></details></code>' +
+                            'collections used: <code>' +
+                            queriedcolls + '</code>' +
+                            '</td>';
+                        table_query = table_query
+                            .replace('sqlite_','')
+                            .replace('postgres_','');
+
+                        //
+                        // Products column
+                        //
+                        var dataset_download = '';
+                        var csv_download = '';
+                        var lczip_download = '';
+
+                        if (dataset_fpath != null) {
+                            dataset_download = '<a download rel="nofollow" ' +
+                                'href="' + dataset_fpath +
+                                '" title="download search results pickle">' +
+                                'dataset pickle' +
+                                '</a>';
+                        }
+                        if (dataset_csv != null) {
+                            csv_download = '<a download rel="nofollow" ' +
+                                'href="' + dataset_csv +
+                                '" title="download search results CSV">' +
+                                'dataset CSV' +
+                                '</a>';
+                        }
+
+                        if (lczip_fpath != null) {
+                            lczip_download = '<a download rel="nofollow" ' +
+                                'href="' + lczip_fpath +
+                                '" title="download light curves ZIP">' +
+                                'light curve ZIP' +
+                                '</a>';
+                        }
+
+                        // format the column
+                        var table_downloadlinks = '<td>' +
+                            dataset_download + '<br>' +
+                            csv_download + '<br>' +
+                            lczip_download + '</td>';
+
+
+                        //
+                        // Last updated columns
+                        //
+                        var table_lastupdated = '<td>' +
+                            'Created: <span data-toggle="tooltip" ' +
+                            'title="' + createdon + 'Z">' +
+                            moment(createdon + 'Z').fromNow() +
+                            '</span><br>' +
+                            'Updated: <span data-toggle="tooltip" ' +
+                            'title="' + lastupdated + 'Z">' +
+                            moment(lastupdated + 'Z').fromNow() +
+                            '</span>' +
+                            '</td>';
+
+                        //
+                        // finally, add this row
+                        //
+                        var setrow = '<tr>' +
+                            table_setid +
+                            table_nobjects +
+                            table_query +
+                            table_downloadlinks +
+                            table_lastupdated +
+                            '</tr>';
+
+                        $('#lcc-datasets-tablerows').append(setrow);
+
                     }
-
-                    // format the column
-                    var table_downloadlinks = '<td>' +
-                        dataset_download + '<br>' +
-                        csv_download + '<br>' +
-                        lczip_download + '</td>';
-
-
-                    //
-                    // Last updated columns
-                    //
-                    var table_lastupdated = '<td>' +
-                        'Created: <span data-toggle="tooltip" ' +
-                        'title="' + createdon + 'Z">' +
-                        moment(createdon + 'Z').fromNow() +
-                        '</span><br>' +
-                        'Updated: <span data-toggle="tooltip" ' +
-                        'title="' + lastupdated + 'Z">' +
-                        moment(lastupdated + 'Z').fromNow() +
-                        '</span>' +
-                        '</td>';
-
-                    //
-                    // finally, add this row
-                    //
-                    var setrow = '<tr>' +
-                        table_setid +
-                        table_nobjects +
-                        table_query +
-                        table_downloadlinks +
-                        table_lastupdated +
-                        '</tr>';
-
-                    $('#lcc-datasets-tablerows').append(setrow);
 
                 }
 
