@@ -538,9 +538,124 @@ class DatasetListHandler(BaseHandler):
         except Exception as e:
             nrecent = 25
 
+        setfilter = self.get_argument('filter', default=None)
+        if setfilter:
+            setfilter = xhtml_escape(setfilter)
+
         dataset_info = yield self.executor.submit(
             datasets.sqlite_list_datasets,
             self.basedir,
+            setfilter=setfilter,
+            nrecent=nrecent,
+            require_status='complete',
+            incoming_userid=self.current_user['user_id'],
+            incoming_role=self.current_user['user_role']
+        )
+
+        # if there aren't any datasets yet, return immediately
+        if dataset_info['result'] is None:
+
+            self.write(dataset_info)
+            raise tornado.web.Finish()
+
+        # we'll have to censor stuff here as well
+        dataset_list = []
+
+        for dataset in dataset_info['result']:
+
+            if isinstance(dataset, dict):
+
+                # this should always be there
+                try:
+                    dataset_fpath = dataset['dataset_fpath']
+                    dataset_fpath = dataset_fpath.replace(
+                        os.path.join(self.basedir,'datasets'),
+                        '/d'
+                    )
+                except Exception as e:
+                    dataset_fpath = None
+
+                try:
+                    dataset_csv = dataset['dataset_csv']
+                    dataset_csv = dataset_csv.replace(
+                        os.path.join(self.basedir,'datasets'),
+                        '/d'
+                    )
+                except Exception as e:
+                    dataset_csv = None
+
+                try:
+                    lczip_fpath = dataset['lczip_fpath']
+                    lczip_fpath = lczip_fpath.replace(
+                        os.path.join(self.basedir,'products'),
+                        '/p'
+                    )
+                except Exception as e:
+                    lczip_fpath = None
+
+                # update this listing with the URLs of the products
+                dataset['dataset_fpath'] = dataset_fpath
+                dataset['dataset_csv'] = dataset_csv
+                dataset['lczip_fpath'] = lczip_fpath
+
+                # update this listing to indicate if the current user is the
+                # owner of this dataset. this only works for authenticated
+                # users.
+                if (self.current_user['user_id'] not in (2,3) and
+                    self.current_user['user_id'] == dataset['dataset_owner']):
+
+                    dataset['owned'] = True
+
+                # otherwise, if the current user's session_token matches the
+                # session_token used to create the dataset, they're the
+                # owner. this will only hold true until the session token
+                # expires, which is in 7 days from when they first hit the
+                # site. this should be OK. if people want more than 7 days of
+                # history, they can sign up.
+                elif (self.current_user['session_token'] ==
+                      dataset['dataset_sessiontoken']):
+
+                    dataset['owned'] = True
+
+                # otherwise, this is a dataset not owned by the current user
+                else:
+
+                    dataset['owned'] = False
+
+                # censor the session token
+                dataset['dataset_sessiontoken'] = 'redacted'
+
+                dataset_list.append(dataset)
+
+        dataset_info['result'] = dataset_list
+
+        self.write(dataset_info)
+        self.finish()
+
+
+
+    @gen.coroutine
+    def post(self):
+        '''This gets the list of datasets currently available.
+
+        '''
+
+        try:
+            nrecent = self.get_argument('nsets')
+            nrecent = int(xhtml_escape(nrecent))
+        except Exception as e:
+            nrecent = 25
+
+        setfilter = self.get_argument('datasetsearch', default=None)
+        if setfilter and len(setfilter.strip()) > 0:
+            setfilter = xhtml_escape(setfilter)
+        else:
+            setfilter = None
+
+        dataset_info = yield self.executor.submit(
+            datasets.sqlite_list_datasets,
+            self.basedir,
+            setfilter=setfilter,
             nrecent=nrecent,
             require_status='complete',
             incoming_userid=self.current_user['user_id'],
