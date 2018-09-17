@@ -143,7 +143,7 @@ class IndexHandler(BaseHandler):
             'index.html',
             flash_messages=self.render_flash_messages(),
             user_account_box=self.render_user_account_box(),
-            page_title='LCC Server',
+            page_title='%s - LCC Server' % self.siteinfo['project'],
             lccserver_version=__version__,
             siteinfo=self.siteinfo,
         )
