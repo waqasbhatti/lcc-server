@@ -250,43 +250,6 @@ def results_sort_by_keys(rows, coldesc, sorts=()):
 
 
 
-def results_apply_permissions(rows,
-                              action='view',
-                              target='object',
-                              owner_key='owner',
-                              visibility_key='visibility',
-                              sharedwith_key='sharedwith',
-                              incoming_userid=2,
-                              incoming_role='anonymous'):
-    '''This applies permissions to each row of the result for action and target.
-
-    rows is the list of sqlite3.Row objects returned from a query.
-
-    action is the action to check against permissions, e.g. 'view', 'list', etc.
-
-    target is the item to apply the permission for, e.g. 'object', 'dataset',
-    etc.
-
-    incoming_userid and incoming_role are the user ID and role to check
-    permission for against the rows, action, and target.
-
-    '''
-
-    return [
-        x for x in rows if
-        check_user_access(
-            userid=incoming_userid,
-            role=incoming_role,
-            action=action,
-            target_name=target,
-            target_owner=x[owner_key],
-            target_visibility=x[visibility_key],
-            target_sharedwith=x[sharedwith_key]
-        )
-    ]
-
-
-
 def results_limit_rows(rows,
                        rowlimit=None,
                        incoming_userid=2,
