@@ -208,6 +208,7 @@ ROLE_PERMISSIONS = {
             'delete',
             'edit',
             'make_public',
+            'make_unlisted',
             'make_private',
             'make_shared',
             'change_owner',
@@ -220,6 +221,18 @@ ROLE_PERMISSIONS = {
                 'delete',
                 'edit',
                 'make_private',
+                'make_unlisted',
+                'make_shared',
+                'change_owner',
+            },
+            'unlisted':{
+                'list',
+                'view',
+                'create',
+                'delete',
+                'edit',
+                'make_public',
+                'make_private',
                 'make_shared',
                 'change_owner',
             },
@@ -230,6 +243,7 @@ ROLE_PERMISSIONS = {
                 'delete',
                 'edit',
                 'make_public',
+                'make_unlisted',
                 'make_private',
                 'change_owner',
             },
@@ -240,6 +254,7 @@ ROLE_PERMISSIONS = {
                 'delete',
                 'edit',
                 'make_public',
+                'make_unlisted',
                 'make_shared',
                 'change_owner',
             },
@@ -258,12 +273,19 @@ ROLE_PERMISSIONS = {
             'delete',
             'edit',
             'make_public',
+            'make_unlisted',
             'make_private',
             'make_shared',
             'change_owner',
         },
         'for_others':{
             'public':{
+                'list',
+                'view',
+                'edit',
+                'delete',
+            },
+            'unlisted':{
                 'list',
                 'view',
                 'edit',
@@ -292,12 +314,16 @@ ROLE_PERMISSIONS = {
             'delete',
             'edit',
             'make_public',
+            'make_unlisted',
             'make_private',
             'make_shared',
         },
         'for_others':{
             'public':{
                 'list',
+                'view',
+            },
+            'unlisted':{
                 'view',
             },
             'shared':{
@@ -318,11 +344,17 @@ ROLE_PERMISSIONS = {
             'list',
             'view',
             'create',
+            'make_private',
+            'make_public',
+            'make_unlisted',
         },
         'for_others':{
             'public':{
                 'list',
                 'view',
+            },
+            'unlisted':{
+                'view'
             },
             'shared':set({}),
             'private':set({}),
@@ -337,6 +369,7 @@ ROLE_PERMISSIONS = {
         'for_owned': set({}),
         'for_others':{
             'public':set({}),
+            'unlisted':set({}),
             'shared':set({}),
             'private':set({}),
         }
@@ -352,11 +385,13 @@ ITEM_PERMISSIONS = {
                              'create',
                              'edit',
                              'delete',
-                             'make_public',
-                             'make_shared',
                              'change_owner',
+                             'make_public',
+                             'make_unlisted',
+                             'make_shared',
                              'make_private'},
         'valid_visibilities':{'public',
+                              'unlisted',
                               'private',
                               'shared'},
         'invalid_roles':set({'locked'}),
@@ -367,11 +402,13 @@ ITEM_PERMISSIONS = {
                              'create',
                              'edit',
                              'delete',
-                             'make_public',
-                             'make_shared',
                              'change_owner',
+                             'make_public',
+                             'make_unlisted',
+                             'make_shared',
                              'make_private'},
         'valid_visibilities':{'public',
+                              'unlisted',
                               'private',
                               'shared'},
         'invalid_roles':set({'locked'}),
@@ -382,11 +419,13 @@ ITEM_PERMISSIONS = {
                              'create',
                              'edit',
                              'delete',
-                             'make_public',
                              'change_owner',
+                             'make_public',
+                             'make_unlisted',
                              'make_shared',
                              'make_private'},
         'valid_visibilities':{'public',
+                              'unlisted',
                               'private',
                               'shared'},
         'invalid_roles':set({'locked'}),
@@ -546,9 +585,16 @@ def check_user_access(userid=2,
 
                 sharedwith_userids = target_sharedwith.split(',')
                 sharedwith_userids = [int(x) for x in sharedwith_userids]
+                if debug:
+                    print('sharedwith_userids = %s' % sharedwith_userids)
                 shared_or_owned_ok = (
                     userid in sharedwith_userids or userid == target_owner
                 )
+
+                # anything shared with anonymous users is effectively shared for
+                # everyone
+                if 2 in sharedwith_userids:
+                    shared_or_owned_ok = True
 
             else:
                 shared_or_owned_ok = (
@@ -557,6 +603,11 @@ def check_user_access(userid=2,
 
         except Exception as e:
             shared_or_owned_ok = False
+
+    # unlisted objects are OK to view
+    elif target_visibility == 'unlisted':
+
+        shared_or_owned_ok = True
 
     elif target_visibility == 'public':
 

@@ -22,7 +22,12 @@
 
       <ul>
         {% for item in serverdocs %}
+        {% if item == 'search' %}
+        <li><a href="/docs/{{ item }}"><strong>{% raw serverdocs[item] %}</strong></a></li>
+        {% else %}
         <li><a href="/docs/{{ item }}">{% raw serverdocs[item] %}</a> </li>
+        {% end %}
+
         {% end %}
       </ul>
 

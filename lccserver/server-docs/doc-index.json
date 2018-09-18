@@ -1,11 +1,11 @@
 {
-    "csvlc": "The LCC CSV light curve format",
     "search": "How searching for objects works",
+    "datasets": "Datasets and products of search results",
     "conesearch": "Searching for objects near coordinates",
     "ftsearch": "Searching for objects by name or description",
     "columnsearch": "Searching in database collection columns",
     "xmatch": "Cross-matching to uploaded object lists",
-    "datasets": "Datasets and products of search results",
+    "csvlc": "The LCC CSV light curve format",
     "api": "LCC server API description and usage",
     "acknowledgments": "Open source code, data, and software acknowledgments"
 }

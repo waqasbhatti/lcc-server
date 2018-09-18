@@ -433,12 +433,12 @@ class BackgroundQueryMixin(object):
         # dataset visibility
         #
         dataset_visibility = self.get_body_argument('visibility',
-                                                    default='public')
+                                                    default='unlisted')
         if dataset_visibility:
             dataset_visibility = xhtml_escape(dataset_visibility)
 
-        if dataset_visibility not in ('public','private','shared'):
-            dataset_visibility = 'public'
+        if dataset_visibility not in ('public','private','shared','unlisted'):
+            dataset_visibility = 'unlisted'
 
 
         #
@@ -452,7 +452,8 @@ class BackgroundQueryMixin(object):
         # async request to authnzerver to look up the user IDs associated with
         # those account names and fill this list in appropriately.
 
-        # FIXME: we'll set this to None for now and not expose the controls
+        # FIXME: we'll set this to '2' (i.e. shared with anonymous users) for
+        # now and not expose the controls at the moment
         dataset_sharedwith = None
 
 
@@ -539,7 +540,7 @@ class BackgroundQueryMixin(object):
                          incoming_userid=2,
                          incoming_role='anonymous',
                          incoming_session_token=None,
-                         dataset_visibility='public',
+                         dataset_visibility='unlisted',
                          dataset_sharedwith=None,
                          results_sortspec=None,
                          results_limitspec=None,

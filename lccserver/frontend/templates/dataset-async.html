@@ -321,7 +321,7 @@ $(window).on('resize', function (evt) {
 var datacontainer_offset = $('.datatable-container').offset().top;
 
 $('.datatable-container').height($(window).height() -
-datacontainer_offset - 5);
+datacontainer_offset);
 
 // make the table div bottom stick to the bottom of the container
 // so we can have a scrollbar at the bottom
@@ -338,7 +338,7 @@ $('.accordion').on('shown.bs.collapse hidden.bs.collapse', function (evt) {
 var datacontainer_offset = $('.datatable-container').offset().top;
 
 $('.datatable-container').height($(window).height() -
-datacontainer_offset - 5);
+datacontainer_offset);
 
 // make the table div bottom stick to the bottom of the container
 // so we can have a scrollbar at the bottom

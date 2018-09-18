@@ -604,7 +604,7 @@ def objectinfo_to_sqlite(augcatpkl,
         "create table object_catalog_vinfo (dbver integer, "
         "lccserver_vtag text, "
         "vdate date); "
-        "insert into object_catalog_vinfo values (1, 'v0.2', '2018-08-31');"
+        "insert into object_catalog_vinfo values (2, 'v0.2', '2018-08-31');"
     )
 
     # create the table
@@ -1242,7 +1242,7 @@ SQLITE_LCC_CREATE = '''\
 create table lcc_index_vinfo (dbver integer,
                               lccserver_vtag text,
                               vdate date);
-insert into lcc_index_vinfo values (1, 'v0.2', '2018-08-31');
+insert into lcc_index_vinfo values (2, 'v0.2', '2018-08-31');
 
 pragma journal_mode = wal;
 pragma journal_size_limit = 52428800;

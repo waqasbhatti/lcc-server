@@ -930,7 +930,21 @@ class AuthEnabledStaticHandler(BaseHandler):
     @gen.coroutine
     def get(self, path, include_body=True):
 
+        #
+        # if no session token (or API key masquerading as session token) is
+        # provided whatsoever, we don't know who this user is so we'll raise a
+        # 403 - forbidden
+        #
+        if not self.current_user:
+            raise HTTPError(
+                403,
+                "No session_token or API key provided to access the file: %s" %
+                path
+            )
+
+        #
         # if the path includes 'csvlc', check the ownership of the object
+        #
         if 'csvlc' in path:
 
             objectid = os.path.basename(path).replace('-csvlc.gz','')
@@ -950,55 +964,153 @@ class AuthEnabledStaticHandler(BaseHandler):
 
             if not object_access_check:
                 raise HTTPError(
-                    401, "You are not authorized to access the file: %s",
+                    401, "You are not authorized to access the file: %s" %
                     path
                 )
 
+        #
         # if the path includes 'lightcurves', check the ownership of the dataset
+        #
         elif 'lightcurves' in path:
 
             setid = os.path.basename(
                 path
             ).replace('lightcurves-','').replace('.zip','')
 
-            dataset_access_check = yield self.executor.submit(
-                datasets.sqlite_check_dataset_access,
+            # get the dataset
+            ds = yield self.executor.submit(
+                datasets.sqlite_get_dataset,
+                self.basedir,
                 setid,
-                'view',
+                'json-header',
                 incoming_userid=self.current_user['user_id'],
-                incoming_role=self.current_user['user_role'],
-                database=os.path.join(self.basedir, 'lcc-datasets.sqlite')
+                incoming_role=self.current_user['user_role']
             )
-            LOGGER.info('dataset_access_check = %s' % dataset_access_check)
 
-            if not dataset_access_check:
+            # next, check if the user is anonymous and that their session token
+            # matches with the dataset. if the session token doesn't match and
+            # the dataset is private, don't allow access.
+            # check if the current user is anonymous or not
+            if (self.current_user['user_id'] not in (2,3) and
+                self.current_user['user_id'] == ds['owner']):
+
+                ds['owned'] = True
+                access_ok = True
+
+            # otherwise, if the current user's session_token matches the
+            # session_token used to create the dataset, they're the
+            # owner.
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] ==
+                    ds['session_token']) ):
+
+                ds['owned'] = True
+                access_ok = True
+
+            # if the current user is anonymous and the session tokens don't
+            # match, check if the dataset is public or unlisted
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] !=
+                    ds['session_token']) ):
+
+                ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted'):
+                    access_ok = True
+                else:
+                    access_ok = False
+
+            # otherwise, this is a dataset not owned by the current user
+            else:
+
+                ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted', 'shared'):
+                    access_ok = True
+                else:
+                    access_ok = False
+
+            LOGGER.info('dataset visible = %s, dataset access_ok = %s' %
+                        (ds is not None, access_ok))
+
+            if not ds or not access_ok:
                 raise HTTPError(
-                    401, "You are not authorized to access the file: %s",
+                    401, "You are not authorized to access the file: %s" %
                     path
                 )
 
+        #
         # if the path includes 'dataset', check the ownership of the dataset
+        #
         elif 'dataset' in path:
 
             setid = os.path.basename(
                 path
             ).split('-')[1].replace('.pkl.gz','').replace('.csv','')
 
-            dataset_access_check = yield self.executor.submit(
-                datasets.sqlite_check_dataset_access,
+            # get the dataset
+            ds = yield self.executor.submit(
+                datasets.sqlite_get_dataset,
+                self.basedir,
                 setid,
-                'view',
+                'json-header',
                 incoming_userid=self.current_user['user_id'],
-                incoming_role=self.current_user['user_role'],
-                database=os.path.join(self.basedir, 'lcc-datasets.sqlite')
+                incoming_role=self.current_user['user_role']
             )
-            LOGGER.info('dataset_access_check = %s' % dataset_access_check)
 
-            if not dataset_access_check:
+            # next, check if the user is anonymous and that their session token
+            # matches with the dataset. if the session token doesn't match and
+            # the dataset is private, don't allow access.
+            # check if the current user is anonymous or not
+            if (self.current_user['user_id'] not in (2,3) and
+                self.current_user['user_id'] == ds['owner']):
+
+                ds['owned'] = True
+                access_ok = True
+
+            # otherwise, if the current user's session_token matches the
+            # session_token used to create the dataset, they're the
+            # owner.
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] ==
+                    ds['session_token']) ):
+
+                ds['owned'] = True
+                access_ok = True
+
+            # if the current user is anonymous and the session tokens don't
+            # match, check if the dataset is public or unlisted
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] !=
+                    ds['session_token']) ):
+
+                ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted'):
+                    access_ok = True
+                else:
+                    access_ok = False
+
+            # otherwise, this is a dataset not owned by the current user
+            else:
+
+                ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted', 'shared'):
+                    access_ok = True
+                else:
+                    access_ok = False
+
+            LOGGER.info('dataset visible = %s, dataset access_ok = %s' %
+                        (ds is not None, access_ok))
+
+            if not ds or not access_ok:
                 raise HTTPError(
-                    401, "You are not authorized to access the file: %s",
+                    401, "You are not authorized to access the file: %s" %
                     path
                 )
+
+        else:
+
+            raise HTTPError(
+                404, "Unknown type of file requested: %s" % path
+            )
 
         # log if everything works as expected
         LOGGER.info(

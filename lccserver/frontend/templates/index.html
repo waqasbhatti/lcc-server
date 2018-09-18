@@ -222,7 +222,7 @@
 
             <div class="col-sm-12 col-md-5">
 
-              <form class="form pt-2 pb-3 px-3 primary-controlbox" id="conesearch-form"
+              <form class="form pt-2 pb-1 px-3 primary-controlbox" id="conesearch-form"
                     action="/api/conesearch" method="post">
                 {% module xsrf_form_html() %}
 
@@ -247,22 +247,19 @@
                       </div>
                     </div>
 
-                    <div class="row mt-2">
+                    <div class="form-row mt-2">
                       <div class="col-12" >
 
-                        <div class="form-inline visibility-form" data-target="conesearch">
-
-                          <label for="conesearch-visibility">
-                            Query result will be
+                        <div class="form-group visibility-form" data-target="conesearch">
+                          <label for="conesearch-visibility-select">
+                            Result dataset and products will be
                           </label>
-
-                          <select class="ml-2 custom-select lcc-visibility-select"
+                          <select class="custom-select lcc-visibility-select w-75"
                                   id="conesearch-visibility-select">
-                            <option value="public" selected>publicly visible</option>
-                            <!-- <option value="shared" >shared with</option> -->
-                            <option value="private" >private</option>
+                            <option value="public">publicly listed and visible to all users</option>
+                            <option value="unlisted" selected>private but accessible by others via URL</option>
+                            <option value="private">private and inaccessible to others</option>
                           </select>
-
                         </div>
 
                       </div>
@@ -409,7 +406,7 @@
             <div class="col-sm-12 col-md-4">
 
               <div class="row pt-2">
-                <div class="col-12">
+                <div class="col-12 conesearch-help-box">
 
                   <h4>Search help</h4>
 
@@ -434,6 +431,8 @@
                               HH MM SS.sss... [+-]DD MM SS.sss... DD.dd...<br>
                               example: 19 25 27.9129 +42 47 03.693 15.0</code></dd>
                   </dl>
+
+                  <p><a href="/docs/conesearch" >See the full docs for the <code>conesearch</code> service.</a></p>
 
                 </div>
               </div>
@@ -495,7 +494,7 @@
 
             <div class="col-sm-12 col-md-5" >
 
-              <form class="form pt-2 pb-3 px-3 primary-controlbox" id="ftsquery-form"
+              <form class="form pt-2 pb-1 px-3 primary-controlbox" id="ftsquery-form"
                     action="/api/ftsquery" method="post">
                 {% module xsrf_form_html() %}
 
@@ -520,22 +519,19 @@
                       </div>
                     </div>
 
-                    <div class="form-row mt-2 align-items-center justify-content-start">
+                    <div class="form-row mt-2">
                       <div class="col-12">
 
-                        <div class="form-inline visibility-form" data-target="ftsquery">
-
-                          <label for="ftsquery-visibility">
-                            Query result will be
+                        <div class="form-group visibility-form" data-target="ftsquery">
+                          <label for="ftsquery-visibility-select">
+                            Result dataset and products will be
                           </label>
-
-                          <select class="ml-2 custom-select lcc-visibility-select"
+                          <select class="custom-select lcc-visibility-select w-75"
                                   id="ftsquery-visibility-select">
-                            <option value="public" selected>publicly visible</option>
-                            <!-- <option value="shared" >shared with</option> -->
-                            <option value="private" >private</option>
+                            <option value="public">publicly listed and visible to all users</option>
+                            <option value="unlisted" selected>private but accessible by others via URL</option>
+                            <option value="private">private and inaccessible to others</option>
                           </select>
-
                         </div>
 
                       </div>
@@ -683,7 +679,7 @@
             <div class="col-sm-12 col-md-4">
 
               <div class="row pt-2" >
-                <div class="col-12" >
+                <div class="col-12 ftsquery-help-box" >
                   <h4>Search help</h4>
 
                   <p>Full text search is useful for object names,
@@ -712,6 +708,9 @@
                       RR Lyr color EBs: <code>simbad_best_objtype:EB color_classes:RR*</code>
                     </dd>
                   </dl>
+
+                  <p><a href="/docs/ftsearch" >See the full docs for the <code>ftsearch</code> service.</a></p>
+
                 </div>
               </div>
 
@@ -781,22 +780,19 @@
                   <div class="col-12" >
                     <h3>Run a database column query</h3>
 
-                    <div class="form-row align-items-center justify-content-end">
+                    <div class="form-row align-items-baseline justify-content-end">
                       <div class="col-sm-9">
 
-                        <div class="form-inline visibility-form" data-target="columnsearch">
-
-                          <label for="columnsearch-visibility">
-                            Query result will be
+                        <div class="form-group visibility-form" data-target="columnsearch">
+                          <label for="columnsearch-visibility-select">
+                            Result dataset and products will be
                           </label>
-
-                          <select class="ml-2 custom-select lcc-visibility-select"
+                          <select class="custom-select lcc-visibility-select"
                                   id="columnsearch-visibility-select">
-                            <option value="public" selected>publicly visible</option>
-                            <!-- <option value="shared" >shared with</option> -->
-                            <option value="private" >private</option>
+                            <option value="public">publicly listed and visible to all users</option>
+                            <option value="unlisted" selected>private but accessible by others via URL</option>
+                            <option value="private">private and inaccessible to others</option>
                           </select>
-
                         </div>
 
                       </div>
@@ -946,7 +942,7 @@
             <div class="col-sm-12 col-md-4" >
 
               <div class="row pt-2" >
-                <div class="col-12" >
+                <div class="col-12 columnsearch-help-box" >
 
                   <h4>Search help</h4>
 
@@ -956,6 +952,17 @@
                     You may also choose a column to sort the
                     result-set rows in a particular order. This will be
                     automatically added to the requested query columns.</p>
+
+                  <dl>
+                    <dt>Examples:</dt>
+                    <dd>
+                      <a href="#" id="columnsearch-example-1" >proper motion &gt; 200 mas yr<sup>-1</sup> and <em>r</em> &lt; 11.0</a><br>
+                      <a href="#" id="columnsearch-example-2" ><em>J - K</em> &gt; 2.0 and Stetson <em>J</em> variability index &gt; 5.0</a><br>
+                      <a href="#" id="columnsearch-example-3" >color class &quot;RR Lyrae&quot; and dereddened <em>u - g</em> &lt; 0.3</a>
+                    </dd>
+                  </dl>
+
+                  <p><a href="/docs/columnsearch" >See the full docs for the <code>columnsearch</code> service.</a></p>
 
                 </div>
               </div>
@@ -1026,22 +1033,19 @@
                   <div class="col-12">
                     <h3>Cross-match object lists</h3>
 
-                    <div class="form-row align-items-center justify-content-end">
+                    <div class="form-row align-items-baseline justify-content-end">
                       <div class="col-sm-9">
 
-                        <div class="form-inline visibility-form" data-target="xmatch">
-
-                          <label for="xmatch-visibility">
-                            Query result will be
+                        <div class="form-group visibility-form" data-target="xmatch">
+                          <label for="xmatch-visibility-select">
+                            Result dataset and products will be
                           </label>
-
-                          <select class="ml-2 custom-select lcc-visibility-select"
+                          <select class="custom-select lcc-visibility-select"
                                   id="xmatch-visibility-select">
-                            <option value="public" selected>publicly visible</option>
-                            <!-- <option value="shared" >shared with</option> -->
-                            <option value="private" >private</option>
+                            <option value="public">publicly listed and visible to all users</option>
+                            <option value="unlisted" selected>private but accessible by others via URL</option>
+                            <option value="private">private and inaccessible by others</option>
                           </select>
-
                         </div>
 
                       </div>
@@ -1218,6 +1222,12 @@
                                id="xmatch-limitrows" disabled>
                       </div>
 
+                    </div>
+                  </div>
+
+                  <div class="row mt-2" >
+                    <div class="col-12" >
+                      <p><a href="/docs/xmatch" >See the full docs for the <code>xmatch</code> service.</a></p>
                     </div>
                   </div>
 

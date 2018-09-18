@@ -67,7 +67,7 @@ SQLITE_DATASET_CREATE = '''\
 create table lcc_datasets_vinfo (dbver integer,
                                  lccserver_vtag text,
                                  vdate date);
-insert into lcc_datasets_vinfo values (1, 'v0.2', '2018-08-31');
+insert into lcc_datasets_vinfo values (2, 'v0.2', '2018-08-31');
 
 -- set the WAL mode on
 pragma journal_mode = wal;
@@ -329,7 +329,7 @@ def results_random_sample(rows, sample_count=None):
 
 def sqlite_prepare_dataset(basedir,
                            dataset_owner=2,
-                           dataset_visibility='public',
+                           dataset_visibility='unlisted',
                            dataset_sharedwith=None):
     '''This generates a setid to use for the next step below.
 
@@ -347,11 +347,12 @@ def sqlite_prepare_dataset(basedir,
 
     visibility is one of:
 
-    'public'  -> dataset is visible to anyone
-    'shared'  -> dataset is visible to owner user ID
-                 and the user IDs in the shared_with column
-                 FIXME: we'll add groups and group ID columns later
-    'private' -> dataset is only visible to the owner
+    'public'   -> dataset is visible to anyone and shows up in the public list
+    'unlisted' -> dataset is unlisted but accessible at its URL
+    'shared'   -> dataset is visible to owner user ID
+                  and the user IDs in the shared_with column
+                  FIXME: we'll add groups and group ID columns later
+    'private'  -> dataset is only visible to the owner
 
     '''
 
@@ -405,7 +406,7 @@ def sqlite_new_dataset(basedir,
                        incoming_userid=2,
                        incoming_role='anonymous',
                        incoming_session_token=None,
-                       dataset_visibility='public',
+                       dataset_visibility='unlisted',
                        dataset_sharedwith=None,
                        make_dataset_csv=True,
                        rows_per_page=100):
@@ -1104,7 +1105,8 @@ def sqlite_check_dataset_access(
     setid is the dataset ID
 
     action is one of {'view','edit','delete',
-                      'make_public','make_private','make_shared',
+                      'make_public','make_private',
+                      'make_shared','make_unlisted',
                       'change_owner'}
 
     incoming_userid and incoming_role are the user ID and role of the user to
@@ -1117,7 +1119,8 @@ def sqlite_check_dataset_access(
 
     # return immediately if the action doesn't make sense
     if action not in ('view','edit','delete',
-                      'make_public','make_private','make_shared',
+                      'make_public','make_private',
+                      'make_shared','make_unlisted'
                       'change_owner'):
         return False
 

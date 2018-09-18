@@ -605,6 +605,7 @@ class DatasetListHandler(BaseHandler):
                     self.current_user['user_id'] == dataset['dataset_owner']):
 
                     dataset['owned'] = True
+                    append_to_list = True
 
                 # otherwise, if the current user's session_token matches the
                 # session_token used to create the dataset, they're the
@@ -612,20 +613,37 @@ class DatasetListHandler(BaseHandler):
                 # expires, which is in 7 days from when they first hit the
                 # site. this should be OK. if people want more than 7 days of
                 # history, they can sign up.
-                elif (self.current_user['session_token'] ==
-                      dataset['dataset_sessiontoken']):
+                elif ( (self.current_user['user_id'] == 2) and
+                       (self.current_user['session_token'] ==
+                        dataset['dataset_sessiontoken']) ):
 
                     dataset['owned'] = True
+                    append_to_list = True
+
+                elif ( (self.current_user['user_id'] == 2) and
+                       (self.current_user['session_token'] !=
+                        dataset['dataset_sessiontoken']) ):
+
+                    dataset['owned'] = False
+                    if dataset['dataset_visibility'] != 'public':
+                        append_to_list = False
+                    else:
+                        append_to_list = True
 
                 # otherwise, this is a dataset not owned by the current user
                 else:
 
                     dataset['owned'] = False
+                    if dataset['dataset_visibility'] != 'public':
+                        append_to_list = False
+                    else:
+                        append_to_list = True
 
                 # censor the session token
                 dataset['dataset_sessiontoken'] = 'redacted'
 
-                dataset_list.append(dataset)
+                if append_to_list:
+                    dataset_list.append(dataset)
 
         dataset_info['result'] = dataset_list
 
@@ -715,6 +733,7 @@ class DatasetListHandler(BaseHandler):
                     self.current_user['user_id'] == dataset['dataset_owner']):
 
                     dataset['owned'] = True
+                    append_to_list = True
 
                 # otherwise, if the current user's session_token matches the
                 # session_token used to create the dataset, they're the
@@ -722,20 +741,37 @@ class DatasetListHandler(BaseHandler):
                 # expires, which is in 7 days from when they first hit the
                 # site. this should be OK. if people want more than 7 days of
                 # history, they can sign up.
-                elif (self.current_user['session_token'] ==
-                      dataset['dataset_sessiontoken']):
+                elif ( (self.current_user['user_id'] == 2) and
+                       (self.current_user['session_token'] ==
+                        dataset['dataset_sessiontoken']) ):
 
                     dataset['owned'] = True
+                    append_to_list = True
+
+                elif ( (self.current_user['user_id'] == 2) and
+                       (self.current_user['session_token'] !=
+                        dataset['dataset_sessiontoken']) ):
+
+                    dataset['owned'] = False
+                    if dataset['dataset_visibility'] != 'public':
+                        append_to_list = False
+                    else:
+                        append_to_list = True
 
                 # otherwise, this is a dataset not owned by the current user
                 else:
 
                     dataset['owned'] = False
+                    if dataset['dataset_visibility'] != 'public':
+                        append_to_list = False
+                    else:
+                        append_to_list = True
 
                 # censor the session token
                 dataset['dataset_sessiontoken'] = 'redacted'
 
-                dataset_list.append(dataset)
+                if append_to_list:
+                    dataset_list.append(dataset)
 
         dataset_info['result'] = dataset_list
 

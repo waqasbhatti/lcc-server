@@ -277,6 +277,7 @@ class DatasetHandler(BaseHandler):
 
             if returnjson:
 
+                self.set_status(404)
                 self.write({'status':'failed',
                             'result':None,
                             'message':message})
@@ -284,6 +285,7 @@ class DatasetHandler(BaseHandler):
 
             else:
 
+                self.set_status(404)
                 self.render('errorpage.html',
                             error_message=message,
                             page_title='404 - Dataset %s not found' % setid,
@@ -302,6 +304,7 @@ class DatasetHandler(BaseHandler):
 
             if returnjson:
 
+                self.set_status(404)
                 self.write({'status':'failed',
                             'result':None,
                             'message':message})
@@ -309,6 +312,7 @@ class DatasetHandler(BaseHandler):
 
             else:
 
+                self.set_status(404)
                 self.render('errorpage.html',
                             error_message=message,
                             page_title=('404 - Dataset %s missing or broken' %
@@ -321,7 +325,6 @@ class DatasetHandler(BaseHandler):
 
         # next, if the dataset is returned but is in progress
         elif ds is not None and ds['status'] == 'in progress':
-
 
             # first, we'll censor some bits
             dataset_pickle = '/d/dataset-%s.pkl.gz' % setid
@@ -349,55 +352,107 @@ class DatasetHandler(BaseHandler):
 
                 ds['lczipfpath'] = None
 
-            # check if the current user is the dataset's owner
+            #
+            # decide if this dataset can be returned
+            #
+
+            # check if the current user is anonymous or not
             if (self.current_user['user_id'] not in (2,3) and
                 self.current_user['user_id'] == ds['owner']):
 
                 ds['owned'] = True
+                access_ok = True
 
-            # if the current user is anonymous but their session token matches
-            # that used to create the dataset, they're the owner
-            elif (self.current_user['session_token'] ==
-                  ds['session_token']):
+            # otherwise, if the current user's session_token matches the
+            # session_token used to create the dataset, they're the
+            # owner.
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] ==
+                    ds['session_token']) ):
 
                 ds['owned'] = True
+                access_ok = True
+
+            # if the current user is anonymous and the session tokens don't
+            # match, check if the dataset is public or unlisted
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] !=
+                    ds['session_token']) ):
+
+                ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted'):
+                    access_ok = True
+                else:
+                    access_ok = False
 
             # otherwise, this is a dataset not owned by the current user
             else:
 
                 ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted', 'shared'):
+                    access_ok = True
+                else:
+                    access_ok = False
 
             # censor the session_token
             ds['session_token'] = 'redacted'
 
-            # FIXME: look up the user ID of the dataset owner and get their
-            # account name (maybe?)
-
             # if we're returning JSON
             if returnjson:
 
-                dsjson = json.dumps(ds)
-                dsjson = dsjson.replace('nan','null').replace('NaN','null')
-                self.set_header('Content-Type',
-                                'application/json; charset=UTF-8')
-                self.write(dsjson)
-                raise tornado.web.Finish()
+                if access_ok:
+
+                    dsjson = json.dumps(ds)
+                    dsjson = dsjson.replace('nan','null').replace('NaN','null')
+                    self.set_header('Content-Type',
+                                    'application/json; charset=UTF-8')
+                    self.write(dsjson)
+                    raise tornado.web.Finish()
+
+                else:
+
+                    self.set_status(401)
+                    self.write({
+                        'status':'failed',
+                        'message':"You don't have access to this dataset.",
+                        'result':None
+                    })
+                    raise tornado.web.Finish()
 
             # otherwise, we'll return the dataset rendered page
             else:
 
-                self.render(
-                    'dataset-async.html',
-                    page_title='LCC Dataset %s' % setid,
-                    setid=setid,
-                    header=ds,
-                    lccserver_version=__version__,
-                    siteinfo=self.siteinfo,
-                    flash_messages=self.render_flash_messages(),
-                    user_account_box=self.render_user_account_box(),
-                )
+                if access_ok:
 
-                raise tornado.web.Finish()
+                    self.render(
+                        'dataset-async.html',
+                        page_title='LCC Dataset %s' % setid,
+                        setid=setid,
+                        header=ds,
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo,
+                        flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box(),
+                    )
+
+                    raise tornado.web.Finish()
+
+                else:
+
+                    self.set_status(401)
+                    self.render(
+                        'errorpage.html',
+                        page_title='401 - Dataset is not accessible',
+                        error_message=(
+                            "You don't have permission to access this dataset."
+                        ),
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo,
+                        flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box()
+                    )
+                    raise tornado.web.Finish()
+
 
         #
         # if the dataset is complete
@@ -431,53 +486,106 @@ class DatasetHandler(BaseHandler):
 
                 ds['lczipfpath'] = None
 
-            # check if the current user is the dataset's owner
+            #
+            # decide if this dataset can be returned
+            #
+
+            # check if the current user is anonymous or not
             if (self.current_user['user_id'] not in (2,3) and
                 self.current_user['user_id'] == ds['owner']):
 
                 ds['owned'] = True
+                access_ok = True
 
-            # if the current user is anonymous but their session token matches
-            # that used to create the dataset, they're the owner
-            elif (self.current_user['session_token'] ==
-                  ds['session_token']):
+            # otherwise, if the current user's session_token matches the
+            # session_token used to create the dataset, they're the
+            # owner.
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] ==
+                    ds['session_token']) ):
 
                 ds['owned'] = True
+                access_ok = True
+
+            # if the current user is anonymous and the session tokens don't
+            # match, check if the dataset is public or unlisted
+            elif ( (self.current_user['user_id'] == 2) and
+                   (self.current_user['session_token'] !=
+                    ds['session_token']) ):
+
+                ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted'):
+                    access_ok = True
+                else:
+                    access_ok = False
 
             # otherwise, this is a dataset not owned by the current user
             else:
 
                 ds['owned'] = False
+                if ds['visibility'] in ('public', 'unlisted', 'shared'):
+                    access_ok = True
+                else:
+                    access_ok = False
 
             # censor the session_token
             ds['session_token'] = 'redacted'
 
-            # FIXME: look up the user ID of the dataset owner and get their
-            # account name (maybe?)
-
             # if we're returning JSON
             if returnjson:
 
-                dsjson = json.dumps(ds)
-                dsjson = dsjson.replace('nan','null').replace('NaN','null')
-                self.set_header('Content-Type',
-                                'application/json; charset=UTF-8')
-                self.write(dsjson)
-                raise tornado.web.Finish()
+                if access_ok:
+
+                    dsjson = json.dumps(ds)
+                    dsjson = dsjson.replace('nan','null').replace('NaN','null')
+                    self.set_header('Content-Type',
+                                    'application/json; charset=UTF-8')
+                    self.write(dsjson)
+                    raise tornado.web.Finish()
+
+                else:
+
+                    self.set_status(401)
+                    self.write({
+                        'status':'failed',
+                        'message':"You don't have access to this dataset.",
+                        'result':None
+                    })
+                    raise tornado.web.Finish()
 
             # otherwise, we'll return the dataset rendered page
             else:
 
-                self.render(
-                    'dataset-async.html',
-                    page_title='LCC Dataset %s' % setid,
-                    setid=setid,
-                    header=ds,
-                    lccserver_version=__version__,
-                    siteinfo=self.siteinfo,
-                    flash_messages=self.render_flash_messages(),
-                    user_account_box=self.render_user_account_box(),
-                )
+                if access_ok:
+
+                    self.render(
+                        'dataset-async.html',
+                        page_title='LCC Dataset %s' % setid,
+                        setid=setid,
+                        header=ds,
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo,
+                        flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box(),
+                    )
+
+                    raise tornado.web.Finish()
+
+                else:
+
+                    self.set_status(401)
+                    self.render(
+                        'errorpage.html',
+                        page_title='401 - Dataset is not accessible',
+                        error_message=(
+                            "You don't have permission to access this dataset."
+                        ),
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo,
+                        flash_messages=self.render_flash_messages(),
+                        user_account_box=self.render_user_account_box()
+                    )
+                    raise tornado.web.Finish()
 
 
         # if we somehow get here, everything is broken
@@ -489,6 +597,7 @@ class DatasetHandler(BaseHandler):
 
             if returnjson:
 
+                self.set_status(404)
                 self.write({'status':'failed',
                             'result':None,
                             'message':message})
@@ -496,6 +605,7 @@ class DatasetHandler(BaseHandler):
 
             else:
 
+                self.set_status(404)
                 self.render('errorpage.html',
                             error_message=message,
                             page_title='404 - no dataset by that name exists',

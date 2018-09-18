@@ -2716,7 +2716,7 @@ var lcc_datasets = {
             $('.datatable-container').offset().top;
 
         $('.datatable-container').height($(window).height() -
-                                         datacontainer_offset - 5);
+                                         datacontainer_offset);
 
         // set the height appropriately
         $('.dataset-table')
@@ -2726,7 +2726,7 @@ var lcc_datasets = {
 
 
     // this just gets the header once and loads the first page
-    get_dataset_preview: function (setid) {
+    get_dataset_preview: function (setid, refresh) {
 
         var geturl = '/set/' + setid;
         var getparams = {json: 1,
@@ -2818,8 +2818,9 @@ var lcc_datasets = {
 <summary>Dataset is currently ${data.visibility}.</summary>
 <div class="form-inline">
   <select class="custom-select" id="dataset-visibility-select">
-    <option value="public">Dataset is publicly visible</option>
-    <option value="private">Dataset is private</option>
+    <option value="public">Dataset is publicly listed and visible to all users</option>
+    <option value="private">Dataset is private and inaccessible to others</option>
+    <option value="unlisted">Dataset is private but accessible at this URL</option>
   </select>
   <button class="ml-2 btn btn-secondary"
           type="button" id="dataset-visibility-submit">Set new visibility</button>
@@ -2903,6 +2904,16 @@ var lcc_datasets = {
                                           status +
                                           '</span>');
                 lcc_datasets.dataset_complete = false;
+            }
+
+        }).done(function (data) {
+
+            if (!lcc_datasets.dataset_complete) {
+
+                window.setTimeout(function () {
+                    lcc_datasets.get_dataset_preview(setid, refresh);
+                }, refresh*1000.0);
+
             }
 
         }).fail(function (xhr) {
@@ -3034,18 +3045,9 @@ var lcc_datasets = {
 
         }
 
-        // call this once to render the initial bits
-        lcc_datasets.get_dataset_preview(setid);
-
-        // if the dataset is not noted as complete, call us again after refresh
-        // timeout has expired
-        if (!lcc_datasets.dataset_complete) {
-
-            window.setTimeout(function () {
-                lcc_datasets.get_dataset(setid, refresh);
-            }, refresh*1000.0);
-
-        }
+        // call this to render the initial bits and start refresh loop if
+        // dataset is not yet complete
+        lcc_datasets.get_dataset_preview(setid, refresh);
 
     }
 
