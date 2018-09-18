@@ -1033,7 +1033,8 @@ var lcc_ui = {
                                 '<a rel="nofollow" href="/set/' +
                                 setid + '">' +
                                 setid + '</a><br>' +
-                                '<span class="text-success">You own this dataset</span>' +
+                                '<span class="text-success">You own this dataset</span><br>' +
+                                'Dataset is ' + result[rowind]['dataset_visibility'] +
                                 '</td>';
                         }
 
@@ -1264,7 +1265,8 @@ var lcc_ui = {
                             '<a rel="nofollow" href="/set/' +
                             setid + '">' +
                             setid + '</a><br>' +
-                            '<span class="text-success">You own this dataset</span>' +
+                            '<span class="text-success">You own this dataset</span><br>' +
+                            'Dataset is ' + result[rowind]['dataset_visibility'] +
                             '</td>';
                     }
 
