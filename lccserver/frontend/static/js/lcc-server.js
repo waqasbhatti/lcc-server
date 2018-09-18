@@ -1006,6 +1006,7 @@ var lcc_ui = {
                         // query type and params
                         var set_name = result[rowind]['name'];
                         var set_desc = result[rowind]['description'];
+                        var set_citation = result[rowind]['citation'];
                         var set_owned = result[rowind]['owned'];
                         var query_type = result[rowind]['query_type'];
                         var query_params = result[rowind]['query_params'];
@@ -1032,7 +1033,7 @@ var lcc_ui = {
                                 '<a rel="nofollow" href="/set/' +
                                 setid + '">' +
                                 setid + '</a><br>' +
-                                '<span class="text-success">Your dataset</span>' +
+                                '<span class="text-success">You own this dataset</span>' +
                                 '</td>';
                         }
 
@@ -1047,18 +1048,17 @@ var lcc_ui = {
                         // Query column
                         //
                         var table_query = '<td width="350">' +
-                            set_name + '<br>' +
-                            set_desc + '<br>' +
-                            '<code><details><summary>' + query_type +
+                            '<strong>name:</strong> ' + set_name + '<br>' +
+                            '<strong>description:</strong> ' + set_desc + '<br>' +
+                            '<strong>citation:</strong> ' + set_citation + '<br><br>' +
+                            '<details><summary><strong>query:</strong> <code>' + query_type + '</code>' +
                             '</summary><pre>' +
                             JSON.stringify(JSON.parse(query_params),null,2) +
-                            '</pre></details></code>' +
-                            'collections used: <code>' +
-                            queriedcolls + '</code>' +
+                            '</pre></details>' +
                             '</td>';
                         table_query = table_query
-                            .replace('sqlite_','')
-                            .replace('postgres_','');
+                            .replace(/sqlite_/g,'')
+                            .replace(/postgres_/g,'');
 
                         //
                         // Products column
@@ -1237,6 +1237,7 @@ var lcc_ui = {
                     // query type and params
                     var set_name = result[rowind]['name'];
                     var set_desc = result[rowind]['description'];
+                    var set_citation = result[rowind]['citation'];
                     var set_owned = result[rowind]['owned'];
                     var query_type = result[rowind]['query_type'];
                     var query_params = result[rowind]['query_params'];
@@ -1263,7 +1264,7 @@ var lcc_ui = {
                             '<a rel="nofollow" href="/set/' +
                             setid + '">' +
                             setid + '</a><br>' +
-                            '<span class="text-success">Your dataset</span>' +
+                            '<span class="text-success">You own this dataset</span>' +
                             '</td>';
                     }
 
@@ -1277,18 +1278,17 @@ var lcc_ui = {
                     // Query column
                     //
                     var table_query = '<td width="350">' +
-                        set_name + '<br>' +
-                        set_desc + '<br>' +
-                        '<code><details><summary>' + query_type +
+                        '<strong>name:</strong> ' + set_name + '<br>' +
+                        '<strong>description:</strong> ' + set_desc + '<br>' +
+                        '<strong>citation:</strong> ' + set_citation + '<br><br>' +
+                        '<details><summary><strong>query:</strong> <code>' + query_type + '</code>' +
                         '</summary><pre>' +
                         JSON.stringify(JSON.parse(query_params),null,2) +
-                        '</pre></details></code>' +
-                        'collections used: <code>' +
-                        queriedcolls + '</code>' +
+                        '</pre></details>' +
                         '</td>';
                     table_query = table_query
-                        .replace('sqlite_','')
-                        .replace('postgres_','');
+                        .replace(/sqlite_/g,'')
+                        .replace(/postgres_/g,'');
 
                     //
                     // Products column
@@ -2750,8 +2750,8 @@ var lcc_datasets = {
                 $('#dataset-searchargs').html(
                     '<details><summary>' +
                         data.searchtype
-                        .replace('sqlite_','')
-                        .replace('postgres_','') +
+                        .replace(/sqlite_/g,'')
+                        .replace(/postgres_/g,'') +
                         '</summary><pre>' +
                         JSON.stringify(data.searchargs,
                                        null,
@@ -2819,8 +2819,8 @@ var lcc_datasets = {
 <div class="form-inline">
   <select class="custom-select" id="dataset-visibility-select">
     <option value="public">Dataset is publicly listed and visible to all users</option>
-    <option value="private">Dataset is private and inaccessible to others</option>
     <option value="unlisted">Dataset is private but accessible at this URL</option>
+    <option value="private">Dataset is private and inaccessible to others</option>
   </select>
   <button class="ml-2 btn btn-secondary"
           type="button" id="dataset-visibility-submit">Set new visibility</button>
@@ -2853,6 +2853,18 @@ var lcc_datasets = {
 </details>
 `;
 
+                    let citation_controls = `
+<details>
+<summary>${data.citation}</summary>
+<div class="form-inline">
+  <input type="text" class="form-control flex-grow-1" id="dataset-name-inputbox"
+         value="${data.citation}" placeholder="type in a citation for this dataset"
+         maxlength="1024">
+  <button class="ml-2 btn btn-secondary"
+          type="button" id="dataset-name-submit">Set new citation</button>
+</div>
+</details>
+`;
                     $('#owner-label').html(
                         '<span class="text-success">You own this dataset.</span>'
                     );
@@ -2860,6 +2872,7 @@ var lcc_datasets = {
                     $('#dataset-visibility-select').val(data.visibility);
                     $('#dataset-name').html(name_controls);
                     $('#dataset-desc').html(desc_controls);
+                    $('#dataset-citation').html(citation_controls);
 
                 }
 

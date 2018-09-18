@@ -61,12 +61,16 @@
                   <td id="visibility-label">{{ header['visibility'] }}</td>
                 </tr>
 
-                <tr>
-                  <th width="200">dataset shared with</th>
-                  <td id="sharedwith-label">{{ header['sharedwith'] }}</td>
-                </tr>
-
+                <!-- disable this until we have it implemented
+                     <tr>
+                     <th width="200">dataset shared with</th>
+                     <td id="sharedwith-label">{{ header['sharedwith'] }}</td>
+                     </tr>
+                -->
                 {% end %}
+
+                <!-- only authenticated users and above can edit these three items below -->
+                {% if current_user['user_role'] not in ('anonymous','locked') %}
 
                 <tr>
                   <th width="80">name</th>
@@ -77,6 +81,31 @@
                   <th width="80">description</th>
                   <td id="dataset-desc">{{ header['desc'] }}</td>
                 </tr>
+
+                <tr>
+                  <th width="80">citation</th>
+                  <td id="dataset-citation">{{ header['citation'] }}</td>
+                </tr>
+
+                <!-- other users can see these items but not edit, double enforced here and on the backend -->
+                {% else %}
+
+                <tr>
+                  <th width="80">name</th>
+                  <td>{{ header['name'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="80">description</th>
+                  <td>{{ header['desc'] }}</td>
+                </tr>
+
+                <tr>
+                  <th width="80">citation</th>
+                  <td>{{ header['citation'] }}</td>
+                </tr>
+
+                {% end %}
 
                 <tr>
                   <th width="80">objects</th>

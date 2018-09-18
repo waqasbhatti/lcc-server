@@ -545,13 +545,17 @@ class BaseHandler(tornado.web.RequestHandler):
                     self.user_role = self.current_user['user_role']
 
                 else:
+
                     # if the session token provided did not match any existing
                     # session in the DB, we'll clear all the cookies and
-                    # redirect the user to the front page so they can start
-                    # over.
+                    # redirect the user to us again.
                     self.current_user = None
                     self.clear_all_cookies()
-                    self.redirect('/')
+
+                    # does it make sense to redirect us back to ourselves?
+                    # this will actually cause two redirects, one to set new
+                    # session cookies and the next one to actually read them
+                    self.redirect(self.request.uri)
 
             # if the session token is not set, then create a new session
             else:
@@ -562,26 +566,60 @@ class BaseHandler(tornado.web.RequestHandler):
                     extra_info={}
                 )
 
+                # does it make sense to redirect us back to ourselves if
+                # there's no way of telling who the user is?
+
+                # probably: this will give the user the least amount of
+                # privilege required to get to the resource they're trying to
+                # get to without an API key
+                self.redirect(self.request.uri)
+
         # if using the API Key
         else:
 
+            # check if the API key is valid
             apikey_info = self.check_apikey()
 
-            if apikey_info['status'] != 'success':
+            # FIXME: if the API key is valid, get the current user, etc. info
+            # from the decrypted API key instead of hitting the database to look
+            # up the API key. minimum keys required in the self.current_user
+            # dict:
+            # - user_id
+            # - email
+            # - is_active
+            # - user_role
+            # - ip_address <- get from the current self.request
+            # - client_header <- get from the current self.request
+            # - session_token <- set this to the API key itself
+            # - created <- set this to the API key created time
+            # - expires <- set this to the API key expiry time
 
+            # FIXME: how would we deal with the user removing their account or
+            # being locked? we may have to hit the database after all to at
+            # least check if the user is still active. otherwise, their API key
+            # will live on until it expires instead of being instantly revoked
+            # when their account goes inactive.
+            if apikey_info['status'] == 'success':
+
+
+                # FIXME: this is temporary
                 self.write(apikey_info)
                 self.finish()
 
-            # FIXME: here, if the apikey expiry check succeeds, we'll need to
-            # set the session token appropriately. we'll need an
-            # apikey-session-new command for the authnzerver. this should take
-            # in the provided apikey and set it as the session_token in the
-            # sessions table.
 
-            # FIXME: we might also need a apikey-check command for authnzerver
-            # to look up apikeys and get their user IDs (although we should
-            # probably encode this info into the API key itself and then encrypt
-            # it)
+            # if the API key check also fails, return a 403
+            else:
+
+                self.set_status(403)
+                message = apikey_info['message']
+
+                self.write({
+                    'status':'failed',
+                    'message':message,
+                    'result':None
+                })
+                self.finish()
+
 
 
     def on_finish(self):
@@ -597,6 +635,8 @@ class BaseHandler(tornado.web.RequestHandler):
     def check_apikey(self):
         '''
         This checks the API key.
+
+        FIXME: change this to use the new Fernet-encrypted API key scheme.
 
         '''
         try:
@@ -987,6 +1027,13 @@ class AuthEnabledStaticHandler(BaseHandler):
                 incoming_role=self.current_user['user_role']
             )
 
+            # return immediately with a failure if the permission check fails
+            if ds is None:
+                raise HTTPError(
+                    401, "You are not authorized to access the file: %s" %
+                    path
+                )
+
             # next, check if the user is anonymous and that their session token
             # matches with the dataset. if the session token doesn't match and
             # the dataset is private, don't allow access.
@@ -1055,6 +1102,13 @@ class AuthEnabledStaticHandler(BaseHandler):
                 incoming_userid=self.current_user['user_id'],
                 incoming_role=self.current_user['user_role']
             )
+
+            # return immediately with a failure if the permission check fails
+            if ds is None:
+                raise HTTPError(
+                    401, "You are not authorized to access the file: %s" %
+                    path
+                )
 
             # next, check if the user is anonymous and that their session token
             # matches with the dataset. if the session token doesn't match and

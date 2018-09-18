@@ -53,6 +53,7 @@ following packages available on [PyPi](https://pypi.org):
 - [argon2-cffi](https://argon2-cffi.readthedocs.io/en/stable/)
 - [diskcache](https://github.com/grantjenks/python-diskcache)
 - [fuzzywuzzy](https://github.com/seatgeek/fuzzywuzzy)
+- [bleach](https://bleach.readthedocs.io/en/latest/)
 
 The databases used for the server include:
 

@@ -542,6 +542,7 @@ def sqlite_new_dataset(basedir,
         'setid': setid,
         'name': setname,
         'desc': setdesc,
+        'citation': None,
         'created': creationdt,
         'updated': last_updated,
         'owner': incoming_userid,
@@ -1420,6 +1421,8 @@ def sqlite_get_dataset(basedir,
                 db.close()
                 outdict['status'] = dataset_status
                 outdict['session_token'] = row['dataset_sessiontoken']
+                if 'citation' not in outdict:
+                    outdict['citation'] = None
                 return outdict
 
             elif returnspec == 'json-header':
@@ -1432,6 +1435,8 @@ def sqlite_get_dataset(basedir,
                 db.close()
                 header['status'] = dataset_status
                 header['session_token'] = row['dataset_sessiontoken']
+                if 'citation' not in header:
+                    header['citation'] = None
                 return header
 
             elif returnspec == 'json-preview':
@@ -1456,6 +1461,8 @@ def sqlite_get_dataset(basedir,
                 header['status'] = dataset_status
                 header['currpage'] = 1
                 header['session_token'] = row['dataset_sessiontoken']
+                if 'citation' not in header:
+                    header['citation'] = None
                 db.close()
                 return header
 
@@ -1481,6 +1488,8 @@ def sqlite_get_dataset(basedir,
                 header['status'] = dataset_status
                 header['currpage'] = 1
                 header['session_token'] = row['dataset_sessiontoken']
+                if 'citation' not in header:
+                    header['citation'] = None
                 db.close()
                 return header
 
@@ -1508,6 +1517,8 @@ def sqlite_get_dataset(basedir,
                 header['status'] = dataset_status
                 header['currpage'] = int(page_to_get)
                 header['session_token'] = row['dataset_sessiontoken']
+                if 'citation' not in header:
+                    header['citation'] = None
                 db.close()
                 return header
 
@@ -1536,6 +1547,8 @@ def sqlite_get_dataset(basedir,
                 header['status'] = dataset_status
                 header['currpage'] = int(page_to_get)
                 header['session_token'] = row['dataset_sessiontoken']
+                if 'citation' not in header:
+                    header['citation'] = None
                 db.close()
                 return header
 

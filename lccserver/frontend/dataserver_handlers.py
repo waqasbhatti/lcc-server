@@ -426,6 +426,7 @@ class DatasetHandler(BaseHandler):
 
                     self.render(
                         'dataset-async.html',
+                        current_user=self.current_user,
                         page_title='LCC Dataset %s' % setid,
                         setid=setid,
                         header=ds,
@@ -561,6 +562,7 @@ class DatasetHandler(BaseHandler):
                     self.render(
                         'dataset-async.html',
                         page_title='LCC Dataset %s' % setid,
+                        current_user=self.current_user,
                         setid=setid,
                         header=ds,
                         lccserver_version=__version__,
@@ -626,13 +628,26 @@ class DatasetHandler(BaseHandler):
 
         Things that can be edited at the moment:
 
+        -> use bleach to pre-process these before entering them into the
+           database and the pickles
+
+        anonymous and above can edit:
+
         - visibility
-        - (>= authenticated only) name -> restricted to 280 characters
-        - (>= authenticated only) desc -> restricted to 1024 characters
+
+        authenticated and above can edit:
+
+        - name -> restricted to 280 characters
+        - desc -> restricted to 1024 characters
+        - citation -> restricted to 1024 characters
 
         TODO: the changes will need to be propagated to the database entry, the
         full dataset pickle, the dataset header and page pickles. the dataset
-        CSV will not be regenerated.
+        CSV will not be regenerated. This will call
+        datasets.sqlite_update_dataset with the appropriate update dict and
+        action in:
+
+        ('edit','make_shared','make_public','make_private','make_unlisted')
 
         '''
 
