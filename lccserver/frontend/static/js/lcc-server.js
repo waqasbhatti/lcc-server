@@ -2824,8 +2824,8 @@ var lcc_datasets = {
     <option value="unlisted">Dataset is private but accessible at this URL</option>
     <option value="private">Dataset is private and inaccessible to others</option>
   </select>
-  <button class="ml-2 btn btn-secondary"
-          type="button" id="dataset-visibility-submit">Set new visibility</button>
+  <button class="ml-2 btn btn-outline-success"
+          type="button" id="dataset-visibility-submit">Update visibility</button>
 </div>
 </details>
 `;
@@ -2834,10 +2834,10 @@ var lcc_datasets = {
 <summary>${data.name}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-name-inputbox"
-         value="${data.name}" placeholder="type in a name for this dataset"
+         value="${data.name}" placeholder="type in a name"
          maxlength="280">
-  <button class="ml-2 btn btn-secondary"
-          type="button" id="dataset-name-submit">Set new name</button>
+  <button class="ml-2 btn btn-outline-success"
+          type="button" id="dataset-name-submit">Update name</button>
 </div>
 </details>
 `;
@@ -2847,10 +2847,10 @@ var lcc_datasets = {
 <summary>${data.desc}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-name-inputbox"
-         value="${data.desc}" placeholder="type in a description for this dataset"
+         value="${data.desc}" placeholder="type in a description"
          maxlength="1024">
-  <button class="ml-2 btn btn-secondary"
-          type="button" id="dataset-name-submit">Set new description</button>
+  <button class="ml-2 btn btn-outline-success"
+          type="button" id="dataset-name-submit">Update description</button>
 </div>
 </details>
 `;
@@ -2860,10 +2860,10 @@ var lcc_datasets = {
 <summary>${data.citation}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-name-inputbox"
-         value="${data.citation}" placeholder="type in a citation for this dataset"
+         value="${data.citation}" placeholder="type in a citation"
          maxlength="1024">
-  <button class="ml-2 btn btn-secondary"
-          type="button" id="dataset-name-submit">Set new citation</button>
+  <button class="ml-2 btn btn-outline-success"
+          type="button" id="dataset-name-submit">Update citation</button>
 </div>
 </details>
 `;

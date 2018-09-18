@@ -52,6 +52,7 @@ from datetime import datetime
 from random import sample
 
 from tornado.escape import xhtml_unescape
+import bleach
 
 from . import abcat
 from ..authnzerver.authdb import check_user_access, check_role_limits
@@ -1574,12 +1575,243 @@ def sqlite_get_dataset(basedir,
         return None
 
 
+#######################
+## CHANGING DATASETS ##
+#######################
 
-# LATER
-def sqlite_remove_dataset(basedir,
+def sqlite_change_dataset_visibility(
+        basedir,
+        setid,
+        new_visibility='unlisted',
+        new_sharedwith=None,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        incoming_session_token=None
+):
+    '''This changes the visibility of a dataset.
+
+    The default incoming_userid is set to 2 -> anonymous user for safety.
+
+    the actions to test are
+
+    'make_public', 'make_private', 'make_unlisted', 'make_shared'
+
+    '''
+
+
+
+def sqlite_change_dataset_owner(
+        basedir,
+        setid,
+        new_owner_userid,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        incoming_session_token=None
+):
+    '''This changes the owner of a dataset.
+
+    The default incoming_userid is set to 2 -> anonymous user for safety.
+
+    the action to test is 'change_owner'
+
+    '''
+
+
+
+def sqlite_edit_dataset(basedir,
+                        setid,
+                        updatedict=None,
+                        incoming_userid=2,
+                        incoming_role='anonymous',
+                        incoming_session_token=None):
+    '''This edits a dataset.
+
+    updatedict is a dict containing the keys to update in the dataset pickle.
+
+    updatedb is a list of tuples containing the columns and new values for the
+    columns to update the lcc_datasets table listing for this dataset.
+
+    The action to test is 'edit'
+
+    The default incoming_userid is set to 2 -> anonymous user for
+    safety. Anonymous users cannot edit datasets by default.
+
+    The only allowed edits are to:
+
+    name
+    description
+    citation
+
+    Otherwise, datasets are supposed to be immutable (FIXME: for now).
+
+    '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+    dataset_pickle = 'dataset-%s.pkl.gz' % setid
+    dataset_fpath = os.path.join(datasetdir, dataset_pickle)
+
+    dataset_pickleheader = 'dataset-%s-header.pkl' % setid
+    dataset_pickleheader_fpath = os.path.join(datasetdir,
+                                              dataset_pickleheader)
+
+    # get the lczip, cpzip, pfzip, dataset pkl shasums from the DB
+    # also get the created_on, last_updated, nobjects, status
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    db.row_factory = sqlite3.Row
+    cur = db.cursor()
+
+    # get the dataset's info from the DB
+    query = ("select created_on, last_updated, status, "
+             "dataset_owner, dataset_visibility, dataset_sharedwith, "
+             "dataset_sessiontoken "
+             "from lcc_datasets where setid = ?")
+    cur.execute(query, (setid,))
+    row = cur.fetchone()
+
+    if row and len(row) > 0 and os.path.exists(dataset_fpath):
+
+        dataset_status = row['status']
+
+        # only complete datasets can be edited
+        if dataset_status != 'complete':
+            LOGERROR('dataset %s status = %s. only complete '
+                     'datasets can be edited' % (setid, dataset_status))
+            db.close()
+            return None
+
+        #
+        # otherwise, proceed as normal
+        #
+        dataset_editable = sqlite_check_dataset_access(
+            setid,
+            'edit',
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            database=db
+        )
+
+        # check if we can edit this dataset
+        if not dataset_editable:
+
+            LOGERROR('dataset %s is not editable by user_id = %s, role = %s'
+                     % (setid, incoming_userid, incoming_role))
+            db.close()
+            return None
+
+        # additional check for anonymous users
+        if (incoming_role == 'anonymous'):
+
+            LOGERROR('dataset %s is not editable by anonymous '
+                     'users with session_token = %s, '
+                     'required session_token = %s'
+                     % (setid, incoming_session_token))
+            db.close()
+            return None
+
+        ds_update = {}
+        db_update = {}
+
+        # do the edits
+        # 1. restrict to required length
+        # 2. bleach the input
+        for key in updatedict:
+
+            if key == 'name':
+
+                cleaned_name = bleach.clean(
+                    updatedict['name'][:280],
+                    strip=True
+                )
+                ds_update['name'] = cleaned_name
+                db_update['name'] = cleaned_name
+
+            if key == 'description':
+
+                cleaned_description = bleach.clean(
+                    updatedict['description'][:1024],
+                    strip=True
+                )
+                ds_update['desc'] = cleaned_description
+                db_update['description'] = cleaned_description
+
+            if key == 'citation':
+
+                cleaned_citation = bleach.clean(
+                    updatedict['citation'][:280],
+                    strip=True
+                )
+                ds_update['citation'] = cleaned_citation
+                db_update['citation'] = cleaned_citation
+
+        #
+        # update the main dataset pickle
+        #
+        with open(dataset_fpath,'rb') as infd:
+            dataset = pickle.load(infd)
+
+        dataset.update(ds_update)
+        with open(dataset_fpath,'wb') as outfd:
+            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+        LOGINFO('updated dataset main pickle: %s '
+                'with updatedict = %r for setid = %s' %
+                (dataset_fpath, ds_update, setid))
+
+        #
+        # update the dataset pickle header
+        #
+        with open(dataset_pickleheader_fpath,'rb') as infd:
+            header = pickle.load(infd)
+
+        header.update(ds_update)
+        with open(dataset_pickleheader_fpath,'wb') as outfd:
+            pickle.dump(header, outfd, pickle.HIGHEST_PROTOCOL)
+
+        LOGINFO('updated dataset header pickle: %s '
+                'with updatedict = %r for setid = %s' %
+                (dataset_pickleheader_fpath, ds_update, setid))
+        #
+        # update the database entry
+        #
+        query = (
+            "update lcc_datasets set {update_elems} where setid = ?"
+        )
+        update_elems = []
+        params = []
+        for key in db_update:
+            update_elems.append('%s = ?' % key)
+            params.append(db_update[key])
+
+        query = query.format(update_elems=', '.join(update_elems))
+        params = tuple(params)
+
+        cur.execute(query, params)
+        db.commit()
+        db.close()
+
+        LOGINFO('updated dataset database entry '
+                'with updatedict = %r for setid = %s' %
+                (db_update, setid))
+
+        return ds_update
+
+    # if the dataset was not found or is not accessible
+    else:
+
+        db.close()
+        return None
+
+
+
+def sqlite_delete_dataset(basedir,
                           setid,
                           incoming_userid=2,
-                          incoming_role='anonymous'):
+                          incoming_role='anonymous',
+                          incoming_session_token=None):
     '''
     This removes the specified dataset.
 
@@ -1587,25 +1819,6 @@ def sqlite_remove_dataset(basedir,
 
     the action to test is 'delete'
 
-    '''
-
-
-# LATER
-def sqlite_update_dataset(basedir,
-                          setid,
-                          updatedict=None,
-                          updatedb=None,
-                          incoming_userid=2,
-                          incoming_role='anonymous'):
-    '''This updates a dataset.
-
-    updatedict is a dict containing the keys to update in the dataset pickle.
-
-    updatedb is a list of tuples containing the columns and new values for the
-    columns to update the lcc_datasets table listing for this dataset.
-
-    The default incoming_userid is set to 2 -> anonymous user for safety.
-
-    the action to test is 'edit'
+    anonymous users can't delete datasets
 
     '''

@@ -545,6 +545,15 @@ class BackgroundQueryMixin(object):
                          results_sortspec=None,
                          results_limitspec=None,
                          results_samplespec=None):
+        '''
+        This runs the background query.
+
+        '''
+
+        # FIXME: before anything else, we need to test if the current user can
+        # actually create a dataset. We'll test the 'create' permission against
+        # the target 'dataset'.
+
 
         # Q1. prepare the dataset
         setinfo = yield self.executor.submit(
