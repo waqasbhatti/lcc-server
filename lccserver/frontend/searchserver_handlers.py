@@ -103,12 +103,12 @@ from astrobase.coordutils import (
 # single object coordinate search
 # ra dec radius
 COORD_DEGSEARCH_REGEX = re.compile(
-    r'^(\d{1,3}\.{0,1}\d*) ([+\-]?\d{1,2}\.{0,1}\d*) ?(\d{1,2}\.{0,1}\d*)?'
+    r'^(\d{1,3}\.{0,1}\d*) ([+\-]?\d{1,2}\.{0,1}\d*) ?(\d{1,2}\.{0,1}\d*)?$'
 )
 COORD_HMSSEARCH_REGEX = re.compile(
     r'^(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) '
     '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) ?'
-    '(\d{1,2}\.{0,1}\d*)?'
+    '(\d{1,2}\.{0,1}\d*)?$'
 )
 
 # multiple object search
