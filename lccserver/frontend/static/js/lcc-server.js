@@ -646,11 +646,79 @@ var lcc_ui = {
 
         });
 
+        // bind link to collections tab
+        $('.tab-pane').on('click','.collection-link', function (e) {
+
+            e.preventDefault();
+            $('#collections-tab').click();
+
+        });
 
         // bind the lcc-datasets-open link
         $('.lcc-datasets-tabopen').on('click', function (evt) {
             evt.preventDefault();
             $('#datasets-tab').click();
+        });
+
+
+        // handle the columnsearch example 1 link
+        $('#columnsearch-example-1').on('click', function (evt) {
+
+            evt.preventDefault();
+
+            // clean the filterbucket out
+            $('#columnsearch-filterbucket').empty();
+
+            $('#columnsearch-filtercolumn-select').val('propermotion');
+            $('#columnsearch-filtercondition-select').val('gt');
+            $('#columnsearch-filtertarget').val('200.0');
+            $('#columnsearch-filter-add').click();
+
+            $('#columnsearch-filtercolumn-select').val('sdssr');
+            $('#columnsearch-filtercondition-select').val('lt');
+            $('#columnsearch-filtertarget').val('11.0');
+            $('#columnsearch-filter-add').click();
+
+        });
+
+        // handle the columnsearch example 2 link
+        $('#columnsearch-example-2').on('click', function (evt) {
+
+            evt.preventDefault();
+
+            // clean the filterbucket out
+            $('#columnsearch-filterbucket').empty();
+
+            $('#columnsearch-filtercolumn-select').val('color_jmag_kmag');
+            $('#columnsearch-filtercondition-select').val('gt');
+            $('#columnsearch-filtertarget').val('2.0');
+            $('#columnsearch-filter-add').click();
+
+            $('#columnsearch-filtercolumn-select').val('aep_000_stetsonj');
+            $('#columnsearch-filtercondition-select').val('gt');
+            $('#columnsearch-filtertarget').val('1.0');
+            $('#columnsearch-filter-add').click();
+
+        });
+
+        // handle the columnsearch example 3 link
+        $('#columnsearch-example-3').on('click', function (evt) {
+
+            evt.preventDefault();
+
+            // clean the filterbucket out
+            $('#columnsearch-filterbucket').empty();
+
+            $('#columnsearch-filtercolumn-select').val('color_classes');
+            $('#columnsearch-filtercondition-select').val('ct');
+            $('#columnsearch-filtertarget').val('RR');
+            $('#columnsearch-filter-add').click();
+
+            $('#columnsearch-filtercolumn-select').val('dered_sdssg_sdssr');
+            $('#columnsearch-filtercondition-select').val('lt');
+            $('#columnsearch-filtertarget').val('0.3');
+            $('#columnsearch-filter-add').click();
+
         });
 
 
@@ -1806,6 +1874,10 @@ var lcc_search = {
                 // when we finish, handle the UI teardown
                 if (msgdata.status == 'ok') {
 
+                    if (target == 'conesearch') {
+                        $('#conesearch-help-box').removeClass('bg-warning');
+                    }
+
                     // check how many queries are running
                     var nrun =
                         parseInt($('#lcc-qstatus-run')
@@ -1868,6 +1940,10 @@ var lcc_search = {
                 // handle the UI change
                 // we'll dim the status card for this
                 else if (msgdata.status == 'background') {
+
+                    if (target == 'conesearch') {
+                        $('#conesearch-help-box').removeClass('bg-warning');
+                    }
 
                     // check how many queries are running
                     nrun = parseInt($('#lcc-qstatus-run')
@@ -1984,6 +2060,18 @@ var lcc_search = {
                     // but failed
                     alertmsg = msgdata.message;
                     lcc_ui.alert_box(alertmsg, 'danger');
+
+                    // if this is a conesearch query and the message includes
+                    // 'could not parse' or 'invalid', then highlight the helpbox
+                    if (target == 'conesearch' &&
+                        (msgdata.message.indexOf('could not parse') != -1 ||
+                         msgdata.message.indexOf('invalid') != -1)) {
+                        $('#conesearch-help-box').addClass('bg-warning');
+                    }
+
+                    else {
+                        $('#conesearch-help-box').removeClass('bg-warning');
+                    }
 
                     // check how many queries are running
                     nrun =
