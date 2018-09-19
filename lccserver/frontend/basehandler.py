@@ -565,24 +565,45 @@ class BaseHandler(tornado.web.RequestHandler):
             # if the session token is not set, then create a new session
             else:
 
-                yield self.new_session_token(
+                session_token = yield self.new_session_token(
                     user_id=2,
                     expires_days=self.session_expiry,
                     extra_info={}
                 )
 
-                # does it make sense to redirect us back to ourselves if
-                # there's no way of telling who the user is?
+                # immediately get back the session object for the current user
+                # so we don't have to redirect to get the session info from the
+                # cookie
+                ok, resp, msgs = yield self.authnzerver_request(
+                    'session-exists',
+                    {'session_token': session_token}
+                )
 
-                # probably: this will give the user the least amount of
-                # privilege required to get to the resource they're trying to
-                # get to without an API key
+                # if we found the session successfully, set the current_user
+                # attribute for this request
+                if ok:
 
-                # FIXME: this will put clients that don't understand
-                # sessions into an infinite redirect loop. this is
-                # hilarious, but is it OK? wget, curl and requests appear to
-                # smart enough to accept the set-cookie response header
-                self.redirect(self.request.uri)
+                    self.current_user = resp['session_info']
+                    self.user_id = self.current_user['user_id']
+                    self.user_role = self.current_user['user_role']
+
+                else:
+
+                    # if the session token provided did not match any existing
+                    # session in the DB, we'll clear all the cookies and
+                    # redirect the user to us again.
+                    self.current_user = None
+                    self.clear_all_cookies()
+
+                    # does it make sense to redirect us back to ourselves?
+                    # this will actually cause two redirects, one to set new
+                    # session cookies and the next one to actually read them
+
+                    # FIXME: this will put clients that don't understand
+                    # sessions into an infinite redirect loop. this is
+                    # hilarious, but is it OK? wget, curl and requests appear to
+                    # smart enough to accept the set-cookie response header
+                    self.redirect(self.request.uri)
 
         # if using the API Key
         else:

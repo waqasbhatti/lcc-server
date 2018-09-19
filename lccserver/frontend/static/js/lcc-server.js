@@ -2638,11 +2638,11 @@ var lcc_datasets = {
         // the first column of the table holds controls for getting
         // object info. add this column first
         $('#lcc-datatable-header').append(
-            '<th width="40"></th>'
+            '<th width="100" class="text-center">info</th>'
         );
 
         // these are used to calculate the full table width
-        var column_widths = [40];
+        var column_widths = [100];
         var thiscol_width = null;
 
         // generate the column names and descriptions, put them into the
@@ -2706,7 +2706,7 @@ var lcc_datasets = {
 
             // add the column names to the table header
             $('#lcc-datatable-header').append(
-                '<th width="'+ thiscol_width + '">' + this_col + '</th>'
+                '<th class="text-center" width="'+ thiscol_width + '">' + this_col + '</th>'
             );
 
         }
@@ -2790,8 +2790,8 @@ var lcc_datasets = {
             thisrow.splice(0,0,objectentry_firstcol);
 
             datarows_elem.append(
-                '<tr><td>' +
-                    data.rows[rowind].join('</td><td>')
+                '<tr><td class="text-center">' +
+                    data.rows[rowind].join('</td><td class="text-center">')
                     .replace(/href/g,'rel="nofollow" href') +
                     '</td></tr>'
             );
@@ -2805,7 +2805,7 @@ var lcc_datasets = {
         var datacontainer_offset =
             $('.datatable-container').offset().top;
 
-        $('.datatable-container').height($(window).height() -
+        $('.datatable-container').height(window.innerHeight -
                                          datacontainer_offset);
 
         // set the height appropriately
@@ -2885,20 +2885,6 @@ var lcc_datasets = {
                         data.currpage +
                         '">Page 1 of ' + data.npages
                 );
-
-                // load the first page only once
-                lcc_datasets.render_datatable_rows(
-                    data,
-                    lcc_datasets.colind_objectid,
-                    lcc_datasets.colind_collection,
-                    lcc_datasets.colind_lcfname
-                );
-
-                // set the bits for later rendering
-                lcc_datasets.staticbits_rendered = true;
-                lcc_datasets.npages = data.npages;
-                lcc_datasets.currpage = 1;
-                lcc_datasets.setid = setid;
 
                 // parse and display the dataset owner
                 if (data.owned) {
@@ -3010,6 +2996,24 @@ var lcc_datasets = {
             }
 
         }).done(function (data) {
+
+            if (!lcc_datasets.staticbits_rendered) {
+
+                // load the first page only once
+                lcc_datasets.render_datatable_rows(
+                    data,
+                    lcc_datasets.colind_objectid,
+                    lcc_datasets.colind_collection,
+                    lcc_datasets.colind_lcfname
+                );
+
+                // set the bits for later rendering
+                lcc_datasets.staticbits_rendered = true;
+                lcc_datasets.npages = data.npages;
+                lcc_datasets.currpage = 1;
+                lcc_datasets.setid = setid;
+
+            }
 
             if (!lcc_datasets.dataset_complete) {
 
