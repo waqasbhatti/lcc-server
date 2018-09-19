@@ -25,6 +25,7 @@ import hashlib
 import stat
 import os
 import mimetypes
+import re
 
 import itsdangerous
 from cryptography.fernet import Fernet, InvalidToken
@@ -79,7 +80,7 @@ LOGGER = logging.getLogger(__name__)
 #####################
 
 import tornado.web
-from tornado.escape import utf8
+from tornado.escape import utf8, native_str
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.web import _time_independent_equals, HTTPError
 from tornado import gen
@@ -91,6 +92,7 @@ from tornado.log import gen_log
 ###################
 
 from lccserver import __version__
+from lccserver.external.cookies import cookies
 from lccserver.backend import dbsearch, datasets
 
 
@@ -191,9 +193,9 @@ class BaseHandler(tornado.web.RequestHandler):
             'lccserver_messages',
             outmsg,
             httponly=True,
-            secure=self.csecure
+            secure=self.csecure,
+            samesite='lax',
         )
-
 
 
     def render_flash_messages(self):
@@ -353,6 +355,65 @@ class BaseHandler(tornado.web.RequestHandler):
         return user_account_box
 
 
+    def set_cookie(self, name, value, domain=None, expires=None, path="/",
+                   expires_days=None, **kwargs):
+        """Sets an outgoing cookie name/value with the given options.
+
+        Newly-set cookies are not immediately visible via `get_cookie`;
+        they are not present until the next request.
+
+        expires may be a numeric timestamp as returned by `time.time`,
+        a time tuple as returned by `time.gmtime`, or a
+        `datetime.datetime` object.
+
+        Additional keyword arguments are set on the cookies.Morsel
+        directly.
+        See https://docs.python.org/3/library/http.cookies.html#http.cookies.Morsel
+        for available attributes.
+
+        ---
+
+        Taken from Tornado's web module:
+
+        https://github.com/tornadoweb/tornado/blob/
+        627eafb3ce21a777981c37a5867b5f1956a4dc16/tornado/web.py#L528
+
+        The main reason for bundling this in here is to allow use of the
+        SameSite attribute for cookies via our vendored cookies library.
+
+        """
+        # The cookie library only accepts type str, in both python 2 and 3
+        name = native_str(name)
+        value = native_str(value)
+        if re.search(r"[\x00-\x20]", name + value):
+            # Don't let us accidentally inject bad stuff
+            raise ValueError("Invalid cookie %r: %r" % (name, value))
+        if not hasattr(self, "_new_cookie"):
+            self._new_cookie = cookies.SimpleCookie()
+        if name in self._new_cookie:
+            del self._new_cookie[name]
+        self._new_cookie[name] = value
+        morsel = self._new_cookie[name]
+        if domain:
+            morsel["domain"] = domain
+        if expires_days is not None and not expires:
+            expires = datetime.utcnow() + timedelta(
+                days=expires_days)
+        if expires:
+            morsel["expires"] = httputil.format_timestamp(expires)
+        if path:
+            morsel["path"] = path
+        for k, v in kwargs.items():
+            if k == 'max_age':
+                k = 'max-age'
+
+            # skip falsy values for httponly and secure flags because
+            # SimpleCookie sets them regardless
+            if k in ['httponly', 'secure'] and not v:
+                continue
+
+            morsel[k] = v
+
 
     @gen.coroutine
     def authnzerver_request(self,
@@ -450,6 +511,7 @@ class BaseHandler(tornado.web.RequestHandler):
                 expires_days=expires_days,
                 httponly=True,
                 secure=self.csecure,
+                samesite='lax',
             )
 
             return resp['session_token']

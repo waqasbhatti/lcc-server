@@ -685,6 +685,7 @@ def main():
         compress_response=True,
         cookie_secret=SESSIONSECRET,
         xsrf_cookies=True,
+        xsrf_cookie_kwargs={'samesite':'Lax'},
         debug=DEBUG,
     )
 

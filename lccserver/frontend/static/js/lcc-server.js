@@ -2638,7 +2638,7 @@ var lcc_datasets = {
         // the first column of the table holds controls for getting
         // object info. add this column first
         $('#lcc-datatable-header').append(
-            '<th width="100" class="text-center">info</th>'
+            '<th width="100" class="text-center">details</th>'
         );
 
         // these are used to calculate the full table width
