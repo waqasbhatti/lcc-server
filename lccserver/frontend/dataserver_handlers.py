@@ -621,15 +621,12 @@ class DatasetHandler(BaseHandler):
     def post(self, setid):
         '''This handles POSTs to the /set/<setid> endpoint.
 
-        Used to handle changes to the dataset metadata and actual object lists.
+        Used to handle changes to the dataset metadata. The actual object lists
+        are currently immutable so a dataset is a permanent record of a
+        search. This might change in the future.
 
         This will check the user actually owns the dataset and then check if the
         changes requested can be made.
-
-        Things that can be edited at the moment:
-
-        -> use bleach to pre-process these before entering them into the
-           database and the pickles
 
         anonymous and above can edit:
 
@@ -641,15 +638,22 @@ class DatasetHandler(BaseHandler):
         - desc -> restricted to 1024 characters
         - citation -> restricted to 1024 characters
 
-        TODO: the changes will need to be propagated to the database entry, the
-        full dataset pickle, the dataset header and page pickles. the dataset
-        CSV will not be regenerated. This will call
-        datasets.sqlite_update_dataset with the appropriate update dict and
-        action in:
+        The dataset CSV will not be regenerated because we're lazy.
+
+        This will call datasets.sqlite_update_dataset with the appropriate
+        update dict and action in:
 
         ('edit','make_shared','make_public','make_private','make_unlisted')
 
         '''
+
+        # get the action
+
+        # get the associated backend function in datasets.py
+
+        # apply the function
+
+        # send back the results
 
 
 #############################

@@ -29,6 +29,7 @@
       <div class="accordion" id="dataset-info-accordion">
 
         <div class="card">
+
           <div class="card-header" id="headingOne">
             <h3 class="mb-0">
               <button class="btn btn-link collapsed" id="dataset-header"
@@ -45,104 +46,111 @@
           <div id="collapseOne" class="collapse"
                aria-labelledby="headingOne"
                data-parent="#dataset-info-accordion">
-            <div class="card-body">
 
-              <table class="table table-borderless table-sm">
+            <form id="dataset-edit-form" action="/set/{{ header['setid'] }}" method="POST" >
+              {% module xsrf_form_html() %}
 
-                {% if header['owned'] %}
+              <div class="card-body">
 
-                <tr>
-                  <th width="200">dataset owner</th>
-                  <td id="owner-label">{{ header['owner'] }}</td>
-                </tr>
+                <table class="table table-borderless table-sm">
 
-                <tr>
-                  <th width="200">dataset visibility</th>
-                  <td id="visibility-label">{{ header['visibility'] }}</td>
-                </tr>
+                  {% if header['owned'] %}
 
-                <!-- disable this until we have it implemented
-                     <tr>
-                     <th width="200">dataset shared with</th>
-                     <td id="sharedwith-label">{{ header['sharedwith'] }}</td>
-                     </tr>
-                -->
-                {% end %}
+                  <tr>
+                    <th width="200">dataset owner</th>
+                    <td id="owner-label">{{ header['owner'] }}</td>
+                  </tr>
 
-                <!-- only authenticated users and above can edit these three items below -->
-                {% if current_user['user_role'] not in ('anonymous','locked') %}
+                  <tr>
+                    <th width="200">dataset visibility</th>
+                    <td id="visibility-label">{{ header['visibility'] }}</td>
+                  </tr>
 
-                <tr>
-                  <th width="80">name</th>
-                  <td id="dataset-name">{{ header['name'] }}</td>
-                </tr>
+                  <!-- disable this until we have it implemented
+                       <tr>
+                       <th width="200">dataset shared with</th>
+                       <td id="sharedwith-label">{{ header['sharedwith'] }}</td>
+                       </tr>
+                  -->
+                  {% end %}
 
-                <tr>
-                  <th width="80">description</th>
-                  <td id="dataset-desc">{{ header['desc'] }}</td>
-                </tr>
+                  <!-- only authenticated users and above can edit these three items below -->
+                  {% if current_user['user_role'] not in ('anonymous','locked') %}
 
-                <tr>
-                  <th width="80">citation</th>
-                  <td id="dataset-citation">{{ header['citation'] }}</td>
-                </tr>
+                  <tr>
+                    <th width="80">name</th>
+                    <td id="dataset-name">{{ header['name'] }}</td>
+                  </tr>
 
-                <!-- other users can see these items but not edit, double enforced here and on the backend -->
-                {% else %}
+                  <tr>
+                    <th width="80">description</th>
+                    <td id="dataset-desc">{{ header['desc'] }}</td>
+                  </tr>
 
-                <tr>
-                  <th width="80">name</th>
-                  <td>{{ header['name'] }}</td>
-                </tr>
+                  <tr>
+                    <th width="80">citation</th>
+                    <td id="dataset-citation">{{ header['citation'] }}</td>
+                  </tr>
 
-                <tr>
-                  <th width="80">description</th>
-                  <td>{{ header['desc'] }}</td>
-                </tr>
+                  <!-- other users can see these items but not edit, double enforced here and on the backend -->
+                  {% else %}
 
-                <tr>
-                  <th width="80">citation</th>
-                  <td>{{ header['citation'] }}</td>
-                </tr>
+                  <tr>
+                    <th width="80">name</th>
+                    <td>{{ header['name'] }}</td>
+                  </tr>
 
-                {% end %}
+                  <tr>
+                    <th width="80">description</th>
+                    <td>{{ header['desc'] }}</td>
+                  </tr>
 
-                <tr>
-                  <th width="80">objects</th>
-                  <td><span id="dataset-nobjects">{{ header['total_nmatches'] }}</span></td>
-                </tr>
+                  <tr>
+                    <th width="80">citation</th>
+                    <td>{{ header['citation'] }}</td>
+                  </tr>
 
-                <tr>
-                  <th width="200">created on</th>
-                  <td><span class="moment-format"
-                            id="dataset-createdon">{{ header['created'] }}</span></td>
-                </tr>
+                  {% end %}
 
-                <tr>
-                  <th width="200">last updated</th>
-                  <td><span class="moment-format"
-                            id="dataset-lastupdated">{{ header['updated'] }}</span></td>
-                </tr>
+                  <tr>
+                    <th width="80">objects</th>
+                    <td><span id="dataset-nobjects">{{ header['total_nmatches'] }}</span></td>
+                  </tr>
 
-                <tr>
-                  <th width="200">search query parameters</th>
-                  <td>
-                    <code id="dataset-searchargs">
-                      <details><summary>{{ header['searchtype'].replace('sqlite_','').replace('postgres_','') }}</summary>{{ header['searchargs'] }}</details>
-                    </code>
-                  </td>
-                </tr>
+                  <tr>
+                    <th width="200">created on</th>
+                    <td><span class="moment-format"
+                              id="dataset-createdon">{{ header['created'] }}</span></td>
+                  </tr>
 
-                <tr>
-                  <th width="200">collections searched</th>
-                  <td><code id="dataset-collections">{{ ', '.join(header['collections']) }}</code></td>
-                </tr>
+                  <tr>
+                    <th width="200">last updated</th>
+                    <td><span class="moment-format"
+                              id="dataset-lastupdated">{{ header['updated'] }}</span></td>
+                  </tr>
 
-              </table>
+                  <tr>
+                    <th width="200">search query parameters</th>
+                    <td>
+                      <code id="dataset-searchargs">
+                        <details><summary>{{ header['searchtype'].replace('sqlite_','').replace('postgres_','') }}</summary>{{ header['searchargs'] }}</details>
+                      </code>
+                    </td>
+                  </tr>
 
-            </div>
+                  <tr>
+                    <th width="200">collections searched</th>
+                    <td><code id="dataset-collections">{{ ', '.join(header['collections']) }}</code></td>
+                  </tr>
+
+                </table>
+
+              </div>
+            </form>
+
           </div>
         </div>
+
 
         <div class="card">
           <div class="card-header" id="headingTwo">

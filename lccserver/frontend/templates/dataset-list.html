@@ -6,7 +6,7 @@
 <div class="container-fluid" >
   <div class="row mt-2" >
     <div class="col-12" >
-      <h3>Search for datasets</h3>
+      <h3 id="dataset-result-header">All available datasets</h3>
     </div>
   </div>
 </div>
@@ -14,7 +14,12 @@
 <div class="container" >
   <div class="row mt-4" >
 
-    <div class="col-sm-9" >
+    <div class="col-sm-2">
+      <button class="btn btn-secondary"
+              type="button" id="dataset-show-all">Show all datasets</button>
+    </div>
+
+    <div class="col-sm-10" >
       <form class="form" action="/api/datasets" method="POST" id="dataset-search-form" >
         {% module xsrf_form_html() %}
 
@@ -22,35 +27,22 @@
           <input class="form-control" id="dataset-searchbox"
                  name="datasetsearch" autocomplete="on"
                  type="search" maxlength="1024"
-                 placeholder="search by queried collections, query type or arguments, dataset ID, name, description, citation"
-                 aria-label="search by queried collections, query type or arguments, dataset ID, name, description, citation">
+                 placeholder="queried collections, query type or arguments, dataset ID, name, description, citation"
+                 aria-label="queried collections, query type or arguments, dataset ID, name, description, citation">
           <div class="input-group-append" >
             <button class="btn btn-primary"
-                    type="submit" id="dataset-search-submit">Search</button>
+                    type="submit" id="dataset-search-submit">Search for datasets</button>
           </div>
         </div>
       </form>
     </div>
 
-    <div class="col-sm-3 d-flex justify-content-center">
-      <button class="btn btn-secondary"
-              type="button" id="dataset-show-all">Show all datasets</button>
-    </div>
-
-  </div>
-</div>
-
-<div class="container-fluid" >
-  <div class="row mt-4" >
-    <div class="col-12" >
-      <h3 id="dataset-result-header">All available datasets</h3>
-    </div>
   </div>
 </div>
 
 <div class="container-fluid">
 
-  <div class="row">
+  <div class="row mt-4">
     <div class="col-12">
 
       <table id="lcc-datasets-table" class="table table-hover table-sm">
