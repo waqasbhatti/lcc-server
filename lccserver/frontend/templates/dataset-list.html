@@ -21,7 +21,7 @@
         <div class="input-group" >
           <input class="form-control" id="dataset-searchbox"
                  name="datasetsearch" autocomplete="on"
-                 type="search"
+                 type="search" maxlength="1024"
                  placeholder="search by queried collections, query type or arguments, dataset ID, name, description, citation"
                  aria-label="search by queried collections, query type or arguments, dataset ID, name, description, citation">
           <div class="input-group-append" >
@@ -32,7 +32,7 @@
       </form>
     </div>
 
-    <div class="col-sm-3">
+    <div class="col-sm-3 d-flex justify-content-center">
       <button class="btn btn-secondary"
               type="button" id="dataset-show-all">Show all datasets</button>
     </div>

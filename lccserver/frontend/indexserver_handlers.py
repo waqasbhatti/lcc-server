@@ -541,6 +541,7 @@ class DatasetListHandler(BaseHandler):
         setfilter = self.get_argument('filter', default=None)
         if setfilter:
             setfilter = xhtml_escape(setfilter)
+            setfilter = setfilter[:1024]
 
         dataset_info = yield self.executor.submit(
             datasets.sqlite_list_datasets,

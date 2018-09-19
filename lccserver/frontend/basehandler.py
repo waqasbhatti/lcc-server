@@ -555,6 +555,11 @@ class BaseHandler(tornado.web.RequestHandler):
                     # does it make sense to redirect us back to ourselves?
                     # this will actually cause two redirects, one to set new
                     # session cookies and the next one to actually read them
+
+                    # FIXME: this will put clients that don't understand
+                    # sessions into an infinite redirect loop. this is
+                    # hilarious, but is it OK? wget, curl and requests appear to
+                    # smart enough to accept the set-cookie response header
                     self.redirect(self.request.uri)
 
             # if the session token is not set, then create a new session
@@ -572,6 +577,11 @@ class BaseHandler(tornado.web.RequestHandler):
                 # probably: this will give the user the least amount of
                 # privilege required to get to the resource they're trying to
                 # get to without an API key
+
+                # FIXME: this will put clients that don't understand
+                # sessions into an infinite redirect loop. this is
+                # hilarious, but is it OK? wget, curl and requests appear to
+                # smart enough to accept the set-cookie response header
                 self.redirect(self.request.uri)
 
         # if using the API Key
