@@ -50,6 +50,8 @@ from functools import reduce, partial
 import hashlib
 from datetime import datetime
 from random import sample
+import re
+import unicodedata
 
 from tornado.escape import xhtml_unescape
 import bleach
@@ -1872,6 +1874,27 @@ def sqlite_change_dataset_owner(
         return None
 
 
+def _slugify_dataset_name(setname):
+    '''
+    This is based on the Django slugify function.
+
+    https://github.com/django/django/blob/
+    495abe00951ceb9787d7f36590f71aa14c973d3d/django/utils/text.py#L399
+
+    '''
+
+    normalized = unicodedata.normalize(
+        'NFKD', setname
+    ).encode(
+        'ascii', 'ignore'
+    ).decode(
+        'ascii'
+    )
+
+    slugified = re.sub(r'[^\w\s-]', '', normalized).strip().lower()
+    return re.sub(r'[-\s]+', '-', slugified)
+
+
 
 def sqlite_edit_dataset(basedir,
                         setid,
@@ -1898,6 +1921,14 @@ def sqlite_edit_dataset(basedir,
     citation
 
     Otherwise, datasets are supposed to be immutable (FIXME: for now).
+
+    FIXME: changing the name of the dataset should generate a slugified version
+    of it that gets saved to the dataset pickle and header. This will be read by
+    the frontend to show this in the permanent URL.
+
+    FIXME: change the URLSpec for the DatasetHandler to accept a slug in the
+    provided set URL. we won't actually do anything with it
+
 
     '''
 
@@ -1986,6 +2017,9 @@ def sqlite_edit_dataset(basedir,
                     strip=True
                 )
                 ds_update['name'] = cleaned_name
+                # add in the slug
+                ds_update['slug'] = _slugify_dataset_name(cleaned_name)
+
                 db_update['name'] = cleaned_name
 
             if key == 'description':

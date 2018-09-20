@@ -629,7 +629,7 @@ def main():
         ##############################################
 
         # this is the dataset display API for a single dataset
-        (r'/set/(\w+)',
+        (r'/set/(\w+)/?\S*',
          dh.DatasetHandler,
          {'currentdir':CURRENTDIR,
           'apiversion':APIVERSION,

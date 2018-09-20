@@ -75,7 +75,6 @@ from tornado import gen
 ###################
 
 from .. import __version__
-from ..backend import dbsearch
 from ..backend import datasets
 
 from .basehandler import BaseHandler
@@ -237,6 +236,7 @@ class DatasetHandler(BaseHandler):
 
         # get the setid
         setid = xhtml_escape(setid)
+
 
         # figure out the spec for the backend function
         if returnjson is False:
@@ -424,11 +424,25 @@ class DatasetHandler(BaseHandler):
 
                 if access_ok:
 
+                    # get the URL
+                    if 'slug' in ds and ds['slug'] is not None:
+                        slug = '/%s' % ds['slug']
+                    else:
+                        slug = ''
+
+                    set_url = '%s://%s/set/%s%s' % (
+                        self.request.protocol,
+                        self.request.host,
+                        setid,
+                        slug
+                    )
+
                     self.render(
                         'dataset-async.html',
                         current_user=self.current_user,
                         page_title='LCC Dataset %s' % setid,
                         setid=setid,
+                        set_url=set_url,
                         header=ds,
                         lccserver_version=__version__,
                         siteinfo=self.siteinfo,
@@ -559,11 +573,25 @@ class DatasetHandler(BaseHandler):
 
                 if access_ok:
 
+                    # get the URL
+                    if 'slug' in ds and ds['slug'] is not None:
+                        slug = '/%s' % ds['slug']
+                    else:
+                        slug = ''
+
+                    set_url = '%s://%s/set/%s%s' % (
+                        self.request.protocol,
+                        self.request.host,
+                        setid,
+                        slug
+                    )
+
                     self.render(
                         'dataset-async.html',
                         page_title='LCC Dataset %s' % setid,
                         current_user=self.current_user,
                         setid=setid,
+                        set_url=set_url,
                         header=ds,
                         lccserver_version=__version__,
                         siteinfo=self.siteinfo,
