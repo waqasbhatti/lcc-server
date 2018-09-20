@@ -660,37 +660,357 @@ class DatasetHandler(BaseHandler):
 
         - visibility
 
-        authenticated and above can edit:
+        authenticated and above can also edit:
 
         - name -> restricted to 280 characters
         - desc -> restricted to 1024 characters
         - citation -> restricted to 1024 characters
 
+        staff and above can also:
+
+        - 'delete' the dataset
+
         The dataset CSV will not be regenerated because we're lazy.
 
-        This will call datasets.sqlite_update_dataset with the appropriate
-        update dict and action in:
-
-        ('edit','make_shared','make_public','make_private','make_unlisted')
+        FIXME: implement dataset sharedwith changes once we figure that out on
+        the backend.
 
         '''
+
+        # get the user info
+        if not self.current_user:
+
+            message = (
+                "Unknown user. Cannot act on the dataset."
+            )
+
+            self.write({'status':'failed',
+                        'result':None,
+                        'message':message})
+            raise tornado.web.Finish()
 
         #
         # get the dataset ID from the provided URL
         #
+        if setid is None or len(setid) == 0:
 
-        # get the setid
+            message = (
+                "No dataset ID was provided or that dataset ID doesn't exist."
+            )
+
+            self.write({'status':'failed',
+                        'result':None,
+                        'message':message})
+            raise tornado.web.Finish()
+
+
+        # get the setid if it's fine
         setid = xhtml_escape(setid)
 
-
-
         # get the action
+        action = self.get_argument('action',default=None)
+
+        if action is None or len(action) == 0:
+
+            message = (
+                "No action specified."
+            )
+
+            self.write({'status':'failed',
+                        'result':None,
+                        'message':message})
+            raise tornado.web.Finish()
+
+        # get the action if it's fine
+        action = xhtml_escape(action)
+
+        if action not in ('edit',
+                          'change_owner',
+                          'change_visibility',
+                          # 'change_sharedwith',  # FIXME: implement this later
+                          'delete'):
+
+            message = (
+                "Unknown action specified."
+            )
+
+            self.write({'status':'failed',
+                        'result':None,
+                        'message':message})
+            raise tornado.web.Finish()
+
+
+        # get the action payload
+        payload = self.get_argument('update', default=None)
+
+        if payload is None or len(payload) == 0:
+
+            message = (
+                "No action payload specified."
+            )
+
+            self.write({'status':'failed',
+                        'result':None,
+                        'message':message})
+            raise tornado.web.Finish()
+
+        try:
+            payload = json.loads(payload)
+        except Exception as e:
+            message = (
+                "Could not deserialize the action payload."
+            )
+
+            self.write({'status':'failed',
+                        'result':None,
+                        'message':message})
+            raise tornado.web.Finish()
+
+
+        # get some useful stuff for the user
+        incoming_userid = self.current_user['user_id']
+        incoming_role = self.current_user['user_role']
+        incoming_session_token = self.current_user['session_token']
 
         # get the associated backend function in datasets.py
 
-        # apply the function
+        #
+        # handle a dataset edit
+        #
+        if action == 'edit':
 
-        # send back the results
+            try:
+
+                ds_updated = yield self.executor.submit(
+                    datasets.sqlite_edit_dataset,
+                    self.basedir,
+                    setid,
+                    updatedict=payload,
+                    incoming_userid=incoming_userid,
+                    incoming_role=incoming_role,
+                    incoming_session_token=incoming_session_token
+                )
+
+                if ds_updated:
+
+                    message = (
+                        "Dataset edit successful."
+                    )
+
+                    self.write({'status':'ok',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+                else:
+
+                    message = (
+                        "Dataset edit failed."
+                    )
+
+                    self.write({'status':'failed',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+            except Exception as e:
+
+                LOGGER.exception(
+                    'could not edit dataset: %s, user_id = %s, '
+                    ' role = %s, session_token = %s'
+                    % (setid, incoming_userid,
+                       incoming_role, incoming_session_token)
+                )
+                message = (
+                    "Dataset edit failed."
+                )
+
+                self.write({'status':'failed',
+                            'result':ds_updated,
+                            'message':message})
+                self.finish()
+
+        #
+        # handle a dataset edit
+        #
+        elif action == 'change_owner':
+
+            try:
+
+                ds_updated = yield self.executor.submit(
+                    datasets.sqlite_change_dataset_owner,
+                    self.basedir,
+                    setid,
+                    new_owner_userid=payload['new_owner_userid'],
+                    incoming_userid=incoming_userid,
+                    incoming_role=incoming_role,
+                    incoming_session_token=incoming_session_token
+                )
+
+                if ds_updated:
+
+                    message = (
+                        "Dataset ownership change successful."
+                    )
+
+                    self.write({'status':'ok',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+                else:
+
+                    message = (
+                        "Dataset ownership change failed."
+                    )
+
+                    self.write({'status':'failed',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+            except Exception as e:
+
+                LOGGER.exception(
+                    'could not change dataset ownership: %s, user_id = %s, '
+                    ' role = %s, session_token = %s'
+                    % (setid, incoming_userid,
+                       incoming_role, incoming_session_token)
+                )
+                message = (
+                    "Dataset ownership change failed."
+                )
+
+                self.write({'status':'failed',
+                            'result':ds_updated,
+                            'message':message})
+                self.finish()
+
+        #
+        # handle a dataset visibility change
+        #
+        elif action == 'change_visibility':
+
+            try:
+
+                ds_updated = yield self.executor.submit(
+                    datasets.sqlite_change_dataset_visibility,
+                    self.basedir,
+                    setid,
+                    new_visibility=payload['new_visibility'],
+                    incoming_userid=incoming_userid,
+                    incoming_role=incoming_role,
+                    incoming_session_token=incoming_session_token
+                )
+
+                if ds_updated:
+
+                    message = (
+                        "Dataset visibility change successful."
+                    )
+
+                    self.write({'status':'ok',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+                else:
+
+                    message = (
+                        "Dataset visibility change failed."
+                    )
+
+                    self.write({'status':'failed',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+            except Exception as e:
+
+                LOGGER.exception(
+                    'could not change dataset visibility: %s, user_id = %s, '
+                    ' role = %s, session_token = %s'
+                    % (setid, incoming_userid,
+                       incoming_role, incoming_session_token)
+                )
+                message = (
+                    "Dataset visibility change failed."
+                )
+
+                self.write({'status':'failed',
+                            'result':ds_updated,
+                            'message':message})
+                self.finish()
+
+        #
+        # handle a dataset visibility change
+        #
+        elif action == 'delete':
+
+            try:
+
+                ds_updated = yield self.executor.submit(
+                    datasets.sqlite_delete_dataset,
+                    self.basedir,
+                    setid,
+                    incoming_userid=incoming_userid,
+                    incoming_role=incoming_role,
+                    incoming_session_token=incoming_session_token
+                )
+
+                if ds_updated:
+
+                    message = (
+                        "Dataset delete successful."
+                    )
+
+                    self.write({'status':'ok',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+                else:
+
+                    message = (
+                        "Dataset delete failed."
+                    )
+
+                    self.write({'status':'failed',
+                                'result':ds_updated,
+                                'message':message})
+                    self.finish()
+
+            except Exception as e:
+
+                LOGGER.exception(
+                    'could not delete dataset: %s, user_id = %s, '
+                    ' role = %s, session_token = %s'
+                    % (setid, incoming_userid,
+                       incoming_role, incoming_session_token)
+                )
+                message = (
+                    "Dataset delete failed."
+                )
+
+                self.write({'status':'failed',
+                            'result':ds_updated,
+                            'message':message})
+                self.finish()
+
+        #
+        # any other action is an automatic fail
+        #
+        else:
+
+            message = (
+                "Could not understand the action to be performed."
+            )
+
+            self.write({'status':'failed',
+                        'result':None,
+                        'message':message})
+            self.finish()
+
 
 
 #############################

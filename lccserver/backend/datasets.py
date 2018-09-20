@@ -1554,7 +1554,6 @@ def sqlite_change_dataset_visibility(
         basedir,
         setid,
         new_visibility='unlisted',
-        new_sharedwith=None,
         incoming_userid=2,
         incoming_role='anonymous',
         incoming_session_token=None
@@ -2167,7 +2166,6 @@ def sqlite_delete_dataset(basedir,
         basedir,
         setid,
         new_visibility='private',
-        new_sharedwith=None,
         incoming_userid=incoming_userid,
         incoming_role=incoming_role,
         incoming_session_token=incoming_session_token
