@@ -1922,14 +1922,6 @@ def sqlite_edit_dataset(basedir,
 
     Otherwise, datasets are supposed to be immutable (FIXME: for now).
 
-    FIXME: changing the name of the dataset should generate a slugified version
-    of it that gets saved to the dataset pickle and header. This will be read by
-    the frontend to show this in the permanent URL.
-
-    FIXME: change the URLSpec for the DatasetHandler to accept a slug in the
-    provided set URL. we won't actually do anything with it
-
-
     '''
 
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
@@ -2106,13 +2098,99 @@ def sqlite_delete_dataset(basedir,
                           incoming_userid=2,
                           incoming_role='anonymous',
                           incoming_session_token=None):
-    '''
-    This removes the specified dataset.
+    '''This 'deletes' the specified dataset.
+
+    'delete' in this case means:
+
+    - set the visibility to private
+    - set the owner to superuser
+
+    This effectively makes the dataset vanish for normal users but we don't
+    actually delete anything. FIXME: later, we may want to do a periodic actual
+    delete of datasets that have been 'deleted'.
 
     The default incoming_userid is set to 2 -> anonymous user for safety.
 
     the action to test is 'delete'
 
-    anonymous users can't delete datasets
+    only superusers and staff can delete datasets.
 
     '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+    dataset_pickle = 'dataset-%s.pkl.gz' % setid
+    dataset_fpath = os.path.join(datasetdir, dataset_pickle)
+
+    # return immediately if the dataset doesn't exist
+    if not os.path.exists(dataset_fpath):
+        LOGERROR('could not find dataset with setid: %s' % setid)
+        return None
+
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    db.row_factory = sqlite3.Row
+
+    # check 'delete' permissions
+    dataset_deleteable = sqlite_check_dataset_access(
+        setid,
+        'delete',
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role,
+        database=db
+    )
+
+    if not dataset_deleteable:
+        LOGERROR('dataset %s is not editable by '
+                 'user_id = %s, role = %s, session_token = %s'
+                 % (setid,
+                    incoming_userid,
+                    incoming_role,
+                    incoming_session_token))
+        db.close()
+        return None
+
+    # change the owner
+    changed_owner = sqlite_change_dataset_owner(
+        basedir,
+        setid,
+        1,
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role,
+        incoming_session_token=incoming_session_token
+    )
+
+    # change the visibility
+    changed_visibility = sqlite_change_dataset_visibility(
+        basedir,
+        setid,
+        new_visibility='private',
+        new_sharedwith=None,
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role,
+        incoming_session_token=incoming_session_token
+    )
+
+    # return True if deleted
+    if changed_owner == 1 and changed_visibility == 'private':
+
+        LOGWARNING('dataset %s has been marked as deleted by '
+                   'user_id %s, role = %s, session_token = %s'
+                   % (setid,
+                      incoming_userid,
+                      incoming_role,
+                      incoming_session_token))
+        return True
+
+    else:
+
+        LOGERROR('attempt to delete dataset %s failed. '
+                 'user_id %s, role = %s, session_token = %s'
+                 % (setid,
+                    incoming_userid,
+                    incoming_role,
+                    incoming_session_token))
+
+        return False
