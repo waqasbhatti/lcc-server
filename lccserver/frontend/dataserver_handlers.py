@@ -647,6 +647,15 @@ class DatasetHandler(BaseHandler):
 
         '''
 
+        #
+        # get the dataset ID from the provided URL
+        #
+
+        # get the setid
+        setid = xhtml_escape(setid)
+
+
+
         # get the action
 
         # get the associated backend function in datasets.py

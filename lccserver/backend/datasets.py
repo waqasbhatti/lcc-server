@@ -1085,9 +1085,13 @@ def sqlite_check_dataset_access(
     '''
 
     # return immediately if the action doesn't make sense
-    if action not in ('view','edit','delete',
-                      'make_public','make_private',
-                      'make_shared','make_unlisted'
+    if action not in ('view',
+                      'edit',
+                      'delete',
+                      'make_public',
+                      'make_private',
+                      'make_shared',
+                      'make_unlisted',
                       'change_owner'):
         return False
 
@@ -1563,6 +1567,154 @@ def sqlite_change_dataset_visibility(
 
     '''
 
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+    dataset_pickle = 'dataset-%s.pkl.gz' % setid
+    dataset_fpath = os.path.join(datasetdir, dataset_pickle)
+
+    # return immediately if the dataset doesn't exist
+    if not os.path.exists(dataset_fpath):
+        LOGERROR('could not find dataset with setid: %s' % setid)
+        return None
+
+    dataset_pickleheader = 'dataset-%s-header.pkl' % setid
+    dataset_pickleheader_fpath = os.path.join(datasetdir,
+                                              dataset_pickleheader)
+
+    # get the lczip, cpzip, pfzip, dataset pkl shasums from the DB
+    # also get the created_on, last_updated, nobjects, status
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    db.row_factory = sqlite3.Row
+    cur = db.cursor()
+
+    # get the dataset's info from the DB
+    query = ("select created_on, last_updated, status, "
+             "dataset_owner, dataset_visibility, dataset_sharedwith, "
+             "dataset_sessiontoken "
+             "from lcc_datasets where setid = ?")
+    cur.execute(query, (setid,))
+    row = cur.fetchone()
+
+    if row and len(row) > 0 and os.path.exists(dataset_fpath):
+
+        dataset_status = row['status']
+
+        # only complete datasets can be edited
+        if dataset_status != 'complete':
+            LOGERROR('dataset %s status = %s. only complete '
+                     'datasets can be edited' % (setid, dataset_status))
+            db.close()
+            return None
+
+        #
+        # otherwise, proceed as normal
+        #
+        visibility_action = 'make_%s' % new_visibility
+
+        dataset_visibility_changeable = sqlite_check_dataset_access(
+            setid,
+            visibility_action,
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            database=db
+        )
+
+        # check if we can edit this dataset
+        if not dataset_visibility_changeable:
+
+            LOGERROR('dataset %s is not editable by '
+                     'user_id = %s, role = %s, session_token = %s'
+                     % (setid,
+                        incoming_userid,
+                        incoming_role,
+                        incoming_session_token))
+            db.close()
+            return None
+
+        # additional check for anonymous users
+        if (incoming_role == 'anonymous' and
+            incoming_session_token != row['dataset_sessiontoken']):
+
+            LOGERROR('dataset %s is not editable by '
+                     'users with role = %s, session_token = %s, '
+                     'required session_token = %s'
+                     % (setid,
+                        incoming_role,
+                        incoming_session_token,
+                        row['dataset_sessiontoken']))
+            db.close()
+            return None
+
+
+        # finally, do the actual update
+
+        #
+        # update the main dataset pickle
+        #
+        with open(dataset_fpath,'rb') as infd:
+            dataset = pickle.load(infd)
+
+        old_visibility = dataset['visibility'][::]
+        dataset['visibility'] = new_visibility
+
+        with open(dataset_fpath,'wb') as outfd:
+            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+        LOGINFO('updated dataset main pickle: %s '
+                'setid: %s, old visibility = %s -> new visibility = %s' %
+                (dataset_fpath, setid, old_visibility, new_visibility))
+
+        #
+        # update the dataset pickle header
+        #
+        with open(dataset_pickleheader_fpath,'rb') as infd:
+            header = pickle.load(infd)
+
+        header['visibility'] = new_visibility
+        with open(dataset_pickleheader_fpath,'wb') as outfd:
+            pickle.dump(header, outfd, pickle.HIGHEST_PROTOCOL)
+
+        LOGINFO('updated dataset header pickle: %s '
+                'setid: %s, old visibility = %s -> new visibility = %s' %
+                (dataset_pickleheader_fpath,
+                 setid,
+                 old_visibility,
+                 new_visibility))
+
+        #
+        # update the database entry
+        #
+        query = (
+            "update lcc_datasets set "
+            "dataset_visibility = ? "
+            "where setid = ?"
+        )
+        # the new session token associated with the dataset is that of the user
+        # making the change of ownership (i.e. this superuser)
+        params = (new_visibility, setid)
+
+        cur.execute(query, params)
+        db.commit()
+        db.close()
+
+        LOGINFO('updated database entry: %s '
+                'setid: %s, old visibility = %s -> new visibility = %s' %
+                (dataset_pickleheader_fpath,
+                 setid,
+                 old_visibility,
+                 new_visibility))
+        return new_visibility
+
+    # if the dataset was not found or is not accessible
+    else:
+
+        LOGERROR('could not find dataset with setid: %s' % setid)
+        db.close()
+        return None
+
 
 
 def sqlite_change_dataset_owner(
@@ -1580,6 +1732,144 @@ def sqlite_change_dataset_owner(
     the action to test is 'change_owner'
 
     '''
+
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+    dataset_pickle = 'dataset-%s.pkl.gz' % setid
+    dataset_fpath = os.path.join(datasetdir, dataset_pickle)
+
+    # return immediately if the dataset doesn't exist
+    if not os.path.exists(dataset_fpath):
+        LOGERROR('could not find dataset with setid: %s' % setid)
+        return None
+
+    dataset_pickleheader = 'dataset-%s-header.pkl' % setid
+    dataset_pickleheader_fpath = os.path.join(datasetdir,
+                                              dataset_pickleheader)
+
+    # get the lczip, cpzip, pfzip, dataset pkl shasums from the DB
+    # also get the created_on, last_updated, nobjects, status
+    datasets_dbf = os.path.join(basedir, 'lcc-datasets.sqlite')
+    db = sqlite3.connect(
+        datasets_dbf,
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+    )
+    db.row_factory = sqlite3.Row
+    cur = db.cursor()
+
+    # get the dataset's info from the DB
+    query = ("select created_on, last_updated, status, "
+             "dataset_owner, dataset_visibility, dataset_sharedwith, "
+             "dataset_sessiontoken "
+             "from lcc_datasets where setid = ?")
+    cur.execute(query, (setid,))
+    row = cur.fetchone()
+
+    if row and len(row) > 0 and os.path.exists(dataset_fpath):
+
+        dataset_status = row['status']
+
+        # only complete datasets can be edited
+        if dataset_status != 'complete':
+            LOGERROR('dataset %s status = %s. only complete '
+                     'datasets can be edited' % (setid, dataset_status))
+            db.close()
+            return None
+
+        #
+        # otherwise, proceed as normal
+        #
+        dataset_owner_changeable = sqlite_check_dataset_access(
+            setid,
+            'change_owner',
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            database=db
+        )
+
+        # check if we can edit this dataset
+        if not dataset_owner_changeable:
+
+            LOGERROR('dataset %s is not editable by user_id = %s, role = %s'
+                     % (setid, incoming_userid, incoming_role))
+            db.close()
+            return None
+
+        # additional check
+        if (incoming_role not in ('superuser','staff')):
+
+            LOGERROR('dataset %s is not editable by '
+                     'users with role = %s, session_token = %s'
+                     % (incoming_role,
+                        setid,
+                        incoming_session_token))
+            db.close()
+            return None
+
+        # finally, do the actual update
+
+        #
+        # update the main dataset pickle
+        #
+        with open(dataset_fpath,'rb') as infd:
+            dataset = pickle.load(infd)
+
+        old_owner_userid = dataset['owner']
+        dataset['owner'] = new_owner_userid
+
+        with open(dataset_fpath,'wb') as outfd:
+            pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
+
+        LOGINFO('updated dataset main pickle: %s '
+                'setid: %s, old owner = %s -> new owner = %s' %
+                (dataset_fpath, setid, old_owner_userid, new_owner_userid))
+
+        #
+        # update the dataset pickle header
+        #
+        with open(dataset_pickleheader_fpath,'rb') as infd:
+            header = pickle.load(infd)
+
+        header['owner'] = new_owner_userid
+        with open(dataset_pickleheader_fpath,'wb') as outfd:
+            pickle.dump(header, outfd, pickle.HIGHEST_PROTOCOL)
+
+        LOGINFO('updated dataset header pickle: %s '
+                'setid: %s, old owner = %s -> new owner = %s' %
+                (dataset_pickleheader_fpath,
+                 setid,
+                 old_owner_userid,
+                 new_owner_userid))
+
+        #
+        # update the database entry
+        #
+        query = (
+            "update lcc_datasets set "
+            "dataset_owner = ?, dataset_sessiontoken = ? "
+            "where setid = ?"
+        )
+        # the new session token associated with the dataset is that of the user
+        # making the change of ownership (i.e. this superuser)
+        params = (new_owner_userid, incoming_session_token, setid)
+
+        cur.execute(query, params)
+        db.commit()
+        db.close()
+
+        LOGINFO('updated database entry: %s '
+                'setid: %s, old owner = %s -> new owner = %s' %
+                (dataset_pickleheader_fpath,
+                 setid,
+                 old_owner_userid,
+                 new_owner_userid))
+        return new_owner_userid
+
+    # if the dataset was not found or is not accessible
+    else:
+
+        LOGERROR('could not find dataset with setid: %s' % setid)
+        db.close()
+        return None
 
 
 
@@ -1614,6 +1904,11 @@ def sqlite_edit_dataset(basedir,
     datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
     dataset_pickle = 'dataset-%s.pkl.gz' % setid
     dataset_fpath = os.path.join(datasetdir, dataset_pickle)
+
+    # return immediately if the dataset doesn't exist
+    if not os.path.exists(dataset_fpath):
+        LOGERROR('could not find dataset with setid: %s' % setid)
+        return None
 
     dataset_pickleheader = 'dataset-%s-header.pkl' % setid
     dataset_pickleheader_fpath = os.path.join(datasetdir,
@@ -1671,8 +1966,7 @@ def sqlite_edit_dataset(basedir,
         if (incoming_role == 'anonymous'):
 
             LOGERROR('dataset %s is not editable by anonymous '
-                     'users with session_token = %s, '
-                     'required session_token = %s'
+                     'users with session_token = %s'
                      % (setid, incoming_session_token))
             db.close()
             return None
@@ -1752,7 +2046,7 @@ def sqlite_edit_dataset(basedir,
             params.append(db_update[key])
 
         query = query.format(update_elems=', '.join(update_elems))
-        params = tuple(params)
+        params = tuple(params + [setid])
 
         cur.execute(query, params)
         db.commit()
@@ -1767,6 +2061,7 @@ def sqlite_edit_dataset(basedir,
     # if the dataset was not found or is not accessible
     else:
 
+        LOGERROR('could not find dataset with setid: %s' % setid)
         db.close()
         return None
 
