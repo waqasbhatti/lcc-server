@@ -15,6 +15,8 @@ These are Tornado handlers for the dataserver.
 import os
 import os.path
 import logging
+from datetime import datetime
+
 import numpy as np
 
 
@@ -699,6 +701,7 @@ class DatasetHandler(BaseHandler):
             )
 
             self.write({'status':'failed',
+                        'date':datetime.utcnow().isoformat(),
                         'result':None,
                         'message':message})
             raise tornado.web.Finish()
@@ -717,6 +720,7 @@ class DatasetHandler(BaseHandler):
             )
 
             self.write({'status':'failed',
+                        'date':datetime.utcnow().isoformat(),
                         'result':None,
                         'message':message})
             raise tornado.web.Finish()
@@ -735,6 +739,7 @@ class DatasetHandler(BaseHandler):
             )
 
             self.write({'status':'failed',
+                        'date':datetime.utcnow().isoformat(),
                         'result':None,
                         'message':message})
             raise tornado.web.Finish()
@@ -750,6 +755,7 @@ class DatasetHandler(BaseHandler):
             )
 
             self.write({'status':'failed',
+                        'date':datetime.utcnow().isoformat(),
                         'result':None,
                         'message':message})
             raise tornado.web.Finish()
@@ -762,6 +768,7 @@ class DatasetHandler(BaseHandler):
             )
 
             self.write({'status':'failed',
+                        'date':datetime.utcnow().isoformat(),
                         'result':None,
                         'message':message})
             raise tornado.web.Finish()
@@ -798,6 +805,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'ok',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -809,6 +817,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'failed',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -826,6 +835,7 @@ class DatasetHandler(BaseHandler):
                 )
 
                 self.write({'status':'failed',
+                            'date':datetime.utcnow().isoformat(),
                             'result':ds_updated,
                             'message':message})
                 self.finish()
@@ -854,6 +864,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'ok',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -865,6 +876,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'failed',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -882,6 +894,7 @@ class DatasetHandler(BaseHandler):
                 )
 
                 self.write({'status':'failed',
+                            'date':datetime.utcnow().isoformat(),
                             'result':ds_updated,
                             'message':message})
                 self.finish()
@@ -910,6 +923,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'ok',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -921,6 +935,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'failed',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -938,6 +953,7 @@ class DatasetHandler(BaseHandler):
                 )
 
                 self.write({'status':'failed',
+                            'date':datetime.utcnow().isoformat(),
                             'result':ds_updated,
                             'message':message})
                 self.finish()
@@ -965,6 +981,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'ok',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -976,6 +993,7 @@ class DatasetHandler(BaseHandler):
                     )
 
                     self.write({'status':'failed',
+                                'date':datetime.utcnow().isoformat(),
                                 'result':ds_updated,
                                 'message':message})
                     self.finish()
@@ -993,6 +1011,7 @@ class DatasetHandler(BaseHandler):
                 )
 
                 self.write({'status':'failed',
+                            'date':datetime.utcnow().isoformat(),
                             'result':ds_updated,
                             'message':message})
                 self.finish()
@@ -1007,6 +1026,7 @@ class DatasetHandler(BaseHandler):
             )
 
             self.write({'status':'failed',
+                        'date':datetime.utcnow().isoformat(),
                         'result':None,
                         'message':message})
             self.finish()

@@ -3233,6 +3233,11 @@ var lcc_datasets = {
                 $('#dataset-name > details > summary').html(result.name);
                 $('#dataset-name-inputbox').val(result.name);
 
+                var last_updated = data.date;
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
                 if ('slug' in result &&
                     document.URL.indexOf(result.slug) == -1) {
                     $('#dataset-url > a').text(document.URL +
@@ -3294,7 +3299,12 @@ var lcc_datasets = {
 
             if (status == 'ok') {
 
-                // update the dataset's name
+                var last_updated = data.date;
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
+                // update the dataset's description
                 $('#dataset-desc > details > summary').html(result.desc);
                 $('#dataset-desc-inputbox').val(result.desc);
 
@@ -3348,7 +3358,12 @@ var lcc_datasets = {
 
             if (status == 'ok') {
 
-                // update the dataset's name
+                var last_updated = data.date;
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
+                // update the dataset's citation
                 $('#dataset-citation > details > summary').html(result.citation);
                 $('#dataset-citation-inputbox').val(result.citation);
 
@@ -3402,7 +3417,12 @@ var lcc_datasets = {
 
             if (status == 'ok') {
 
-                // update the dataset's name
+                var last_updated = data.date;
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
+                // update the dataset's visibility
                 $('#visibility-label > details > summary').html(
                     'Dataset is currently ' + result
                 );

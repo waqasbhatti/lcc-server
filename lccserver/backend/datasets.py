@@ -1660,6 +1660,7 @@ def sqlite_change_dataset_visibility(
 
         old_visibility = dataset['visibility'][::]
         dataset['visibility'] = new_visibility
+        dataset['updated'] = datetime.utcnow().isoformat()
 
         with open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
@@ -1675,6 +1676,7 @@ def sqlite_change_dataset_visibility(
             header = pickle.load(infd)
 
         header['visibility'] = new_visibility
+        header['updated'] = datetime.utcnow().isoformat()
         with open(dataset_pickleheader_fpath,'wb') as outfd:
             pickle.dump(header, outfd, pickle.HIGHEST_PROTOCOL)
 
@@ -1690,12 +1692,12 @@ def sqlite_change_dataset_visibility(
         #
         query = (
             "update lcc_datasets set "
-            "dataset_visibility = ? "
+            "dataset_visibility = ?, last_updated = ? "
             "where setid = ?"
         )
         # the new session token associated with the dataset is that of the user
         # making the change of ownership (i.e. this superuser)
-        params = (new_visibility, setid)
+        params = (new_visibility, datetime.utcnow().isoformat(), setid)
 
         cur.execute(query, params)
         db.commit()
@@ -1816,6 +1818,7 @@ def sqlite_change_dataset_owner(
 
         old_owner_userid = dataset['owner']
         dataset['owner'] = new_owner_userid
+        dataset['updated'] = datetime.utcnow().isoformat()
 
         with open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
@@ -1831,6 +1834,7 @@ def sqlite_change_dataset_owner(
             header = pickle.load(infd)
 
         header['owner'] = new_owner_userid
+        header['updated'] = datetime.utcnow().isoformat()
         with open(dataset_pickleheader_fpath,'wb') as outfd:
             pickle.dump(header, outfd, pickle.HIGHEST_PROTOCOL)
 
@@ -1846,12 +1850,15 @@ def sqlite_change_dataset_owner(
         #
         query = (
             "update lcc_datasets set "
-            "dataset_owner = ?, dataset_sessiontoken = ? "
+            "dataset_owner = ?, dataset_sessiontoken = ?, last_updated = ? "
             "where setid = ?"
         )
         # the new session token associated with the dataset is that of the user
         # making the change of ownership (i.e. this superuser)
-        params = (new_owner_userid, incoming_session_token, setid)
+        params = (new_owner_userid,
+                  incoming_session_token,
+                  datetime.utcnow().isoformat(),
+                  setid)
 
         cur.execute(query, params)
         db.commit()
@@ -2038,6 +2045,7 @@ def sqlite_edit_dataset(basedir,
             dataset = pickle.load(infd)
 
         dataset.update(ds_update)
+        dataset['updated'] = datetime.utcnow().isoformat()
         with open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
@@ -2052,6 +2060,7 @@ def sqlite_edit_dataset(basedir,
             header = pickle.load(infd)
 
         header.update(ds_update)
+        header['updated'] = datetime.utcnow().isoformat()
         with open(dataset_pickleheader_fpath,'wb') as outfd:
             pickle.dump(header, outfd, pickle.HIGHEST_PROTOCOL)
 
@@ -2069,6 +2078,9 @@ def sqlite_edit_dataset(basedir,
         for key in db_update:
             update_elems.append('%s = ?' % key)
             params.append(db_update[key])
+
+        update_elems.append('last_updated = ?')
+        params.append(datetime.utcnow().isoformat())
 
         query = query.format(update_elems=', '.join(update_elems))
         params = tuple(params + [setid])
