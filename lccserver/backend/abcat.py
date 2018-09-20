@@ -54,7 +54,7 @@ from textwrap import indent
 import gzip
 import operator
 from functools import partial
-import datetime
+from datetime import datetime
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -776,6 +776,7 @@ def objectinfo_to_sqlite(augcatpkl,
         'lcformat':augcat['lcformat'],
         'fileglob':augcat['fileglob'],
         'nobjects':augcat['nfiles'],
+        'magcols':augcat['magcols'],
         'catalogcols':sorted(colnames),
         'indexcols':sorted([x.replace('.','_') for x in m_indexcols]),
         'ftsindexcols':sorted([x.replace('.','_') for x in m_ftsindexcols]),
@@ -1252,6 +1253,7 @@ create table lcc_index (
   collection_id text not null,
   lcformat_key text not null,
   lcformat_desc_path text not null,
+  lcformat_magcols text not null,
   object_catalog_path text not null,
   kdtree_pkl_path text not null,
   lightcurves_dir_path text not null,
@@ -1320,7 +1322,7 @@ insert into lcc_index_fts(lcc_index_fts) values ('rebuild');
 SQLITE_LCC_INSERT = '''\
 insert or replace into lcc_index (
   collection_id,
-  lcformat_key, lcformat_desc_path,
+  lcformat_key, lcformat_desc_path, lcformat_magcols,
   object_catalog_path, kdtree_pkl_path, lightcurves_dir_path,
   periodfinding_dir_path, checkplots_dir_path,
   ra_min, ra_max, decl_min, decl_max,
@@ -1332,7 +1334,7 @@ insert or replace into lcc_index (
   collection_owner, collection_visibility, collection_sharedwith
 ) values (
   ?,
-  ?,?,
+  ?,?,?,
   ?,?,?,
   ?,?,
   ?,?,?,?,
@@ -1574,6 +1576,7 @@ def sqlite_collect_lcc_info(
     # 3. open the catalog sqlite and then:
     #    - get the minra, maxra, mindecl, maxdecl,
     #    - get the nobjects
+    #    - get the magcols from the metadata
     #    - get the column, index, and ftsindex information,
     #    - get the name, desc, project, citation, ispublic, datarelease,
     #      last_updated
@@ -1631,6 +1634,7 @@ def sqlite_collect_lcc_info(
             collection_id,
             lcformat_key,
             lcformat_desc_path,
+            ','.join(metadata['magcols']),
             catalog_objectinfo_path,
             catalog_kdtree_path,
             lightcurves_dir_path,

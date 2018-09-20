@@ -88,52 +88,92 @@ from ..backend import dbsearch
 ## Handler to get the checkplot JSON all at once ##
 ###################################################
 
-def check_for_checkplots(objectid, basedir, collection):
-    '''
-    This does all the hard work of finding the right checkplot to get.
+def check_for_checkplots(objectid,
+                         basedir,
+                         collection,
+                         lcmagcols=None):
+    '''This does all the hard work of finding the right checkplot to get.
+
+    If the magcol used to generate the checkplots is provided in the magcol
+    kwarg, this can short-circuit the glob needed to look up all checkplots for
+    a certain object, making the checkplot retrieval much faster.
 
     '''
 
-    cpfpath1 = os.path.join(basedir,
-                            collection,
-                            'checkplots',
-                            'checkplot-%s*.pkl*' % objectid)
+    cpdir1 = os.path.join(basedir,
+                          collection,
+                          'checkplots')
+    cpdir2 = os.path.join(basedir,
+                          collection.replace('_','-'),
+                          'checkplots')
 
-    # this is the annoying bit we need to fix, need to check with collection
-    # underscore -> hyphen
-    cpfpath2 = os.path.join(basedir,
-                            collection.replace('_','-'),
-                            'checkplots',
-                            'checkplot-%s*.pkl*' % objectid)
+    if os.path.exists(cpdir2):
+        cpdir = cpdir2
+    else:
+        cpdir = cpdir1
 
-    possible_checkplots = glob.glob(cpfpath1) + glob.glob(cpfpath2)
 
-    LOGGER.info('checkplot candidates found at: %r' % possible_checkplots)
+    if not lcmagcols:
+
+        cpfpath = os.path.join(cpdir, 'checkplot-%s*.pkl*' % objectid)
+        possible_checkplots = glob.glob(cpfpath)
+        LOGGER.info('checkplot candidates found at: %r' % possible_checkplots)
+
+    # if the magcol is provided, we just need to check if the target checkplot
+    # pickles exist and don't need to glob through the directory
+    else:
+
+        possible_checkplots = []
+        lcmagcols = lcmagcols.split(',')
+
+        for magcol in lcmagcols:
+
+            cpfpath = os.path.join(cpdir,
+                                   'checkplot-%s-%s.pkl' %
+                                   (objectid, magcol))
+
+            if os.path.exists(cpfpath):
+
+                possible_checkplots.append(cpfpath)
+
+            else:
+
+                cpfpath = os.path.join(cpdir,
+                                       'checkplot-%s-%s.pkl.gz' %
+                                       (objectid, magcol))
+
+                if os.path.exists(cpfpath):
+                    possible_checkplots.append(cpfpath)
+
+
+    LOGGER.info('checkplot candidates found at: %r' %
+                possible_checkplots)
+
 
     if len(possible_checkplots) == 0:
 
-        return None, [cpfpath1, cpfpath2]
+        return None
 
     elif len(possible_checkplots) == 1:
 
-        return possible_checkplots[0], [cpfpath1, cpfpath2]
+        return possible_checkplots[0]
 
     # if there are multiple checkplots, they might .gz or cpserver-temp ones,
     # pick the canonical form of *.pkl if it exists, *.pkl.gz if it doesn't
     # exist. if neither of these exist, return None
     else:
 
-        LOGGER.warning('multiple checkplots found for %s in  %s' %
+        LOGGER.warning('multiple checkplots found for %s in %s' %
                        (objectid, collection))
 
         for cp in possible_checkplots:
 
             if cp.endswith('.pkl'):
-                return cp, [cpfpath1, cpfpath2]
+                return cp
             elif cp.endswith('.pkl.gz'):
-                return cp, [cpfpath1, cpfpath2]
-
-        return None, [cpfpath1, cpfpath2]
+                return cp
+            else:
+                return None
 
 
 
@@ -202,8 +242,9 @@ class ObjectInfoHandler(BaseHandler):
 
         '''
 
-        objectid = self.get_argument('objectid',default=None)
-        collection = self.get_argument('collection',default=None)
+        objectid = self.get_argument('objectid', default=None)
+        collection = self.get_argument('collection', default=None)
+        lcmagcols = self.get_argument('lcmagcols', default=None)
 
         if not objectid:
 
@@ -227,6 +268,12 @@ class ObjectInfoHandler(BaseHandler):
         objectid = xhtml_escape(objectid)
         collection = xhtml_escape(collection)
 
+        if lcmagcols is not None:
+            lcmagcols = xhtml_escape(lcmagcols)
+        if 'undefined' in lcmagcols or 'null' in lcmagcols:
+            lcmagcols = None
+
+
         # check if we actually have access to this object
         access_check = yield self.executor.submit(
             dbsearch.sqlite_column_search,
@@ -246,16 +293,20 @@ class ObjectInfoHandler(BaseHandler):
                          objectid,
                          collection))
 
+            # if no lcmagcols are provided, get them from the access_check
+            if lcmagcols is None:
+                lcmagcols = access_check[collection]['lcmagcols']
+
             # 1. get the canonical checkplot path
-            checkplot_fpath, checkplot_fglob = yield self.executor.submit(
+            checkplot_fpath = yield self.executor.submit(
                 check_for_checkplots,
                 objectid,
                 self.basedir,
-                collection
+                collection,
+                lcmagcols=lcmagcols
             )
+            LOGGER.info('found checkplot fpath = %s' % checkplot_fpath)
 
-            LOGGER.info('fpath = %s, glob = %s' % (checkplot_fpath,
-                                                   checkplot_fglob))
 
             # 2. ask the checkplotserver for this checkplot using our key
             if checkplot_fpath is not None:
@@ -298,13 +349,15 @@ class ObjectInfoHandler(BaseHandler):
                     rettext = resp.body.decode()
                     rettext = (
                         rettext.replace(
-                            ': NaN',': null'
+                            ': NaN', ': null'
                         ).replace(
-                            ', NaN',', null'
+                            ', NaN', ', null'
                         ).replace(
-                            '[NaN','[null'
+                            'NaN,', 'null,'
                         ).replace(
-                            'NaN]','null]'
+                            '[NaN', '[null'
+                        ).replace(
+                            'NaN]', 'null]'
                         )
                     )
 
@@ -326,8 +379,8 @@ class ObjectInfoHandler(BaseHandler):
             else:
 
                 LOGGER.error(
-                    'could not find the requested checkplot using globs: %r' %
-                    checkplot_fglob
+                    'could not find the requested checkplot for %s in dir: %s' %
+                    (objectid, collection)
                 )
                 self.set_status(404)
                 retdict = {

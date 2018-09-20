@@ -797,6 +797,7 @@ var lcc_ui = {
             // objectid, collection, lcfname
             var objectid = button.attr('data-objectid');
             var collection = button.attr('data-collection');
+            var lcmagcols = button.attr('data-lcmagcols');
             var lcfname = button.attr('data-lcfname');
 
             modal.find('#modal-objectid').html(objectid);
@@ -819,7 +820,10 @@ var lcc_ui = {
             }
 
             // fire the objectinfo function
-            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
+            lcc_objectinfo.get_object_info(collection,
+                                           lcmagcols,
+                                           objectid,
+                                           '.modal-body');
 
         });
 
@@ -831,63 +835,26 @@ var lcc_ui = {
             // get the info on the neighbor
             var objectid = $(this).attr('data-objectid');
             var collection = $(this).attr('data-collection');
+            var lcmagcols = $(this).attr('data-lcmagcols');
 
             // fire the objectinfo function to get this neighbor's information
-            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
+            lcc_objectinfo.get_object_info(collection,
+                                           lcmagcols,
+                                           objectid,
+                                           '.modal-body');
 
             // get the pointer to neighbor's light curve
             var modal = $('#objectinfo-modal');
             var lcfbasename = objectid + '-csvlc.gz';
-            var lcfurl = '/l/' + collection.replace(/_/g,'-') + '/' + lcfbasename;
+            var lcfurl = '/l/' +
+                collection.replace(/_/g,'-') +
+                '/' + lcfbasename;
             modal.find('#modal-downloadlc')
                 .attr('href',lcfurl)
                 .attr('download',lcfbasename);
 
         });
 
-        // bind the next object links in the modals
-        $('#objectinfo-modal').on('click','.objectinfo-nextlink', function (e) {
-
-            e.preventDefault();
-
-            // get the info on the neighbor
-            var objectid = $(this).attr('data-objectid');
-            var collection = $(this).attr('data-collection');
-
-            // fire the objectinfo function to get this neighbor's information
-            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
-
-            // get the pointer to neighbor's light curve
-            var modal = $('#objectinfo-modal');
-            var lcfbasename = objectid + '-csvlc.gz';
-            var lcfurl = '/l/' + collection.replace(/_/g,'-') + '/' + lcfbasename;
-            modal.find('#modal-downloadlc')
-                .attr('href',lcfurl)
-                .attr('download',lcfbasename);
-
-        });
-
-        // bind the prev object links in the modals
-        $('#objectinfo-modal').on('click','.objectinfo-prevlink', function (e) {
-
-            e.preventDefault();
-
-            // get the info on the neighbor
-            var objectid = $(this).attr('data-objectid');
-            var collection = $(this).attr('data-collection');
-
-            // fire the objectinfo function to get this neighbor's information
-            lcc_objectinfo.get_object_info(collection, objectid, '.modal-body');
-
-            // get the pointer to neighbor's light curve
-            var modal = $('#objectinfo-modal');
-            var lcfbasename = objectid + '-csvlc.gz';
-            var lcfurl = '/l/' + collection.replace(/_/g,'-') + '/' + lcfbasename;
-            modal.find('#modal-downloadlc')
-                .attr('href',lcfurl)
-                .attr('download',lcfbasename);
-
-        });
 
         // this handles the hover per objectid row to highlight the object in
         // the finder chart
@@ -919,6 +886,7 @@ var lcc_ui = {
             ctx.strokeRect(cnvx-7.5,cnvy-7.5,12.5,12.5);
 
         });
+
 
         // this handles the repair to the canvas after the user mouses out of
         // the row
@@ -2749,6 +2717,8 @@ var lcc_datasets = {
         var objectentry_firstcol = '';
         var thisrow = null;
         var thisrow_lclink = null;
+        var thisrow_collection = null;
+        var thisrow_lcmagcols = null;
 
         // populate the list of object IDs that have CSV LCs in progress
         var objectids_csvlcs_in_progress = [];
@@ -2767,6 +2737,20 @@ var lcc_datasets = {
             // get this row's light curve if available
             thisrow_lclink = thisrow[colind_lcfname];
 
+            // get this row's collection
+            thisrow_collection = thisrow[colind_collection];
+
+            // get this row's LC magcols if available
+            if ( ('lcmagcols' in data) &&
+                 (data['lcmagcols'] !== null || data['lcmagcols'] !== undefined) &&
+                 (thisrow_collection in data['lcmagcols']) &&
+                 ( (data['lcmagcols'][thisrow_collection] !== undefined) ||
+                   (data['lcmagcols'][thisrow_collection] !== null) ) ) {
+
+                thisrow_lcmagcols = data['lcmagcols'][thisrow_collection];
+
+            }
+
             // check the csvlcs_in_progress item to see if this LC is in there
             if (objectids_csvlcs_in_progress
                 .indexOf(thisrow[colind_objectid]) != -1) {
@@ -2784,6 +2768,7 @@ var lcc_datasets = {
                 'data-objectid="' + thisrow[colind_objectid] + '" ' +
                 'data-collection="' + thisrow[colind_collection] + '" ' +
                 'data-lcfname="' + thisrow_lclink + '" ' +
+                'data-lcmagcols="' + thisrow_lcmagcols + '" ' +
                 'class="btn btn-link btn-sm objectinfo-link">' +
                 '<img class="table-icon-svg" ' +
                 'src="/static/images/twotone-assistant-24px.svg"></a>';
@@ -3416,7 +3401,7 @@ var lcc_objectinfo = {
         $(target).html(lcc_objectinfo.modal_template);
     },
 
-    render_infotable: function (currcp, collection) {
+    render_infotable: function (currcp, collection, lcmagcols) {
 
         // get the number of detections
         var objndet = currcp.objectinfo.ndet;
@@ -3886,6 +3871,7 @@ var lcc_objectinfo = {
                     'class="objectinfo-nbrlink" ' +
                     'data-objectid="' + currcp.neighbors[0]['objectid'] +
                     '" ' +
+                    'data-lcmagcols="' + lcmagcols + '" ' +
                     'data-collection="' +  collection + '">' +
                     'N1: ' + currcp.neighbors[0]['objectid'] +
                     '</a><br>';
@@ -4538,12 +4524,17 @@ var lcc_objectinfo = {
     },
 
     // this function rolls up the others above
-    get_object_info: function (collection, objectid, target, separatepage) {
+    get_object_info: function (collection,
+                               lcmagcols,
+                               objectid,
+                               target,
+                               separatepage) {
 
         // we'll hit the objectinfo API for info on this object
         var geturl = '/api/object';
-        var params = {objectid:objectid,
-                      collection:collection};
+        var params = {objectid: objectid,
+                      collection: collection,
+                      lcmagcols: lcmagcols};
 
         // put in a message saying we're getting info
         $(target)
@@ -4570,7 +4561,7 @@ var lcc_objectinfo = {
             }
 
             // add in the object's info table
-            lcc_objectinfo.render_infotable(result, collection);
+            lcc_objectinfo.render_infotable(result, collection, lcmagcols);
 
             // render the object's lightcurve download link if we're in separate
             // page mode. also render the object's collection and title

@@ -302,7 +302,7 @@ def validate_sqlite_filters(
     stringwords = []
     for x in stringelems:
         try:
-            _ = float(x)
+            float(x)
         except ValueError as e:
             stringwords.append(x)
 
@@ -418,7 +418,8 @@ def sqlite_get_collections(basedir,
              "columnlist, indexedcols, ftsindexedcols, name, "
              "description, project, datarelease, "
              "ra_min, ra_max, decl_min, decl_max, nobjects, "
-             "lcformat_key, lcformat_desc_path, catalog_columninfo_json, "
+             "lcformat_key, lcformat_desc_path, lcformat_magcols, "
+             "catalog_columninfo_json, "
              "collection_owner, collection_visibility, collection_sharedwith "
              "from lcc_index "
              "{lccspec}")
@@ -493,7 +494,9 @@ def sqlite_get_collections(basedir,
              indexedcols, ftsindexedcols, name,
              description, project, datarelease,
              minra, maxra, mindecl, maxdecl,
-             nobjects, lcformatkey, lcformatdesc, columnjson,
+             nobjects,
+             lcformatkey, lcformatdesc, lcmagcols,
+             columnjson,
              collection_owner,
              collection_visibility,
              collection_sharedwith) = results
@@ -522,13 +525,17 @@ def sqlite_get_collections(basedir,
                 # this is the connection we will return
                 newconn = sqlite3.connect(
                     ':memory:',
-                    detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+                    detect_types=(
+                        sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+                    )
                 )
                 newconn.row_factory = sqlite3.Row
                 newcur = newconn.cursor()
 
                 for dbn, catpath in zip(dbnames, object_catalog_path):
-                    newcur.execute("attach database '%s' as %s" % (catpath, dbn))
+                    newcur.execute(
+                        "attach database '%s' as %s" % (catpath, dbn)
+                    )
 
             else:
 
@@ -545,7 +552,9 @@ def sqlite_get_collections(basedir,
                 'ftscols':list(ftsindexed_cols_available),
                 'info':{
                     'collection_id':collection_id,
-                    'db_collection_id':[d.replace('-','_') for d in collection_id],
+                    'db_collection_id':[
+                        d.replace('-','_') for d in collection_id
+                    ],
                     'object_catalog_path':object_catalog_path,
                     'kdtree_pkl_path':kdtree_pkl_path,
                     'columnlist':columnlist,
@@ -565,6 +574,7 @@ def sqlite_get_collections(basedir,
                     'nobjects':nobjects,
                     'lcformatkey':lcformatkey,
                     'lcformatdesc':lcformatdesc,
+                    'lcmagcols':lcmagcols,
                     'columnjson': [json.loads(c) for c in columnjson]
                 }
             }
@@ -790,6 +800,7 @@ def sqlite_fulltext_search(
 
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+        lcc_lcmagcols = dbinfo['info']['lcmagcols'][dbindex]
 
         lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
         lcc_collid = dbinfo['info']['collection_id'][dbindex]
@@ -956,6 +967,7 @@ def sqlite_fulltext_search(
 
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -974,6 +986,7 @@ def sqlite_fulltext_search(
 
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -1195,6 +1208,7 @@ def sqlite_column_search(basedir,
 
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+        lcc_lcmagcols = dbinfo['info']['lcmagcols'][dbindex]
 
         lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
         lcc_collid = dbinfo['info']['collection_id'][dbindex]
@@ -1292,6 +1306,7 @@ def sqlite_column_search(basedir,
             LOGINFO(msg)
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -1309,6 +1324,7 @@ def sqlite_column_search(basedir,
                             'success':False}
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -1558,6 +1574,7 @@ def sqlite_kdtree_conesearch(basedir,
         kdtree_fpath = dbinfo['info']['kdtree_pkl_path'][dbindex]
         lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
         lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+        lcc_lcmagcols = dbinfo['info']['lcmagcols'][dbindex]
 
         lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
         lcc_collid = dbinfo['info']['collection_id'][dbindex]
@@ -1644,6 +1661,7 @@ def sqlite_kdtree_conesearch(basedir,
                             'success':False}
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -1680,6 +1698,7 @@ def sqlite_kdtree_conesearch(basedir,
                             'success':False}
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -1800,6 +1819,7 @@ def sqlite_kdtree_conesearch(basedir,
                 LOGINFO(msg)
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['lcmagcols'] = lcc_lcmagcols
                 results[lcc]['columnspec'] = lcc_columnspec
                 results[lcc]['collid'] = lcc_collid
 
@@ -1818,6 +1838,7 @@ def sqlite_kdtree_conesearch(basedir,
                 }
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['lcmagcols'] = lcc_lcmagcols
                 results[lcc]['columnspec'] = lcc_columnspec
                 results[lcc]['collid'] = lcc_collid
 
@@ -1837,6 +1858,7 @@ def sqlite_kdtree_conesearch(basedir,
             }
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -2087,7 +2109,7 @@ def sqlite_xmatch_search(basedir,
 
         # validate this string
         conditions = validate_sqlite_filters(conditions,
-                                                  columnlist=available_columns)
+                                             columnlist=available_columns)
 
         if not conditions and fail_if_conditions_invalid:
 
@@ -2197,6 +2219,7 @@ def sqlite_xmatch_search(basedir,
 
             lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
             lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+            lcc_lcmagcols = dbinfo['info']['lcmagcols'][dbindex]
 
             lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
             lcc_collid = dbinfo['info']['collection_id'][dbindex]
@@ -2264,7 +2287,9 @@ def sqlite_xmatch_search(basedir,
             }
             lcc_columnspec['collection'] = {
                 'title': 'LC collection',
-                'description':("the light curve collection this object belongs to"),
+                'description':(
+                    "the light curve collection this object belongs to"
+                ),
                 'dtype':'U60',
                 'format':'%s',
                 'index':False,
@@ -2284,6 +2309,7 @@ def sqlite_xmatch_search(basedir,
                                 'success':False}
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['lcmagcols'] = lcc_lcmagcols
                 results[lcc]['columnspec'] = lcc_columnspec
                 results[lcc]['collid'] = lcc_collid
 
@@ -2431,6 +2457,7 @@ def sqlite_xmatch_search(basedir,
 
             results[lcc]['lcformatkey'] = lcc_lcformatkey
             results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+            results[lcc]['lcmagcols'] = lcc_lcmagcols
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
@@ -2588,6 +2615,7 @@ def sqlite_xmatch_search(basedir,
 
             lcc_lcformatkey = dbinfo['info']['lcformatkey'][dbindex]
             lcc_lcformatdesc = dbinfo['info']['lcformatdesc'][dbindex]
+            lcc_lcmagcols = dbinfo['info']['lcmagcols'][dbindex]
 
             lcc_columnspec = dbinfo['info']['columnjson'][dbindex]
             lcc_collid = dbinfo['info']['collection_id'][dbindex]
@@ -2652,7 +2680,9 @@ def sqlite_xmatch_search(basedir,
             }
             lcc_columnspec['collection'] = {
                 'title': 'LC collection',
-                'description':("the light curve collection this object belongs to"),
+                'description':(
+                    "the light curve collection this object belongs to"
+                ),
                 'dtype':'U60',
                 'format':'%s',
                 'index':False,
@@ -2699,6 +2729,7 @@ def sqlite_xmatch_search(basedir,
 
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['lcmagcols'] = lcc_lcmagcols
                 results[lcc]['columnspec'] = lcc_columnspec
                 results[lcc]['collid'] = lcc_collid
 
@@ -2715,6 +2746,7 @@ def sqlite_xmatch_search(basedir,
                                 'success':False}
                 results[lcc]['lcformatkey'] = lcc_lcformatkey
                 results[lcc]['lcformatdesc'] = lcc_lcformatdesc
+                results[lcc]['lcmagcols'] = lcc_lcmagcols
                 results[lcc]['columnspec'] = lcc_columnspec
                 results[lcc]['collid'] = lcc_collid
 

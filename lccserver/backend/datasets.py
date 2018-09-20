@@ -389,6 +389,7 @@ def sqlite_new_dataset(basedir,
 
     # get some stuff out of the search result
     collections = searchresult['databases']
+    lcmagcols = {c:searchresult[c]['lcmagcols'] for c in collections}
 
     searchtype = searchresult['search']
     searchargs = searchresult['args']
@@ -515,6 +516,7 @@ def sqlite_new_dataset(basedir,
         'searchtype': searchtype,
         'searchargs': searchargs,
         'collections': collections,
+        'lcmagcols':lcmagcols,
         'coll_dirs': collid,
         'npages':npages,
         'rows_per_page':rows_per_page,
