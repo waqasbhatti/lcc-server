@@ -145,6 +145,73 @@ def encrypt_request(request_dict, fernetkey):
 
 class BaseHandler(tornado.web.RequestHandler):
 
+    normal_account_box = twd('''\
+    <div class="user-signin-box">
+    <a class="nav-item nav-link"
+    title="Sign in to your LCC-Server account"
+    href="/users/login">
+    Sign in
+    </a>
+    </div>
+    <div class="user-signup-box">
+    <a class="nav-item nav-link"
+    title="Sign up for an LCC-Server account"
+    href="/users/new">
+    Sign up
+    </a>
+    </div>
+    ''')
+
+
+    nosignup_account_box = twd('''\
+    <div class="user-signin-box">
+    <a class="nav-item nav-link"
+    title="Sign in to your LCC-Server account"
+    href="/users/login">
+    Sign in
+    </a>
+    </div>
+    ''')
+
+
+    admin_account_box = twd('''\
+    <div class="superuser-admin-box">
+    <a class="nav-item nav-link admin-portal-link"
+    title="LCC-Server admin portal"
+    href="/admin">
+    Admin
+    </a>
+    </div>
+    <div class="user-prefs-box">
+    <a class="nav-item nav-link user-prefs-link"
+    title="Change user preferences"
+    href="/users/home">
+    {current_user}
+    </a>
+    </div>
+    <div class="user-signout-box">
+    <button type="submit" class="btn btn-secondary btn-sm">
+    Sign out
+    </button>
+    </div>
+    ''')
+
+
+    signedin_account_box = twd('''\
+    <div class="user-prefs-box">
+    <a class="nav-item nav-link user-prefs-link"
+    title="Change user preferences"
+    href="/users/home">
+    {current_user}
+    </a>
+    </div>
+    <div class="user-signout-box">
+    <button type="submit" class="btn btn-secondary btn-sm">
+    Sign out
+    </button>
+    </div>
+    ''')
+
 
     def initialize(self,
                    authnzerver,
@@ -259,100 +326,47 @@ class BaseHandler(tornado.web.RequestHandler):
 
         current_user = self.current_user
 
+        if ('logins_allowed' in self.siteinfo and
+            not self.siteinfo['logins_allowed']):
+            return ''
+
         # the user is not logged in - so the anonymous session is in play
         if current_user and current_user['user_id'] == 2:
 
-            user_account_box = twd(
-                '''\
-                <div class="user-signin-box">
-                <a class="nav-item nav-link"
-                title="Sign in to your LCC-Server account"
-                href="/users/login">
-                Sign in
-                </a>
-                </div>
-                <div class="user-signup-box">
-                <a class="nav-item nav-link"
-                title="Sign up for an LCC-Server account"
-                href="/users/new">
-                Sign up
-                </a>
-                </div>
-                '''
-            )
+            if ('signups_allowed' in self.siteinfo and
+                not self.siteinfo['signups_allowed']):
+                user_account_box = self.nosignup_account_box
+            else:
+                user_account_box = self.normal_account_box
+
 
         # normal authenticated user
         elif current_user and current_user['user_id'] > 3:
 
-            user_account_box = twd(
-                '''\
-                <div class="user-prefs-box">
-                <a class="nav-item nav-link user-prefs-link"
-                title="Change user preferences"
-                href="/users/home">
-                {current_user}
-                </a>
-                </div>
-                <div class="user-signout-box">
-                <button type="submit" class="btn btn-secondary btn-sm">
-                Sign out
-                </button>
-                </div>
-                '''
-            ).format(current_user=current_user['email'])
+            user_account_box = self.signedin_account_box.format(
+                current_user=current_user['email']
+            )
 
+        # super users and staff
+        elif current_user and current_user['user_role'] in ('superuser',
+                                                            'staff'):
 
-        # the first superuser
-        elif current_user and current_user['user_id'] == 1:
-
-            user_account_box = twd(
-                '''\
-                <div class="superuser-admin-box">
-                <a class="nav-item nav-link admin-portal-link"
-                title="LCC-Server admin portal"
-                href="/admin">
-                Admin
-                </a>
-                </div>
-                <div class="user-prefs-box">
-                <a class="nav-item nav-link user-prefs-link"
-                title="Change user preferences"
-                href="/users/home">
-                {current_user}
-                </a>
-                </div>
-                <div class="user-signout-box">
-                <button type="submit" class="btn btn-secondary btn-sm">
-                Sign out
-                </button>
-                </div>
-                '''
-            ).format(current_user=current_user['email'])
+            user_account_box = self.superuser_account_box.format(
+                current_user=current_user['email']
+            )
 
         # anything else will be shown the usual box because either the user is
         # locked or this is a complete new session
         else:
 
-            user_account_box = twd(
-                '''\
-                <div class="user-signin-box">
-                <a class="nav-item nav-link"
-                title="Sign in to your LCC-Server account"
-                href="/users/login">
-                Sign in
-                </a>
-                </div>
-                <div class="user-signup-box">
-                <a class="nav-item nav-link"
-                title="Sign up for an LCC-Server account"
-                href="/users/new">
-                Sign up
-                </a>
-                </div>
-                '''
-            )
+            if ('signups_allowed' in self.siteinfo and
+                not self.siteinfo['signups_allowed']):
+                user_account_box = self.nosignup_account_box
+            else:
+                user_account_box = self.normal_account_box
 
         return user_account_box
+
 
 
     def set_cookie(self, name, value, domain=None, expires=None, path="/",
@@ -455,7 +469,6 @@ class BaseHandler(tornado.web.RequestHandler):
                 encrypted_resp.body,
                 self.fernetkey
             )
-            LOGGER.info(respdict)
 
             success = respdict['success']
             response = respdict['response']
@@ -590,8 +603,6 @@ class BaseHandler(tornado.web.RequestHandler):
             # if a session token is found in the cookie, we'll see who it
             # belongs to
             if session_token is not None:
-
-                LOGGER.info('session_token = %s' % session_token)
 
                 ok, resp, msgs = yield self.authnzerver_request(
                     'session-exists',

@@ -260,19 +260,45 @@ def main():
         if email_settings['email_server'] != "smtp.example.email.server.org":
             SITEINFO.update(email_settings)
 
-            LOGGER.info('email server to use: %s:%s' %
+            LOGGER.info('Site info: email server to use: %s:%s.' %
                         (email_settings['email_server'],
                          email_settings['email_port']))
-            LOGGER.info('email server sender to use: %s' %
+            LOGGER.info('Site info: email server sender to use: %s.' %
                         email_settings['email_sender'])
 
         else:
-            LOGGER.warning('no email server is set up')
+            LOGGER.warning('Site info: no email server is set up.')
             SITEINFO['email_server'] = None
     else:
-        LOGGER.warning('no email server is set up')
+        LOGGER.warning('Site info: no email server is set up.')
         SITEINFO['email_server'] = None
 
+
+    # get the user login settings
+    if 'logins_allowed' in SITEINFO and SITEINFO['logins_allowed']:
+        LOGGER.info('Site info: user logins are allowed.')
+    elif 'logins_allowed' in SITEINFO and not SITEINFO['logins_allowed']:
+        LOGGER.warning('Site info: user logins are disabled.')
+    else:
+        SITEINFO['logins_allowed'] = False
+        LOGGER.warning('Site info: '
+                       'settings key "logins_allowed" not found, '
+                       'disabling user logins.')
+
+    # get the user signup and signin settings
+    if 'signups_allowed' in SITEINFO and SITEINFO['signups_allowed']:
+        LOGGER.info('Site info: user signups are allowed.')
+    elif 'signups_allowed' in SITEINFO and not SITEINFO['signups_allowed']:
+        LOGGER.warning('Site info: user signups are disabled.')
+    elif SITEINFO['email_server'] is None:
+        LOGGER.warning('Site info: '
+                       'no email server set up, '
+                       'user signups cannot be enabled.')
+    else:
+        SITEINFO['signups_allowed'] = False
+        LOGGER.warning('Site info: '
+                       'settings key "signups_allowed" not found, '
+                       'disabling user signups.')
 
     #
     # server docs

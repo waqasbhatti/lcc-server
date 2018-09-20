@@ -208,6 +208,8 @@ def prepare_basedir(basedir,
             "department_link":site_department_link,
             "institution":site_institution,
             "institution_link":site_institution_link,
+            "signups_allowed": True,
+            "logins_allowed": True,
         }
 
         # check if the site institution logo file is not None and exists
@@ -314,7 +316,7 @@ def prepare_basedir(basedir,
             try:
                 userid = '%s@localhost' % getpass.getuser()
             except Exception as e:
-                userid = 'lcc_admin@localhost'
+                userid = 'lccadmin@localhost'
 
             inp_userid = input(
                 '\nAdmin email address [default: %s]: ' %
