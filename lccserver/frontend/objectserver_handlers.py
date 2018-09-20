@@ -113,7 +113,7 @@ def check_for_checkplots(objectid,
         cpdir = cpdir1
 
 
-    if not lcmagcols:
+    if lcmagcols is None:
 
         cpfpath = os.path.join(cpdir, 'checkplot-%s*.pkl*' % objectid)
         possible_checkplots = glob.glob(cpfpath)
@@ -124,8 +124,6 @@ def check_for_checkplots(objectid,
     else:
 
         possible_checkplots = []
-        lcmagcols = lcmagcols.split(',')
-
         for magcol in lcmagcols:
 
             cpfpath = os.path.join(cpdir,
@@ -269,7 +267,7 @@ class ObjectInfoHandler(BaseHandler):
         collection = xhtml_escape(collection)
 
         if lcmagcols is not None:
-            lcmagcols = xhtml_escape(lcmagcols)
+            lcmagcols = xhtml_escape(lcmagcols).split(',')
         if 'undefined' in lcmagcols or 'null' in lcmagcols:
             lcmagcols = None
 
@@ -296,6 +294,23 @@ class ObjectInfoHandler(BaseHandler):
             # if no lcmagcols are provided, get them from the access_check
             if lcmagcols is None:
                 lcmagcols = access_check[collection]['lcmagcols']
+
+            # otherwise, make sure all of the magcols provided as args are
+            # actually in the LC collection
+            else:
+
+                use_lcmagcols = []
+
+                for mc in lcmagcols:
+
+                    if mc in access_check[collection]['lcmagcols']:
+                        use_lcmagcols.append(mc)
+
+                if len(use_lcmagcols) == 0:
+                    lcmagcols = access_check[collection]['lcmagcols']
+                else:
+                    lcmagcols = use_lcmagcols
+
 
             # 1. get the canonical checkplot path
             checkplot_fpath = yield self.executor.submit(
