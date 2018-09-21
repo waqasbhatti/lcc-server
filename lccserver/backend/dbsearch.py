@@ -934,15 +934,19 @@ def sqlite_sesame_fulltext_search(
             nmatches = sum([fulltext_search[x]['nmatches']
                             for x in fulltext_search['databases']])
 
+            LOGINFO('matching objects found in cone '
+                    'search after SIMBAD lookup: %s' %
+                    nmatches)
+
             if nmatches > 0 and updatedb_from_sesame:
 
-                LOGERROR('matching objects found in cone '
-                         'search after SIMBAD lookup: %s' %
-                         nmatches)
                 conesearch_matched_collections = [
                     x for x in cone_search['databases'] if
                     (cone_search[x]['nmatches'] > 0)
                 ]
+
+                LOGINFO('matched objects found in collections: %s' %
+                        conesearch_matched_collections)
 
                 query = (
                     "update object_catalog set "
