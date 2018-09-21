@@ -887,8 +887,7 @@ def sqlite_sesame_fulltext_search(
     returned.
 
     '''
-
-    fulltext_search = sqlite_fulltext_search(
+    fulltext_search_1 = sqlite_fulltext_search(
         basedir,
         ftsquerystr,
         getcolumns=getcolumns,
@@ -900,16 +899,41 @@ def sqlite_sesame_fulltext_search(
         fail_if_conditions_invalid=fail_if_conditions_invalid,
         censor_searchargs=censor_searchargs
     )
+    # force a literal name search
+    fulltext_search_2 = sqlite_fulltext_search(
+        basedir,
+        '"%s"' % ftsquerystr,
+        getcolumns=getcolumns,
+        conditions=conditions,
+        lcclist=lcclist,
+        raiseonfail=raiseonfail,
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role,
+        fail_if_conditions_invalid=fail_if_conditions_invalid,
+        censor_searchargs=censor_searchargs
+    )
 
-    nmatches = sum([fulltext_search[x]['nmatches']
-                    for x in fulltext_search['databases']])
+    nmatches_fts1 = sum([fulltext_search_1[x]['nmatches']
+                         for x in fulltext_search_1['databases']])
+    nmatches_fts2 = sum([fulltext_search_1[x]['nmatches']
+                         for x in fulltext_search_1['databases']])
+
+    if nmatches_fts1 > 0:
+        nmatches = nmatches_fts1
+        fulltext_search = fulltext_search_1
+    elif nmatches_fts2 > 0:
+        nmatches = nmatches_fts2
+        fulltext_search = fulltext_search_2
+    else:
+        nmatches = nmatches_fts1
+        fulltext_search = fulltext_search_1
 
     if nmatches == 0:
 
         LOGWARNING('no local matches found, looking up object name in SIMBAD')
 
         sesame_lookup = sesame_query(
-            ftsquerystr,
+            ftsquerystr.replace('"',''),
             raiseonfail=raiseonfail
         )
 
