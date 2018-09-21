@@ -556,8 +556,6 @@ def convert_original_lightcurves(basedir,
 
     from .backend import abcat
     from .backend import datasets
-    datasets.set_logger_parent(__name__)
-    abcat.set_logger_parent(__name__)
 
     # make sure we have a filled out lcformat-description.json for this
     # collection
@@ -906,7 +904,6 @@ def generate_catalog_kdtree(basedir,
     '''
 
     from .backend import abcat
-    abcat.set_logger_parent(__name__)
 
     # get basedir/collection_id/lclist-catalog.pkl
     lclist_catalog_pickle = os.path.join(basedir,
@@ -1000,7 +997,6 @@ def generate_catalog_database(
 
     '''
     from .backend import abcat
-    abcat.set_logger_parent(__name__)
 
     if collection_info is None:
         collection_info = {
@@ -1047,7 +1043,6 @@ def new_lcc_index_db(basedir):
     '''
 
     from .backend import abcat
-    abcat.set_logger_parent(__name__)
 
     return abcat.sqlite_make_lcc_index_db(basedir)
 
@@ -1059,10 +1054,7 @@ def new_lcc_datasets_db(basedir):
 
     '''
     from .backend import datasets
-    datasets.set_logger_parent(__name__)
-
     from .backend import abcat
-    abcat.set_logger_parent(__name__)
 
     return datasets.sqlite_datasets_db_create(basedir)
 
@@ -1081,7 +1073,6 @@ def add_collection_to_lcc_index(basedir,
     '''
 
     from .backend import abcat
-    abcat.set_logger_parent(__name__)
 
     return abcat.sqlite_collect_lcc_info(basedir,
                                          collection_id,
@@ -1400,7 +1391,6 @@ def main():
         pfresult_dir = None
 
         from .backend import abcat
-        abcat.set_logger_parent(__name__)
 
         # check if the collection_dir exists already and there's an
         # lcformat-description.json file in there
