@@ -1053,6 +1053,69 @@ def add_collection_info(row, collection):
 
 
 
+def sqlite_namewrap_fulltext_search(
+        basedir,
+        ftsquerystr,
+        getcolumns=None,
+        conditions=None,
+        lcclist=None,
+        raiseonfail=False,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        fail_if_conditions_invalid=True,
+        censor_searchargs=False,
+):
+    '''This wraps the function below to search the usual way first and then by
+    name if the usual FTS fails.
+
+    This exists because users will never remember to put quotes around object
+    names so we should try it for them.
+
+    '''
+
+    fulltext_search = sqlite_fulltext_search(
+        basedir,
+        ftsquerystr,
+        getcolumns=getcolumns,
+        conditions=conditions,
+        lcclist=lcclist,
+        raiseonfail=raiseonfail,
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role,
+        fail_if_conditions_invalid=fail_if_conditions_invalid,
+        censor_searchargs=censor_searchargs
+    )
+
+    nmatches = sum([fulltext_search[x]['nmatches']
+                    for x in fulltext_search['databases']])
+
+    if nmatches == 0:
+
+        LOGWARNING('no matches found for an unquoted FTS, '
+                   'trying a quoted FTS')
+
+        # force a literal name search because this is a special mode dedicated
+        # to looking up object names
+        fulltext_search = sqlite_fulltext_search(
+            basedir,
+            # fix quotes
+            '"%s"' % ftsquerystr.replace('"','').replace('&quot;',''),
+            getcolumns=getcolumns,
+            conditions=conditions,
+            lcclist=lcclist,
+            raiseonfail=raiseonfail,
+            incoming_userid=incoming_userid,
+            incoming_role=incoming_role,
+            fail_if_conditions_invalid=fail_if_conditions_invalid,
+            censor_searchargs=censor_searchargs
+        )
+        return fulltext_search
+
+    else:
+        return fulltext_search
+
+
+
 def sqlite_fulltext_search(
         basedir,
         ftsquerystr,

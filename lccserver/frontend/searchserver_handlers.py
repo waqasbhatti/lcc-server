@@ -1751,7 +1751,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
         if sesame:
             search_func = dbsearch.sqlite_sesame_fulltext_search
         else:
-            search_func = dbsearch.sqlite_fulltext_search
+            search_func = dbsearch.sqlite_namewrap_fulltext_search
 
         # send the query to the background worker
         yield self.background_query(
