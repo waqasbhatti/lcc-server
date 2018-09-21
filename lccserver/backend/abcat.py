@@ -730,11 +730,31 @@ def objectinfo_to_sqlite(augcatpkl,
         # create the FTS index
         cur.execute(ftscreate)
 
+        # create triggers to update the FTS indices automatically if the main
+        # object_catalog table gets updated
+        old_fts_column_list = ', '.join(
+            ['old.%s' % x.replace('.','_') for x in ftsindexcols]
+        )
+        new_fts_column_list = ', '.join(
+            ['old.%s' % x.replace('.','_') for x in ftsindexcols]
+        )
+        fts_triggers = (
+            "create trigger fts_afterupdate after update on object_catalog "
+            "begin "
+            "insert into catalog_fts(catalog_fts, rowid, {column_list}) values "
+            "('delete', {old_column_list}); "
+            "insert into catalog_fts(rowid, {column_list}) values "
+            "({new_column_list}); "
+            "end;"
+        ).format(column_list=column_list,
+                 old_column_list=old_fts_column_list,
+                 new_column_list=new_fts_column_list)
+        LOGINFO('trigger create: %s' % fts_triggers)
+        cur.executescript(fts_triggers)
+        db.commit()
+
         # execute the rebuild command to activate the indices
         cur.execute("insert into catalog_fts(catalog_fts) values ('rebuild')")
-
-        # FIXME: add the FTS trigger statements here for an update to the main
-        # object_catalog table. see the astro-coffee implementation for hints
 
     else:
 
@@ -757,6 +777,27 @@ def objectinfo_to_sqlite(augcatpkl,
 
         # create the FTS index
         cur.execute(ftscreate)
+
+        # create triggers to update the FTS indices automatically if the main
+        # object_catalog table gets updated
+        new_fts_column_list = ', '.join(
+            ['new.%s' % x.replace('.','_') for x in ftsindexcols]
+        )
+        fts_triggers = (
+            "create trigger fts_beforeupdate before update on object_catalog "
+            "begin "
+            "delete from catalog_fts where rowid=old.rowid; "
+            "end;"
+            "create trigger fts_afterupdate after update on object_catalog "
+            "begin "
+            "insert into catalog_fts(rowid, {column_list}) values "
+            "(new.rowid, {new_column_list}); "
+            "end;"
+        ).format(column_list=fts_column_list,
+                 new_column_list=new_fts_column_list)
+        LOGINFO('FTS trigger create statement will be: %s' % fts_triggers)
+        cur.executescript(fts_triggers)
+        db.commit()
 
         # execute the rebuild command to activate the indices
         cur.execute("insert into catalog_fts(catalog_fts) values ('rebuild')")
