@@ -887,22 +887,13 @@ def sqlite_sesame_fulltext_search(
     returned.
 
     '''
-    fulltext_search_1 = sqlite_fulltext_search(
+
+    # force a literal name search because this is a special mode dedicated to
+    # looking up object names
+    fulltext_search = sqlite_fulltext_search(
         basedir,
-        ftsquerystr,
-        getcolumns=getcolumns,
-        conditions=conditions,
-        lcclist=lcclist,
-        raiseonfail=raiseonfail,
-        incoming_userid=incoming_userid,
-        incoming_role=incoming_role,
-        fail_if_conditions_invalid=fail_if_conditions_invalid,
-        censor_searchargs=censor_searchargs
-    )
-    # force a literal name search
-    fulltext_search_2 = sqlite_fulltext_search(
-        basedir,
-        '"%s"' % ftsquerystr,
+        # fix quotes
+        '"%s"' % ftsquerystr.replace('"','').replace('&quot;',''),
         getcolumns=getcolumns,
         conditions=conditions,
         lcclist=lcclist,
@@ -913,27 +904,17 @@ def sqlite_sesame_fulltext_search(
         censor_searchargs=censor_searchargs
     )
 
-    nmatches_fts1 = sum([fulltext_search_1[x]['nmatches']
-                         for x in fulltext_search_1['databases']])
-    nmatches_fts2 = sum([fulltext_search_1[x]['nmatches']
-                         for x in fulltext_search_1['databases']])
+    nmatches = sum([fulltext_search[x]['nmatches']
+                    for x in fulltext_search['databases']])
 
-    if nmatches_fts1 > 0:
-        nmatches = nmatches_fts1
-        fulltext_search = fulltext_search_1
-    elif nmatches_fts2 > 0:
-        nmatches = nmatches_fts2
-        fulltext_search = fulltext_search_2
-    else:
-        nmatches = nmatches_fts1
-        fulltext_search = fulltext_search_1
 
     if nmatches == 0:
 
-        LOGWARNING('no local matches found, looking up object name in SIMBAD')
+        LOGWARNING('no local name matches found, '
+                   'looking up object name in SIMBAD')
 
         sesame_lookup = sesame_query(
-            ftsquerystr.replace('"',''),
+            ftsquerystr.replace('"','').replace('&quot;',''),
             raiseonfail=raiseonfail
         )
 
@@ -1036,7 +1017,7 @@ def sqlite_sesame_fulltext_search(
                     '"%s"' % ftsquerystr,
                     getcolumns=getcolumns,
                     conditions=conditions,
-                    lcclist=lcclist,
+                    lcclist=conesearch_matched_collections,
                     raiseonfail=raiseonfail,
                     incoming_userid=incoming_userid,
                     incoming_role=incoming_role,
