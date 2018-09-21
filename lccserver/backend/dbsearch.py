@@ -854,6 +854,7 @@ def sesame_query(
     # if the request succeeded,
     if reqok:
         parsed = parse_sesame_response(resp.text, object_name)
+        LOGINFO('SESAME lookup results = %r' % parsed)
         resp.close()
         return parsed
 
