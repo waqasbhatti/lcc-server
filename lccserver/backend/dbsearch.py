@@ -868,19 +868,6 @@ def sesame_query(
 
 
 
-###################
-## SQLITE SEARCH ##
-###################
-
-def add_collection_info(row, collection):
-    '''This just adds the collection ID to a dict from sqlite.Row.
-    '''
-    row = dict(row)
-    row['collection'] = collection
-    return row
-
-
-
 def sqlite_sesame_fulltext_search(
         basedir,
         ftsquerystr,
@@ -892,6 +879,7 @@ def sqlite_sesame_fulltext_search(
         incoming_role='anonymous',
         fail_if_conditions_invalid=True,
         censor_searchargs=False,
+        updatedb_from_sesame=True
 ):
     '''This runs a full-text search query followed by a SIMBAD lookup and
     cone-search if that fails.
@@ -928,7 +916,7 @@ def sqlite_sesame_fulltext_search(
                 basedir,
                 sesame_lookup['ra'],
                 sesame_lookup['decl'],
-                0.08,
+                0.08,  # 5 arcsec
                 getcolumns=getcolumns,
                 conditions=conditions,
                 lcclist=lcclist,
@@ -940,13 +928,102 @@ def sqlite_sesame_fulltext_search(
             )
             cone_search['args'] = fulltext_search['args']
             cone_search['search'] = 'sqlite_fulltext_search'
-            return cone_search
+
+            # if we're supposed to update the database after the query
+            # completes, do that here
+            nmatches = sum([fulltext_search[x]['nmatches']
+                            for x in fulltext_search['databases']])
+
+            if nmatches > 0 and updatedb_from_sesame:
+
+                LOGERROR('matching objects found in cone '
+                         'search after SIMBAD lookup: %s' %
+                         nmatches)
+                conesearch_matched_collections = [
+                    x for x in cone_search['databases'] if
+                    (cone_search[x]['nmatches'] > 0)
+                ]
+
+                query = (
+                    "update object_catalog set "
+                    "simbad_best_mainid = ?, "
+                    "simbad_best_allids = ?, "
+                    "simbad_best_objtype = ? where "
+                    "objectid = ?"
+                )
+
+                # get these collections and update them
+                for coll in conesearch_matched_collections:
+
+                    dbinfo = sqlite_get_collections(
+                        basedir,
+                        lcclist=[coll],
+                        return_connection=True,
+                        incoming_userid=incoming_userid,
+                        incoming_role=incoming_role
+                    )
+                    db, cur = dbinfo['connection'], dbinfo['cur']
+
+                    cur.execute('begin')
+
+                    # now, for each matched object, look up by db_oid and update
+                    # its SIMBAD info
+                    for row in coll['result']:
+
+                        oid = row['db_oid']
+                        matchdist = row['dist_arcsec']
+                        params = (sesame_lookup['simbad_best_mainid'],
+                                  sesame_lookup['simbad_best_allids'],
+                                  sesame_lookup['simbad_best_objtype'],
+                                  oid)
+                        cur.execute(query, params)
+
+                        LOGINFO(
+                            "updated objectid = %s in "
+                            "collection = %s with match_dist = %.3f arcsec, "
+                            "with SIMBAD attrs:\n"
+                            "simbad_best_mainid = %s, "
+                            "simbad_best_allids = %s, "
+                            "simbad_best_objtype = %s"
+                            % (oid,
+                               coll,
+                               matchdist,
+                               sesame_lookup['simbad_best_mainid'],
+                               sesame_lookup['simbad_best_allids'],
+                               sesame_lookup['simbad_best_objtype'])
+                        )
+
+                    db.commit()
+                    db.close()
+
+                # at the end, return the cone_search search results dict
+                return cone_search
+
+            # if no matches were found in the cone search either, return the
+            # original fulltext_search
+            else:
+                LOGERROR('no matches found in cone search '
+                         'either after SIMBAD lookup')
+                return fulltext_search
 
         else:
             return fulltext_search
 
     else:
         return fulltext_search
+
+
+
+###################
+## SQLITE SEARCH ##
+###################
+
+def add_collection_info(row, collection):
+    '''This just adds the collection ID to a dict from sqlite.Row.
+    '''
+    row = dict(row)
+    row['collection'] = collection
+    return row
 
 
 
