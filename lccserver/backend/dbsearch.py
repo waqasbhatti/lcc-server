@@ -57,13 +57,20 @@ import sqlite3
 import pickle
 import json
 from functools import reduce, partial
+import re
+from urllib.parse import quote_plus
 
 from tornado.escape import squeeze, xhtml_unescape
 import numpy as np
+import requests
 
 from astrobase.coordutils import (
     make_kdtree, conesearch_kdtree,
     xmatch_kdtree, great_circle_dist
+)
+from astrobase.coordutils import (
+    hms_to_decimal, dms_to_decimal,
+    hms_str_to_tuple, dms_str_to_tuple
 )
 
 from ..authnzerver.authdb import check_user_access
@@ -612,6 +619,256 @@ def sqlite_list_collections(basedir,
 
 
 ###################
+## SIMBAD SEARCH ##
+###################
+
+# single object coordinate search
+# ra dec radius
+COORD_DEGSEARCH_REGEX = re.compile(
+    r'^(\d{1,3}\.{0,1}\d*) ([+\-]?\d{1,2}\.{0,1}\d*) ?(\d{1,2}\.{0,1}\d*)?$'
+)
+COORD_HMSSEARCH_REGEX = re.compile(
+    r'^(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) '
+    '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) ?'
+    '(\d{1,2}\.{0,1}\d*)?$'
+)
+
+
+def parse_coordstring(coordstring):
+    '''
+    This function parses a coordstring of the form:
+
+    <ra> <dec> <radiusarcmin>
+
+    '''
+    searchstr = squeeze(coordstring).strip()
+
+    # try all the regexes and see if one of them works
+    degcoordtry = COORD_DEGSEARCH_REGEX.match(searchstr)
+    hmscoordtry = COORD_HMSSEARCH_REGEX.match(searchstr)
+
+    # try HHMMSS first because we get false positives on some HH MM SS items in
+    # degcoordtry
+    if hmscoordtry:
+
+        ra, dec, radius = hmscoordtry.groups()
+        ra_tuple, dec_tuple = hms_str_to_tuple(ra), dms_str_to_tuple(dec)
+
+        ra_hr, ra_min, ra_sec = ra_tuple
+        dec_sign, dec_deg, dec_min, dec_sec = dec_tuple
+
+        # make sure the coordinates are all legit
+        if ((0 <= ra_hr < 24) and
+            (0 <= ra_min < 60) and
+            (0 <= ra_sec < 60) and
+            (0 <= dec_deg < 90) and
+            (0 <= dec_min < 60) and
+            (0 <= dec_sec < 60)):
+
+            ra_decimal = hms_to_decimal(ra_hr, ra_min, ra_sec)
+            dec_decimal = dms_to_decimal(dec_sign, dec_deg, dec_min, dec_sec)
+
+            paramsok = True
+            searchrad = float(radius)/60.0 if radius else 5.0/60.0
+            radeg, decldeg, radiusdeg = ra_decimal, dec_decimal, searchrad
+
+        else:
+
+            paramsok = False
+            radeg, decldeg, radiusdeg = None, None, None
+
+    elif degcoordtry:
+
+        ra, dec, radius = degcoordtry.groups()
+
+        try:
+            ra, dec = float(ra), float(dec)
+            if ((abs(ra) < 360.0) and (abs(dec) < 90.0)):
+                if ra < 0:
+                    ra = 360.0 + ra
+                paramsok = True
+                searchrad = float(radius)/60.0 if radius else 5.0/60.0
+                radeg, decldeg, radiusdeg = ra, dec, searchrad
+
+            else:
+                paramsok = False
+                radeg, decldeg, radiusdeg = None, None, None
+
+        except Exception as e:
+
+            LOGGER.error('could not parse search string: %s' % coordstring)
+            paramsok = False
+            radeg, decldeg, radiusdeg = None, None, None
+
+
+    else:
+
+        paramsok = False
+        radeg, decldeg, radiusdeg = None, None, None
+
+    return paramsok, radeg, decldeg, radiusdeg
+
+
+
+def parse_sesame_response(
+        sesame_response,
+        object_name,
+):
+    '''Parses the SESAME results to a dict containing the name and coords.
+
+    '''
+
+    if 'Nothing found' in sesame_response:
+        LOGWARNING('SIMBAD SESAME name resolution '
+                   'did not succeed for object name: %s' %
+                   object_name)
+        return None
+
+    else:
+
+        lines = sesame_response.split('\n')
+        coordline = [x.strip() for x in lines if x.startswith('%J')]
+        if len(coordline) > 0:
+            coords = coordline[0]
+        else:
+            LOGWARNING('SIMBAD SESAME did not return '
+                       'any coords for object name: %s' %
+                       object_name)
+            return None
+
+        coords = coords.replace('%J','').split(' = ')[0]
+        coords_ok, ra, decl, radius = parse_coordstring(coords)
+
+        if not coords_ok:
+
+            LOGWARNING('could not understand returned SESAME '
+                       'coord string: %s for object name: %s' %
+                       (coords, object_name))
+            return None
+
+        else:
+
+            #
+            # go ahead and get the rest of the SIMBAD info
+            #
+            simbad_main_id = [x.strip() for x
+                              in lines if x.startswith('%I.0')]
+            if len(simbad_main_id) > 0:
+                simbad_main_id = (
+                    simbad_main_id[0].replace('%I.0','').strip()
+                )
+            else:
+                simbad_main_id = None
+
+            simbad_other_ids = [x.strip() for x
+                                in lines if
+                                (x.startswith('%I') and '%I.0' not in x)]
+            if len(simbad_other_ids) > 0:
+                simbad_other_ids = [
+                    x.replace('%I','').strip() for x in simbad_other_ids
+                ]
+                simbad_other_ids = '; '.join(simbad_other_ids)
+            else:
+                simbad_other_ids = None
+
+            simbad_object_type = [x.strip() for x
+                                  in lines if x.startswith('%C.0')]
+            simbad_star_class = [x.strip() for x
+                                 in lines if x.startswith('%S')]
+            if len(simbad_object_type) > 0:
+                simbad_object_type = (
+                    simbad_object_type[0].replace('%C.0','').strip()
+                )
+            else:
+                simbad_object_type = None
+
+            if len(simbad_star_class) > 0:
+                simbad_star_class = (
+                    simbad_star_class[0].replace('%S','').strip()
+                )
+            else:
+                simbad_star_class = None
+
+            if simbad_object_type and simbad_star_class:
+                simbad_best_objtype = '%s; %s' % (simbad_object_type,
+                                                  simbad_star_class)
+            elif simbad_object_type:
+                simbad_best_objtype = simbad_object_type
+            elif simbad_star_class:
+                simbad_best_objtype = simbad_star_class
+            else:
+                simbad_best_objtype = None
+
+            return {
+                'name':object_name,
+                'ra':ra,
+                'decl':decl,
+                'simbad_best_mainid':simbad_main_id,
+                'simbad_best_allids':simbad_other_ids,
+                'simbad_best_objtype':simbad_best_objtype,
+            }
+
+
+
+def sesame_query(
+        object_name,
+        mirrors=(
+            'http://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
+            'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame'
+        ),
+        raiseonfail=False
+):
+    '''This talks to SIMBAD to resolve an object name to its coords.
+
+    The use case is to try to complete FTS queries that don't return
+    anything. When this happens, we'll call this function and turn the query
+    into a cone search query with the same columns and filter args as the
+    original query.
+
+    '''
+
+    reqok = False
+
+    for mirror in mirrors:
+
+        req_url = mirror + '/-oI/SNV?' + quote_plus(object_name)
+
+        try:
+            resp = requests.get(req_url, timeout=5.0)
+            resp.raise_for_status()
+
+        except Exception as e:
+
+            # if this request failed, try the next mirror
+            LOGGER.warning(
+                'SIMBAD mirror: %s not responding, trying another...'
+                % mirror
+            )
+
+            if raiseonfail:
+                raise
+
+            continue
+
+        else:
+            reqok = True
+            break
+
+    # if the request succeeded,
+    if reqok:
+        parsed = parse_sesame_response(resp.text, object_name)
+        resp.close()
+        return parsed
+
+    else:
+        LOGWARNING('SIMBAD SESAME server requests did not succeed '
+                   'for object name: %s' % object_name)
+        resp.close()
+        return None
+
+
+
+###################
 ## SQLITE SEARCH ##
 ###################
 
@@ -621,6 +878,75 @@ def add_collection_info(row, collection):
     row = dict(row)
     row['collection'] = collection
     return row
+
+
+
+def sqlite_sesame_fulltext_search(
+        basedir,
+        ftsquerystr,
+        getcolumns=None,
+        conditions=None,
+        lcclist=None,
+        raiseonfail=False,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        fail_if_conditions_invalid=True,
+        censor_searchargs=False,
+):
+    '''This runs a full-text search query followed by a SIMBAD lookup and
+    cone-search if that fails.
+    '''
+
+    fulltext_search = sqlite_fulltext_search(
+        basedir,
+        ftsquerystr,
+        getcolumns=getcolumns,
+        conditions=conditions,
+        lcclist=lcclist,
+        raiseonfail=raiseonfail,
+        incoming_user_id=incoming_userid,
+        incoming_role=incoming_role,
+        fail_if_conditions_invalid=fail_if_conditions_invalid,
+        censor_searchargs=censor_searchargs
+    )
+
+    nmatches = sum([x['nmatches'] for x in fulltext_search['databases']])
+
+    if nmatches == 0:
+
+        LOGWARNING('no local matches found, looking up object name in SIMBAD')
+
+        sesame_lookup = sesame_query(
+            ftsquerystr,
+            raiseonfail=raiseonfail
+        )
+
+        if sesame_lookup is not None:
+
+            cone_search = sqlite_kdtree_conesearch(
+                basedir,
+                sesame_lookup['ra'],
+                sesame_lookup['decl'],
+                0.08,
+                getcolumns=getcolumns,
+                conditions=conditions,
+                lcclist=lcclist,
+                raiseonfail=raiseonfail,
+                incoming_user_id=incoming_userid,
+                incoming_role=incoming_role,
+                fail_if_conditions_invalid=fail_if_conditions_invalid,
+                censor_searchargs=censor_searchargs
+            )
+            cone_search['args'] = fulltext_search['args']
+            cone_search['search'] = 'sqlite_fulltext_search'
+            return cone_search
+
+        else:
+            return fulltext_search
+
+    else:
+        return fulltext_search
+
 
 
 def sqlite_fulltext_search(
@@ -633,7 +959,7 @@ def sqlite_fulltext_search(
         incoming_userid=2,
         incoming_role='anonymous',
         fail_if_conditions_invalid=True,
-        censor_searchargs=False
+        censor_searchargs=False,
 ):
 
     '''This searches the specified collections for a full-text match.
