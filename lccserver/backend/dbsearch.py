@@ -910,7 +910,8 @@ def sqlite_sesame_fulltext_search(
         censor_searchargs=censor_searchargs
     )
 
-    nmatches = sum([x['nmatches'] for x in fulltext_search['databases']])
+    nmatches = sum([fulltext_search[x]['nmatches']
+                    for x in fulltext_search['databases']])
 
     if nmatches == 0:
 
