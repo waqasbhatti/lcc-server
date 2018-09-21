@@ -1264,12 +1264,39 @@
 
               <h3>Datasets from recent search queries</h3>
 
-              <p>The table below lists 25 of the most recently generated
-              datasets from search queries, including your datasets and those made
-              public by other users. See <a href="/datasets">all
-                available datasets</a> for a full list.</p>
+              <p>The table below lists the most recently generated datasets from
+                search queries, including your datasets and those made
+                public by other users. See <a href="/datasets">all
+                available datasets</a> for a full list or search for datasets below.</p>
 
-              <table id="lcc-datasets-table" class="table table-hover table-sm">
+              <div class="row mt-4" >
+
+                <div class="col-sm-2">
+                  <button class="btn btn-secondary"
+                          type="button" id="dataset-show-all">Show all datasets</button>
+                </div>
+
+                <div class="col-sm-10" >
+                  <form class="form" action="/api/datasets" method="POST" id="dataset-search-form" >
+                    {% module xsrf_form_html() %}
+
+                    <div class="input-group" >
+                      <input class="form-control" id="dataset-searchbox"
+                             name="datasetsearch" autocomplete="on"
+                             type="search" maxlength="1024"
+                             placeholder="queried collections, query type or arguments, dataset ID, name, description, citation"
+                             aria-label="queried collections, query type or arguments, dataset ID, name, description, citation">
+                      <div class="input-group-append" >
+                        <button class="btn btn-primary"
+                                type="submit" id="dataset-search-submit">Search for datasets</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+
+              </div>
+
+              <table id="lcc-datasets-table" class="table table-hover table-sm mt-4">
 
                 <thead class="bg-light">
                   <tr>
