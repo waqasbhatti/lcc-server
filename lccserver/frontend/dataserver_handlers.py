@@ -432,9 +432,14 @@ class DatasetHandler(BaseHandler):
                     else:
                         slug = ''
 
+                    if 'X-Real-Host' in self.request:
+                        host = self.request['X-Real-Host']
+                    else:
+                        host = self.request.host
+
                     set_url = '%s://%s/set/%s%s' % (
                         self.request.protocol,
-                        self.request.host,
+                        host,
                         setid,
                         slug
                     )
@@ -581,9 +586,14 @@ class DatasetHandler(BaseHandler):
                     else:
                         slug = ''
 
+                    if 'X-Real-Host' in self.request:
+                        host = self.request['X-Real-Host']
+                    else:
+                        host = self.request.host
+
                     set_url = '%s://%s/set/%s%s' % (
                         self.request.protocol,
-                        self.request.host,
+                        host,
                         setid,
                         slug
                     )
