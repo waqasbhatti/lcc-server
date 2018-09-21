@@ -232,6 +232,10 @@ class BaseHandler(tornado.web.RequestHandler):
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.siteinfo = siteinfo
 
+        # initialize this to None
+        # we'll set this later in self.prepare()
+        self.current_user = None
+
 
     def save_flash_messages(self, messages, alert_type):
         '''
@@ -382,8 +386,8 @@ class BaseHandler(tornado.web.RequestHandler):
 
         Additional keyword arguments are set on the cookies.Morsel
         directly.
-        See https://docs.python.org/3/library/http.cookies.html#http.cookies.Morsel
-        for available attributes.
+
+        https://docs.python.org/3/library/http.cookies.html#http.cookies.Morsel
 
         ---
 
@@ -572,9 +576,6 @@ class BaseHandler(tornado.web.RequestHandler):
         # FIXME: cookie secure=True won't work if
         # you're developing on localhost
         # will probably have to go through the whole local CA nonsense
-
-        # FIXME: cookie samesite=True is not supported by Python yet
-        # https://bugs.python.org/issue29613
         if self.request.remote_ip != '127.0.0.1':
             self.csecure = True
         else:

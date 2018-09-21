@@ -18,7 +18,7 @@ import logging
 import numpy as np
 from datetime import datetime, timedelta
 import re
-
+from urllib.parse import quote_plus
 
 
 ######################################
@@ -405,6 +405,107 @@ def parse_conditions(conditions, maxlength=1000):
 
 
 
+def parse_sesame_response(
+        sesame_response,
+        object_name,
+):
+    '''Parses the SESAME results to a dict containing the name and coords.
+
+    '''
+
+    if 'Nothing found' in sesame_response:
+        LOGGER.warning('SIMBAD SESAME name resolution '
+                       'did not succeed for object name: %s' %
+                       object_name)
+        return None
+
+    else:
+
+        lines = sesame_response.split('\n')
+        coordline = [x.strip() for x in lines if x.startswith('%J')]
+        if len(coordline) > 0:
+            coords = coordline[0]
+        else:
+            LOGGER.warning('SIMBAD SESAME did not return '
+                           'any coords for object name: %s' %
+                           object_name)
+            return None
+
+        coords = coords.replace('%J','').split(' = ')[0]
+        coords_ok, ra, decl, radius = parse_coordstring(coords)
+
+        if not coords_ok:
+
+            LOGGER.warning('could not understand returned SESAME '
+                           'coord string: %s for object name: %s' %
+                           (coords, object_name))
+            return None
+
+        else:
+
+            #
+            # go ahead and get the rest of the SIMBAD info
+            #
+            simbad_main_id = [x.strip() for x
+                              in lines if x.startswith('%I.0')]
+            if len(simbad_main_id) > 0:
+                simbad_main_id = (
+                    simbad_main_id[0].replace('%I.0','').strip()
+                )
+            else:
+                simbad_main_id = None
+
+            simbad_other_ids = [x.strip() for x
+                                in lines if
+                                (x.startswith('%I') and '%I.0' not in x)]
+            if len(simbad_other_ids) > 0:
+                simbad_other_ids = [
+                    x.replace('%I','').strip() for x in simbad_other_ids
+                ]
+                simbad_other_ids = '; '.join(simbad_other_ids)
+            else:
+                simbad_other_ids = None
+
+            simbad_object_type = [x.strip() for x
+                                  in lines if x.startswith('%C.0')]
+            simbad_star_class = [x.strip() for x
+                                 in lines if x.startswith('%S')]
+            if len(simbad_object_type) > 0:
+                simbad_object_type = (
+                    simbad_object_type[0].replace('%C.0','').strip()
+                )
+            else:
+                simbad_object_type = None
+
+            if len(simbad_star_class) > 0:
+                simbad_star_class = (
+                    simbad_star_class[0].replace('%S','').strip()
+                )
+            else:
+                simbad_star_class = None
+
+            if simbad_object_type and simbad_star_class:
+                simbad_best_objtype = '%s; %s' % (simbad_object_type,
+                                                  simbad_star_class)
+            elif simbad_object_type:
+                simbad_best_objtype = simbad_object_type
+            elif simbad_star_class:
+                simbad_best_objtype = simbad_star_class
+            else:
+                simbad_best_objtype = None
+
+            return {
+                'name':object_name,
+                'ra':ra,
+                'decl':decl,
+                'simbad_best_mainid':simbad_main_id,
+                'simbad_best_allids':simbad_other_ids,
+                'simbad_best_objtype':simbad_best_objtype,
+            }
+
+
+
+
 ###################################################
 ## QUERY HANDLER MIXIN FOR RUNNING IN BACKGROUND ##
 ###################################################
@@ -532,6 +633,71 @@ class BackgroundQueryMixin(object):
 
 
     @gen.coroutine
+    def simbad_sesame_query(
+            self,
+            object_name,
+            mirrors=(
+                'http://vizier.cfa.harvard.edu/viz-bin/nph-sesame',
+                'http://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
+                'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame'
+            )
+    ):
+        '''This talks to SIMBAD to resolve an object name to its coords.
+
+        The use case is to try to complete FTS queries that don't return
+        anything. When this happens, we'll call this function and turn the query
+        into a cone search query with the same columns and filter args as the
+        original query.
+
+        '''
+
+        reqok = False
+
+        for mirror in mirrors:
+
+            req_url = mirror + '-oI/SNV?' + quote_plus(object_name)
+            resp = yield self.httpclient.fetch(req_url,
+                                               request_timeout=5.0,
+                                               raise_error=False)
+
+            # if this request failed, try the next mirror
+            if resp.code != 200:
+                LOGGER.warning(
+                    'SIMBAD mirror: %s not responding, trying another...'
+                    % mirror
+                )
+                continue
+
+            else:
+                reqok = True
+
+        # if the request succeeded,
+        if reqok:
+            return parse_sesame_response(resp)
+
+        else:
+            LOGGER.warning('SIMBAD SESAME server requests did not succeed '
+                           'for object name: %s' % object_name)
+            return None
+
+
+
+    @gen.coroutine
+    def update_objectcatalog_with_sesame_name(
+            self,
+            sesame_results,
+    ):
+        '''Updates the appropriate object_catalog table with the resolved name.
+
+        Runs a cone-search using the resolved coords to find the correct object
+        to update. Puts the main ID into simbad_best_mainid and puts in the
+        other SIMBAD info as well if present.
+
+        '''
+
+
+
+    @gen.coroutine
     def background_query(self,
                          query_function,
                          query_args,
@@ -545,6 +711,7 @@ class BackgroundQueryMixin(object):
                          results_sortspec=None,
                          results_limitspec=None,
                          results_samplespec=None):
+
         '''
         This runs the background query.
 
