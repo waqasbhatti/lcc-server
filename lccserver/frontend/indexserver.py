@@ -189,22 +189,6 @@ def main():
     APIVERSION = 1
 
 
-    ###########################
-    ## WORK AROUND APPLE BUG ##
-    ###########################
-
-    # here, we have to initialize networking in the main thread
-    # before forking for MacOS. see:
-    # https://bugs.python.org/issue30385#msg293958
-    # if this doesn't work, Python will segfault.
-    # the workaround noted in the report is to launch
-    # lcc-server like so:
-    # env no_proxy='*' indexserver
-    if sys.platform == 'darwin':
-        import requests
-        requests.get('http://captive.apple.com/hotspot-detect.html')
-
-
     ###################
     ## SET UP CONFIG ##
     ###################
@@ -332,6 +316,25 @@ def main():
     #
     AUTHNZERVER = options.authnzerver
     SESSION_EXPIRY = options.sessionexpiry
+
+
+    ###########################
+    ## WORK AROUND APPLE BUG ##
+    ###########################
+
+    # here, we have to initialize networking in the main thread
+    # before forking for MacOS. see:
+    # https://bugs.python.org/issue30385#msg293958
+    # if this doesn't work, Python will segfault.
+    # the workaround noted in the report is to launch
+    # lcc-server like so:
+    # env no_proxy='*' indexserver
+    if sys.platform == 'darwin':
+        import requests
+        try:
+            requests.get('http://captive.apple.com/hotspot-detect.html')
+        except Exception as e:
+            requests.get(CPADDR)
 
 
     ####################################
