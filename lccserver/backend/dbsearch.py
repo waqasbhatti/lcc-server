@@ -1030,8 +1030,19 @@ def sqlite_sesame_fulltext_search(
                         db.commit()
                         db.close()
 
-                # at the end, return the cone_search search results dict
-                return cone_search
+                # at the end, return the now updated fulltext search result
+                return sqlite_fulltext_search(
+                    basedir,
+                    '"%s"' % ftsquerystr,
+                    getcolumns=getcolumns,
+                    conditions=conditions,
+                    lcclist=lcclist,
+                    raiseonfail=raiseonfail,
+                    incoming_userid=incoming_userid,
+                    incoming_role=incoming_role,
+                    fail_if_conditions_invalid=fail_if_conditions_invalid,
+                    censor_searchargs=censor_searchargs
+                )
 
             # if no matches were found in the cone search either, return the
             # original fulltext_search
