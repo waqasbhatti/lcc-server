@@ -243,7 +243,7 @@ def prepare_basedir(basedir,
                   'w') as outfd:
             json.dump(emailsettings, outfd, indent=2)
         # chmod this file to 600
-        os.chmod(os.path.join(basedir,'.lccserver-secret-email'), 0o100600)
+        os.chmod(os.path.join(basedir,'.lccserver.secret-email'), 0o100600)
 
         # update the site-info.json with the location of the email secrets file
         siteinfo["email_settings_file"] = (

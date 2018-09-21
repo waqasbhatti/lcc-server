@@ -113,9 +113,12 @@ Users = Table(
     Column('email', String(length=280), nullable=False, unique=True),
     Column('email_verified',Boolean(), default=False,
            nullable=False, index=True),
-    Column('emailverify_sent_datetime', DateTime()),
-
     Column('is_active', Boolean(), default=False, nullable=False, index=True),
+
+    # these track when we last sent emails to this user
+    Column('emailverify_sent_datetime', DateTime()),
+    Column('emailforgotpass_sent_datetime', DateTime()),
+    Column('emailchangepass_sent_datetime', DateTime()),
 
     # these two are separated so we can enforce a rate-limit on login tries
     Column('last_login_success', DateTime(), index=True),

@@ -82,31 +82,6 @@ from lccserver.frontend.basehandler import BaseHandler
 ## VARIOUS AUTH HANDLERS ##
 ###########################
 
-class IndexHandler(BaseHandler):
-    '''
-    This is a test handler inheriting from the base handler to provide auth.
-
-    '''
-
-
-    @gen.coroutine
-    def get(self):
-        '''This just checks if the cookie was set correctly and sessions work.
-
-        FIXME: this will eventually be the usual LCC-Server page but with some
-        bits added in for login/logout etc at the top right.
-
-        '''
-
-        current_user = self.current_user
-
-        if current_user:
-            self.redirect('/users/home')
-        else:
-            self.redirect('/users/login')
-
-
-
 class LoginHandler(BaseHandler):
     '''
     This handles /users/login.
@@ -120,6 +95,9 @@ class LoginHandler(BaseHandler):
         This shows the login form.
 
         '''
+
+        if not self.current_user:
+            self.redirect('/users/login')
 
         current_user = self.current_user
 
@@ -136,8 +114,7 @@ class LoginHandler(BaseHandler):
                 self.redirect('/')
 
             # if we're anonymous and we want to login, show the login page
-            elif ((current_user['user_role'] == 'anonymous') and
-                  (current_user['user_id'] == 2)):
+            elif (current_user['user_role'] == 'anonymous'):
 
                 self.render('login.html',
                             flash_messages=self.render_flash_messages(),
@@ -148,13 +125,8 @@ class LoginHandler(BaseHandler):
 
             # anything else is probably the locked user, turn them away
             else:
-
                 self.render_blocked_message()
 
-        # redirect us to the login page again so the anonymous session cookie
-        # gets set correctly. FIXME: does this make sense?
-        else:
-            self.redirect('/')
 
 
     @gen.coroutine
@@ -163,6 +135,9 @@ class LoginHandler(BaseHandler):
         This handles the POST of the login form.
 
         '''
+
+        if not self.current_user:
+            self.redirect('/users/login')
 
         # get the current user
         current_user = self.current_user
@@ -222,7 +197,6 @@ class LoginHandler(BaseHandler):
 
 
 
-
 class LogoutHandler(BaseHandler):
     '''
     This handles /user/logout.
@@ -235,6 +209,9 @@ class LogoutHandler(BaseHandler):
         This handles the POST request to /users/logout.
 
         '''
+
+        if not self.current_user:
+            self.redirect('/')
 
         current_user = self.current_user
 
@@ -280,23 +257,33 @@ class NewUserHandler(BaseHandler):
 
         '''
 
+        if not self.current_user:
+            self.redirect('/users/new')
+
         current_user = self.current_user
 
         # if we have a session token ready, then prepare to log in
         if current_user:
 
             # if we're already logged in, redirect to the index page
-            # FIXME: in the future, this may redirect to /users/home
-            if ((current_user['user_role'] in
-                 ('authenticated', 'staff', 'superuser')) and
-                (current_user['user_id'] not in (2,3))):
+            if current_user['user_role'] in ('authenticated',
+                                             'staff',
+                                             'superuser'):
 
-                LOGGER.warning('user is already logged in')
+                LOGGER.warning(
+                    'user %s is already logged in '
+                    'but tried to sign up for a new account' %
+                    current_user['user_id']
+                )
+                self.save_flash_messages(
+                    "You have an LCC-Server account and are already logged in.",
+                    "warning"
+                )
+
                 self.redirect('/')
 
-            # if we're anonymous and we want to login, show the login page
-            elif ((current_user['user_role'] == 'anonymous') and
-                  (current_user['user_id'] == 2)):
+            # if we're anonymous and we want to login, show the signup page
+            elif (current_user['user_role'] == 'anonymous'):
 
                 self.render('signup.html',
                             flash_messages=self.render_flash_messages(),
@@ -310,10 +297,6 @@ class NewUserHandler(BaseHandler):
 
                 self.render_blocked_message()
 
-        # redirect us to the login page again so the anonymous session cookie
-        # gets set correctly. FIXME: does this make sense?
-        else:
-            self.redirect('/')
 
 
     @gen.coroutine
@@ -321,6 +304,9 @@ class NewUserHandler(BaseHandler):
         '''This handles the POST request to /users/new.
 
         '''
+
+        if not self.current_user:
+            self.redirect('/users/new')
 
         current_user = self.current_user
 
@@ -339,7 +325,7 @@ class NewUserHandler(BaseHandler):
             )
             self.redirect('/users/new')
 
-        # talk to the authnzerver to login this user
+        # talk to the authnzerver to sign this user up
         ok, resp, msgs = yield self.authnzerver_request(
             'user-new',
             {'session_token':current_user['session_token'],
@@ -442,11 +428,14 @@ class VerifyUserHandler(BaseHandler):
 
         '''
 
+        if not self.current_user:
+            self.redirect('/users/verify')
+
         current_user = self.current_user
 
         # only proceed to verification if the user is not logged in as an actual
         # user
-        if current_user and current_user['user_id'] == 2:
+        if current_user and current_user['user_role'] == 'anonymous':
 
             # we'll render the verification form.
             self.render('verify.html',
@@ -464,7 +453,7 @@ class VerifyUserHandler(BaseHandler):
             # tell the user that their verification request is invalid
             # and redirect them to the login page
             self.save_flash_messages(
-                "You are already logged in.",
+                "You have an account and are already logged in.",
                 "warning"
             )
             self.redirect('/users/home')
@@ -475,6 +464,9 @@ class VerifyUserHandler(BaseHandler):
         '''This handles POST of the user verification form.
 
         '''
+
+        if not self.current_user:
+            self.redirect('/users/verify')
 
         current_user = self.current_user
 
@@ -513,8 +505,13 @@ class VerifyUserHandler(BaseHandler):
                     # user's current datasets.
                     current_session_token = self.current_user['session_token']
 
-                    # change the ownership for all of the datasets that the user
-                    # made with their current session_token
+                    # FIXME: change the ownership for all of the datasets that
+                    # the user made with their current session_token
+                    LOGGER.warning(
+                        'changing ownership of datasets made '
+                        'by anonymous user with session_token to '
+                        'their new user_id = %s' % current_session_token
+                    )
 
                     # generate a new session token matching the user_id
                     # when we login successfully
@@ -524,7 +521,8 @@ class VerifyUserHandler(BaseHandler):
                     )
                     self.save_flash_messages(
                         "Thanks for verifying your email address! "
-                        "Your account is now fully activated.",
+                        "Your account is fully activated and "
+                        "you're now logged in.",
                         "primary"
                     )
 
@@ -533,7 +531,7 @@ class VerifyUserHandler(BaseHandler):
 
                 else:
 
-                    new_session_token = yield self.new_session_token()
+                    yield self.new_session_token()
 
                     self.save_flash_messages(
                         "Sorry, there was a problem verifying "
@@ -545,7 +543,7 @@ class VerifyUserHandler(BaseHandler):
 
             else:
 
-                new_session_token = yield self.new_session_token()
+                yield self.new_session_token()
 
                 self.save_flash_messages(
                     "Sorry, there was a problem verifying "
@@ -558,7 +556,7 @@ class VerifyUserHandler(BaseHandler):
 
         except InvalidToken as e:
 
-            new_session_token = yield self.new_session_token()
+            yield self.new_session_token()
 
             self.save_flash_messages(
                 "Sorry, there was a problem verifying your account sign up. "
@@ -574,7 +572,7 @@ class VerifyUserHandler(BaseHandler):
 
         except Exception as e:
 
-            new_session_token = yield self.new_session_token()
+            yield self.new_session_token()
 
             LOGGER.exception(
                 'could not verify user sign up: %s' % email
@@ -602,10 +600,13 @@ class ForgotPassStep1Handler(BaseHandler):
 
         '''
 
+        if not self.current_user:
+            self.redirect('/users/forgot-password-step1')
+
         current_user = self.current_user
 
         # only proceed to password reset if the user is anonymous
-        if (current_user and current_user['user_id'] == 2):
+        if (current_user and current_user['user_role'] == 'anonymous'):
 
             # we'll render the verification form.
             self.render('passreset-step1.html',
@@ -640,6 +641,32 @@ class ForgotPassStep1Handler(BaseHandler):
         TODO: finish this
 
         '''
+
+        if not self.current_user:
+            self.redirect('/users/forgot-password-step1')
+
+        current_user = self.current_user
+
+        # only proceed to password reset if the user is anonymous
+        if (current_user and current_user['user_role'] == 'anonymous'):
+
+            # get the user's email
+            email_address = self.get_argument('email', default=None)
+
+            if not email_address or len(email_address.strip()) == 0:
+
+                self.save_flash_messages(
+                    "No email address was provided or we couldn't validate it. "
+                    "Please try again.",
+                    'warning'
+                )
+                self.redirect('/users/forgot-password-step1')
+
+            else:
+
+                email_address = xhtml_escape(email_address)
+
+
 
 
 

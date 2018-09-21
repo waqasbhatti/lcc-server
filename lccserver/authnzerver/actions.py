@@ -1604,6 +1604,250 @@ def send_signup_verification_email(payload,
 
 
 
+def send_forgotpass_verification_email(payload,
+                                       raiseonfail=False,
+                                       override_authdb_path=None):
+    '''This actually sends the verification email.
+
+    The payload must contain:
+
+    - the email_address
+    - the session_token
+
+    - the username, password, address, and port for an SMTP server to use
+      (these should be set in the site.json file from the frontend and the
+      frontend should pass these to us)
+
+    - a time-stamped Fernet verification token that is set to expire in 1 hour
+      in payload['fernet_verification_token'].
+
+    '''
+
+    for key in ('email_address',
+                'lccserver_baseurl',
+                'session_token',
+                'fernet_verification_token',
+                'smtp_sender',
+                'smtp_user',
+                'smtp_pass',
+                'smtp_server',
+                'smtp_port'):
+
+        if key not in payload:
+            return {
+                'success':False,
+                'user_id':None,
+                'email_address':None,
+                'forgotemail_sent_datetime':None,
+                'messages':([
+                    "Invalid verification email request."
+                ])
+            }
+
+    # look up the email address to see if it's actually in our database
+
+    # if it is, check if the user account is active, has had the email verified,
+    # and the last time we sent a forgot password email was at least 24 hours
+    # ago.
+
+    # if all of these items pass, then send the email with the provided
+    # verification token
+
+    # if any of these items fail, don't send the email. we'll tell the user that
+    # we've sent the email but also tell them that if we sent a forgot password
+    # email within 24 hours, we won't send another one. tell them if the email
+    # doesn't arrive, wait 24 hours (this is a bit user-hostile, but I guess
+    # it's a decent tradeoff to make).
+
+    # this checks if the database connection is live
+    currproc = mp.current_process()
+    engine = getattr(currproc, 'engine', None)
+
+    if override_authdb_path:
+        currproc.auth_db_path = override_authdb_path
+
+    if not engine:
+        currproc.engine, currproc.connection, currproc.table_meta = (
+            authdb.get_auth_db(
+                currproc.auth_db_path,
+                echo=raiseonfail
+            )
+        )
+
+    users = currproc.table_meta.tables['users']
+
+    # first, we'll verify the user was created successfully, their account is
+    # currently set to inactive and their role is 'locked'. then, we'll verify
+    # if the session token provided exists and get the IP address and the
+    # browser identifier out of it.
+    # look up the provided user
+    user_sel = select([
+        users.c.user_id,
+        users.c.email,
+        users.c.is_active,
+        users.c.user_role,
+        users.c.emailforgotpass_sent_datetime,
+    ]).select_from(users).where(users.c.email == payload['email_address'])
+    user_results = currproc.connection.execute(user_sel)
+    user_info = user_results.fetchone()
+    user_results.close()
+
+    if not user_info:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'forgotemail_sent_datetime':None,
+            'messages':([
+                "Invalid verification email request."
+            ])
+        }
+
+
+    # see if the user is not locked or inactive
+    if not (user_info['is_active'] and user_info['user_role'] != 'locked'):
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'forgotemail_sent_datetime':None,
+            'messages':([
+                "Invalid verification email request."
+            ])
+        }
+
+
+    # check the last time we sent a forgot password email to this user
+    if user_info['emailforgotpass_sent_datetime'] is not None:
+
+        check_elapsed = (
+            datetime.utcnow() - user_info['emailforgotpass_sent_datetime']
+        ) > timedelta(hours=24)
+
+        if check_elapsed:
+            send_email = True
+        else:
+            send_email = False
+
+    # if we've never sent a forgot-password email before, it's OK to send it
+    else:
+        send_email = True
+
+    if not send_email:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'forgotemail_sent_datetime':None,
+            'messages':([
+                "Invalid verification email request."
+            ])
+        }
+
+
+    # check the session
+    session_info = auth_session_exists(
+        {'session_token':payload['session_token']},
+        raiseonfail=raiseonfail,
+        override_authdb_path=override_authdb_path
+    )
+
+    if not session_info['success']:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Invalid verification email request."
+            ])
+        }
+
+
+    #
+    # finally! we'll process the email sending request
+    #
+
+    # get the IP address and browser ID from the session
+    ip_addr = session_info['session_info']['ip_address']
+    browser = session_info['session_info']['client_header']
+
+    # TODO: we'll use geoip to get the location of the person who initiated the
+    # request.
+
+    # generate the email message
+    msgtext = FORGOTPASS_VERIFICATION_EMAIL_TEMPLATE.format(
+        lccserver_baseurl=payload['lccserver_baseurl'],
+        verification_code=payload['fernet_verification_token'],
+        browser_identifier=browser.replace('_','.'),
+        ip_address=ip_addr,
+        user_email=payload['email_address'],
+    )
+    sender = 'LCC-Server admin <%s>' % payload['smtp_sender']
+    recipients = [user_info['email']]
+
+    # send the email
+    email_sent = send_email(
+        sender,
+        FORGOTPASS_VERIFICATION_EMAIL_SUBJECT,
+        msgtext,
+        recipients,
+        payload['smtp_server'],
+        payload['smtp_user'],
+        payload['smtp_pass'],
+        port=payload['smtp_port']
+    )
+
+    if email_sent:
+
+        emailforgotpass_sent_datetime = datetime.utcnow()
+
+        # finally, we'll update the users table with the actual
+        # verifyemail_sent_datetime if sending succeeded.
+        upd = users.update(
+        ).where(
+            users.c.user_id == session_info['user_id']
+        ).where(
+            users.c.is_active == True
+        ).where(
+            users.c.email == payload['email_address']
+        ).values({
+            'emailforgotpass_sent_datetime': emailforgotpass_sent_datetime,
+        })
+        result = currproc.connection.execute(upd)
+        result.close()
+
+        return {
+            'success':True,
+            'user_id':user_info['user_id'],
+            'email_address':user_info['email'],
+            'forgotemail_sent_datetime':emailforgotpass_sent_datetime,
+            'messages':([
+                "Email verification request sent successfully to %s"
+                % recipients
+            ])
+        }
+
+    else:
+
+        return {
+            'success':False,
+            'user_id':None,
+            'email_address':None,
+            'verifyemail_sent_datetime':None,
+            'messages':([
+                "Could not send email to %s for the user verification request."
+                % recipients
+            ])
+        }
+
+
+
+
 def verify_user_email_address(payload,
                               raiseonfail=False,
                               override_authdb_path=None):
