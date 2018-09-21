@@ -931,7 +931,7 @@ def sqlite_sesame_fulltext_search(
 
             # if we're supposed to update the database after the query
             # completes, do that here
-            nmatches = sum([fulltext_search[x]['nmatches']
+            nmatches = sum([cone_search[x]['nmatches']
                             for x in fulltext_search['databases']])
 
             LOGINFO('matching objects found in cone '
