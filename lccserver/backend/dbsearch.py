@@ -966,7 +966,7 @@ def sqlite_sesame_fulltext_search(
                         incoming_userid=incoming_userid,
                         incoming_role=incoming_role
                     )
-                    db, cur = dbinfo['connection'], dbinfo['cur']
+                    db, cur = dbinfo['connection'], dbinfo['cursor']
 
                     cur.execute('begin')
 
