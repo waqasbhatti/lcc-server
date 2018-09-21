@@ -904,7 +904,7 @@ def sqlite_sesame_fulltext_search(
         conditions=conditions,
         lcclist=lcclist,
         raiseonfail=raiseonfail,
-        incoming_user_id=incoming_userid,
+        incoming_userid=incoming_userid,
         incoming_role=incoming_role,
         fail_if_conditions_invalid=fail_if_conditions_invalid,
         censor_searchargs=censor_searchargs
@@ -932,7 +932,7 @@ def sqlite_sesame_fulltext_search(
                 conditions=conditions,
                 lcclist=lcclist,
                 raiseonfail=raiseonfail,
-                incoming_user_id=incoming_userid,
+                incoming_userid=incoming_userid,
                 incoming_role=incoming_role,
                 fail_if_conditions_invalid=fail_if_conditions_invalid,
                 censor_searchargs=censor_searchargs
