@@ -544,8 +544,7 @@ class BackgroundQueryMixin(object):
                          dataset_sharedwith=None,
                          results_sortspec=None,
                          results_limitspec=None,
-                         results_samplespec=None,
-                         attempt_sesame_resolve=False):
+                         results_samplespec=None):
 
         '''
         This runs the background query.
@@ -593,8 +592,6 @@ class BackgroundQueryMixin(object):
         query_kwargs['incoming_role'] = incoming_role
 
         query_type = query_spec['name']
-        if query_type == 'ftsquery' and attempt_sesame_resolve:
-            query_kwargs['sesame_resolve'] = True
 
         # this is the query Future
         self.query_result_future = self.executor.submit(
@@ -861,22 +858,6 @@ class BackgroundQueryMixin(object):
                             "available LC collections</a>."
                         )
 
-                    # if the query is a full-text-search query and
-                    # attempt_sesame_resolve is false, tell the user to try it
-                    elif (query_type == 'ftsquery' and
-                          not attempt_sesame_resolve):
-
-                        message = (
-                            "Sorry, your query failed. "
-                            "Local full-text search "
-                            "did not find any matching objects "
-                            "in any searched LC collection. "
-                            "If you're trying to search for an object name, "
-                            "try enabling the <strong>try resolving "
-                            "object names with SIMBAD SESAME</strong> option "
-                            "and running this query again."
-                        )
-
                     else:
                         message = (
                             "Sorry, your query failed. "
@@ -915,66 +896,26 @@ class BackgroundQueryMixin(object):
                         self.setid
                     )
 
-                    retdict = {
-                        "message":message,
-                        "status":"failed",
-                        "result":{
-                            "setid":self.setid,
-                            "actual_nrows":0
-                        },
-                        "time":'%sZ' % datetime.utcnow().isoformat()
-                    }
-                    self.write(retdict)
-                    self.finish()
-
-                # if the query is a full-text-search query and
-                # attempt_simbad_resolve is false, tell the user to try it
-                elif query_type == 'ftsquery' and not attempt_sesame_resolve:
-
-                    message = (
-                        "Sorry, your query failed. "
-                        "Local full-text search "
-                        "did not find any matching objects "
-                        "in any searched LC collection. "
-                        "If you're trying to search for an object name, "
-                        "try enabling the <strong>try resolving "
-                        "object names with SIMBAD SESAME</strong> option "
-                        "and running this query again."
-                    )
-
-                    retdict = {
-                        "message":message,
-                        "status":"failed",
-                        "result":{
-                            "setid":self.setid,
-                            "actual_nrows":0,
-                        },
-                        "time":'%sZ' % datetime.utcnow().isoformat()
-                    }
-                    self.write(retdict)
-                    self.finish()
-
                 # if we didn't find anything, return immediately
                 else:
 
                     message = (
-                        "Query <code>%s</code> failed. "
+                        "Sorry, your query failed. "
                         "No matching objects were found in any "
-                        "searched LC collection." %
-                        self.setid
+                        "searched LC collection."
                     )
 
-                    retdict = {
-                        "status":"failed",
-                        "result":{
-                            "setid":self.setid,
-                            "actual_nrows":0
-                        },
-                        "message":message,
-                        "time":'%sZ' % datetime.utcnow().isoformat()
-                    }
-                    self.write(retdict)
-                    self.finish()
+                retdict = {
+                    "status":"failed",
+                    "result":{
+                        "setid":self.setid,
+                        "actual_nrows":0
+                    },
+                    "message":message,
+                    "time":'%sZ' % datetime.utcnow().isoformat()
+                }
+                self.write(retdict)
+                self.finish()
 
 
         #
@@ -1701,14 +1642,25 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             # make sure the length matches what we want
             # this should handle attacks like '-' to get our entire DB
-            if len(ftstext) < 8:
-                raise Exception("query string is too short: %s < 8" %
+            if len(ftstext) < 4:
+                raise Exception("query string is too short: %s < 4" %
                                 len(ftstext))
             elif len(ftstext) > 1024:
                 raise Exception("query string is too long: %s > 1024" %
                                 len(ftstext))
 
             # get the other arguments for the server
+
+            # OPTIONAL
+            sesame = self.get_body_argument('sesame', default=None)
+            if sesame and len(sesame.strip()) > 0:
+                sesame = xhtml_escape(sesame.strip())
+                if sesame.lower() == 'true':
+                    sesame = True
+                else:
+                    sesame = False
+            else:
+                sesame = False
 
             #
             # OPTIONAL: columns
@@ -1767,7 +1719,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
                 "message":(
                     "ftsearch: one or more of the "
                     "required args are missing or invalid. "
-                    "The query string should be at least 8 characters "
+                    "The query string should be at least 4 characters "
                     "and no more than 1024 characters long. "
                     "Try using fts_indexed_column:\"query\" for "
                     "short descriptors "
@@ -1782,6 +1734,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
         LOGGER.info('********* PARSED ARGS *********')
         LOGGER.info('ftstext = %s' % ftstext)
+        LOGGER.info('sesame = %s' % sesame)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
         LOGGER.info('conditions = %s' % conditions)
@@ -1795,10 +1748,15 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
          results_limitspec,
          results_samplespec) = self.get_userinfo_datasetvis_resultspecs()
 
+        if sesame:
+            search_func = dbsearch.sqlite_sesame_fulltext_search
+        else:
+            search_func = dbsearch.sqlite_fulltext_search
+
         # send the query to the background worker
         yield self.background_query(
             # query func
-            dbsearch.sqlite_fulltext_search,
+            search_func,
             # query args
             (self.basedir,
              ftstext),
@@ -1809,6 +1767,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             # query spec
             {"name":"ftsquery",
              "args":{"ftstext":ftstext,
+                     "sesame":sesame,
                      "conditions":conditions,
                      "results_sortspec":results_sortspec,
                      "results_limitspec":results_limitspec,

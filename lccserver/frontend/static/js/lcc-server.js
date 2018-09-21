@@ -2435,6 +2435,9 @@ var lcc_search = {
             proceed = true;
         }
 
+        // see if the user wants to resolve object names with SESAME
+        var sesame_check = $('#ftsquery-sesame-check').prop('checked');
+
         // parse the extra filters
         var [filters, filter_cols] = lcc_ui.parse_column_filters('ftsquery');
 
@@ -2486,6 +2489,7 @@ var lcc_search = {
         var posturl = '/api/ftsquery';
         var postparams = {
             ftstext: ftstext,
+            sesame: sesame_check,
             _xsrf:_xsrf,
             collections: collections,
             columns: columns,

@@ -767,9 +767,11 @@ def parse_sesame_response(
                 simbad_other_ids = [
                     x.replace('%I','').strip() for x in simbad_other_ids
                 ]
-                simbad_other_ids = '; '.join(simbad_other_ids)
+                simbad_other_ids = (
+                    '; '.join(simbad_other_ids) + '; %s' % object_name
+                )
             else:
-                simbad_other_ids = None
+                simbad_other_ids = object_name
 
             simbad_object_type = [x.strip() for x
                                   in lines if x.startswith('%C.0')]
@@ -790,15 +792,12 @@ def parse_sesame_response(
                 simbad_star_class = None
 
             if simbad_object_type and simbad_star_class:
-                simbad_best_objtype = '%s; %s; %s' % (simbad_object_type,
-                                                      simbad_star_class,
-                                                      object_name)
-            elif simbad_object_type:
                 simbad_best_objtype = '%s; %s' % (simbad_object_type,
-                                                  object_name)
+                                                  simbad_star_class)
+            elif simbad_object_type:
+                simbad_best_objtype = simbad_object_type,
             elif simbad_star_class:
-                simbad_best_objtype = '%s; %s' % (simbad_star_class,
-                                                  object_name)
+                simbad_best_objtype = simbad_star_class,
             else:
                 simbad_best_objtype = None
 
@@ -822,11 +821,6 @@ def sesame_query(
         raiseonfail=False
 ):
     '''This talks to SIMBAD to resolve an object name to its coords.
-
-    The use case is to try to complete FTS queries that don't return
-    anything. When this happens, we'll call this function and turn the query
-    into a cone search query with the same columns and filter args as the
-    original query.
 
     '''
 
@@ -886,6 +880,11 @@ def sqlite_sesame_fulltext_search(
 ):
     '''This runs a full-text search query followed by a SIMBAD lookup and
     cone-search if that fails.
+
+    The use case is to try to complete FTS queries that don't return anything
+    locally, so we do a SESAME look-up, then a cone-search at the coordinates
+    returned.
+
     '''
 
     fulltext_search = sqlite_fulltext_search(
@@ -941,7 +940,7 @@ def sqlite_sesame_fulltext_search(
                     'search after SIMBAD lookup: %s' %
                     nmatches)
 
-            if nmatches > 0 and updatedb_from_sesame:
+            if nmatches > 0:
 
                 conesearch_matched_collections = [
                     x for x in cone_search['databases'] if
@@ -951,57 +950,60 @@ def sqlite_sesame_fulltext_search(
                 LOGINFO('matched objects found in collections: %s' %
                         conesearch_matched_collections)
 
-                query = (
-                    "update object_catalog set "
-                    "simbad_best_mainid = ?, "
-                    "simbad_best_allids = ?, "
-                    "simbad_best_objtype = ? where "
-                    "objectid = ?"
-                )
+                if updatedb_from_sesame:
 
-                # get these collections and update them
-                for coll in conesearch_matched_collections:
-
-                    dbinfo = sqlite_get_collections(
-                        basedir,
-                        lcclist=[coll],
-                        return_connection=True,
-                        incoming_userid=incoming_userid,
-                        incoming_role=incoming_role
+                    query = (
+                        "update object_catalog set "
+                        "simbad_best_mainid = ?, "
+                        "simbad_best_allids = ?, "
+                        "simbad_best_objtype = ? where "
+                        "objectid = ?"
                     )
-                    db, cur = dbinfo['connection'], dbinfo['cursor']
 
-                    cur.execute('begin')
+                    # get these collections and update them
+                    for coll in conesearch_matched_collections:
 
-                    # now, for each matched object, look up by db_oid and update
-                    # its SIMBAD info
-                    for row in cone_search[coll]['result']:
-
-                        oid = row['db_oid']
-                        matchdist = row['dist_arcsec']
-                        params = (sesame_lookup['simbad_best_mainid'],
-                                  sesame_lookup['simbad_best_allids'],
-                                  sesame_lookup['simbad_best_objtype'],
-                                  oid)
-                        cur.execute(query, params)
-
-                        LOGINFO(
-                            "updated objectid = %s in "
-                            "collection = %s with match_dist = %.3f arcsec, "
-                            "with SIMBAD attrs:\n"
-                            "simbad_best_mainid = %s, "
-                            "simbad_best_allids = %s, "
-                            "simbad_best_objtype = %s"
-                            % (oid,
-                               coll,
-                               matchdist,
-                               sesame_lookup['simbad_best_mainid'],
-                               sesame_lookup['simbad_best_allids'],
-                               sesame_lookup['simbad_best_objtype'])
+                        dbinfo = sqlite_get_collections(
+                            basedir,
+                            lcclist=[coll],
+                            return_connection=True,
+                            incoming_userid=incoming_userid,
+                            incoming_role=incoming_role
                         )
+                        db, cur = dbinfo['connection'], dbinfo['cursor']
 
-                    db.commit()
-                    db.close()
+                        cur.execute('begin')
+
+                        # now, for each matched object, look up by db_oid and
+                        # update its SIMBAD info
+                        for row in cone_search[coll]['result']:
+
+                            oid = row['db_oid']
+                            matchdist = row['dist_arcsec']
+                            params = (sesame_lookup['simbad_best_mainid'],
+                                      sesame_lookup['simbad_best_allids'],
+                                      sesame_lookup['simbad_best_objtype'],
+                                      oid)
+                            cur.execute(query, params)
+
+                            LOGINFO(
+                                "updated objectid = %s in "
+                                "collection = %s with "
+                                "match_dist = %.3f arcsec, "
+                                "with SIMBAD attrs:\n"
+                                "simbad_best_mainid = %s, "
+                                "simbad_best_allids = %s, "
+                                "simbad_best_objtype = %s"
+                                % (oid,
+                                   coll,
+                                   matchdist,
+                                   sesame_lookup['simbad_best_mainid'],
+                                   sesame_lookup['simbad_best_allids'],
+                                   sesame_lookup['simbad_best_objtype'])
+                            )
+
+                        db.commit()
+                        db.close()
 
                 # at the end, return the cone_search search results dict
                 return cone_search
