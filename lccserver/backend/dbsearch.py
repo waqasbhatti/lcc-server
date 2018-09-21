@@ -972,7 +972,7 @@ def sqlite_sesame_fulltext_search(
 
                     # now, for each matched object, look up by db_oid and update
                     # its SIMBAD info
-                    for row in coll['result']:
+                    for row in cone_search[coll]['result']:
 
                         oid = row['db_oid']
                         matchdist = row['dist_arcsec']
