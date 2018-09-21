@@ -795,9 +795,9 @@ def parse_sesame_response(
                 simbad_best_objtype = '%s; %s' % (simbad_object_type,
                                                   simbad_star_class)
             elif simbad_object_type:
-                simbad_best_objtype = simbad_object_type,
+                simbad_best_objtype = simbad_object_type
             elif simbad_star_class:
-                simbad_best_objtype = simbad_star_class,
+                simbad_best_objtype = simbad_star_class
             else:
                 simbad_best_objtype = None
 
