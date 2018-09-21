@@ -433,7 +433,7 @@ class DatasetHandler(BaseHandler):
                         slug = ''
 
                     if 'X-Real-Host' in self.request:
-                        host = self.request['X-Real-Host']
+                        host = self.request.headers['X-Real-Host']
                     else:
                         host = self.request.host
 
@@ -587,7 +587,7 @@ class DatasetHandler(BaseHandler):
                         slug = ''
 
                     if 'X-Real-Host' in self.request:
-                        host = self.request['X-Real-Host']
+                        host = self.request.headers['X-Real-Host']
                     else:
                         host = self.request.host
 
