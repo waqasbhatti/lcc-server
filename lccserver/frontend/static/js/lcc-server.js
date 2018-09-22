@@ -802,10 +802,10 @@ var lcc_ui = {
 
             modal.find('#modal-objectid').html(objectid);
             modal.find('#modal-collectionid').html(collection);
-            modal.find('#objectinfo-modal-title').append(
-                ' <a rel="nofollow noopener noreferer" target="_blank" ' +
+            modal.find('#modal-permalink').html(
+                '<a rel="nofollow noopener noreferer" target="_blank" ' +
                     'href="/obj/' + collection +
-                    '/' + objectid + '">[permanent link]</a>'
+                    '/' + objectid + '">[object page]</a>'
             );
 
             if (lcfname.indexOf('unavailable') != -1 ||
