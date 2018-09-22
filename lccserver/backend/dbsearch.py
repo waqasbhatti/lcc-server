@@ -815,8 +815,8 @@ def parse_sesame_response(
 def sesame_query(
         object_name,
         mirrors=(
+            'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
             'http://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
-            'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame'
         ),
         raiseonfail=False
 ):
@@ -919,11 +919,37 @@ def sqlite_sesame_fulltext_search(
 
         if sesame_lookup is not None:
 
+            # special handling if the provided object type is OpC -> "open
+            # cluster" or the object type doesn't contain '*'. we'll expand the
+            # search radius to 15 arcminutes so people can look at LCs we have
+            # near the cluster center or object center. in this case, we will
+            # update the object entries in the DB by appending to their simbad_*
+            # columns not replacing them entirely like we do for small radius
+            # queries. this way, we'll be able to return searches for this term
+            # much quicker from the local DB.
+            if (sesame_lookup['simbad_best_objtype'] is not None and
+                ( ('OpC' in sesame_lookup['simbad_best_objtype']) or
+                  ('*' not in sesame_lookup['simbad_best_objtype']) )):
+
+                search_radius = 15.0
+                update_mode = 'append'
+                LOGINFO('running star cluster or non-stellar object '
+                        'query using simbad_best_objtype: %s '
+                        'for object_name: %s' %
+                        (sesame_lookup['simbad_best_objtype'],
+                         ftsquerystr))
+
+            else:
+
+                search_radius = 0.08
+                update_mode = 'replace'
+
+            # do the cone search
             cone_search = sqlite_kdtree_conesearch(
                 basedir,
                 sesame_lookup['ra'],
                 sesame_lookup['decl'],
-                0.08,  # 5 arcsec
+                search_radius,
                 getcolumns=getcolumns,
                 conditions=conditions,
                 lcclist=lcclist,
@@ -933,8 +959,6 @@ def sqlite_sesame_fulltext_search(
                 fail_if_conditions_invalid=fail_if_conditions_invalid,
                 censor_searchargs=censor_searchargs
             )
-            cone_search['args'] = fulltext_search['args']
-            cone_search['search'] = 'sqlite_fulltext_search'
 
             # if we're supposed to update the database after the query
             # completes, do that here
@@ -957,13 +981,28 @@ def sqlite_sesame_fulltext_search(
 
                 if updatedb_from_sesame:
 
-                    query = (
-                        "update object_catalog set "
-                        "simbad_best_mainid = ?, "
-                        "simbad_best_allids = ?, "
-                        "simbad_best_objtype = ? where "
-                        "objectid = ?"
-                    )
+                    if update_mode == 'replace':
+
+                        query = (
+                            "update object_catalog set "
+                            "simbad_best_mainid = ?, "
+                            "simbad_best_allids = ?, "
+                            "simbad_best_objtype = ? where "
+                            "objectid = ?"
+                        )
+
+                    else:
+
+                        query = (
+                            "update object_catalog set "
+                            "simbad_best_mainid = ? "
+                            "|| '; ' || coalesce(simbad_best_mainid,''), "
+                            "simbad_best_allids = ?, "
+                            "|| '; ' || coalesce(simbad_best_allids,''), "
+                            "simbad_best_objtype = ? "
+                            "|| '; ' || coalesce(simbad_best_objtype,'') "
+                            "where objectid = ?"
+                        )
 
                     # get these collections and update them
                     for coll in conesearch_matched_collections:

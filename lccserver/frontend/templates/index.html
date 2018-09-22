@@ -700,18 +700,21 @@
                     and external object names (e.g. from SIMBAD if they're
                     available). Queries use the
                     <a href="https://www.sqlite.org/fts5.html#full_text_query_syntax">
-                      SQLite FTS5 query syntax</a>. For an exact match
-                    against an object name, use <code>&quot;object name&quot;</code>.
-                    Matching text may be found in any of the
-                    FTS-indexed columns below. They will always be
-                    returned with query results. </p>
+                      SQLite FTS5 query syntax</a>. Matching text may be found
+                    in any of the FTS-indexed columns below. They will always be
+                    returned with query results.</p>
 
                   <p><code><span id="ftsquery-column-list"></span></code></p>
 
-                  <p>By default, results are returned in order of
-                    <a href="https://en.wikipedia.org/wiki/Okapi_BM25">relevance</a> as
-                    <a href="https://sqlite.org/fts5.html#the_bm25_function">implemented by SQLite</a>.
-                  </p>
+                  <p>For an exact match against an object name, use
+                    <code>&quot;object name&quot;</code>.
+                    To look up object names using the SIMBAD SESAME resolver,
+                    check the <span class="text-info" >Look up object names using
+                    SESAME</span> box. In this mode, you can also look up
+                    clusters and nebulae, etc. using their common names
+                    (Messier, NGC, etc.). The LCC-Server will then try to find
+                    all matching objects within a 15 arcminute radius centered on
+                    the reported SIMBAD coordinates.</p>
 
                   <dl>
                     <dt>Examples:</dt>
