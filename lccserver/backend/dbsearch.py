@@ -931,7 +931,7 @@ def sqlite_sesame_fulltext_search(
                 ( ('OpC' in sesame_lookup['simbad_best_objtype']) or
                   ('*' not in sesame_lookup['simbad_best_objtype']) )):
 
-                search_radius = 15.0
+                search_radius = 60.0
                 update_mode = 'append'
                 LOGINFO('running star cluster or non-stellar object '
                         'query using simbad_best_objtype: %s '
@@ -997,7 +997,7 @@ def sqlite_sesame_fulltext_search(
                             "update object_catalog set "
                             "simbad_best_mainid = ? "
                             "|| '; ' || coalesce(simbad_best_mainid,''), "
-                            "simbad_best_allids = ?, "
+                            "simbad_best_allids = ? "
                             "|| '; ' || coalesce(simbad_best_allids,''), "
                             "simbad_best_objtype = ? "
                             "|| '; ' || coalesce(simbad_best_objtype,'') "
