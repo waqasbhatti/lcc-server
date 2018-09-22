@@ -1642,8 +1642,8 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             # make sure the length matches what we want
             # this should handle attacks like '-' to get our entire DB
-            if len(ftstext) < 4:
-                raise Exception("query string is too short: %s < 4" %
+            if len(ftstext) < 3:
+                raise Exception("query string is too short: %s < 3" %
                                 len(ftstext))
             elif len(ftstext) > 1024:
                 raise Exception("query string is too long: %s > 1024" %
@@ -1719,8 +1719,8 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
                 "message":(
                     "ftsearch: one or more of the "
                     "required args are missing or invalid. "
-                    "The query string should be at least 4 characters "
-                    "and no more than 1024 characters long. "
+                    "The query string should be between 3 "
+                    "and 1024 characters long. "
                     "Try using fts_indexed_column:\"query\" for "
                     "short descriptors "
                     "(e.g. color_classes:\"RRab\" instead of just \"RRab\")."
