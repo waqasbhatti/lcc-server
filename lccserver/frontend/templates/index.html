@@ -238,7 +238,8 @@
                                  name="conesearch-query" autocomplete="on"
                                  type="search"
                                  placeholder="[right ascension] [declination] [radius (arcmin)]"
-                                 aria-label="Search">
+                                 aria-label="search for objects near a right ascension and declination given a radius in arcminutes"
+                                 required>
                           <div class="input-group-append" >
                             <button class="btn btn-primary"
                                     type="submit" id="conesearch-submit">Search</button>
@@ -525,7 +526,7 @@
                                  name="ftsquery-query" autocomplete="on"
                                  type="search"
                                  placeholder="object name, 2MASS ID, description, tag, etc."
-                                 aria-label="Search">
+                                 aria-label="search for object names, 2MASS ID, description, tags, etc." required>
                           <div class="input-group-append" >
                             <button class="btn btn-primary"
                                     type="submit" id="ftsquery-submit">Search</button>
@@ -1346,7 +1347,8 @@
                              name="datasetsearch" autocomplete="on"
                              type="search" maxlength="1024"
                              placeholder="queried collections, query type or arguments, dataset ID, name, description, citation"
-                             aria-label="queried collections, query type or arguments, dataset ID, name, description, citation">
+                             aria-label="queried collections, query type or arguments, dataset ID, name, description, citation"
+                             required>
                       <div class="input-group-append" >
                         <button class="btn btn-primary"
                                 type="submit" id="dataset-search-submit">Search for datasets</button>

@@ -2057,7 +2057,7 @@ var lcc_search = {
                         alertmsg = 'Query <code>' +
                             msgdata.result.setid +
                             '</code> is complete, but there are &gt; ' +
-                            '20,000 LCs to collect so no ZIP file was ' +
+                            '5,000 LCs to collect so no ZIP file was ' +
                             'generated. Try refining your query, or see ' +
                             '<a target="_blank" ' +
                             'rel="nofollow noreferer noopener" href="' +
