@@ -228,7 +228,12 @@ var lcc_ui = {
         $('#columnsearch-form').on('submit', function (event) {
 
             event.preventDefault();
-            lcc_ui.debounce(lcc_search.do_columnsearch(), 250);
+
+            // check the size of the filter bucket
+            var filterbucket_size = $('#columnsearch-filterbucket').length;
+            if (filterbucket_size > 0) {
+                lcc_ui.debounce(lcc_search.do_columnsearch(), 250);
+            }
 
         });
 
@@ -415,6 +420,9 @@ var lcc_ui = {
 
         // bind the lcc-filtertarget so an Enter clicks the add-filter button
         $('.lcc-filtertarget').on('keyup', function (evt) {
+
+            evt.preventDefault();
+            evt.stopImmediatePropagation();
 
             if (evt.key == 'Enter') {
 
@@ -2264,6 +2272,9 @@ var lcc_search = {
         // get the value of the _xsrf token
         var _xsrf = $('#xmatch-form > input[type="hidden"]').val();
 
+        // get the value of the email_when_done checkbox
+        var emailwhendone = $('#xmatch-emailwhendone-check').prop('checked');
+
         // put together the request params
         var posturl = '/api/xmatch';
         var postparams = {
@@ -2276,7 +2287,8 @@ var lcc_search = {
             visibility: visibility,
             sortspec: sortspec,
             samplespec: samplespec,
-            limitspec: limitspec
+            limitspec: limitspec,
+            emailwhendone: emailwhendone
         };
 
         if (proceed_step1 && proceed_step2) {
@@ -2389,6 +2401,9 @@ var lcc_search = {
             limitspec = null;
         }
 
+        // get the value of the email_when_done checkbox
+        var emailwhendone = $('#columnsearch-emailwhendone-check').prop('checked');
+
         // get the value of the _xsrf token
         var _xsrf = $('#columnsearch-form > input[type="hidden"]').val();
 
@@ -2401,7 +2416,8 @@ var lcc_search = {
             visibility: visibility,
             sortspec: sortspec,
             samplespec: samplespec,
-            limitspec: limitspec
+            limitspec: limitspec,
+            emailwhendone: emailwhendone
         };
 
         if (proceed) {
@@ -2511,6 +2527,9 @@ var lcc_search = {
         // get the value of the _xsrf token
         var _xsrf = $('#ftsquery-form > input[type="hidden"]').val();
 
+        // get the value of the email_when_done checkbox
+        var emailwhendone = $('#ftsquery-emailwhendone-check').prop('checked');
+
         var posturl = '/api/ftsquery';
         var postparams = {
             ftstext: ftstext,
@@ -2522,7 +2541,8 @@ var lcc_search = {
             visibility: visibility,
             sortspec: sortspec,
             samplespec: samplespec,
-            limitspec: limitspec
+            limitspec: limitspec,
+            emailwhendone: emailwhendone
         };
 
         if (proceed) {
@@ -2628,6 +2648,9 @@ var lcc_search = {
         // get the value of the _xsrf token
         var _xsrf = $('#conesearch-form > input[type="hidden"]').val();
 
+        // get the value of the email_when_done checkbox
+        var emailwhendone = $('#conesearch-emailwhendone-check').prop('checked');
+
         var posturl = '/api/conesearch';
         var postparams = {
             _xsrf: _xsrf,
@@ -2638,7 +2661,8 @@ var lcc_search = {
             visibility: visibility,
             sortspec: sortspec,
             samplespec: samplespec,
-            limitspec: limitspec
+            limitspec: limitspec,
+            emailwhendone: emailwhendone
         };
 
         if (proceed) {

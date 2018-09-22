@@ -120,6 +120,22 @@ COORD_HMSMULTI_REGEX = re.compile(
     '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$'
 )
 
+DATASET_READY_EMAIL_TEMPLATE = '''\
+Hello,
+
+This is an automated message from the LCC-Server at: {lccserver_baseurl}.
+
+The result dataset generated from query {setid} is now ready.
+
+Matched objects: {set_nobjects}
+Dataset URL: {set_url}
+Dataset CSV: {set_csv}
+
+Thanks,
+LCC-Server admins
+{lccserver_baseurl}
+'''
+
 
 
 #############################
@@ -544,7 +560,8 @@ class BackgroundQueryMixin(object):
                          dataset_sharedwith=None,
                          results_sortspec=None,
                          results_limitspec=None,
-                         results_samplespec=None):
+                         results_samplespec=None,
+                         email_when_done=False):
 
         '''
         This runs the background query.
@@ -655,9 +672,9 @@ class BackgroundQueryMixin(object):
                     )
 
                     # only collect the LCs into a pickle if the user requested
-                    # less than 20000 light curves. generating bigger ones is
+                    # less than 5000 light curves. generating bigger ones is
                     # something we'll handle later
-                    if ds_nrows > 20000:
+                    if ds_nrows > 5000:
 
                         dataset_url = "%s://%s/set/%s" % (
                             self.request.protocol,
@@ -668,7 +685,7 @@ class BackgroundQueryMixin(object):
                         retdict = {
                             "message":(
                                 "Dataset pickle generation complete. "
-                                "There are more than 20,000 light curves "
+                                "There are more than 5,000 light curves "
                                 "to collect so we won't generate a ZIP file. "
                                 "See %s for dataset object lists and a "
                                 "CSV when the query completes."
@@ -682,8 +699,32 @@ class BackgroundQueryMixin(object):
                         }
                         retdict = '%s\n' % json.dumps(retdict)
                         self.write(retdict)
-
                         yield self.flush()
+
+                        if email_when_done:
+
+                            template_items = {
+                                'lccserver_baseurl':'%s://%s' % (
+                                    self.request.protocol,
+                                    self.req_hostname
+                                ),
+                                'setid':dspkl_setid,
+                                'set_nobjects':ds_nrows,
+                                'set_url':dataset_url,
+                                'set_csv':'%s://%s/d/%s.csv' % (
+                                    self.request.protocol,
+                                    self.req_hostname,
+                                    dspkl_setid
+                                ),
+                            }
+
+                            yield self.email_current_user(
+                                '[LCC-Server] Dataset %s is now ready' %
+                                dspkl_setid,
+                                DATASET_READY_EMAIL_TEMPLATE,
+                                template_items,
+                            )
+
                         raise tornado.web.Finish()
 
                     #
@@ -785,6 +826,30 @@ class BackgroundQueryMixin(object):
                         self.write(retdict)
                         yield self.flush()
 
+                        if email_when_done:
+
+                            template_items = {
+                                'lccserver_baseurl':'%s://%s' % (
+                                    self.request.protocol,
+                                    self.req_hostname
+                                ),
+                                'setid':dspkl_setid,
+                                'set_nobjects':setdict['actual_nrows'],
+                                'set_url':dataset_url,
+                                'set_csv':'%s://%s/d/%s.csv' % (
+                                    self.request.protocol,
+                                    self.req_hostname,
+                                    dspkl_setid
+                                ),
+                            }
+
+                            yield self.email_current_user(
+                                '[LCC-Server] Dataset %s is now ready' %
+                                dspkl_setid,
+                                DATASET_READY_EMAIL_TEMPLATE,
+                                template_items,
+                            )
+
                         self.finish()
 
 
@@ -836,6 +901,30 @@ class BackgroundQueryMixin(object):
 
                         LOGGER.info('background LC zip for setid: %s finished' %
                                     self.setid)
+
+                        if email_when_done:
+
+                            template_items = {
+                                'lccserver_baseurl':'%s://%s' % (
+                                    self.request.protocol,
+                                    self.req_hostname
+                                ),
+                                'setid':dspkl_setid,
+                                'set_nobjects':setdict['actual_nrows'],
+                                'set_url':dataset_url,
+                                'set_csv':'%s://%s/d/%s.csv' % (
+                                    self.request.protocol,
+                                    self.req_hostname,
+                                    dspkl_setid
+                                ),
+                            }
+
+                            yield self.email_current_user(
+                                '[LCC-Server] Dataset %s is now ready' %
+                                dspkl_setid,
+                                DATASET_READY_EMAIL_TEMPLATE,
+                                template_items,
+                            )
 
                         #
                         # this is the end
@@ -981,12 +1070,12 @@ class BackgroundQueryMixin(object):
                 )
 
                 # only collect the LCs into a pickle if the user requested
-                # less than 20000 light curves. generating bigger ones is
+                # less than 5000 light curves. generating bigger ones is
                 # something we'll handle later
-                if nrows > 20000:
+                if nrows > 5000:
 
                     LOGGER.warning(
-                        '> 20k LCs requested for zipping in the '
+                        '> 5k LCs requested for zipping in the '
                         'background, will not do so, forcing set: %s to '
                         '"complete" status' % dspkl_setid
                     )
@@ -1017,6 +1106,30 @@ class BackgroundQueryMixin(object):
                         incoming_userid=incoming_userid,
                         incoming_role=incoming_role,
                     )
+
+                    if email_when_done:
+
+                        template_items = {
+                            'lccserver_baseurl':'%s://%s' % (
+                                self.request.protocol,
+                                self.req_hostname
+                            ),
+                            'setid':dspkl_setid,
+                            'set_nobjects':setdict['actual_nrows'],
+                            'set_url':dataset_url,
+                            'set_csv':'%s://%s/d/%s.csv' % (
+                                self.request.protocol,
+                                self.req_hostname,
+                                dspkl_setid
+                            ),
+                        }
+
+                        yield self.email_current_user(
+                            '[LCC-Server] Dataset %s is now ready' %
+                            dspkl_setid,
+                            DATASET_READY_EMAIL_TEMPLATE,
+                            template_items,
+                        )
 
                     LOGGER.warning('background LC zip for '
                                    'background query: %s completed OK' %
@@ -1054,6 +1167,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
                    uselcdir,
                    signer,
                    fernet,
+                   siteinfo,
                    authnzerver,
                    session_expiry,
                    fernetkey):
@@ -1071,6 +1185,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
@@ -1187,6 +1302,21 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             else:
                 lcclist = None
 
+
+            #
+            # OPTIONAL: email_when_done
+            #
+            email_when_done = self.get_body_argument('emailwhendone',
+                                                     default=None)
+            if email_when_done is not None and len(email_when_done.strip()) > 0:
+                email_when_done = xhtml_escape(email_when_done.strip())
+                if email_when_done == 'true':
+                    email_when_done = True
+                else:
+                    email_when_done = False
+            else:
+                email_when_done = False
+
             #
             # now we've collected all the parameters for
             # sqlite_column_search
@@ -1215,6 +1345,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
         LOGGER.info('conditions = %s' % conditions)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
+        LOGGER.info('email_when_done = %s' % email_when_done)
 
         # get user info, dataset disposition, and result sort/sample/limit specs
         (incoming_userid,
@@ -1255,7 +1386,8 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
-            results_samplespec=results_samplespec
+            results_samplespec=results_samplespec,
+            email_when_done=email_when_done
         )
 
 
@@ -1279,6 +1411,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
                    uselcdir,
                    signer,
                    fernet,
+                   siteinfo,
                    authnzerver,
                    session_expiry,
                    fernetkey):
@@ -1296,6 +1429,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
@@ -1539,6 +1673,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
                    uselcdir,
                    signer,
                    fernet,
+                   siteinfo,
                    authnzerver,
                    session_expiry,
                    fernetkey):
@@ -1556,6 +1691,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
@@ -1808,6 +1944,7 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
                    uselcdir,
                    signer,
                    fernet,
+                   siteinfo,
                    authnzerver,
                    session_expiry,
                    fernetkey):
@@ -1825,6 +1962,7 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
         self.uselcdir = uselcdir
         self.signer = signer
         self.fernet = fernet
+        self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey

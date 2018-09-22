@@ -597,13 +597,6 @@ def sqlite_new_dataset(basedir,
 
 
     # we'll now create the auxiliary files in datasets/ for this dataset
-    # FIXME: some of these will have to be regenerated if people edit datasets
-    #
-    # - dataset-<setid>-rows-page1.pkl -> pageX.pkl as required
-    # - dataset-<setid>-rows-page1-strformat.pkl -> pageX-strformat.pkl
-    #                                                as required
-    # - dataset-<setid>.csv
-
     # we'll open ALL of these files at once and go through the object row loop
     # ONLY ONCE
 
@@ -841,7 +834,7 @@ def sqlite_make_dataset_lczip(basedir,
                               converter_column_separator=',',
                               converter_skip_converted=True,
                               override_lcdir=None,
-                              max_dataset_lcs=20000):
+                              max_dataset_lcs=5000):
     '''
     This makes a zip file for the light curves in the dataset.
 
@@ -1044,6 +1037,7 @@ def sqlite_make_dataset_lczip(basedir,
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
         LOGINFO('updated entry for setid: %s with LC zip cachekey' % setid)
+
         return dataset['lczipfpath']
 
     else:

@@ -146,6 +146,7 @@ class IndexHandler(BaseHandler):
             page_title='%s - LCC Server' % self.siteinfo['project'],
             lccserver_version=__version__,
             siteinfo=self.siteinfo,
+            current_user=self.current_user
         )
 
 
@@ -365,6 +366,7 @@ class CollectionListHandler(BaseHandler):
                    basedir,
                    signer,
                    fernet,
+                   siteinfo,
                    authnzerver,
                    session_expiry,
                    fernetkey):
@@ -381,6 +383,7 @@ class CollectionListHandler(BaseHandler):
         self.basedir = basedir
         self.signer = signer
         self.fernet = fernet
+        self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
@@ -504,6 +507,7 @@ class DatasetListHandler(BaseHandler):
                    basedir,
                    signer,
                    fernet,
+                   siteinfo,
                    authnzerver,
                    session_expiry,
                    fernetkey):
@@ -520,6 +524,7 @@ class DatasetListHandler(BaseHandler):
         self.basedir = basedir
         self.signer = signer
         self.fernet = fernet
+        self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey

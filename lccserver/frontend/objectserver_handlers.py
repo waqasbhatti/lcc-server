@@ -196,6 +196,7 @@ class ObjectInfoHandler(BaseHandler):
                    fernet,
                    cpsharedkey,
                    cpaddress,
+                   siteinfo,
                    authnzerver,
                    session_expiry,
                    fernetkey):
@@ -214,6 +215,7 @@ class ObjectInfoHandler(BaseHandler):
         self.fernet = fernet
         self.cpkey = cpsharedkey
         self.cpaddr = cpaddress
+        self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey

@@ -94,6 +94,7 @@ from tornado.log import gen_log
 from lccserver import __version__
 from lccserver.external.cookies import cookies
 from lccserver.backend import dbsearch, datasets
+from lccserver.authnzerver.actions import send_email
 
 
 #######################
@@ -540,6 +541,41 @@ class BaseHandler(tornado.web.RequestHandler):
             LOGGER.error('could not talk to the backend authnzerver. '
                          'Will fail this request.')
             raise tornado.web.HTTPError(statuscode=401)
+
+
+
+    @gen.coroutine
+    def email_current_user(self,
+                           subject,
+                           template,
+                           items):
+        '''
+        This sends an email in the background.
+
+        '''
+
+        if (self.siteinfo['email_server'] is not None and
+            (self.current_user['user_role'] in
+             ('superuser', 'staff', 'authenticated'))):
+
+            formatted_text = template.format(**items)
+
+            email_sent = yield self.executor.submit(
+                send_email,
+                'LCC-Server admin <%s>' % self.siteinfo['email_sender'],
+                subject,
+                formatted_text,
+                [self.current_user['email']],
+                self.siteinfo['email_server'],
+                self.siteinfo['email_user'],
+                self.siteinfo['email_pass']
+            )
+
+            return email_sent
+
+        else:
+
+            return False
 
 
 
