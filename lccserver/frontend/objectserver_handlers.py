@@ -107,6 +107,8 @@ def check_for_checkplots(objectid,
                           collection.replace('_','-'),
                           'checkplots')
 
+    LOGGER.info('searching for checkplots in: %s, %s' % (cpdir1, cpdir2))
+
     if os.path.exists(cpdir2):
         cpdir = cpdir2
     else:
@@ -117,7 +119,6 @@ def check_for_checkplots(objectid,
 
         cpfpath = os.path.join(cpdir, 'checkplot-%s*.pkl*' % objectid)
         possible_checkplots = glob.glob(cpfpath)
-        LOGGER.info('checkplot candidates found at: %r' % possible_checkplots)
 
     # if the magcol is provided, we just need to check if the target checkplot
     # pickles exist and don't need to glob through the directory
@@ -129,6 +130,7 @@ def check_for_checkplots(objectid,
             cpfpath = os.path.join(cpdir,
                                    'checkplot-%s-%s.pkl' %
                                    (objectid, magcol))
+            LOGGER.info('checking %s' % cpfpath)
 
             if os.path.exists(cpfpath):
 
@@ -139,6 +141,7 @@ def check_for_checkplots(objectid,
                 cpfpath = os.path.join(cpdir,
                                        'checkplot-%s-%s.pkl.gz' %
                                        (objectid, magcol))
+                LOGGER.info('checking %s' % cpfpath)
 
                 if os.path.exists(cpfpath):
                     possible_checkplots.append(cpfpath)
@@ -291,26 +294,13 @@ class ObjectInfoHandler(BaseHandler):
                          objectid,
                          collection))
 
-            # if no lcmagcols are provided, get them from the access_check
-            if lcmagcols is None:
-                lcmagcols = access_check[collection]['lcmagcols']
-
-            # otherwise, make sure all of the magcols provided as args are
-            # actually in the LC collection
+            # get lcmagcols from the access_check if available
+            if 'lcmagcols' in access_check[collection]:
+                lcmagcols = access_check[collection]['lcmagcols'].split(',')
             else:
+                lcmagcols = None
 
-                use_lcmagcols = []
-
-                for mc in lcmagcols:
-
-                    if mc in access_check[collection]['lcmagcols']:
-                        use_lcmagcols.append(mc)
-
-                if len(use_lcmagcols) == 0:
-                    lcmagcols = access_check[collection]['lcmagcols']
-                else:
-                    lcmagcols = use_lcmagcols
-
+            LOGGER.info('lcmagcols = %s' % lcmagcols)
 
             # 1. get the canonical checkplot path
             checkplot_fpath = yield self.executor.submit(
@@ -321,7 +311,6 @@ class ObjectInfoHandler(BaseHandler):
                 lcmagcols=lcmagcols
             )
             LOGGER.info('found checkplot fpath = %s' % checkplot_fpath)
-
 
             # 2. ask the checkplotserver for this checkplot using our key
             if checkplot_fpath is not None:

@@ -802,6 +802,11 @@ var lcc_ui = {
 
             modal.find('#modal-objectid').html(objectid);
             modal.find('#modal-collectionid').html(collection);
+            modal.find('#objectinfo-modal-title').append(
+                ' <a rel="nofollow noopener noreferer" target="_blank" ' +
+                    'href="/obj/' + collection +
+                    '/' + objectid + '">[permanent link]</a>'
+            );
 
             if (lcfname.indexOf('unavailable') != -1 ||
                 lcfname.indexOf('null') != -1) {
@@ -974,6 +979,26 @@ var lcc_ui = {
             }
 
         });
+
+        // bind the neighbor links in the permalink pages
+        $('#objectinfo-container').on('click','.objectinfo-nbrlink', function (e) {
+
+            e.preventDefault();
+
+            // get the info on the neighbor
+            var objectid = $(this).attr('data-objectid');
+            var collection = $(this).attr('data-collection');
+            var lcmagcols = $(this).attr('data-lcmagcols');
+
+            // fire the objectinfo function to get this neighbor's information
+            lcc_objectinfo.get_object_info(collection,
+                                           lcmagcols,
+                                           objectid,
+                                           '#objectinfo-container',
+                                           true);
+
+        });
+
 
         // handle the dataset show all button
         $('#dataset-show-all').on('click', function(evt) {

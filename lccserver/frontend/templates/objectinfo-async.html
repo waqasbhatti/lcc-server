@@ -21,6 +21,7 @@ lcc_ui.action_setup();
 
 // fire the async request to get the object information
 lcc_objectinfo.get_object_info('{{ collection }}',
+                               null,
                                '{{ objectid }}',
                                '#objectinfo-container', true);
 
