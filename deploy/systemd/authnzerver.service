@@ -1,0 +1,15 @@
+[Unit]
+Description=LCC-Server authentication-authorization server
+After=network.target
+
+[Service]
+CPUAccounting=yes
+MemoryAccounting=yes
+WorkingDirectory={{ lccserver_basedir }}
+ExecStart={{ lccserver_venv }}/bin/authnzerver
+Restart=always
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
