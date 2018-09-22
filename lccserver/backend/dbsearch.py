@@ -815,8 +815,8 @@ def parse_sesame_response(
 def sesame_query(
         object_name,
         mirrors=(
-            'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
             'http://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
+            'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
         ),
         raiseonfail=False
 ):
