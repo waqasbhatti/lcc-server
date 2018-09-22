@@ -861,7 +861,6 @@ def sesame_query(
     else:
         LOGWARNING('SIMBAD SESAME server requests did not succeed '
                    'for object name: %s' % object_name)
-        resp.close()
         return None
 
 
