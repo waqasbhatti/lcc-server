@@ -929,8 +929,17 @@ def sqlite_sesame_fulltext_search(
             # much quicker from the local DB.
             if (sesame_lookup['simbad_best_objtype'] is not None and
                 ( ('OpC' in sesame_lookup['simbad_best_objtype']) or
-                  ('*' not in sesame_lookup['simbad_best_objtype']) )):
-
+                  ('Cl' in sesame_lookup['simbad_best_objtype']) or
+                  ('Gl' in sesame_lookup['simbad_best_objtype']) or
+                  ('As*' in sesame_lookup['simbad_best_objtype']) or
+                  ('St*' in sesame_lookup['simbad_best_objtype']) or
+                  ('MGr' in sesame_lookup['simbad_best_objtype']) or
+                  ('Cld' in sesame_lookup['simbad_best_objtype']) or
+                  ('PN' in sesame_lookup['simbad_best_objtype']) or
+                  ('Ne' in sesame_lookup['simbad_best_objtype']) or
+                  ('C?*' in sesame_lookup['simbad_best_objtype']) or
+                  ('SR' in sesame_lookup['simbad_best_objtype']) or
+                  ('SNR' in sesame_lookup['simbad_best_objtype']) )):
                 search_radius = 60.0
                 update_mode = 'append'
                 LOGINFO('running star cluster or non-stellar object '
