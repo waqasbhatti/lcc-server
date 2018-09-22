@@ -375,7 +375,7 @@ def sqlite_new_dataset(basedir,
                        dataset_visibility='unlisted',
                        dataset_sharedwith=None,
                        make_dataset_csv=True,
-                       rows_per_page=100):
+                       rows_per_page=1000):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
