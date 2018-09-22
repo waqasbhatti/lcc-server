@@ -866,9 +866,9 @@ def get_secret_token(token_environvar,
         # check if this file is readable/writeable by user only
         fileperm = oct(os.stat(token_file)[stat.ST_MODE])
 
-        if not (fileperm == '0100600' or fileperm == '0o100600'):
+        if not (fileperm == '0100400' or fileperm == '0o100400'):
             raise PermissionError('Incorrect file permissions on secret file '
-                                  '(needs chmod 600)')
+                                  '(needs chmod 400)')
 
 
         with open(token_file,'r') as infd:
