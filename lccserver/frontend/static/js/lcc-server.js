@@ -977,6 +977,25 @@ var lcc_ui = {
 
         });
 
+        // bind the SIMBAD update button
+        $('#objectinfo-modal').on('submit', '#simbad-lookup-form', function (evt) {
+
+            evt.preventDefault();
+            lcc_objectinfo.simbad_check($(this).attr('data-objectid'),
+                                        $(this).attr('data-collection'));
+
+        });
+
+        // bind the SIMBAD update button
+        $('#objectinfo-container').on('submit', '#simbad-lookup-form', function (evt) {
+
+            evt.preventDefault();
+            lcc_objectinfo.simbad_check($(this).attr('data-objectid'),
+                                        $(this).attr('data-collection'));
+
+        });
+
+
         // this handles the hover per objectid row to highlight the object in
         // the finder chart
         $('#objectinfo-container').on('mouseover','.gaia-objectlist-row', function (e) {
@@ -3886,7 +3905,78 @@ var lcc_objectinfo = {
         $(target).html(lcc_objectinfo.modal_template);
     },
 
-    render_infotable: function (currcp, collection, lcmagcols) {
+
+    // this runs a SIMBAD check
+    simbad_check: function (objectid, collection) {
+
+        let _xsrf = $('#objectinfo-edit-form > input[type="hidden"]').val();
+        let postparams = {
+            _xsrf: _xsrf,
+            objectid: objectid,
+            collection: collection,
+            action:'simbad-check'
+        };
+        let posturl = '/api/object';
+
+        $.post(posturl, postparams, function (data) {
+
+            let result = data.result;
+            let status = data.status;
+            let message = data.message;
+            let simbad_best_allids;
+
+            if (status.indexOf('ok') != -1){
+
+                if (result.simbad_best_allids !== null) {
+
+                    simbad_best_allids =
+                        result.simbad_best_allids
+                        .split('|').join(', ');
+                }
+
+                else {
+
+                    simbad_best_allids = '';
+
+                }
+
+                let formatted_simbad =
+                    '<strong><em>matching objects</em>:</strong> ' +
+                    '<em>closest distance</em>: ' +
+                    result.simbad_best_distarcsec.toFixed(2) +
+                    '&Prime;<br>' +
+                    '<em>closest object ID</em>: ' +
+                    result.simbad_best_mainid + '<br>' +
+                    '<em>closest object type</em>: ' +
+                    lcc_ui.bibcode_linkify(
+                        result.simbad_best_objtype
+                    ) + '<br>' +
+                    '<em>closest object other IDs</em>: ' +
+                    lcc_ui.bibcode_linkify(simbad_best_allids);
+
+                $('#simbad-formatted-info').html(formatted_simbad);
+
+            }
+            else {
+                let formatted_simbad = message;
+                $('#simbad-formatted-info').html('<span class="text-warning">' +
+                                                 formatted_simbad +
+                                                 '</span>');
+            }
+
+        }, 'json').fail(function(xhr) {
+            $('#simbad-formatted-info').html(
+                '<span class="text-danger">Sorry, SIMBAD lookup ' +
+                    'failed due to an LCC-Server exception!</span>'
+            );
+        });
+
+    },
+
+
+    // this renders the main info table in the objectinfo modal and standalone
+    // page
+    render_infotable: function (currcp, collection, lcmagcols, cpstatus) {
 
         // get the number of detections
         var objndet = currcp.objectinfo.ndet;
@@ -4695,26 +4785,52 @@ var lcc_objectinfo = {
 
                 formatted_simbad =
                     '<strong><em>matching objects</em>:</strong> ' +
-                    (currcp.objectinfo.simbad_nmatches) + '<br>' +
                     '<em>closest distance</em>: ' +
                     currcp.objectinfo.simbad_best_distarcsec.toFixed(2) +
                     '&Prime;<br>' +
                     '<em>closest object ID</em>: ' +
                     currcp.objectinfo.simbad_best_mainid + '<br>' +
                     '<em>closest object type</em>: ' +
-                    lcc_ui.bibcode_linkify(currcp.objectinfo.simbad_best_objtype) + '<br>' +
+                    lcc_ui.bibcode_linkify(
+                        currcp.objectinfo.simbad_best_objtype
+                    ) + '<br>' +
                     '<em>closest object other IDs</em>: ' +
                     lcc_ui.bibcode_linkify(simbad_best_allids);
 
             }
 
+            // if the current checkplot's status allows SIMBAD updates and the
+            // SIMBAD status is failed, render the SIMBAD update controls
+            else if (!simbad_ok && cpstatus.indexOf('sc-ok') != -1) {
+
+                formatted_simbad = `
+<div class="row">
+<div class="col-12">
+No SIMBAD information found for this object.
+</div>
+</div>
+<div class="form-row mt-1 justify-content-center">
+<form class="form"
+ id="simbad-lookup-form"
+ action="/api/object"
+ data-objectid=${currcp.objectid}
+ data-collection=${collection}
+ method="POST">
+<button type="submit" class="btn btn-secondary btn-sm">Retry SIMBAD query</button>
+</form>
+</div>
+`;
+
+            }
+
             $('#objectinfo-extra')
                 .append(
-                    "<tr>" +
-                        "<th>SIMBAD information</th>" +
-                        "<td>" + formatted_simbad +
-                        "</td>" +
-                        "</tr>"
+                    '<tr>' +
+                        '<th>SIMBAD information</th>' +
+                        '<td id="simbad-formatted-info">' +
+                        formatted_simbad +
+                        '</td>' +
+                        '</tr>'
                 );
 
         }
@@ -4922,7 +5038,8 @@ var lcc_objectinfo = {
 
     },
 
-    render_pfresult: function (currcp) {
+    render_pfresult: function (currcp,
+                               cpstatus) {
 
         // first, check if we have any pfmethods at all
         var pfmethods = null;
@@ -5029,6 +5146,7 @@ var lcc_objectinfo = {
         $.getJSON(geturl, params, function (data) {
 
             var result = data.result;
+            var status = data.status;
 
             // render the modal UI
             lcc_objectinfo.render_modal_template(target);
@@ -5046,7 +5164,10 @@ var lcc_objectinfo = {
             }
 
             // add in the object's info table
-            lcc_objectinfo.render_infotable(result, collection, lcmagcols);
+            lcc_objectinfo.render_infotable(result,
+                                            collection,
+                                            lcmagcols,
+                                            status);
 
             // render the object's lightcurve download link if we're in separate
             // page mode. also render the object's collection and title
@@ -5069,7 +5190,8 @@ var lcc_objectinfo = {
             }
 
             // add in the object's phased LCs from all available PFMETHODS
-            lcc_objectinfo.render_pfresult(result);
+            lcc_objectinfo.render_pfresult(result,
+                                           status);
 
 
         }).fail(function (xhr) {

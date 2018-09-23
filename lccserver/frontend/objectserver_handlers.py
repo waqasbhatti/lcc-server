@@ -227,7 +227,7 @@ class ObjectInfoHandler(BaseHandler):
     def get(self):
         '''This runs the query.
 
-        /api/checkplot?<objectid>&<collection>
+        /api/object?<objectid>&<collection>
 
         where <objectid> is the db_oid (objectid in the database) and
         <collection> is the name of the collection the object can be found in.
@@ -244,6 +244,9 @@ class ObjectInfoHandler(BaseHandler):
         info as JSON using the AsyncHTTPClient.
 
         '''
+
+        if not self.current_user:
+            self.redirect('/')
 
         objectid = self.get_argument('objectid', default=None)
         collection = self.get_argument('collection', default=None)
@@ -379,6 +382,16 @@ class ObjectInfoHandler(BaseHandler):
 
                 finally:
 
+                    # if we're allowed to edit this object, enable that. this
+                    # will let the frontend JS know that it can render the
+                    # appropriate controls.
+                    if self.current_user['user_role'] in ('staff','superuser'):
+                        rettext = rettext.replace('"status": "ok"',
+                                                  '"status": "ok pf-ok sc-ok"')
+                    elif self.current_user['user_role'] == 'authenticated':
+                        rettext = rettext.replace('"status": "ok"',
+                                                  '"status": "ok sc-ok"')
+
                     self.write(rettext)
                     self.finish()
 
@@ -409,7 +422,7 @@ class ObjectInfoHandler(BaseHandler):
                  self.current_user['user_role'],
                  objectid, collection)
             )
-            self.set_status(401)
+            self.set_status(404)
 
             retdict = {
                 'status':'failed',
@@ -420,6 +433,295 @@ class ObjectInfoHandler(BaseHandler):
             }
             self.write(retdict)
             self.finish()
+
+
+    @gen.coroutine
+    def post(self):
+        '''
+        This handles individual object updates.
+
+        /api/object
+
+        params:
+        objectid=<objectid>
+        collection=<collection>
+        action=<simbad-check|period-search>
+
+        pfargs=JSON string for periodsearch params
+        pfargs = {'pfmethod':'gls|pdm|bls|aov|mav|acf|mav',
+                  other pf args}
+
+        '''
+        if not self.current_user:
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+        objectid = self.get_argument('objectid', default=None)
+        collection = self.get_argument('collection', default=None)
+        action = self.get_argument('action', default=None)
+
+        LOGGER.info('objectid = %r, collection = %r, '
+                    'action = %r' %
+                    (objectid, collection, action))
+
+        if not action:
+
+            self.set_status(400)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("No action specified.")
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+        else:
+
+            action = xhtml_escape(action.strip())
+
+            LOGGER.info('action requested: %s' % action)
+
+            if action not in ('simbad-check',
+                              'period-search'):
+
+                self.set_status(400)
+                retdict = {
+                    'status':'failed',
+                    'result':None,
+                    'message':("Unknown action specified.")
+                }
+                self.write(retdict)
+                raise tornado.web.Finish()
+
+            if action == 'period-search':
+
+                pfargs = self.get_argument('pfargs', default=None)
+
+                if not pfargs:
+
+                    self.set_status(400)
+                    retdict = {
+                        'status':'failed',
+                        'result':None,
+                        'message':("No args specified for period-search.")
+                    }
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+                else:
+
+                    try:
+                        pfargs = json.loads(pfargs)
+
+                    except Exception as e:
+                        self.set_status(400)
+                        retdict = {
+                            'status':'failed',
+                            'result':None,
+                            'message':(
+                                "Could not parse args for period-search."
+                            )
+                        }
+                        self.write(retdict)
+                        raise tornado.web.Finish()
+
+
+        if not objectid:
+
+            self.set_status(400)
+            retdict = {'status':'failed',
+                       'message':('No object ID was provided to '
+                                  'fetch a checkplot for.'),
+                       'result':None}
+            raise tornado.web.Finish()
+
+        if not collection:
+
+            self.set_status(400)
+            retdict = {'status':'failed',
+                       'message':('No collection ID was provided to '
+                                  'find the object in.'),
+                       'result':None}
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+        objectid = xhtml_escape(objectid)
+        collection = xhtml_escape(collection)
+
+        # check if we actually have access to this object
+        access_check = yield self.executor.submit(
+            dbsearch.sqlite_column_search,
+            self.basedir,
+            getcolumns=['objectid'],
+            conditions="objectid = '%s'" % objectid.strip(),
+            lcclist=[collection],
+            incoming_userid=self.current_user['user_id'],
+            incoming_role=self.current_user['user_role']
+        )
+
+        if access_check and len(access_check[collection]['result']) > 0:
+
+            LOGGER.info('user_id = %s, role = %s, access OK for %s in %s' %
+                        (self.current_user['user_id'],
+                         self.current_user['user_role'],
+                         objectid,
+                         collection))
+
+            lcmagcols = access_check[collection]['lcmagcols'].split(',')
+            LOGGER.info('lcmagcols = %s' % lcmagcols)
+
+            # 1. get the canonical checkplot path
+            checkplot_fpath = yield self.executor.submit(
+                check_for_checkplots,
+                objectid,
+                self.basedir,
+                collection,
+                lcmagcols=lcmagcols
+            )
+            LOGGER.info('found checkplot fpath = %s' % checkplot_fpath)
+
+            # now, check the action to run
+
+            #
+            # handle simbad-check
+            #
+            if (checkplot_fpath is not None and action == 'simbad-check'):
+
+                # check if the incoming user role is in authenticated, staff, or
+                # superuser. other people are not allowed to run simbad-check
+                if self.current_user['user_role'] not in ('authenticated',
+                                                          'staff',
+                                                          'superuser'):
+                    self.set_status(403)
+                    retdict = {'status':'failed',
+                               'message':(
+                                   'You cannot edit this object.'
+                               ),
+                               'result':None}
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+                simbad_check = yield self.executor.submit(
+                    dbsearch.sqlite_simbad_objectsearch,
+                    self.basedir,
+                    objectid,
+                    collection,
+                    incoming_userid=self.current_user['user_id'],
+                    incoming_role=self.current_user['user_role'],
+                )
+
+                if (simbad_check and
+                    len(simbad_check[collection]['result']) > 0 and
+                    simbad_check[collection]['result'][0] is not None):
+
+                    row = simbad_check[collection]['result'][0]
+                    LOGGER.info('simbad check = %r' % row)
+
+                    result = {
+                        'simbad_best_mainid':row['simbad_best_mainid'],
+                        'simbad_best_objtype':row['simbad_best_objtype'],
+                        'simbad_best_allids':row['simbad_best_allids'],
+                        'simbad_best_distarcsec':row['simbad_best_distarcsec'],
+                    }
+
+                    simbad_ok = (
+                        row['simbad_best_mainid'] or
+                        row['simbad_best_objtype'] or
+                        row['simbad_best_allids']
+                    )
+
+                    retdict = {'status':'ok' if simbad_ok else 'failed',
+                               'message':(
+                                   'Object found in SIMBAD.' if simbad_ok else
+                                   ('No matching SIMBAD objects '
+                                    'found within a 5 arcsec radius.')
+                               ),
+                               'result':result}
+                    self.write(retdict)
+                    self.finish()
+
+                else:
+
+                    retdict = {'status':'failed',
+                               'message':(
+                                   'No matching SIMBAD objects '
+                                   'found within a 5 arcsec radius.'
+                               ),
+                               'result':None}
+                    self.write(retdict)
+                    self.finish()
+
+            #
+            # handle period-search
+            #
+            elif (checkplot_fpath is not None and action == 'period-search'):
+
+                # check if the incoming user role is in staff or
+                # superuser. other people are not allowed to run period-search
+                if self.current_user['user_role'] not in ('staff',
+                                                          'superuser'):
+                    self.set_status(403)
+                    retdict = {'status':'failed',
+                               'message':(
+                                   'You cannot run '
+                                   'period-search on this object.'
+                               ),
+                               'result':None}
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+
+                retdict = {'status':'failed',
+                           'message':(
+                               'Not implemented yet.'
+                           ),
+                           'result':None}
+                self.write(retdict)
+                self.finish()
+
+
+            #
+            # anything else is an error
+            #
+            else:
+
+                self.set_status(404)
+                retdict = {'status':'failed',
+                           'message':(
+                               'Object information not found.'
+                           ),
+                           'result':None}
+                self.write(retdict)
+                self.finish()
+
+        # if we don't have access to this object.
+        else:
+
+            LOGGER.error(
+                'incoming user_id = %s, role = %s has no '
+                'access to objectid %s in collection %s' %
+                (self.current_user['user_id'],
+                 self.current_user['user_role'],
+                 objectid, collection)
+            )
+            self.set_status(404)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("Sorry, you don't have access to "
+                           "object %s in collection %s" %
+                           (objectid, collection))
+            }
+            self.write(retdict)
+            self.finish()
+
 
 
 
@@ -478,6 +780,9 @@ class ObjectInfoPageHandler(BaseHandler):
         That page has an async call to the objectinfo JSON API below.
 
         '''
+
+        if not self.current_user:
+            self.redirect('/')
 
         try:
 

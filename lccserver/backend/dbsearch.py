@@ -1052,6 +1052,16 @@ def updatedb_with_simbad_info(basedir,
         updated = True
         LOGINFO('updated simbad_best_allids')
 
+    if updated:
+
+        query = (
+            "update object_catalog set "
+            "simbad_best_distarcsec = ? "
+            "where objectid = ?"
+        )
+        params = (5.0, objectid)
+        cur.execute(query, params)
+
     db.commit()
     db.close()
 
@@ -1092,7 +1102,8 @@ def sqlite_simbad_objectsearch(
         basedir,
         getcolumns=['simbad_best_mainid',
                     'simbad_best_objtype',
-                    'simbad_best_allids'],
+                    'simbad_best_allids',
+                    'simbad_best_distarcsec'],
         conditions="(objectid = '%s')" % objectid,
         lcclist=[collection],
         limit=1,
@@ -1232,7 +1243,8 @@ def sqlite_simbad_objectsearch(
                 basedir,
                 getcolumns=['simbad_best_mainid',
                             'simbad_best_objtype',
-                            'simbad_best_allids'],
+                            'simbad_best_allids',
+                            'simbad_best_distarcsec'],
                 conditions="(objectid = '%s')" % objectid,
                 lcclist=[collection],
                 limit=1,

@@ -293,6 +293,9 @@
 <!-- this is the template for the objectinfo modal that pops up when summoned for each object -->
 <div class="modal fade" id="objectinfo-modal" tabindex="-1"
      role="dialog" aria-labelledby="objectinfo-modal" aria-hidden="true">
+  <form id="objectinfo-edit-form" >
+  {% module xsrf_form_html() %}
+  </form>
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
 
