@@ -60,6 +60,7 @@ from functools import reduce, partial
 import re
 from urllib.parse import quote_plus
 
+
 from tornado.escape import squeeze, xhtml_unescape
 import numpy as np
 import requests
@@ -814,6 +815,7 @@ def parse_sesame_response(
 
 def sesame_query(
         object_name,
+        timeout=5.0,
         mirrors=(
             'http://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
             'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame',
@@ -831,8 +833,12 @@ def sesame_query(
         req_url = mirror + '/-oI/SNV?' + quote_plus(object_name)
 
         try:
-            resp = requests.get(req_url, timeout=5.0)
+
+            resp = requests.get(req_url, timeout=timeout)
             resp.raise_for_status()
+
+            reqok = True
+            break
 
         except Exception as e:
 
@@ -847,9 +853,6 @@ def sesame_query(
 
             continue
 
-        else:
-            reqok = True
-            break
 
     # if the request succeeded,
     if reqok:
@@ -862,6 +865,338 @@ def sesame_query(
         LOGWARNING('SIMBAD SESAME server requests did not succeed '
                    'for object name: %s' % object_name)
         return None
+
+
+
+def parse_simbad_response(simbad_response):
+    '''
+    This returns the contents of the simbad response in a dict.
+
+    '''
+
+    if 'No astronomical object found' in simbad_response:
+        LOGERROR('no SIMBAD info available for this object')
+
+        return None
+
+    elif 'Object' in simbad_response and 'Coordinates' in simbad_response:
+
+        lines = [x for x in simbad_response.split('\n')
+                 if ((len(x) > 0) and
+                     ('------' not in x) and
+                     ('======' not in x))]
+
+        # get the main object ID and best object type
+        main_objectid_and_type = [
+            x.split('---')[:2] for x in lines if x.startswith('Object')
+        ]
+
+        if len(main_objectid_and_type) > 0:
+
+            main_objectid_and_type = main_objectid_and_type[0]
+
+            main_objectid = main_objectid_and_type[0].replace(
+                'Object',''
+            ).strip()
+
+            if (len(main_objectid_and_type) > 1 and
+                'OID' not in main_objectid_and_type[1]):
+                best_objtype = main_objectid_and_type[1].strip()
+
+            else:
+                best_objtype = None
+
+        else:
+            main_objectid = None
+            best_objtype = None
+
+        # get the spectral type
+        spectral_type = [x.replace('Spectral type: ','') for x in lines
+                         if (x.startswith('Spectral type:') and '~' not in x)]
+        if len(spectral_type) > 0:
+            spectral_type = spectral_type[0]
+        else:
+            spectral_type = None
+
+        if best_objtype is None and spectral_type is not None:
+            best_objtype = spectral_type
+        elif best_objtype is None and spectral_type is None:
+            best_objtype = None
+        elif best_objtype is not None and spectral_type is None:
+            best_objtype = best_objtype
+        else:
+            best_objtype = '%s; %s' % (best_objtype, spectral_type)
+
+        # get the other identifiers if present
+        identifier_line = [x.strip() for x in lines
+                           if x.startswith('Identifiers')]
+
+        if len(identifier_line) > 0:
+            nidentifiers = identifier_line[0].split()[1].replace(
+                '(',''
+            ).replace(')','').replace(':','')
+            try:
+                nidentifiers = int(nidentifiers)
+            except Exception as e:
+                nidentifiers = 0
+
+            if nidentifiers > 0:
+
+                # let's grab everything after the identifier line and below and
+                # stuff it into the identifiers column (it's effectively an FTS
+                # document now)
+                identifier_index = [lines.index(x) for x in lines
+                                    if x.startswith('Identifiers')]
+
+                identifier_lines = [squeeze(x) for x in
+                                    lines[identifier_index[0]+1:] if
+                                    (('Bibcodes' not in x) and
+                                     ('Measures' not in x) and
+                                     ('PLX' not in x) and
+                                     ('Notes' not in x))]
+
+                all_identifiers = '; '.join(identifier_lines)
+
+            else:
+
+                all_identifiers = None
+
+        else:
+            all_identifiers = None
+
+
+        return {
+            'simbad_best_mainid': main_objectid,
+            'simbad_best_objtype': best_objtype,
+            'simbad_best_allids': all_identifiers,
+            'n_allids':nidentifiers
+        }
+
+
+
+def updatedb_with_simbad_info(basedir,
+                              objectid,
+                              collection,
+                              current_info,
+                              simbad_results,
+                              incoming_userid=2,
+                              incoming_role='anonymous'):
+    '''
+    This updates the SIMBAD info in the DB with the new results.
+
+    FIXME: the frontend should also update the checkplot with the new info.
+
+    '''
+
+    dbinfo = sqlite_get_collections(
+        basedir,
+        lcclist=[collection],
+        return_connection=True,
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role
+    )
+    db, cur = dbinfo['connection'], dbinfo['cursor']
+
+    cur.execute('begin')
+
+    #
+    # we'll only update the columns if they're null and the new values are not
+    #
+    updated = False
+
+    if (simbad_results['simbad_best_mainid'] is not None and
+        current_info['simbad_best_mainid'] is None):
+
+        query = (
+            "update object_catalog set "
+            "simbad_best_mainid = ? "
+            "where objectid = ?"
+        )
+        params = (simbad_results['simbad_best_mainid'], objectid)
+        cur.execute(query, params)
+        updated = True
+        LOGINFO('updated simbad_best_mainid')
+
+    if (simbad_results['simbad_best_objtype'] is not None and
+        current_info['simbad_best_objtype'] is None):
+        query = (
+            "update object_catalog set "
+            "simbad_best_objtype = ? "
+            "where objectid = ?"
+        )
+        params = (simbad_results['simbad_best_objtype'], objectid)
+        cur.execute(query, params)
+        updated = True
+        LOGINFO('updated simbad_best_objtype')
+
+    if (simbad_results['simbad_best_allids'] is not None and
+        current_info['simbad_best_allids'] is None):
+        query = (
+            "update object_catalog set "
+            "simbad_best_allids = ? "
+            "where objectid = ?"
+        )
+        params = (simbad_results['simbad_best_allids'], objectid)
+        cur.execute(query, params)
+        updated = True
+        LOGINFO('updated simbad_best_allids')
+
+    db.commit()
+    db.close()
+
+    LOGINFO('database updated for objectid: %s '
+            'in collection: %s with SIMBAD info' %
+            (objectid, collection))
+
+    return updated
+
+
+
+def sqlite_simbad_objectsearch(
+        basedir,
+        objectid,
+        collection,
+        radius_arcmin=0.08,
+        timeout=5.0,
+        mirrors=(
+            'http://simbad.u-strasbg.fr/simbad/sim-coo',
+        ),
+        raiseonfail=False,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        updatedb_from_simbad=True
+):
+    '''This does a basic coordinate search on SIMBAD and updates missing info.
+
+    The purpose is to fill or update SIMBAD information for objects after the
+    initial LCC-Server ingestion, especially if the SIMBAD queries failed or
+    were not tried in that stage.
+
+    '''
+
+    # look up this object in the collection
+    res = sqlite_column_search(
+        basedir,
+        getcolumns=['simbad_best_mainid',
+                    'simbad_best_objtype',
+                    'simbad_best_allids'],
+        conditions="(objectid = '%s')" % objectid,
+        lcclist=[collection],
+        limit=1,
+        raiseonfail=raiseonfail,
+        incoming_userid=incoming_userid,
+        incoming_role=incoming_role,
+    )
+
+    if (res and
+        res[collection]['result'] and
+        res[collection]['result'][0]['db_oid'] == objectid):
+
+        ra = res[collection]['result'][0]['db_ra']
+        decl = res[collection]['result'][0]['db_decl']
+
+    else:
+
+        LOGERROR('could not look up %s, collection: %s in the DB' %
+                 (objectid, collection))
+        return res
+
+    # check if we can return all info from the database already
+    if (res[collection]['result'][0]['simbad_best_mainid'] is not None and
+        res[collection]['result'][0]['simbad_best_objtype'] is not None and
+        res[collection]['result'][0]['simbad_best_allids'] is not None):
+
+        LOGWARNING('all SIMBAD info already present in the DB for this object')
+        return res
+
+    #
+    # otherwise, we'll look up the info from SIMBAD
+    #
+
+    params = {'Coord':'%.3f %.3f' % (ra, decl),
+              'Radius':radius_arcmin,
+              'Radius.unit':'arcmin',
+              'output.format':'ASCII',
+              'output.max':1}
+
+    reqok = False
+    for mirror in mirrors:
+
+        req_url = mirror
+
+        try:
+
+            resp = requests.get(req_url, params)
+            resp.raise_for_status()
+            reqok = True
+            break
+
+        except Exception as e:
+
+            # if this request failed, try the next mirror
+            LOGGER.warning(
+                'SIMBAD mirror: %s not responding, trying another...'
+                % mirror
+            )
+
+            if raiseonfail:
+                raise
+
+            continue
+
+    # if the request succeeded,
+    if reqok:
+
+        parsed = parse_simbad_response(resp.text)
+        LOGINFO('SIMBAD lookup results = %r' % parsed)
+        resp.close()
+
+        if updatedb_from_simbad and parsed is not None:
+
+            current_info = {
+                'simbad_best_mainid': (
+                    res[collection]['result'][0]['simbad_best_mainid']
+                ),
+                'simbad_best_objtype': (
+                    res[collection]['result'][0]['simbad_best_objtype']
+                ),
+                'simbad_best_allids': (
+                    res[collection]['result'][0]['simbad_best_allids']
+                ),
+            }
+
+            updated = updatedb_with_simbad_info(basedir,
+                                                objectid,
+                                                collection,
+                                                current_info,
+                                                parsed,
+                                                incoming_userid=incoming_userid,
+                                                incoming_role=incoming_role)
+        else:
+            updated = False
+
+        if updated:
+
+            return sqlite_column_search(
+                basedir,
+                getcolumns=['simbad_best_mainid',
+                            'simbad_best_objtype',
+                            'simbad_best_allids'],
+                conditions="(objectid = '%s')" % objectid,
+                lcclist=[collection],
+                limit=1,
+                raiseonfail=raiseonfail,
+                incoming_userid=incoming_userid,
+                incoming_role=incoming_role,
+            )
+        else:
+            return res
+
+    else:
+        LOGWARNING('SIMBAD server requests did not succeed '
+                   'for object ID: %s in collection: %s' % (objectid,
+                                                            collection))
+        return res
 
 
 
@@ -878,6 +1213,7 @@ def sqlite_sesame_fulltext_search(
         censor_searchargs=False,
         updatedb_from_sesame=True
 ):
+
     '''This runs a full-text search query followed by a SIMBAD lookup and
     cone-search if that fails.
 
