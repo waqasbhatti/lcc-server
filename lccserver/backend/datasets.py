@@ -153,7 +153,7 @@ insert into lcc_datasets_fts(lcc_datasets_fts) values ('rebuild');
 
 
 
-def sqlite_datasets_db_create(basedir):
+def sqlite_make_lcc_datasets_db(basedir):
     '''
     This makes a new datasets DB in basedir.
 
