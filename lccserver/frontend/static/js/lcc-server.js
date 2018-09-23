@@ -5181,7 +5181,7 @@ No SIMBAD information found for this object.
 
                 $('.lc-download-link').html(
                     '<a rel="nofollow" class="btn btn-primary" ' +
-                        'href="/l/' + collection +
+                        'href="/l/' + collection.replace(/_/g,'-') +
                         '/' + objectid + '-csvlc.gz" download="' +
                         objectid + '-csvlc.gz' +
                         '">Download light curve</a>'
