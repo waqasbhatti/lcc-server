@@ -1141,8 +1141,8 @@ var lcc_ui = {
 
                         // query type and params
                         var set_name = result[rowind]['name'];
-                        var set_desc = result[rowind]['description'];
-                        var set_citation = result[rowind]['citation'];
+                        var set_desc = lcc_ui.bibcode_linkify(result[rowind]['description']);
+                        var set_citation = lcc_ui.bibcode_linkify(result[rowind]['citation']);
                         var set_owned = result[rowind]['owned'];
                         var query_type = result[rowind]['query_type'];
                         var query_params = result[rowind]['query_params'];
@@ -1437,8 +1437,8 @@ var lcc_ui = {
 
                     // query type and params
                     var set_name = result[rowind]['name'];
-                    var set_desc = result[rowind]['description'];
-                    var set_citation = result[rowind]['citation'];
+                    var set_desc = lcc_ui.bibcode_linkify(result[rowind]['description']);
+                    var set_citation = lcc_ui.bibcode_linkify(result[rowind]['citation']);
                     var set_owned = result[rowind]['owned'];
                     var query_type = result[rowind]['query_type'];
                     var query_params = result[rowind]['query_params'];
@@ -3129,7 +3129,7 @@ var lcc_datasets = {
 <summary>${data.name}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-name-inputbox"
-         value="${data.name}" placeholder="type in a name"
+         value="${data.name}" placeholder="Type in a dataset name."
          maxlength="280">
   <button class="ml-2 btn btn-outline-success"
           type="button" id="dataset-name-submit">Update name</button>
@@ -3139,10 +3139,10 @@ var lcc_datasets = {
 
                     let desc_controls = `
 <details>
-<summary>${data.desc}</summary>
+<summary>${lcc_ui.bibcode_linkify(data.desc)}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-desc-inputbox"
-         value="${data.desc}" placeholder="type in a description"
+         value="${data.desc}" placeholder="Type in a description. ADS bibcodes will be auto-linked."
          maxlength="1024">
   <button class="ml-2 btn btn-outline-success"
           type="button" id="dataset-desc-submit">Update description</button>
@@ -3152,10 +3152,10 @@ var lcc_datasets = {
 
                     let citation_controls = `
 <details>
-<summary>${data.citation}</summary>
+<summary>${lcc_ui.bibcode_linkify(data.citation)}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-citation-inputbox"
-         value="${data.citation}" placeholder="type in a citation"
+         value="${data.citation}" placeholder="Type in a citation. ADS bibcodes will be auto-linked."
          maxlength="1024">
   <button class="ml-2 btn btn-outline-success"
           type="button" id="dataset-citation-submit">Update citation</button>
@@ -3175,6 +3175,13 @@ var lcc_datasets = {
 
                 }
 
+            }
+
+            else {
+                let dataset_desc = $('#other-dataset-desc').html();
+                $('#other-dataset-desc').html(lcc_ui.bibcode_linkify(dataset_desc));
+                let dataset_citation = $('#other-dataset-citation').html();
+                $('#other-dataset-citation').html(lcc_ui.bibcode_linkify(dataset_citation));
             }
 
             // the rest of the stuff can be called over again until we stop
@@ -3941,7 +3948,6 @@ var lcc_objectinfo = {
                 }
 
                 let formatted_simbad =
-                    '<strong><em>matching objects</em>:</strong> ' +
                     '<em>closest distance</em>: ' +
                     result.simbad_best_distarcsec.toFixed(2) +
                     '&Prime;<br>' +
@@ -3967,7 +3973,7 @@ var lcc_objectinfo = {
         }, 'json').fail(function(xhr) {
             $('#simbad-formatted-info').html(
                 '<span class="text-danger">Sorry, SIMBAD lookup ' +
-                    'failed due to an LCC-Server exception!</span>'
+                    'failed because the LCC-Server denied access.</span>'
             );
         });
 

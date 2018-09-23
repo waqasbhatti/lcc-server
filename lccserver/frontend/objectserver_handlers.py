@@ -463,6 +463,18 @@ class ObjectInfoHandler(BaseHandler):
             self.write(retdict)
             raise tornado.web.Finish()
 
+        if not self.keycheck['status'] == 'ok':
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
         objectid = self.get_argument('objectid', default=None)
         collection = self.get_argument('collection', default=None)
         action = self.get_argument('action', default=None)

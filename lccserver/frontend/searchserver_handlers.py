@@ -1255,6 +1255,18 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
         '''
+        if not self.keycheck['status'] == 'ok':
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
         LOGGER.info('request arguments: %r' % self.request.arguments)
 
         try:
@@ -1498,6 +1510,18 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
 
         conditions
         '''
+        if not self.keycheck['status'] == 'ok':
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
         LOGGER.info('request arguments: %r' % self.request.arguments)
 
         try:
@@ -1762,6 +1786,17 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
 
         '''
+        if not self.keycheck['status'] == 'ok':
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
         LOGGER.info('request arguments: %r' % self.request.arguments)
 
         try:
@@ -2016,13 +2051,15 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
         '''This runs the query.
 
         '''
+        if not self.keycheck['status'] == 'ok':
 
-        # at this point, we should have checked the API token or XSRF header and
-        # can proceed to dealing with the request itself
-
-        # if we get here and the status is set to 401/403, the request is bad
-        if self.get_status() == 401 or self.get_status() == 403:
-            self.write(self.keycheck)
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access."
+            }
+            self.write(retdict)
             raise tornado.web.Finish()
 
         # debugging

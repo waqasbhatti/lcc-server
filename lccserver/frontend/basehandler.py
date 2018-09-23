@@ -751,7 +751,6 @@ class BaseHandler(tornado.web.RequestHandler):
             # if the API key check also fails, return a 403
             else:
 
-                self.set_status(403)
                 message = apikey_info['message']
 
                 self.write({
@@ -759,7 +758,7 @@ class BaseHandler(tornado.web.RequestHandler):
                     'message':message,
                     'result':None
                 })
-                self.finish()
+                raise tornado.web.Finish()
 
 
 
@@ -849,6 +848,7 @@ class BaseHandler(tornado.web.RequestHandler):
                     'result':{'expiry':uns['expiry']},
                 }
 
+                LOGGER.info(retdict['message'])
                 return retdict
 
         except itsdangerous.SignatureExpired:
@@ -960,6 +960,16 @@ class BaseHandler(tornado.web.RequestHandler):
             }
 
             self.set_status(401)
+            return retdict
+
+        else:
+
+            retdict = {
+                'status':'ok',
+                'message':("XSRF cookie matches POST argument"),
+                'result': None
+            }
+            LOGGER.info(retdict['message'])
             return retdict
 
 

@@ -664,6 +664,18 @@ class DatasetListHandler(BaseHandler):
 
         '''
 
+        if not self.keycheck['status'] == 'ok':
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
         try:
             nrecent = self.get_argument('nsets')
             nrecent = int(xhtml_escape(nrecent))

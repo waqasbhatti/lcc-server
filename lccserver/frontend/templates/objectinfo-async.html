@@ -2,11 +2,13 @@
 
 {% block pagecontent %}
 
+<form id="objectinfo-edit-form" >
+  {% module xsrf_form_html() %}
+</form>
+
 <div class="container" id="objectinfo-container">
 
-
 </div>
-
 
 {% end %}
 
@@ -21,9 +23,9 @@ lcc_ui.action_setup();
 
 // fire the async request to get the object information
 lcc_objectinfo.get_object_info('{{ collection }}',
-                               null,
-                               '{{ objectid }}',
-                               '#objectinfo-container', true);
+null,
+'{{ objectid }}',
+'#objectinfo-container', true);
 
 
 });
