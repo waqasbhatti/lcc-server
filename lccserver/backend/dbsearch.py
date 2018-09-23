@@ -394,6 +394,7 @@ SQLITE_ALLOWED_QUERY_STARTERS = [
 
 def sqlite_get_collections(basedir,
                            lcclist=None,
+                           intended_action='view',
                            return_connection=True,
                            incoming_userid=2,
                            incoming_role='anonymous'):
@@ -485,7 +486,7 @@ def sqlite_get_collections(basedir,
             check_user_access(
                 userid=incoming_userid,
                 role=incoming_role,
-                action='view',
+                action=intended_action,
                 target_name='collection',
                 target_owner=x['collection_owner'],
                 target_visibility=x['collection_visibility'],
@@ -876,7 +877,6 @@ def parse_simbad_response(simbad_response):
 
     if 'No astronomical object found' in simbad_response:
         LOGERROR('no SIMBAD info available for this object')
-
         return None
 
     elif 'Object' in simbad_response and 'Coordinates' in simbad_response:
@@ -971,6 +971,11 @@ def parse_simbad_response(simbad_response):
             'simbad_best_allids': all_identifiers,
             'n_allids':nidentifiers
         }
+
+
+    else:
+        LOGERROR('could not parse SIMBAD response for this object')
+        return None
 
 
 
