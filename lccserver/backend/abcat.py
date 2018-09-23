@@ -50,7 +50,7 @@ import importlib
 import glob
 from functools import reduce
 from operator import getitem
-from textwrap import indent
+from textwrap import indent, dedent
 import gzip
 import operator
 from functools import partial
@@ -61,7 +61,6 @@ from scipy.spatial import cKDTree
 
 from tqdm import tqdm
 
-# from astrobase import lcdb
 
 
 #########################################
@@ -558,14 +557,21 @@ def objectinfo_to_sqlite(augcatpkl,
     # generate the final column list for insertion
     column_and_type_list = ', '.join([x[0] for x in coldefs])
 
-    # this is the final SQL used to create the database
-    # object_owner -> userid of the object owner. superuser's ID = 1
-    # object_visibility -> one of 0 -> private, 1 -> shared, 2 -> public
-    sqlcreate = ("create table object_catalog ({column_type_list}, "
-                 "object_owner integer default 1, "
-                 "object_visibility text default 'public', "
-                 "object_sharedwith text, "
-                 "primary key (objectid))")
+    # this is the final SQL used to create the database.
+    # extra columns we create:
+    # extra_info_json
+    # object_owner
+    # object_visibility
+    # object_sharedwith
+    sqlcreate = dedent(
+        '''create table object_catalog ({column_type_list},
+        extra_info_json text default
+        '{{"bibcode": null, "parent": null, "comments": null}}',
+        object_owner integer default 1,
+        object_visibility text default 'public',
+        object_sharedwith text,
+        primary key (objectid))'''
+    )
     sqlcreate = sqlcreate.format(column_type_list=column_and_type_list)
 
     # add in the owner, visibility, and sharedwith columns. set these values for
@@ -596,10 +602,16 @@ def objectinfo_to_sqlite(augcatpkl,
 
     colformatters = [x[1] for x in coldefs]
 
+    #
     # start the transaction
+    #
     cur.executescript('pragma journal_mode = wal; '
                       'pragma journal_size_limit = 52428800;')
     cur.execute('begin')
+
+    #
+    # create the version info table that we can use for migrations later
+    #
     cur.executescript(
         "create table object_catalog_vinfo (dbver integer, "
         "lccserver_vtag text, "
@@ -607,7 +619,9 @@ def objectinfo_to_sqlite(augcatpkl,
         "insert into object_catalog_vinfo values (2, 'v0.2', '2018-08-31');"
     )
 
-    # create the table
+    #
+    # create the main object_catalog table
+    #
     cur.execute(sqlcreate)
 
     LOGINFO('object_catalog table created successfully, '
@@ -719,57 +733,16 @@ def objectinfo_to_sqlite(augcatpkl,
 
         LOGINFO('creating an FTS index on columns %s' % repr(ftsindexcols))
 
+        #
         # generate the FTS table structure
+        #
+
+        # the extra_info_json will be a JSON column for storing stuff that
+        # doesn't really belong in the other columns like comments, object
+        # cluster membership, and object histories, etc.
         ftscreate = ("create virtual table catalog_fts "
-                     "using fts5({column_list}, content=object_catalog)")
-        fts_column_list = ', '.join(
-            [x.replace('.','_') for x in ftsindexcols]
-        )
-        ftscreate = ftscreate.format(column_list=fts_column_list)
-
-        # create the FTS index
-        cur.execute(ftscreate)
-
-        # create triggers to update the FTS indices automatically if the main
-        # object_catalog table gets updated
-        old_fts_column_list = ', '.join(
-            ['old.%s' % x.replace('.','_') for x in ftsindexcols]
-        )
-        new_fts_column_list = ', '.join(
-            ['old.%s' % x.replace('.','_') for x in ftsindexcols]
-        )
-        fts_triggers = (
-            "create trigger fts_afterupdate after update on object_catalog "
-            "begin "
-            "insert into catalog_fts(catalog_fts, rowid, {column_list}) values "
-            "('delete', {old_column_list}); "
-            "insert into catalog_fts(rowid, {column_list}) values "
-            "({new_column_list}); "
-            "end;"
-        ).format(column_list=column_list,
-                 old_column_list=old_fts_column_list,
-                 new_column_list=new_fts_column_list)
-        LOGINFO('trigger create: %s' % fts_triggers)
-        cur.executescript(fts_triggers)
-        db.commit()
-
-        # execute the rebuild command to activate the indices
-        cur.execute("insert into catalog_fts(catalog_fts) values ('rebuild')")
-
-    else:
-
-        ftsindexcols = []
-
-        for icol in defaultcolinfo.keys():
-
-            if defaultcolinfo[icol]['ftsindex']:
-                ftsindexcols.append(icol)
-
-        LOGINFO('creating an FTS index on columns %s' % repr(ftsindexcols))
-
-        # generate the FTS table structure
-        ftscreate = ("create virtual table catalog_fts "
-                     "using fts5({column_list}, content=object_catalog)")
+                     "using fts5({column_list}, extra_info_json, "
+                     "content=object_catalog)")
         fts_column_list = ', '.join(
             [x.replace('.','_') for x in ftsindexcols]
         )
@@ -787,30 +760,78 @@ def objectinfo_to_sqlite(augcatpkl,
             "create trigger fts_beforeupdate before update on object_catalog "
             "begin "
             "delete from catalog_fts where rowid=old.rowid; "
-            "end;"
+            "end; "
             "create trigger fts_afterupdate after update on object_catalog "
             "begin "
-            "insert into catalog_fts(rowid, {column_list}) values "
-            "(new.rowid, {new_column_list}); "
+            "insert into catalog_fts(rowid, {column_list}, extra_info_json) "
+            "values (new.rowid, {new_column_list}, new.extra_info_json); "
             "end;"
         ).format(column_list=fts_column_list,
                  new_column_list=new_fts_column_list)
         LOGINFO('FTS trigger create statement will be: %s' % fts_triggers)
         cur.executescript(fts_triggers)
-        db.commit()
 
         # execute the rebuild command to activate the indices
         cur.execute("insert into catalog_fts(catalog_fts) values ('rebuild')")
 
+    else:
+
+        ftsindexcols = []
+
+        for icol in defaultcolinfo.keys():
+
+            if defaultcolinfo[icol]['ftsindex']:
+                ftsindexcols.append(icol)
+
+        LOGINFO('creating an FTS index on columns %s' % repr(ftsindexcols))
+
+        #
+        # generate the FTS table structure
+        #
+
+        # the extra_info_json will be a JSON column for storing stuff that
+        # doesn't really belong in the other columns like comments, object
+        # cluster membership, and object histories, etc.
+        ftscreate = ("create virtual table catalog_fts "
+                     "using fts5({column_list}, extra_info_json, "
+                     "content=object_catalog)")
+        fts_column_list = ', '.join(
+            [x.replace('.','_') for x in ftsindexcols]
+        )
+        ftscreate = ftscreate.format(column_list=fts_column_list)
+
+        # create the FTS index
+        cur.execute(ftscreate)
+
+        # create triggers to update the FTS indices automatically if the main
+        # object_catalog table gets updated
+        new_fts_column_list = ', '.join(
+            ['new.%s' % x.replace('.','_') for x in ftsindexcols]
+        )
+        fts_triggers = (
+            "create trigger fts_beforeupdate before update on object_catalog "
+            "begin "
+            "delete from catalog_fts where rowid=old.rowid; "
+            "end; "
+            "create trigger fts_afterupdate after update on object_catalog "
+            "begin "
+            "insert into catalog_fts(rowid, {column_list}, extra_info_json) "
+            "values (new.rowid, {new_column_list}, new.extra_info_json); "
+            "end;"
+        ).format(column_list=fts_column_list,
+                 new_column_list=new_fts_column_list)
+        LOGINFO('FTS trigger create statement will be: %s' % fts_triggers)
+        cur.executescript(fts_triggers)
+
+        # execute the rebuild command to activate the indices
+        cur.execute("insert into catalog_fts(catalog_fts) values ('rebuild')")
 
     # turn the column info into a JSON
     columninfo_json = json.dumps(defaultcolinfo)
 
     # add some metadata to allow reading the LCs correctly later
-
     m_indexcols = indexcols if indexcols is not None else []
     m_ftsindexcols = ftsindexcols if ftsindexcols is not None else []
-
 
     metadata = {
         'basedir':augcat['basedir'],
