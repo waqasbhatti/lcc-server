@@ -74,6 +74,11 @@ from astrobase.coordutils import (
     hms_str_to_tuple, dms_str_to_tuple
 )
 
+# for updating checkplots with SIMBAD and SESAME lookup results
+from astrobase.checkplot import (
+    _read_checkplot_picklefile, _write_checkplot_picklefile
+)
+
 from ..authnzerver.authdb import check_user_access
 
 
@@ -790,6 +795,7 @@ def parse_sesame_response(
                 simbad_star_class = (
                     simbad_star_class[0].replace('%S','').strip()
                 )
+                simbad_star_class = simbad_star_class.split('=')[0]
             else:
                 simbad_star_class = None
 
@@ -1069,7 +1075,9 @@ def sqlite_simbad_objectsearch(
         raiseonfail=False,
         incoming_userid=2,
         incoming_role='anonymous',
-        updatedb_from_simbad=True
+        force_update=False,
+        updatedb_from_simbad=True,
+        update_checkplot_pickle=True,
 ):
     '''This does a basic coordinate search on SIMBAD and updates missing info.
 
@@ -1109,7 +1117,8 @@ def sqlite_simbad_objectsearch(
     # check if we can return all info from the database already
     if (res[collection]['result'][0]['simbad_best_mainid'] is not None and
         res[collection]['result'][0]['simbad_best_objtype'] is not None and
-        res[collection]['result'][0]['simbad_best_allids'] is not None):
+        res[collection]['result'][0]['simbad_best_allids'] is not None and
+        not force_update):
 
         LOGWARNING('all SIMBAD info already present in the DB for this object')
         return res
@@ -1131,7 +1140,7 @@ def sqlite_simbad_objectsearch(
 
         try:
 
-            resp = requests.get(req_url, params)
+            resp = requests.get(req_url, params, timeout=timeout)
             resp.raise_for_status()
             reqok = True
             break
@@ -1177,6 +1186,43 @@ def sqlite_simbad_objectsearch(
                                                 parsed,
                                                 incoming_userid=incoming_userid,
                                                 incoming_role=incoming_role)
+
+            if update_checkplot_pickle:
+
+                cplist = [os.path.join(basedir,
+                                       collection.replace('_','-'),
+                                       'checkplots',
+                                       'checkplot-%s-%s.pkl' % (objectid,
+                                                                magcol)) for
+                          magcol in res[collection]['lcmagcols'].split(',')]
+
+                for cp in cplist:
+                    if os.path.exists(cp):
+                        cpd = _read_checkplot_picklefile(cp)
+                        cpd['objectinfo']['simbad_status'] = (
+                            'ok: updated from query'
+                        )
+                        cpd['objectinfo']['simbad_nmatches'] = 1
+                        cpd['objectinfo']['simbad_best_mainid'] = (
+                            parsed['simbad_best_mainid']
+                        )
+                        cpd['objectinfo']['simbad_best_objtype'] = (
+                            parsed['simbad_best_objtype']
+                        )
+                        cpd['objectinfo']['simbad_best_allids'] = (
+                            parsed['simbad_best_allids']
+                        )
+                        cpd['objectinfo']['simbad_best_distarcsec'] = (
+                            5.0
+                        )
+                        _write_checkplot_picklefile(
+                            cpd,
+                            outfile=cp,
+                            protocol=pickle.HIGHEST_PROTOCOL,
+                        )
+                        LOGINFO('updated checkplot pickle for object: %s' %
+                                cp)
+
         else:
             updated = False
 
@@ -1216,10 +1262,12 @@ def sqlite_sesame_fulltext_search(
         incoming_role='anonymous',
         fail_if_conditions_invalid=True,
         censor_searchargs=False,
-        updatedb_from_sesame=True
+        updatedb_from_sesame=True,
+        force_update=False,
+        update_checkplot_pickle=True,
 ):
 
-    '''This runs a full-text search query followed by a SIMBAD lookup and
+    '''This runs a full-text search query followed by a SESAME lookup and
     cone-search if that fails.
 
     The use case is to try to complete FTS queries that don't return anything
@@ -1248,9 +1296,9 @@ def sqlite_sesame_fulltext_search(
                     for x in fulltext_search['databases']])
 
 
-    if nmatches == 0:
+    if nmatches == 0 or force_update:
 
-        LOGWARNING('no local name matches found, '
+        LOGWARNING('no local name matches found or force_update = True, '
                    'looking up object name in SIMBAD')
 
         sesame_lookup = sesame_query(
@@ -1260,14 +1308,12 @@ def sqlite_sesame_fulltext_search(
 
         if sesame_lookup is not None:
 
-            # special handling if the provided object type is OpC -> "open
-            # cluster" or the object type doesn't contain '*'. we'll expand the
-            # search radius to 15 arcminutes so people can look at LCs we have
-            # near the cluster center or object center. in this case, we will
-            # update the object entries in the DB by appending to their simbad_*
-            # columns not replacing them entirely like we do for small radius
-            # queries. this way, we'll be able to return searches for this term
-            # much quicker from the local DB.
+            # special handling if the provided object type is not a star. we'll
+            # expand the search radius to 1 deg so people can look at LCs we
+            # have near the cluster center or object center. in this case, we
+            # will update the extra_info_json for each object in the DB. this
+            # way, we'll be able to return searches for this term much quicker
+            # from the local DB.
             if (sesame_lookup['simbad_best_objtype'] is not None and
                 ( ('OpC' in sesame_lookup['simbad_best_objtype']) or
                   ('Cl' in sesame_lookup['simbad_best_objtype']) or
@@ -1282,7 +1328,7 @@ def sqlite_sesame_fulltext_search(
                   ('SR' in sesame_lookup['simbad_best_objtype']) or
                   ('SNR' in sesame_lookup['simbad_best_objtype']) )):
                 search_radius = 60.0
-                update_mode = 'append'
+                update_mode = 'extra'
                 LOGINFO('running star cluster or non-stellar object '
                         'query using simbad_best_objtype: %s '
                         'for object_name: %s' %
@@ -1292,7 +1338,7 @@ def sqlite_sesame_fulltext_search(
             else:
 
                 search_radius = 0.08
-                update_mode = 'replace'
+                update_mode = 'simbad'
 
             # do the cone search
             cone_search = sqlite_kdtree_conesearch(
@@ -1331,7 +1377,7 @@ def sqlite_sesame_fulltext_search(
 
                 if updatedb_from_sesame:
 
-                    if update_mode == 'replace':
+                    if update_mode == 'simbad':
 
                         query = (
                             "update object_catalog set "
@@ -1340,19 +1386,33 @@ def sqlite_sesame_fulltext_search(
                             "simbad_best_objtype = ? where "
                             "objectid = ?"
                         )
+                        params = [sesame_lookup['simbad_best_mainid'],
+                                  sesame_lookup['simbad_best_allids'],
+                                  sesame_lookup['simbad_best_objtype']]
 
+
+                    # otherwise, the update mode is 'extra', so we'll be
+                    # patching the JSON in the extra_info_json column of the
+                    # object_catalog table
                     else:
 
                         query = (
                             "update object_catalog set "
-                            "simbad_best_mainid = ? "
-                            "|| '; ' || coalesce(simbad_best_mainid,''), "
-                            "simbad_best_allids = ? "
-                            "|| '; ' || coalesce(simbad_best_allids,''), "
-                            "simbad_best_objtype = ? "
-                            "|| '; ' || coalesce(simbad_best_objtype,'') "
-                            "where objectid = ?"
+                            "extra_info_json = json_patch("
+                            "extra_info_json, ?"
+                            ") where objectid = ?"
                         )
+                        params = [json.dumps({'parent':{
+                            'simbad_best_mainid':(
+                                sesame_lookup['simbad_best_mainid']
+                            ),
+                            'simbad_best_allids':(
+                                sesame_lookup['simbad_best_allids']
+                            ),
+                            'simbad_best_objtype':(
+                                sesame_lookup['simbad_best_objtype']
+                            ),
+                        }})]
 
                     # get these collections and update them
                     for coll in conesearch_matched_collections:
@@ -1374,11 +1434,9 @@ def sqlite_sesame_fulltext_search(
 
                             oid = row['db_oid']
                             matchdist = row['dist_arcsec']
-                            params = (sesame_lookup['simbad_best_mainid'],
-                                      sesame_lookup['simbad_best_allids'],
-                                      sesame_lookup['simbad_best_objtype'],
-                                      oid)
-                            cur.execute(query, params)
+                            qparams = tuple(params + [oid])
+
+                            cur.execute(query, qparams)
 
                             LOGINFO(
                                 "updated objectid = %s in "
@@ -1395,6 +1453,113 @@ def sqlite_sesame_fulltext_search(
                                    sesame_lookup['simbad_best_allids'],
                                    sesame_lookup['simbad_best_objtype'])
                             )
+
+                            if update_checkplot_pickle:
+
+                                cplist = [
+                                    os.path.join(
+                                        basedir,
+                                        coll.replace('_','-'),
+                                        'checkplots',
+                                        'checkplot-%s-%s.pkl' % (oid,
+                                                                 magcol)
+                                    ) for magcol in
+                                    cone_search[coll]['lcmagcols'].split(',')
+                                ]
+
+                                for cp in cplist:
+
+                                    if os.path.exists(cp):
+
+                                        cpd = _read_checkplot_picklefile(cp)
+
+                                        if update_mode == 'simbad':
+
+                                            cpd['objectinfo'][
+                                                'simbad_status'
+                                            ] = (
+                                                'ok: updated from query'
+                                            )
+                                            cpd['objectinfo'][
+                                                'simbad_nmatches'
+                                            ] = 1
+                                            cpd['objectinfo'][
+                                                'simbad_best_mainid'
+                                            ] = (
+                                                sesame_lookup[
+                                                    'simbad_best_mainid'
+                                                ]
+                                            )
+                                            cpd['objectinfo'][
+                                                'simbad_best_objtype'
+                                            ] = (
+                                                sesame_lookup[
+                                                    'simbad_best_objtype'
+                                                ]
+                                            )
+                                            cpd['objectinfo'][
+                                                'simbad_best_allids'
+                                            ] = (
+                                                sesame_lookup[
+                                                    'simbad_best_allids'
+                                                ]
+                                            )
+                                            cpd['objectinfo'][
+                                                'simbad_best_distarcsec'
+                                            ] = (
+                                                matchdist
+                                            )
+
+                                        else:
+                                            comment_update = (
+                                                'SIMBAD parent object: '
+                                                'main ID = %s, '
+                                                'object type = %s, '
+                                                'all IDs =  %s'
+                                            ) % (
+                                                sesame_lookup[
+                                                    'simbad_best_mainid'
+                                                ],
+                                                sesame_lookup[
+                                                    'simbad_best_objtype'
+                                                ],
+                                                sesame_lookup[
+                                                    'simbad_best_allids'
+                                                ]
+                                            )
+
+                                            if cpd['comments'] is None:
+                                                cpd['comments'] = comment_update
+                                            else:
+                                                cpd['comments'] = (
+                                                    cpd['comments'] +
+                                                    '; ' +
+                                                    comment_update
+                                                )
+                                            if cpd['objectcomments'] is None:
+                                                cpd['objectcomments'] = (
+                                                    comment_update
+                                                )
+                                            else:
+                                                cpd['objectcomments'] = (
+                                                    cpd['objectcomments'] +
+                                                    '; ' +
+                                                    comment_update
+                                                )
+
+                                        _write_checkplot_picklefile(
+                                            cpd,
+                                            outfile=cp,
+                                            protocol=(
+                                                pickle.HIGHEST_PROTOCOL
+                                            ),
+                                        )
+                                        LOGINFO(
+                                            'updated checkplot '
+                                            'pickle for object: %s' %
+                                            cp
+                                        )
+
 
                         db.commit()
                         db.close()
@@ -1616,7 +1781,7 @@ def sqlite_fulltext_search(
               'a.object_owner as owner, '
               'a.object_visibility as visibility, '
               'a.object_sharedwith as sharedwith, '
-              'rank as relevance')]
+              'rank as relevance, a.extra_info_json as extra_info')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
@@ -1627,7 +1792,8 @@ def sqlite_fulltext_search(
                                        'owner',
                                        'visibility',
                                        'sharedwith',
-                                       'relevance']
+                                       'relevance',
+                                       'extra_info']
 
 
     # otherwise, if there are no columns, use the default ones
@@ -1638,7 +1804,7 @@ def sqlite_fulltext_search(
                      'a.object_owner as owner, '
                      'a.object_visibility as visibility, '
                      'a.object_sharedwith as sharedwith, '
-                     'rank as relevance')
+                     'rank as relevance, a.extra_info_json as extra_info')
 
         rescolumns = ['db_oid',
                       'db_ra',
@@ -1647,7 +1813,8 @@ def sqlite_fulltext_search(
                       'owner',
                       'visibility',
                       'sharedwith',
-                      'relevance']
+                      'relevance',
+                      'extra_info']
 
     # this is the query that will be used for FTS
     q = ("select {columnstr} from {collection_id}.object_catalog a join "
@@ -1741,6 +1908,16 @@ def sqlite_fulltext_search(
             'format':'%s',
             'index':False,
             'ftsindex':False,
+        }
+        lcc_columnspec['extra_info'] = {
+            'title': "additional information",
+            'description':("additional information about the object "
+                           "that doesn't necessarily fit into one "
+                           "of the other columns"),
+            'dtype':'U1024',
+            'format':'%s',
+            'index':False,
+            'ftsindex':True,
         }
 
         # we should return all FTS indexed columns regardless of whether the

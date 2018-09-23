@@ -82,6 +82,54 @@ var lcc_ui = {
 
     },
 
+
+    // this finds ADS bibcodes in text and linkifies them to an ADS lookup
+    // https://en.wikipedia.org/wiki/Bibcode
+    // regex adapted from the super awesome https://regex101.com/
+    bibcode_linkify: function (text) {
+
+        const regex = /(\d{4}\S{5}\S{4}[a-zA-Z\.]\S{4}[A-Z])+/g;
+        let m;
+        let bibcodes = [];
+        let biblinks = [];
+        let new_text = text;
+
+        while ((m = regex.exec(text)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+
+            // The result can be accessed through the `m`-variable.
+            m.forEach((match, groupIndex) => {
+                bibcodes.push(match);
+                biblinks.push(
+                    `<a target="_blank" rel="noopener noreferer" href="https://ui.adsabs.harvard.edu/#abs/${match}/abstract">${match}</a>`);
+            });
+        }
+
+        // remove all the bib codes
+        let ind = 0;
+        for (ind = 0; ind < bibcodes.length; ind++) {
+            new_text = new_text.replace(
+                bibcodes[ind],
+                '_bib' + ind + '_'
+            );
+        }
+
+        // add back the linkified bibcodes
+        for (ind = 0; ind < bibcodes.length; ind++) {
+            new_text = new_text.replace(
+                '_bib' + ind + '_',
+                biblinks[ind]
+            );
+        }
+
+        return new_text;
+
+    },
+
+
     // this updates all of the column associated controls whenever there's an
     // update needed
     update_column_associated_controls: function (columns,
@@ -2737,15 +2785,32 @@ var lcc_datasets = {
         let colind_objectid = 0;
         let colind_collection = columns.length - 1;
         let colind_lcfname = 0;
+        let colind_extrainfo = -1;
+        let colind_simbad_best_allids = -1;
+        let colind_simbad_best_objtype = -1;
 
         for (colind; colind < columns.length; colind++) {
 
             var this_col = columns[colind];
+
             if (this_col == 'db_oid') {
                 colind_objectid = colind;
             }
+
             if (this_col == 'collection') {
                 colind_collection = colind;
+            }
+
+            if (this_col == 'extra_info') {
+                colind_extrainfo = colind;
+            }
+
+            if (this_col == 'simbad_best_allids') {
+                colind_simbad_best_allids = colind;
+            }
+
+            if (this_col == 'simbad_best_objtype') {
+                colind_simbad_best_objtype = colind;
             }
 
             if (this_col == 'db_lcfname') {
@@ -2808,7 +2873,12 @@ var lcc_datasets = {
         coldef_rows = coldef_rows.join('');
         $('#table-datarows').html(coldef_rows);
 
-        return [colind_objectid, colind_collection, colind_lcfname];
+        return [colind_objectid,
+                colind_collection,
+                colind_lcfname,
+                colind_extrainfo,
+                colind_simbad_best_allids,
+                colind_simbad_best_objtype];
     },
 
 
@@ -2817,7 +2887,10 @@ var lcc_datasets = {
     render_datatable_rows: function (data,
                                      colind_objectid,
                                      colind_collection,
-                                     colind_lcfname) {
+                                     colind_lcfname,
+                                     colind_extrainfo,
+                                     colind_simbad_best_allids,
+                                     colind_simbad_best_objtype) {
         var rowind = 0;
         var datarows_elem = $('#lcc-datatable-datarows');
 
@@ -2879,6 +2952,30 @@ var lcc_datasets = {
                     thisrow_lclink + '">download light curve</a>';
             }
 
+            // bibcode linkify the extra_info, simbad_best_allids, and
+            // simbad_best_obtype columns
+            if (colind_extrainfo > -1) {
+
+                thisrow[colind_extrainfo] = '<details><summary>view JSON</summary>' +
+                    lcc_ui.bibcode_linkify('<pre>' +
+                                           JSON.stringify(JSON.parse(thisrow[colind_extrainfo]),null, 2) +
+                                           '</pre>') +
+                    '</details>';
+
+            }
+
+            if (colind_simbad_best_allids > -1) {
+                thisrow[colind_simbad_best_allids] = lcc_ui.bibcode_linkify(
+                    thisrow[colind_simbad_best_allids]
+                );
+            }
+            if (colind_simbad_best_objtype > -1) {
+                thisrow[colind_simbad_best_objtype] = lcc_ui.bibcode_linkify(
+                    thisrow[colind_simbad_best_objtype]
+                );
+            }
+
+            // add the details column to the row
             objectentry_firstcol = '<a href="#" rel="nofollow" role="button" ' +
                 'data-toggle="modal" data-target="#objectinfo-modal"' +
                 'title="get available object information" ' +
@@ -2935,7 +3032,10 @@ var lcc_datasets = {
                 // save these to the object so we can refer to them later
                 [lcc_datasets.colind_objectid,
                  lcc_datasets.colind_collection,
-                 lcc_datasets.colind_lcfname] =
+                 lcc_datasets.colind_lcfname,
+                 lcc_datasets.colind_extrainfo,
+                 lcc_datasets.colind_simbad_best_allids,
+                 lcc_datasets.colind_simbad_best_objtype] =
                     lcc_datasets.render_column_definitions(data);
 
                 // searchtype and searchargs
@@ -3096,6 +3196,9 @@ var lcc_datasets = {
                 $('#dataset-status').html('<span class="text-secondary">' +
                                           status +
                                           '</span>');
+                $('#setload-indicator').html(
+                    'waiting for LC ZIP completion...'
+                );
                 lcc_datasets.dataset_complete = false;
             }
 
@@ -3108,7 +3211,10 @@ var lcc_datasets = {
                     data,
                     lcc_datasets.colind_objectid,
                     lcc_datasets.colind_collection,
-                    lcc_datasets.colind_lcfname
+                    lcc_datasets.colind_lcfname,
+                    lcc_datasets.colind_extrainfo,
+                    lcc_datasets.colind_simbad_best_allids,
+                    lcc_datasets.colind_simbad_best_objtype
                 );
 
                 // set the bits for later rendering
@@ -3208,10 +3314,15 @@ var lcc_datasets = {
             // finally, fill in the dataset table //
             ////////////////////////////////////////
 
-            lcc_datasets.render_datatable_rows(data,
-                                               lcc_datasets.colind_objectid,
-                                               lcc_datasets.colind_collection,
-                                               lcc_datasets.colind_lcfname);
+            lcc_datasets.render_datatable_rows(
+                data,
+                lcc_datasets.colind_objectid,
+                lcc_datasets.colind_collection,
+                lcc_datasets.colind_lcfname,
+                lcc_datasets.colind_extrainfo,
+                lcc_datasets.colind_simbad_best_allids,
+                lcc_datasets.colind_simbad_best_objtype
+            );
 
         }).fail(function (xhr) {
 
@@ -3245,7 +3356,7 @@ var lcc_datasets = {
         if (load_indicator.text() == '') {
 
             $('#setload-indicator').html(
-                '<span class="text-warning">waiting for dataset completion... ' +
+                '<span class="text-warning">getting dataset...' +
                     '</span>'
             );
 
@@ -3358,7 +3469,9 @@ var lcc_datasets = {
                 $('#dataset-lastupdated').html(last_updated);
 
                 // update the dataset's description
-                $('#dataset-desc > details > summary').html(result.desc);
+                $('#dataset-desc > details > summary').html(
+                    lcc_ui.bibcode_linkify(result.desc)
+                );
                 $('#dataset-desc-inputbox').val(result.desc);
 
             }
@@ -3417,7 +3530,9 @@ var lcc_datasets = {
                 $('#dataset-lastupdated').html(last_updated);
 
                 // update the dataset's citation
-                $('#dataset-citation > details > summary').html(result.citation);
+                $('#dataset-citation > details > summary').html(
+                    lcc_ui.bibcode_linkify(result.citation)
+                );
                 $('#dataset-citation-inputbox').val(result.citation);
 
             }
@@ -4587,9 +4702,9 @@ var lcc_objectinfo = {
                     '<em>closest object ID</em>: ' +
                     currcp.objectinfo.simbad_best_mainid + '<br>' +
                     '<em>closest object type</em>: ' +
-                    currcp.objectinfo.simbad_best_objtype + '<br>' +
+                    lcc_ui.bibcode_linkify(currcp.objectinfo.simbad_best_objtype) + '<br>' +
                     '<em>closest object other IDs</em>: ' +
-                    simbad_best_allids;
+                    lcc_ui.bibcode_linkify(simbad_best_allids);
 
             }
 
@@ -4799,7 +4914,7 @@ var lcc_objectinfo = {
             $('#objectinfo-basic').append(
                 '<tr>' +
                     '<th>Comments</th>' +
-                    '<td>' + currcp.objectcomments + '</td></tr>'
+                    '<td>' + lcc_ui.bibcode_linkify(currcp.objectcomments) + '</td></tr>'
             );
 
         }
