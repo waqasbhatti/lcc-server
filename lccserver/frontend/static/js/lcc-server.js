@@ -3175,13 +3175,13 @@ var lcc_datasets = {
 
                 }
 
-            }
+                else {
+                    let dataset_desc = $('#other-dataset-desc').html();
+                    $('#other-dataset-desc').html(lcc_ui.bibcode_linkify(dataset_desc));
+                    let dataset_citation = $('#other-dataset-citation').html();
+                    $('#other-dataset-citation').html(lcc_ui.bibcode_linkify(dataset_citation));
+                }
 
-            else {
-                let dataset_desc = $('#other-dataset-desc').html();
-                $('#other-dataset-desc').html(lcc_ui.bibcode_linkify(dataset_desc));
-                let dataset_citation = $('#other-dataset-citation').html();
-                $('#other-dataset-citation').html(lcc_ui.bibcode_linkify(dataset_citation));
             }
 
             // the rest of the stuff can be called over again until we stop
