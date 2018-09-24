@@ -548,10 +548,21 @@ class DatasetListHandler(BaseHandler):
             setfilter = xhtml_escape(setfilter)
             setfilter = setfilter[:1024]
 
+        useronly = self.get_argument('useronly', default=None)
+        if useronly is not None:
+            useronly = xhtml_escape(useronly.strip())
+            if useronly == 'true':
+                useronly = True
+            else:
+                useronly = False
+        else:
+            useronly = False
+
         dataset_info = yield self.executor.submit(
             datasets.sqlite_list_datasets,
             self.basedir,
             setfilter=setfilter,
+            useronly=useronly,
             nrecent=nrecent,
             require_status='complete',
             incoming_userid=self.current_user['user_id'],

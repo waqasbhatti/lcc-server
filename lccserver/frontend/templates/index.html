@@ -238,8 +238,7 @@
                                  name="conesearch-query" autocomplete="on"
                                  type="search"
                                  placeholder="[right ascension] [declination] [radius (arcmin)]"
-                                 aria-label="search for objects near a right ascension and declination given a radius in arcminutes"
-                                 required>
+                                 aria-label="search for objects near a right ascension and declination given a radius in arcminutes">
                           <div class="input-group-append" >
                             <button class="btn btn-primary"
                                     type="submit" id="conesearch-submit">Search</button>
@@ -271,7 +270,8 @@
                       <div class="col-12">
 
                         <div class="form-check">
-                          <input class="form-check-input" type="checkbox" id="conesearch-emailwhendone-check">
+                          <input class="form-check-input pref-emailwhendone"
+                                 type="checkbox" id="conesearch-emailwhendone-check">
                           <label class="form-check-label" for="conesearch-emailwhendone-check">
                             Email me when this query is complete
                           </label>
@@ -526,7 +526,7 @@
                                  name="ftsquery-query" autocomplete="on"
                                  type="search"
                                  placeholder="object name, 2MASS ID, description, tag, etc."
-                                 aria-label="search for object names, 2MASS ID, description, tags, etc." required>
+                                 aria-label="search for object names, 2MASS ID, description, tags, etc.">
                           <div class="input-group-append" >
                             <button class="btn btn-primary"
                                     type="submit" id="ftsquery-submit">Search</button>
@@ -571,7 +571,8 @@
                       <div class="col-12">
 
                         <div class="form-check">
-                          <input class="form-check-input" type="checkbox" id="ftsquery-emailwhendone-check">
+                          <input class="form-check-input pref-emailwhendone"
+                                 type="checkbox" id="ftsquery-emailwhendone-check">
                           <label class="form-check-label" for="ftsquery-emailwhendone-check">
                             Email me when this query is complete
                           </label>
@@ -852,7 +853,8 @@
                       <div class="col-12">
 
                         <div class="form-check">
-                          <input class="form-check-input" type="checkbox" id="columnsearch-emailwhendone-check">
+                          <input class="form-check-input pref-emailwhendone"
+                                 type="checkbox" id="columnsearch-emailwhendone-check">
                           <label class="form-check-label" for="columnsearch-emailwhendone-check">
                             Email me when this query is complete
                           </label>
@@ -1121,7 +1123,8 @@
                       <div class="col-12">
 
                         <div class="form-check">
-                          <input class="form-check-input" type="checkbox" id="xmatch-emailwhendone-check">
+                          <input class="form-check-input pref-emailwhendone"
+                                 type="checkbox" id="xmatch-emailwhendone-check">
                           <label class="form-check-label" for="xmatch-emailwhendone-check">
                             Email me when this query is complete
                           </label>
@@ -1347,8 +1350,7 @@
                              name="datasetsearch" autocomplete="on"
                              type="search" maxlength="1024"
                              placeholder="queried collections, query type or arguments, dataset ID, name, description, citation"
-                             aria-label="queried collections, query type or arguments, dataset ID, name, description, citation"
-                             required>
+                             aria-label="queried collections, query type or arguments, dataset ID, name, description, citation">
                       <div class="input-group-append" >
                         <button class="btn btn-primary"
                                 type="submit" id="dataset-search-submit">Search for datasets</button>
@@ -1428,7 +1430,6 @@
 
 
 {% block pagejs_modules %}
-
 <!-- code mirror js -->
 <!-- <script src="{{ static_url('js/codemirror.min.js') }}"></script>
 -->
@@ -1448,6 +1449,8 @@ lcc_ui.get_recent_datasets(25);
 // UI action setup
 lcc_ui.action_setup();
 
+// load the user prefs
+lcc_ui.load_cookie_prefs('main-page');
 
 
 });

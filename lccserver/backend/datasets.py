@@ -1151,6 +1151,7 @@ def sqlite_check_dataset_access(
 
 def sqlite_list_datasets(basedir,
                          setfilter=None,
+                         useronly=False,
                          nrecent=25,
                          require_status='complete',
                          incoming_userid=2,
@@ -1211,42 +1212,86 @@ def sqlite_list_datasets(basedir,
     # if no filters are specified, just return the most recent datasets
     if not setfilter:
 
-        query = ("select setid, created_on, last_updated, nobjects, "
-                 "name, description, citation, "
-                 "queried_collections, query_type, query_params, "
-                 "dataset_owner, dataset_visibility, "
-                 "dataset_sharedwith, dataset_sessiontoken "
-                 "from "
-                 "lcc_datasets where status = ?"
-                 "order by last_updated desc limit ?")
-        params = (require_status, nrecent)
+        if not useronly:
+
+            query = ("select setid, created_on, last_updated, nobjects, "
+                     "name, description, citation, "
+                     "queried_collections, query_type, query_params, "
+                     "dataset_owner, dataset_visibility, "
+                     "dataset_sharedwith, dataset_sessiontoken "
+                     "from "
+                     "lcc_datasets where status = ?"
+                     "order by last_updated desc limit ?")
+            params = (require_status, nrecent)
+
+        else:
+
+            query = ("select setid, created_on, last_updated, nobjects, "
+                     "name, description, citation, "
+                     "queried_collections, query_type, query_params, "
+                     "dataset_owner, dataset_visibility, "
+                     "dataset_sharedwith, dataset_sessiontoken "
+                     "from "
+                     "lcc_datasets where status = ? and dataset_owner = ? "
+                     "order by last_updated desc limit ?")
+            params = (require_status, incoming_userid, nrecent)
+
 
     else:
 
-        query = (
-            "select a.setid, a.created_on, a.last_updated, a.nobjects, "
-            "a.name, a.description, a.citation, "
-            "a.queried_collections, a.query_type, a.query_params, "
-            "a.dataset_owner, a.dataset_visibility, "
-            "a.dataset_sharedwith, a.dataset_sessiontoken, b.rank "
-            "from "
-            "lcc_datasets a join lcc_datasets_fts b on "
-            "(a.rowid = b.rowid) "
-            "where a.status = ? and "
-            "lcc_datasets_fts MATCH ? "
-            "order by bm25(lcc_datasets_fts), a.last_updated desc limit ?"
-        )
+        if not useronly:
 
-        # we need to unescape the search string because it might contain
-        # exact match strings that we might want to use with FTS
-        unescapedstr = xhtml_unescape(setfilter)
-        if unescapedstr != setfilter:
-            setfilter = unescapedstr
-            LOGWARNING('unescaped FTS setfilter because '
-                       'it had quotes in it for exact matching: %r' %
-                       unescapedstr)
-        setfilter = setfilter.replace('\n','')
-        params = (require_status, setfilter, nrecent)
+            query = (
+                "select a.setid, a.created_on, a.last_updated, a.nobjects, "
+                "a.name, a.description, a.citation, "
+                "a.queried_collections, a.query_type, a.query_params, "
+                "a.dataset_owner, a.dataset_visibility, "
+                "a.dataset_sharedwith, a.dataset_sessiontoken, b.rank "
+                "from "
+                "lcc_datasets a join lcc_datasets_fts b on "
+                "(a.rowid = b.rowid) "
+                "where a.status = ? and "
+                "lcc_datasets_fts MATCH ? "
+                "order by bm25(lcc_datasets_fts), a.last_updated desc limit ?"
+            )
+
+            # we need to unescape the search string because it might contain
+            # exact match strings that we might want to use with FTS
+            unescapedstr = xhtml_unescape(setfilter)
+            if unescapedstr != setfilter:
+                setfilter = unescapedstr
+                LOGWARNING('unescaped FTS setfilter because '
+                           'it had quotes in it for exact matching: %r' %
+                           unescapedstr)
+            setfilter = setfilter.replace('\n','')
+            params = (require_status, setfilter, nrecent)
+
+        else:
+
+            query = (
+                "select a.setid, a.created_on, a.last_updated, a.nobjects, "
+                "a.name, a.description, a.citation, "
+                "a.queried_collections, a.query_type, a.query_params, "
+                "a.dataset_owner, a.dataset_visibility, "
+                "a.dataset_sharedwith, a.dataset_sessiontoken, b.rank "
+                "from "
+                "lcc_datasets a join lcc_datasets_fts b on "
+                "(a.rowid = b.rowid) "
+                "where a.status = ? and a.dataset_owner = ? and "
+                "lcc_datasets_fts MATCH ? "
+                "order by bm25(lcc_datasets_fts), a.last_updated desc limit ?"
+            )
+
+            # we need to unescape the search string because it might contain
+            # exact match strings that we might want to use with FTS
+            unescapedstr = xhtml_unescape(setfilter)
+            if unescapedstr != setfilter:
+                setfilter = unescapedstr
+                LOGWARNING('unescaped FTS setfilter because '
+                           'it had quotes in it for exact matching: %r' %
+                           unescapedstr)
+            setfilter = setfilter.replace('\n','')
+            params = (require_status, incoming_userid, setfilter, nrecent)
 
 
     # make sure we never get more than 1000 recent datasets

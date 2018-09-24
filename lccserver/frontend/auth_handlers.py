@@ -820,7 +820,7 @@ class UserHomeHandler(BaseHandler):
 
         if (current_user and
             current_user['is_active'] and
-            current_user['user_id'] not in (2,3)):
+            current_user['user_role'] in ('authenticated','staff','superuser')):
 
             self.render(
                 'userhome.html',
@@ -829,15 +829,16 @@ class UserHomeHandler(BaseHandler):
                 flash_messages=self.render_flash_messages(),
                 page_title="User home page",
                 lccserver_version=__version__,
-                siteinfo=self.siteinfo
+                siteinfo=self.siteinfo,
+                cookie_expires_days=self.session_expiry,
+                cookie_secure='true' if self.csecure else 'false'
             )
 
         else:
             self.save_flash_messages(
                 "Please sign in to proceed.",
-                "primary"
+                "warning"
             )
-
             self.redirect('/users/login')
 
 

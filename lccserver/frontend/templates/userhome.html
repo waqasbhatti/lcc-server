@@ -2,47 +2,155 @@
 
 {% block pagecontent %}
 
-<div class="container" >
+<div class="container-fluid" >
 
-  <div class="row justify-content-center" >
+  <div class="row mt-2 justify-content-center" id="alert-box">
     <div class="col-sm-12 col-md-9" >
       {% raw flash_messages %}
     </div>
   </div>
 
-  <div class="row" >
-    <div class="col-sm-12" >
-      <h2>Hello! This is your user home page.</h2>
-    </div>
-  </div>
+  <div class="row mt-2" >
 
-  <div class="row" >
-
-    <div class="col-sm-12 col-md-4">
-
-      <h3>Your user account</h3>
+    <div class="col-sm-12 col-md-3">
+      <h3>User account</h3>
 
       <ul class="list-unstyled">
         <li><a href="/users/password-change">Change your password</a></li>
+        <li><a href="/users/delete"><span class="text-danger">Delete your account</span></a></li>
       </ul>
 
-      <form class="mt-2" action="/users/logout" method="POST" >
-        {% module xsrf_form_html() %}
-        <button type="submit" class="btn btn-warning btn-sm">Sign out</button>
+      <!-- to add later:
+         - update user's full name
+         - update user's LCC-Server username (for other people to use with @ to refer to the user when sharing datasets)
+         - update user's email (this will be tricky)
+      -->
+
+    </div>
+
+    <div class="col-sm-12 col-md-4">
+      <h3>Search preferences</h3>
+
+      <form class="form" id="user-prefs-form">
+        <div class="row">
+          <div class="col-12" >
+
+            <div class="form-check">
+              <input class="form-check-input prefs-set" type="checkbox"
+                     id="prefs-email-when-done">
+              <label class="form-check-label" for="prefs-email-when-done">
+                Always email me when my queries are complete
+              </label>
+            </div>
+
+            <fieldset>
+              <legend>Query result visibility</legend>
+
+              <div class="form-check">
+                <input class="form-check-input prefs-set" type="radio" name="prefs-dataset-visibility"
+                       id="prefs-datasets-private" value="private">
+                <label class="form-check-label" for="prefs-datasets-private">
+                  Result datasets will be private by default
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input prefs-set" type="radio" name="prefs-dataset-visibility"
+                       id="prefs-datasets-unlisted" value="unlisted">
+                <label class="form-check-label" for="prefs-datasets-unlisted">
+                  Result datasets will be unlisted by default
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input prefs-set" type="radio" name="prefs-dataset-visibility"
+                       id="prefs-datasets-public" value="public">
+                <label class="form-check-label" for="prefs-datasets-public">
+                  Result datasets will be public by default
+                </label>
+              </div>
+            </fieldset>
+
+            <button type="button" class="mt-2 btn btn-outline-secondary btn-sm" id="prefs-save">Update</button>
+
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-sm-12 col-md-5">
+      <h3>Generate an API key</h3>
+
+      <form class="form" id="apikey-form">
+
+        <div class="row" >
+          <div class="col-12" >
+
+            <label for="api-key">Current API key <span id="apikey-expiry"></span></label>
+            <input type="text" class="form-control" id="api-key" placeholder="None" readonly>
+
+          </div>
+        </div>
+
+        <div class="row mt-2">
+          <div class="col-12" >
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="prefs-generate-apikey">Get new key</button>
+
+          </div>
+        </div>
+
       </form>
 
     </div>
 
-    <div class="col-sm-12 col-md-4">
-      <h3>Recent searches</h3>
-    </div>
+  </div>
 
-    <div class="col-sm-12 col-md-4">
-      <h3>Recent datasets</h3>
-    </div>
+  <div class="row mt-4" >
+    <div class="col-12">
 
+      <h3>Your datasets</h3>
+
+      <table id="lcc-datasets-table" class="table table-hover table-sm">
+
+        <thead class="bg-light">
+          <tr>
+            <th scope="col" width="100">Set ID</th>
+            <th scope="col" width="80">Objects</th>
+            <th scope="col" width="350">Query</th>
+            <th scope="col" width="150">Products</th>
+            <th scope="col" width="150">Last updated</th>
+          </tr>
+        </thead>
+
+        <tbody id="lcc-datasets-tablerows">
+
+        </tbody>
+
+      </table>
+
+    </div>
   </div>
 
 </div>
+
+{% end %}
+
+{% block pagejs %}
+
+$(document).ready(function() {
+
+// get the most recent 1000 datasets belonging to the user
+lcc_ui.get_recent_datasets(1000, null, true);
+
+// UI action setup
+lcc_ui.action_setup();
+
+// UI cookie settings
+lcc_ui.prefs_cookie_expires_days = {{ cookie_expires_days }};
+lcc_ui.prefs_cookie_secure = {{ cookie_secure }};
+
+// load the current settings
+lcc_ui.load_cookie_prefs('prefs-page');
+
+});
 
 {% end %}

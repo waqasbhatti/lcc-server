@@ -1,4 +1,4 @@
-/*global $, moment, oboe, setTimeout, clearTimeout, Image */
+/*global $, moment, oboe, setTimeout, clearTimeout, Image, Cookies */
 
 /*
   lcc-server.js - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jun 2018
@@ -130,6 +130,77 @@ var lcc_ui = {
     },
 
 
+    // this saves UI prefs on the user home page to the lccserver_prefs cookie
+    save_prefs_cookie: function () {
+
+        let always_email = $('#prefs-email-when-done').prop('checked');
+
+        let default_visibility = $('[name="prefs-dataset-visibility"]')
+            .filter(':checked').attr('id');
+
+        if (default_visibility === undefined) {
+            default_visibility = null;
+        }
+
+        let cookie_settings = {
+            expires: lcc_ui.prefs_cookie_expires_days
+        };
+        if (lcc_ui.prefs_cookie_secure) {
+            cookie_settings.secure = true;
+        }
+
+        Cookies.set('lccserver_prefs',
+                    {always_email: always_email,
+                     default_visibility: default_visibility},
+                    cookie_settings);
+
+        lcc_ui.alert_box('Your preferences have been saved.','primary');
+
+    },
+
+
+    // this loads UI preferences from the lccserver_prefs cookie
+    // target is one of 'main-page', 'prefs-page' to switch between the controls
+    // to set
+    load_cookie_prefs: function (target) {
+
+        let prefs = Cookies.getJSON('lccserver_prefs');
+
+        if (prefs !== undefined && target == 'prefs-page') {
+
+            if (prefs.always_email) {
+                $('#prefs-email-when-done').prop('checked',true);
+            }
+            else {
+                $('#prefs-email-when-done').prop('checked',false);
+            }
+
+            if (prefs.default_visibility !== null || prefs.default_visibility !== undefined) {
+                $('#' + prefs.default_visibility).click();
+            }
+
+        }
+
+        else if (prefs !== undefined && target == 'main-page') {
+
+            if (prefs.always_email) {
+                $('.pref-emailwhendone').prop('checked',true);
+            }
+            else {
+                $('.pref-emailwhendone').prop('checked',false);
+            }
+
+            if (prefs.default_visibility !== null || prefs.default_visibility !== undefined) {
+                let pref_visibility = prefs.default_visibility.split('-');
+                pref_visibility = pref_visibility[pref_visibility.length-1];
+                $('.lcc-visibility-select').val(pref_visibility);
+            }
+
+        }
+
+    },
+
+
     // this updates all of the column associated controls whenever there's an
     // update needed
     update_column_associated_controls: function (columns,
@@ -255,6 +326,11 @@ var lcc_ui = {
 
     // this wires up all the controls
     action_setup: function () {
+
+        // bind the cookie setters
+        $('#prefs-save').on('click', function(evt) {
+            lcc_ui.save_prefs_cookie();
+        });
 
         // bind the form submit for the cone search
         $('#conesearch-form').on('submit', function (event) {
@@ -889,6 +965,12 @@ var lcc_ui = {
         });
 
         // bind the neighbor links in the modals
+
+        // FIXME: should disable the prev/next object links until we get back to
+        // the original object.
+
+        // FIXME: show a link in the bottom bar to go back to the original
+        // object. Once there, we'll re-enable the prev/next links.
         $('#objectinfo-modal').on('click','.objectinfo-nbrlink', function (e) {
 
             e.preventDefault();
@@ -1402,10 +1484,16 @@ var lcc_ui = {
     },
 
 
-    get_recent_datasets: function(nrecent, highlight) {
+    get_recent_datasets: function(nrecent, highlight, useronly) {
 
         var geturl = '/api/datasets';
-        var getparams = {nsets: nrecent};
+        var getparams = {
+            nsets: nrecent,
+        };
+
+        if (useronly !== undefined) {
+            getparams.useronly = useronly;
+        }
 
         // clear out the recent queries box to keep things fresh
         $('#lcc-datasets-tablerows').empty();
@@ -1553,8 +1641,8 @@ var lcc_ui = {
                         table_lastupdated +
                         '</tr>';
 
-                    if (highlight != undefined &&
-                        highlight != null &&
+                    if (highlight !== undefined &&
+                        highlight !== null &&
                         highlight == setid) {
 
                         setrow = '<tr class="table-primary">' +
@@ -2915,6 +3003,7 @@ var lcc_datasets = {
 
         // clear the table first
         datarows_elem.empty();
+        lcc_datasets.objectid_map = {};
 
         // check if there are too many rows
         // if so, only draw the first 3000
@@ -2942,6 +3031,43 @@ var lcc_datasets = {
             // first column of the table
 
             thisrow = data.rows[rowind];
+            let prev_objectid;
+            let prev_lcfname;
+            let next_objectid;
+            let next_lcfname;
+
+            if (rowind == 0) {
+                prev_objectid = null;
+                prev_lcfname = null;
+                next_objectid = data.rows[rowind+1][colind_objectid];
+                next_lcfname = data.rows[rowind+1][colind_lcfname];
+            }
+            else if (rowind == max_rows - 1) {
+                next_objectid = null;
+                next_lcfname = null;
+                prev_objectid = data.rows[rowind-1][colind_objectid];
+                prev_lcfname = data.rows[rowind-1][colind_lcfname];
+            }
+            else {
+                prev_objectid = data.rows[rowind-1][colind_objectid];
+                prev_lcfname = data.rows[rowind-1][colind_lcfname];
+                next_objectid = data.rows[rowind+1][colind_objectid];
+                next_lcfname = data.rows[rowind+1][colind_lcfname];
+            }
+
+            // FIXME: FIXME: FIXME: use this to implement the next/prev object links
+            // FIXME: FIXME: FIXME: add a back to original object button to modal bottom
+            // FIXME: FIXME: FIXME: disable next/prev links after clicking on neighbors
+            // FIXME: FIXME: FIXME: implement a full neighbors tab
+
+            // store these values in the lcc_datasets object
+            lcc_datasets.objectid_map[thisrow[colind_objectid]] = {
+                prev_objectid:prev_objectid,
+                prev_lcfname:prev_lcfname,
+                next_objectid:next_objectid,
+                next_lcfname:next_lcfname,
+                this_rowind: rowind
+            };
 
             // get this row's light curve if available
             thisrow_lclink = thisrow[colind_lcfname];
