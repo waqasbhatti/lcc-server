@@ -1540,24 +1540,29 @@ def sqlite_sesame_fulltext_search(
                                                 ]
                                             )
 
-                                            if cpd['comments'] is None:
-                                                cpd['comments'] = comment_update
-                                            else:
-                                                cpd['comments'] = (
-                                                    cpd['comments'] +
-                                                    '; ' +
-                                                    comment_update
-                                                )
-                                            if cpd['objectcomments'] is None:
-                                                cpd['objectcomments'] = (
-                                                    comment_update
-                                                )
-                                            else:
-                                                cpd['objectcomments'] = (
-                                                    cpd['objectcomments'] +
-                                                    '; ' +
-                                                    comment_update
-                                                )
+                                            if 'comments' in cpd:
+                                                if cpd['comments'] is None:
+                                                    cpd['comments'] = (
+                                                        comment_update
+                                                    )
+                                                else:
+                                                    cpd['comments'] = (
+                                                        cpd['comments'] +
+                                                        '; ' +
+                                                        comment_update
+                                                    )
+                                            if 'objectcomments' in cpd:
+                                                if (cpd['objectcomments'] is
+                                                    None):
+                                                    cpd['objectcomments'] = (
+                                                        comment_update
+                                                    )
+                                                else:
+                                                    cpd['objectcomments'] = (
+                                                        cpd['objectcomments'] +
+                                                        '; ' +
+                                                        comment_update
+                                                    )
 
                                         _write_checkplot_picklefile(
                                             cpd,
