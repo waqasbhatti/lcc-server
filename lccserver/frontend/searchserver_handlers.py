@@ -655,7 +655,8 @@ class BackgroundQueryMixin(object):
                     (dspkl_setid,
                      csvlcs_to_generate,
                      csvlcs_ready,
-                     all_original_lcs, ds_nrows) = yield self.executor.submit(
+                     all_original_lcs,
+                     ds_nrows) = yield self.executor.submit(
                         datasets.sqlite_new_dataset,
                         self.basedir,
                         self.setid,
@@ -1054,19 +1055,20 @@ class BackgroundQueryMixin(object):
                 (dspkl_setid,
                  csvlcs_to_generate,
                  csvlcs_ready,
-                 all_original_lcs) = yield self.executor.submit(
-                    datasets.sqlite_new_dataset,
-                    self.basedir,
-                    self.setid,
-                    self.creationdt,
-                    self.query_result,
-                    result_sortspec=query_kwargs['result_sortspec'],
-                    result_limitspec=query_kwargs['result_limitspec'],
-                    result_samplespec=query_kwargs['result_samplespec'],
-                    incoming_userid=incoming_userid,
-                    incoming_role=incoming_role,
-                    dataset_visibility=dataset_visibility,
-                    dataset_sharedwith=dataset_sharedwith,
+                 all_original_lcs,
+                 ds_nrows) = yield self.executor.submit(
+                     datasets.sqlite_new_dataset,
+                     self.basedir,
+                     self.setid,
+                     self.creationdt,
+                     self.query_result,
+                     results_sortspec=results_sortspec,
+                     results_limitspec=results_limitspec,
+                     results_samplespec=results_samplespec,
+                     incoming_userid=incoming_userid,
+                     incoming_role=incoming_role,
+                     dataset_visibility=dataset_visibility,
+                     dataset_sharedwith=dataset_sharedwith,
                 )
 
                 # only collect the LCs into a pickle if the user requested
