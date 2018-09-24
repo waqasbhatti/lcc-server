@@ -4061,6 +4061,9 @@ var lcc_objectinfo = {
             simbad_message =
                 currcp.objectinfo.simbad_status.split(':')[1];
         }
+        else {
+            simbad_ok = false;
+        }
 
 
         //
@@ -4779,37 +4782,34 @@ var lcc_objectinfo = {
 
         }
 
-        // get SIMBAD info if possible
-        if (currcp.objectinfo.simbad_status != undefined) {
+        var formatted_simbad = simbad_message;
+        if (simbad_ok) {
 
-            var formatted_simbad = simbad_message;
-            if (simbad_ok) {
+            var simbad_best_allids =
+                currcp.objectinfo.simbad_best_allids
+                .split('|').join(', ');
 
-                var simbad_best_allids =
-                    currcp.objectinfo.simbad_best_allids
-                    .split('|').join(', ');
+            formatted_simbad =
+                '<strong><em>matching objects</em>:</strong> ' +
+                '<em>closest distance</em>: ' +
+                currcp.objectinfo.simbad_best_distarcsec.toFixed(2) +
+                '&Prime;<br>' +
+                '<em>closest object ID</em>: ' +
+                currcp.objectinfo.simbad_best_mainid + '<br>' +
+                '<em>closest object type</em>: ' +
+                lcc_ui.bibcode_linkify(
+                    currcp.objectinfo.simbad_best_objtype
+                ) + '<br>' +
+                '<em>closest object other IDs</em>: ' +
+                lcc_ui.bibcode_linkify(simbad_best_allids);
 
-                formatted_simbad =
-                    '<strong><em>matching objects</em>:</strong> ' +
-                    '<em>closest distance</em>: ' +
-                    currcp.objectinfo.simbad_best_distarcsec.toFixed(2) +
-                    '&Prime;<br>' +
-                    '<em>closest object ID</em>: ' +
-                    currcp.objectinfo.simbad_best_mainid + '<br>' +
-                    '<em>closest object type</em>: ' +
-                    lcc_ui.bibcode_linkify(
-                        currcp.objectinfo.simbad_best_objtype
-                    ) + '<br>' +
-                    '<em>closest object other IDs</em>: ' +
-                    lcc_ui.bibcode_linkify(simbad_best_allids);
+        }
 
-            }
+        // if the current checkplot's status allows SIMBAD updates and the
+        // SIMBAD status is failed, render the SIMBAD update controls
+        else if (!simbad_ok && cpstatus.indexOf('sc-ok') != -1) {
 
-            // if the current checkplot's status allows SIMBAD updates and the
-            // SIMBAD status is failed, render the SIMBAD update controls
-            else if (!simbad_ok && cpstatus.indexOf('sc-ok') != -1) {
-
-                formatted_simbad = `
+            formatted_simbad = `
 <div class="row">
 <div class="col-12">
 No SIMBAD information found for this object.
@@ -4827,19 +4827,17 @@ No SIMBAD information found for this object.
 </div>
 `;
 
-            }
-
-            $('#objectinfo-extra')
-                .append(
-                    '<tr>' +
-                        '<th>SIMBAD information</th>' +
-                        '<td id="simbad-formatted-info">' +
-                        formatted_simbad +
-                        '</td>' +
-                        '</tr>'
-                );
-
         }
+
+        $('#objectinfo-extra')
+            .append(
+                '<tr>' +
+                    '<th>SIMBAD information</th>' +
+                    '<td id="simbad-formatted-info">' +
+                    formatted_simbad +
+                    '</td>' +
+                    '</tr>'
+            );
 
         // get the period and variability info -> .objectinfo-extra
         if ('varinfo' in currcp) {
