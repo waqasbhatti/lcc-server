@@ -1410,11 +1410,11 @@ def sqlite_sesame_fulltext_search(
 
                         query = (
                             "update object_catalog set "
-                            "extra_info_json = json_patch("
-                            "extra_info_json, ?"
+                            "extra_info_json = json_replace("
+                            "extra_info_json, '$.parent', json(?)"
                             ") where objectid = ?"
                         )
-                        params = [json.dumps({'parent':{
+                        params = [json.dumps({
                             'simbad_best_mainid':(
                                 sesame_lookup['simbad_best_mainid']
                             ),
@@ -1424,7 +1424,7 @@ def sqlite_sesame_fulltext_search(
                             'simbad_best_objtype':(
                                 sesame_lookup['simbad_best_objtype']
                             ),
-                        }})]
+                        })]
 
                     # get these collections and update them
                     for coll in conesearch_matched_collections:
