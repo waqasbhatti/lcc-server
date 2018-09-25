@@ -166,10 +166,12 @@ request_functions = {
     'user-login':actions.auth_user_login,
     'user-logout':actions.auth_user_logout,
     'user-new':actions.create_new_user,
+    'user-changepass':actions.change_user_password,
+    'user-delete':actions.delete_user,
     'user-signup-email':actions.send_signup_verification_email,
     'user-verify-email':actions.verify_user_email_address,
-    'user-delete':actions.delete_user,
-    'user-changepass':actions.change_user_password,
+    'user-forgotpass-email':actions.send_forgotpass_verification_email,
+    'user-resetpass':actions.verify_password_reset,
 }
 
 

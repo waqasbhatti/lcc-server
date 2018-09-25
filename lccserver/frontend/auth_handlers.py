@@ -137,7 +137,7 @@ class LoginHandler(BaseHandler):
         if not self.current_user:
             self.redirect('/')
 
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)
@@ -223,7 +223,7 @@ class LogoutHandler(BaseHandler):
         if not self.current_user:
             self.redirect('/')
 
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)
@@ -331,7 +331,7 @@ class NewUserHandler(BaseHandler):
         if not self.current_user:
             self.redirect('/')
 
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)
@@ -503,7 +503,7 @@ class VerifyUserHandler(BaseHandler):
         if not self.current_user:
             self.redirect('/')
 
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)
@@ -649,7 +649,7 @@ class ForgotPassStep1Handler(BaseHandler):
         '''
 
         if not self.current_user:
-            self.redirect('/users/forgot-password-step1')
+            self.redirect('/')
 
         current_user = self.current_user
 
@@ -661,7 +661,7 @@ class ForgotPassStep1Handler(BaseHandler):
                         email_address=current_user['email'],
                         user_account_box=self.render_user_account_box(),
                         flash_messages=self.render_flash_messages(),
-                        page_title="Reset your password",
+                        page_title="Reset your password - Step 1",
                         lccserver_version=__version__,
                         siteinfo=self.siteinfo)
 
@@ -670,13 +670,12 @@ class ForgotPassStep1Handler(BaseHandler):
         else:
 
             self.save_flash_messages(
-                "Sign in with your existing account credentials. "
-                "If you do not have a user account, "
-                "please <a href=\"/users/new\">sign up</a>.",
+                "You are currently logged in. If you've forgotten your "
+                "password, log out, then come back to the "
+                "forgot password form.",
                 "primary"
             )
-            self.redirect('/users/login')
-
+            self.redirect('/users/home')
 
 
     @gen.coroutine
@@ -686,13 +685,11 @@ class ForgotPassStep1Handler(BaseHandler):
         Fires the request to authnzerver to send a verification email. Then
         redirects to step 2 of the form.
 
-        TODO: finish this
-
         '''
         if not self.current_user:
             self.redirect('/')
 
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)
@@ -725,9 +722,88 @@ class ForgotPassStep1Handler(BaseHandler):
 
             else:
 
-                email_address = xhtml_escape(email_address)
+                try:
 
+                    email_address = xhtml_escape(email_address)
 
+                    # get the email info from site-info.json
+                    smtp_sender = self.siteinfo['email_sender']
+                    smtp_user = self.siteinfo['email_user']
+                    smtp_pass = self.siteinfo['email_pass']
+                    smtp_server = self.siteinfo['email_server']
+                    smtp_port = self.siteinfo['email_port']
+
+                    # generate a fernet verification token that is
+                    # timestamped. we'll give it 15 minutes to expire and
+                    # decrypt it using: self.ferneter.decrypt(token, ttl=15*60)
+                    fernet_verification_token = self.ferneter.encrypt(
+                        secrets.token_urlsafe(32).encode()
+                    )
+
+                    # get this LCC-Server's base URL
+                    lccserver_baseurl = '%s://%s' % (self.request.protocol,
+                                                     self.request.host)
+
+                    ok, resp, msgs = yield self.authnzerver_request(
+                        'user-forgotpass-email',
+                        {'email_address':email_address,
+                         'fernet_verification_token':fernet_verification_token,
+                         'lccserver_baseurl':lccserver_baseurl,
+                         'session_token':current_user['session_token'],
+                         'smtp_server':smtp_server,
+                         'smtp_sender':smtp_sender,
+                         'smtp_user':smtp_user,
+                         'smtp_pass':smtp_pass,
+                         'smtp_server':smtp_server,
+                         'smtp_port':smtp_port}
+                    )
+
+                    if ok:
+
+                        self.save_flash_messages(
+                            "We've sent a verification token "
+                            "to your email address on file. "
+                            "Use that to fill in this form.",
+                            'warning'
+                        )
+                        LOGGER.info('email sent to %s for forgot password' %
+                                    email_address)
+                        self.redirect('/users/forgot-password-step2')
+
+                    # if the email send step fails, show the next step anyway
+                    else:
+
+                        LOGGER.error(
+                            'email could not be sent '
+                            'to %s for forgot password' %
+                            email_address
+                        )
+
+                        self.save_flash_messages(
+                            "We've sent a verification token "
+                            "to your email address on file. "
+                            "Use that to fill in this form.",
+                            'warning'
+                        )
+                        self.redirect('/users/forgot-password-step2')
+
+                except Exception as e:
+
+                    self.save_flash_messages(
+                        "An email address is required.",
+                        "warning"
+                    )
+                    self.redirect('/users/forgot-password-step1')
+
+        else:
+
+            self.save_flash_messages(
+                "You are currently logged in. If you've forgotten your "
+                "password, log out, then come back to the "
+                "forgot password form.",
+                "primary"
+            )
+            self.redirect('/users/home')
 
 
 
@@ -747,14 +823,13 @@ class ForgotPassStep2Handler(BaseHandler):
         current_user = self.current_user
 
         # only proceed to password reset if the user is anonymous
-        if (current_user and current_user['user_id'] == 2):
+        if (current_user and current_user['user_role'] == 'anonymous'):
 
             # we'll render the verification form.
-            self.render('passreset-step1.html',
-                        email_address=current_user['email'],
+            self.render('passreset-step2.html',
                         user_account_box=self.render_user_account_box(),
                         flash_messages=self.render_flash_messages(),
-                        page_title="Reset your password",
+                        page_title="Reset your password - Step 2",
                         lccserver_version=__version__,
                         siteinfo=self.siteinfo)
 
@@ -763,12 +838,12 @@ class ForgotPassStep2Handler(BaseHandler):
         else:
 
             self.save_flash_messages(
-                "Sign in with your existing account credentials. "
-                "If you do not have a user account, "
-                "please <a href=\"/users/new\">sign up</a>.",
+                "You are currently logged in. If you've forgotten your "
+                "password, log out, then come back to the "
+                "forgot password form.",
                 "primary"
             )
-            self.redirect('/users/login')
+            self.redirect('/users/home')
 
 
 
@@ -779,13 +854,11 @@ class ForgotPassStep2Handler(BaseHandler):
         If the authnzerver accepts the new password, redirects to the
         /users/login page.
 
-        TODO: finish this
-
         '''
         if not self.current_user:
             self.redirect('/')
 
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)
@@ -798,6 +871,68 @@ class ForgotPassStep2Handler(BaseHandler):
             self.write(retdict)
             raise tornado.web.Finish()
 
+        try:
+
+            verification = self.get_argument('verificationcode')
+            email_address = xhtml_escape(self.get_argument('email'))
+            new_password = self.get_argument('password')
+            session_token = self.current_user['session_token']
+
+            # check the verification code to see if it's valid
+            self.ferneter.decrypt(verification.encode(), ttl=15*60)
+            LOGGER.info('%s: decrypted verification token OK and unexpired' %
+                        email_address)
+
+            # check the new password by sending an authnzerver request
+            ok, resp, msgs = yield self.authnzerver_request(
+                'user-resetpass',
+                {'email_address':email_address,
+                 'new_password':new_password,
+                 'session_token':session_token}
+            )
+
+            # if request OK and password is validated, redirect to the login
+            # form
+            if ok:
+
+                self.save_flash_messages(
+                    "Your password was successfully updated. Please sign in "
+                    "to continue.",
+                    'primary'
+                )
+
+                self.redirect('/users/login')
+
+            else:
+
+                LOGGER.error(msgs)
+
+                self.save_flash_messages(
+                    ["We couldn't validate your password reset request. ",
+                     ("You may not have entered the correct "
+                      "email for this account "
+                      "and an acceptable password. "
+                      "Passwords must be at "
+                      "least 12 characters long. "),
+                     ("The verification token you received was valid for "
+                      "15 minutes only, so it may have expired.")],
+                    "warning"
+                )
+                self.redirect('/users/forgot-password-step2')
+
+        except Exception as e:
+
+            self.save_flash_messages(
+                ["We couldn't validate your password reset request. ",
+                 ("You may not have entered the correct email for this account "
+                  "and an acceptable password. Passwords must be at "
+                  "least 12 characters long. "),
+                 ("The verification token you received was valid for "
+                  "15 minutes only, so it may have expired.")],
+                "warning"
+            )
+            self.redirect('/users/forgot-password-step2')
+
 
 
 class ChangePassHandler(BaseHandler):
@@ -809,16 +944,6 @@ class ChangePassHandler(BaseHandler):
     @gen.coroutine
     def get(self):
         '''This handles password change request from a logged-in only user.
-
-        When we navigate to this page, we'll immediately send a verification
-        code to the user's email address. They must enter it into the form we
-        show to continue.
-
-        The verification email request to the authnzerver should contain an IP
-        address and browser header so we can include this info in the
-        verification request (and geolocate the IP address if possible).
-
-        TODO: finish this.
 
         '''
 
@@ -865,7 +990,7 @@ class ChangePassHandler(BaseHandler):
         if not self.current_user:
             self.redirect('/')
 
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)
@@ -1012,7 +1137,7 @@ class DeleteUserHandler(BaseHandler):
         - redirect to /
 
         '''
-        if ((not self.keycheck['status'] == 'ok') and
+        if ((not self.keycheck['status'] == 'ok') or
             (not self.xsrf_type == 'session')):
 
             self.set_status(403)

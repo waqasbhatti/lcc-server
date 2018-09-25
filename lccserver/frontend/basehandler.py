@@ -94,7 +94,7 @@ from tornado.log import gen_log
 from lccserver import __version__
 from lccserver.external.cookies import cookies
 from lccserver.backend import dbsearch, datasets
-from lccserver.authnzerver.actions import send_email
+from lccserver.authnzerver.actions import authnzerver_send_email
 
 
 #######################
@@ -582,7 +582,7 @@ class BaseHandler(tornado.web.RequestHandler):
             formatted_text = template.format(**items)
 
             email_sent = yield self.executor.submit(
-                send_email,
+                authnzerver_send_email,
                 'LCC-Server admin <%s>' % self.siteinfo['email_sender'],
                 subject,
                 formatted_text,
