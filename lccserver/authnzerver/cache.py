@@ -202,7 +202,6 @@ def cache_getrate(basedir,
     )
 
 
-
 def cache_flush(basedir,
                 timeout_seconds=0.3,
                 cache_dirname='lccserver-cache'):

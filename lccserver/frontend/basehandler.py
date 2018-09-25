@@ -910,16 +910,19 @@ class BaseHandler(tornado.web.RequestHandler):
                     self.user_role = self.current_user['user_role']
 
                     # increment the rate counter for this session token
-                    # FIXME: maybe make this async later
-                    keycount = cache.cache_increment(
+                    yield self.executor.submit(
+                        cache.cache_increment.
                         self.basedir,
                         session_token
                     )
 
                     # check the rate for this session token
-                    request_rate, keycount, time_zero = cache.cache_getrate(
-                        self.basedir,
-                        session_token,
+                    request_rate, keycount, time_zero = (
+                        yield self.executor.submit(
+                            cache.cache_getrate,
+                            self.basedir,
+                            session_token,
+                        )
                     )
                     rate_ok = check_role_limits(self.user_role,
                                                 rate_60sec=request_rate)
@@ -990,16 +993,19 @@ class BaseHandler(tornado.web.RequestHandler):
                     self.user_role = self.current_user['user_role']
 
                     # increment the rate counter for this session token
-                    # FIXME: maybe make this async later
-                    cache.cache_increment(
+                    yield self.executor.submit(
+                        cache.cache_increment,
                         self.basedir,
                         session_token
                     )
 
                     # check the rate for this session token
-                    request_rate, keycount, time_zero = cache.cache_getrate(
-                        self.basedir,
-                        session_token,
+                    request_rate, keycount, time_zero = (
+                        yield self.executor.submit(
+                            cache.cache_getrate,
+                            self.basedir,
+                            session_token,
+                        )
                     )
                     rate_ok = check_role_limits(self.user_role,
                                                 rate_60sec=request_rate)
@@ -1109,13 +1115,15 @@ class BaseHandler(tornado.web.RequestHandler):
 
                 # increment the rate counter for this session token
                 # FIXME: maybe make this async later
-                cache.cache_increment(
+                yield self.executor.submit(
+                    cache.cache_increment,
                     self.basedir,
                     self.apikey_dict['tkn']
                 )
 
                 # check the rate for this session token
-                request_rate, keycount, time_zero = cache.cache_getrate(
+                request_rate, keycount, time_zero = yield self.executor.submit(
+                    cache.cache_getrate,
                     self.basedir,
                     self.apikey_dict['tkn'],
                 )
