@@ -442,6 +442,14 @@ def main():
           'session_expiry':SESSION_EXPIRY,
           'siteinfo':SITEINFO}),
 
+        # this is user-delete page
+        (r'/users/delete',
+         ah.DeleteUserHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO}),
 
         ################
         ## DOCS PAGES ##

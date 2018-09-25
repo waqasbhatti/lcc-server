@@ -24,19 +24,11 @@
               {% module xsrf_form_html() %}
 
               <div class="form-group" >
-                <label for="verificationcode" >Verification code</label>
-                <input type="text" class="form-control"
-                       name="verificationcode" id="verificationcode" required
-                       placeholder="Enter the verification code you received"
-                       minlength="12" maxlength="280">
-              </div>
-
-              <div class="form-group" >
                 <label for="currpassword" >Current password</label>
                 <input type="password" class="form-control"
                        name="currpassword" id="currpassword" required
                        autocomplete="current-password"
-                       placeholder="Enter a new password"
+                       placeholder="Enter your current password"
                        minlength="12" maxlength="1024">
               </div>
 

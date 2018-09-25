@@ -270,7 +270,9 @@ class BaseHandler(tornado.web.RequestHandler):
         )
 
 
-    def render_flash_messages(self):
+    def render_flash_messages(self,
+                              message_now_text=None,
+                              message_now_type=None):
         '''
         This renders any flash messages to a Bootstrap alert.
 
@@ -299,6 +301,25 @@ class BaseHandler(tornado.web.RequestHandler):
                 )
             )
             return flash_msg
+
+        elif message_now_text is not None and message_now_type is not None:
+
+            flash_msg = twd(
+                '''\
+                <div class="mt-2 alert alert-{alert_type}
+                alert-dismissible fade show" role="alert">
+                {flash_messages}
+                <button type="button"
+                class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+                </button>
+                </div>'''.format(
+                    flash_messages=message_now_text,
+                    alert_type=message_now_type,
+                )
+            )
+            return flash_msg
+
         else:
             return ''
 
@@ -721,27 +742,27 @@ class BaseHandler(tornado.web.RequestHandler):
             # check if the API key is valid
             apikey_info = self.check_apikey()
 
-            # FIXME: if the API key is valid, get the current user, etc. info
-            # from the decrypted API key instead of hitting the database to look
-            # up the API key. minimum keys required in the self.current_user
-            # dict:
-            # - user_id
-            # - email
-            # - is_active
-            # - user_role
-            # - ip_address <- get from the current self.request
-            # - client_header <- get from the current self.request
-            # - session_token <- set this to the API key itself
-            # - created <- set this to the API key created time
-            # - expires <- set this to the API key expiry time
-
             # FIXME: how would we deal with the user removing their account or
             # being locked? we may have to hit the database after all to at
             # least check if the user is still active. otherwise, their API key
             # will live on until it expires instead of being instantly revoked
             # when their account goes inactive.
-            if apikey_info['status'] == 'success':
+            if apikey_info['status'] == 'ok':
 
+                # FIXME: if the API key is valid, get the current user,
+                # etc. info from the decrypted API key instead of hitting the
+                # database to look up the API key. minimum keys required in the
+                # self.current_user dict:
+
+                # - user_id
+                # - email
+                # - is_active
+                # - user_role
+                # - ip_address <- get from the current self.request
+                # - client_header <- get from the current self.request
+                # - session_token <- set this to the API key itself
+                # - created <- set this to the API key created time
+                # - expires <- set this to the API key expiry time
 
                 # FIXME: this is temporary
                 self.write(apikey_info)
@@ -966,10 +987,10 @@ class BaseHandler(tornado.web.RequestHandler):
 
             retdict = {
                 'status':'ok',
-                'message':("XSRF cookie matches POST argument"),
+                'message':("Successful XSRF cookie match to POST argument"),
                 'result': None
             }
-            LOGGER.info(retdict['message'])
+            LOGGER.warning(retdict['message'])
             return retdict
 
 
@@ -988,9 +1009,11 @@ class BaseHandler(tornado.web.RequestHandler):
 
         if xsrf_auth:
             LOGGER.info('using tornado XSRF auth...')
+            self.xsrf_type = 'session'
             self.keycheck = self.tornado_check_xsrf_cookie()
         else:
             LOGGER.info('using API Authorization header auth...')
+            self.xsrf_type = 'apikey'
             self.keycheck = self.check_apikey()
 
 

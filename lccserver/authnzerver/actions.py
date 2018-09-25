@@ -768,26 +768,37 @@ def change_user_password(payload,
     changed so the user has to login with their new password.
 
     '''
-    if 'email' not in payload:
-        return {
-            'success':False,
-            'user_id':None,
-            'email':None,
-            'messages':['Invalid change password request.'],
-        }
-    if 'password' not in payload:
-        return {
-            'success':False,
-            'user_id':None,
-            'email':None,
-            'messages':['Invalid change password request.'],
-        }
     if 'user_id' not in payload:
         return {
             'success':False,
             'user_id':None,
             'email':None,
-            'messages':['Invalid change password request.'],
+            'messages':['Invalid password change request. '
+                        'Some args are missing.'],
+        }
+    if 'email' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':['Invalid password change request. '
+                        'Some args are missing.'],
+        }
+    if 'current_password' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':['Invalid password change request. '
+                        'Some args are missing.'],
+        }
+    if 'new_password' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':['Invalid password change request. '
+                        'Some args are missing.'],
         }
 
     # this checks if the database connection is live
@@ -817,11 +828,24 @@ def change_user_password(payload,
     rows = result.fetchone()
     result.close()
 
-    input_password = payload['password'][:1024]
+    current_password = payload['current_password'][:1024]
+    new_password = payload['new_password'][:1024]
+
+    pass_check = authdb.password_context.verify(current_password,
+                                                rows['password'])
+
+    if not pass_check:
+        return {
+            'success':False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':['Your current password did '
+                        'not match the stored password.']
+        }
 
     # check if the new hashed password is the same as the old hashed password,
     # meaning that the new password is just the old one
-    same_check = authdb.password_context.verify(input_password,
+    same_check = authdb.password_context.verify(new_password,
                                                 rows['password'])
     if same_check:
         return {
@@ -833,14 +857,14 @@ def change_user_password(payload,
         }
 
     # hash the user's password
-    hashed_password = authdb.password_context.hash(input_password)
+    hashed_password = authdb.password_context.hash(new_password)
 
     # validate the input password to see if it's OK
     # do this here to make sure the password hash completes at least once
     # verify the new password is OK
     passok, messages = validate_input_password(
         payload['email'],
-        input_password,
+        new_password,
         min_length=min_pass_length,
         max_match_threshold=max_similarity
     )
@@ -888,7 +912,9 @@ def change_user_password(payload,
             }
 
     else:
-        messages.append('Password could not be changed.')
+        messages.append("The new password you entered is insecure. "
+                        "It must be at least 12 characters long and "
+                        "be sufficiently complex.")
         return {
             'success':False,
             'user_id':payload['user_id'],
@@ -1134,6 +1160,13 @@ def delete_user(payload,
             'messages':["Invalid user deleteion request."],
         }
     if 'user_id' not in payload:
+        return {
+            'success':False,
+            'user_id':None,
+            'email':None,
+            'messages':["Invalid user deletion request."],
+        }
+    if 'password' not in payload:
         return {
             'success':False,
             'user_id':None,

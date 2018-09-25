@@ -76,7 +76,7 @@ from tornado.escape import xhtml_escape
 from cryptography.fernet import InvalidToken
 from lccserver import __version__
 from lccserver.frontend.basehandler import BaseHandler
-
+from lccserver.authnzerver import actions
 
 ###########################
 ## VARIOUS AUTH HANDLERS ##
@@ -135,9 +135,21 @@ class LoginHandler(BaseHandler):
         This handles the POST of the login form.
 
         '''
-
         if not self.current_user:
-            self.redirect('/users/login')
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
 
         # get the current user
         current_user = self.current_user
@@ -209,9 +221,22 @@ class LogoutHandler(BaseHandler):
         This handles the POST request to /users/logout.
 
         '''
-
         if not self.current_user:
             self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
 
         current_user = self.current_user
 
@@ -304,9 +329,21 @@ class NewUserHandler(BaseHandler):
         '''This handles the POST request to /users/new.
 
         '''
-
         if not self.current_user:
-            self.redirect('/users/new')
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
 
         current_user = self.current_user
 
@@ -464,9 +501,21 @@ class VerifyUserHandler(BaseHandler):
         '''This handles POST of the user verification form.
 
         '''
-
         if not self.current_user:
-            self.redirect('/users/verify')
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
 
         current_user = self.current_user
 
@@ -641,9 +690,22 @@ class ForgotPassStep1Handler(BaseHandler):
         TODO: finish this
 
         '''
-
         if not self.current_user:
-            self.redirect('/users/forgot-password-step1')
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
 
         current_user = self.current_user
 
@@ -721,6 +783,22 @@ class ForgotPassStep2Handler(BaseHandler):
         TODO: finish this
 
         '''
+        if not self.current_user:
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
 
 
 class ChangePassHandler(BaseHandler):
@@ -749,20 +827,13 @@ class ChangePassHandler(BaseHandler):
 
         # only proceed to password change if the user is active and logged in
         if (current_user and
-            current_user['user_id'] not in (2,3) and
+            (current_user['user_role'] in
+             ('authenticated','staff','superuser')) and
             current_user['is_active'] and
             current_user['email_verified']):
 
-            # TODO: flash message to inform the user we've sent a verification
-            # code to their email address.
-
-            #
-            # TODO: actually send the email here
-            #
-
             # then, we'll render the verification form.
             self.render('passchange.html',
-                        email_address=current_user['email'],
                         user_account_box=self.render_user_account_box(),
                         flash_messages=self.render_flash_messages(),
                         page_title="Change your password",
@@ -796,6 +867,171 @@ class ChangePassHandler(BaseHandler):
 
         '''
 
+        if not self.current_user:
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
+        if ((self.current_user) and
+            (self.current_user['is_active']) and
+            (self.current_user['user_role'] in ('authenticated',
+                                                'superuser',
+                                                'staff')) and
+            (self.current_user['email_verified'])):
+
+            try:
+
+                email_address = self.current_user['email']
+                current_password = self.get_argument('currpassword')
+                new_password = self.get_argument('newpassword')
+
+                change_ok, resp, msgs = yield self.authnzerver_request(
+                    'user-changepass',
+                    {'user_id':self.current_user['user_id'],
+                     'email': email_address,
+                     'current_password':current_password,
+                     'new_password':new_password}
+                )
+
+                if change_ok:
+
+                    self.save_flash_messages(
+                        "Your password has been changed successfully.",
+                        'primary',
+                    )
+                    self.redirect('/users/home')
+
+                else:
+
+                    self.save_flash_messages(
+                        msgs,
+                        'warning',
+                    )
+                    self.redirect('/users/password-change')
+
+
+            except Exception as e:
+
+                self.save_flash_messages(
+                    "We could not validate the password change form. "
+                    "All fields are required.",
+                    "warning"
+                )
+                self.redirect('/users/password-change')
+
+        # unknown users get sent back to /
+        else:
+
+            self.save_flash_messages(
+                "Sign in with your existing account credentials. "
+                "If you do not have a user account, "
+                "please <a href=\"/users/new\">sign up</a>.",
+                "primary"
+            )
+            self.redirect('/users/login')
+
+
+
+
+class DeleteUserHandler(BaseHandler):
+    '''
+    This handles /users/delete.
+
+    '''
+
+    @gen.coroutine
+    def get(self):
+        '''This handles a user delete.
+
+        Only shown if the user is logged in.
+
+        Must enter email address and password.
+
+        '''
+
+        current_user = self.current_user
+
+        # only proceed to password change if the user is active and logged in
+        if (current_user and
+            (current_user['user_role'] in
+             ('authenticated','staff')) and
+            current_user['is_active'] and
+            current_user['email_verified']):
+
+
+            # then, we'll render the verification form.
+            self.render('delete.html',
+                        user_account_box=self.render_user_account_box(),
+                        flash_messages=self.render_flash_messages(),
+                        page_title="Delete your account",
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo)
+
+        # superuser accounts cannot be deleted from the web interface
+        if (current_user and
+            (current_user['user_role'] == 'superuser') and
+            current_user['is_active'] and
+            current_user['email_verified']):
+
+            self.save_flash_messages(
+                "You have a superuser account. This cannot be deleted "
+                "from the web interface. Use the CLI instead.",
+                'warning'
+            )
+            self.redirect('/users/home')
+
+        # otherwise, tell the user that their delete request is invalid
+        else:
+
+            self.save_flash_messages(
+                "Sign in with your existing account credentials. "
+                "If you do not have a user account, "
+                "please <a href=\"/users/new\">sign up</a>.",
+                "primary"
+            )
+            self.redirect('/users/login')
+
+
+
+    @gen.coroutine
+    def post(self):
+        '''This handles submission of the delete user form.
+
+        - check if the user signing in is valid and password is valid
+        - check if the user being deleted is the one that submitted the form
+
+        - delete the user from the users table (this should kill their sessions
+          too)
+        - delete all lccserver_* cookies
+        - redirect to /
+
+        TODO: finish this
+
+        '''
+        if ((not self.keycheck['status'] == 'ok') and
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':"Sorry, you don't have access. "
+                "API keys are not allowed for this endpoint."
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
 
 
 
@@ -827,7 +1063,7 @@ class UserHomeHandler(BaseHandler):
                 current_user=current_user,
                 user_account_box=self.render_user_account_box(),
                 flash_messages=self.render_flash_messages(),
-                page_title="User home page",
+                page_title="User home",
                 lccserver_version=__version__,
                 siteinfo=self.siteinfo,
                 cookie_expires_days=self.session_expiry,
@@ -835,29 +1071,9 @@ class UserHomeHandler(BaseHandler):
             )
 
         else:
+
             self.save_flash_messages(
                 "Please sign in to proceed.",
                 "warning"
             )
             self.redirect('/users/login')
-
-
-    @gen.coroutine
-    @tornado.web.authenticated
-    def post(self):
-        '''This is an AJAX endpoint for any prefs changes and API key generation
-        requests.
-
-        TODO: define some useful options.
-
-        TODO: finish this.
-
-        '''
-
-        current_user = self.current_user
-
-        if current_user:
-            self.write(current_user)
-        else:
-            self.write('No cookie set yet.')
-        self.finish()
