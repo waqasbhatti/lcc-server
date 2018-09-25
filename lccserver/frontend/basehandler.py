@@ -27,7 +27,6 @@ import os
 import mimetypes
 import re
 
-import itsdangerous
 from cryptography.fernet import Fernet, InvalidToken
 
 
@@ -236,6 +235,11 @@ class BaseHandler(tornado.web.RequestHandler):
         # initialize this to None
         # we'll set this later in self.prepare()
         self.current_user = None
+
+        # apikey verification info
+        self.apikey_verified = False
+        self.apikey_info = None
+
 
 
     def save_flash_messages(self, messages, alert_type):
@@ -599,6 +603,235 @@ class BaseHandler(tornado.web.RequestHandler):
             return False
 
 
+    @gen.coroutine
+    def check_auth_header_apikey(self):
+        '''
+        This checks the API key.
+
+        '''
+        try:
+
+            authorization = self.request.headers.get('Authorization')
+
+            if authorization:
+
+                # this is the key to verify the signature, check against TTL =
+                # self.session_expiry, and Fernet decrypt to present to the
+                # backend
+                key = authorization.split()[1].strip()
+
+                # do the Fernet decrypt using TTL = self.session_expiry
+                decrypted_bytes = self.ferneter.decrypt(
+                    key.encode(),
+                    ttl=self.session_expiry*86400.0
+                )
+
+                # if decrypt OK, JSON load the apikey dict
+                apikey_dict = json.loads(decrypted_bytes)
+
+                # check if the current ip_address matches the the value stored
+                # in the dict. if not, fail this request immediately. if it
+                # does, send the dict on to the backend for additional
+                # verification.
+
+                ipaddr_ok = (
+                    self.request.remote_ip == apikey_dict['ipa']
+                )
+                apiversion_ok = self.apiversion == apikey_dict['ver']
+
+                # pass dict to the backend
+                if ipaddr_ok and apiversion_ok:
+
+                    verify_ok, resp, msgs = yield self.authnzerver_request(
+                        'apikey-verify',
+                        {'apikey_dict':apikey_dict}
+                    )
+
+                    # check if backend agrees it's OK
+                    if verify_ok:
+
+                        retdict = {
+                            'status':'ok',
+                            'message':msgs,
+                            'result': apikey_dict
+                        }
+
+                        self.apikey_verified = True
+                        self.apikey_dict = apikey_dict
+                        return retdict
+
+                    else:
+
+                        self.set_status(401)
+                        retdict = {
+                            'status':'failed',
+                            'message':msgs,
+                            'result': None
+                        }
+                        self.apikey_verified = False
+                        self.apikey_dict = None
+                        return retdict
+
+                # if the key doesn't pass initial verification, fail this
+                # request immediately
+                else:
+
+                    message = ('Provided API key IP address = %s, '
+                               'API version = %s, does not match '
+                               'current request IP address = %s or '
+                               'the current LCC-Server API version = %s.' %
+                               (apikey_dict['ipa'], apikey_dict['ver'],
+                                self.request.remote_ip, self.apiversion))
+
+                    LOGGER.error(message)
+                    self.set_status(401)
+                    retdict = {
+                        'status':'failed',
+                        'message':(
+                            "Your API key appears to be invalid or has expired."
+                        ),
+                        'result':None
+                    }
+                    self.apikey_verified = False
+                    self.apikey_dict = None
+                    return retdict
+
+            else:
+
+                LOGGER.error(
+                    'no Authorization header key found for API key auth.'
+                )
+                retdict = {
+                    'status':'failed',
+                    'message':('No credentials provided or '
+                               'they could not be parsed safely'),
+                    'result':None
+                }
+
+                self.apikey_verified = False
+                self.apikey_dict = None
+                self.set_status(401)
+                return retdict
+
+        except Exception as e:
+
+            LOGGER.exception('could not verify API key.')
+            retdict = {
+                'status':'failed',
+                'message':'Your API key appears to be invalid or has expired.',
+                'result':None
+            }
+
+            self.apikey_verified = False
+            self.apikey_info = None
+            self.set_status(401)
+            return retdict
+
+
+
+    def tornado_check_xsrf_cookie(self):
+        '''This is the original Tornado XSRF token checker.
+
+        From: http://www.tornadoweb.org
+              /en/stable/_modules/tornado/web.html
+              #RequestHandler.check_xsrf_cookie
+
+        Modified a bit to not immediately raise 403s since we want to return
+        JSON all the time.
+
+        '''
+
+        token = (self.get_argument("_xsrf", None) or
+                 self.request.headers.get("X-Xsrftoken") or
+                 self.request.headers.get("X-Csrftoken"))
+
+        if not token:
+
+            retdict = {
+                'status':'failed',
+                'message':("'_xsrf' argument missing from POST'"),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+        _, token, _ = self._decode_xsrf_token(token)
+        _, expected_token, _ = self._get_raw_xsrf_token()
+
+        if not token:
+
+            retdict = {
+                'status':'failed',
+                'message':("'_xsrf' argument missing from POST"),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+
+        if not _time_independent_equals(utf8(token),
+                                        utf8(expected_token)):
+
+            retdict = {
+                'status':'failed',
+                'message':("XSRF cookie does not match POST argument"),
+                'result':None
+            }
+
+            self.set_status(401)
+            return retdict
+
+        else:
+
+            retdict = {
+                'status':'ok',
+                'message':("Successful XSRF cookie match to POST argument"),
+                'result': None
+            }
+            LOGGER.warning(retdict['message'])
+            return retdict
+
+
+
+    def check_xsrf_cookie(self):
+        '''This overrides the usual Tornado XSRF checker.
+
+        We use this because we want the same endpoint to support POSTs from an
+        API or from the browser.
+
+        '''
+
+        xsrf_auth = (self.get_argument("_xsrf", None) or
+                     self.request.headers.get("X-Xsrftoken") or
+                     self.request.headers.get("X-Csrftoken"))
+
+        if xsrf_auth:
+
+            LOGGER.info('using tornado XSRF auth...')
+            self.xsrf_type = 'session'
+            self.keycheck = self.tornado_check_xsrf_cookie()
+
+        elif self.request.headers.get("Authorization"):
+
+            LOGGER.info('using API Authorization header auth. '
+                        'passing through to the prepare function...')
+            self.xsrf_type = 'apikey'
+
+        else:
+
+            LOGGER.info('No Authorization key found in request header.')
+            self.xsrf_type = 'unknown'
+            self.keycheck = {
+                'status':'failed',
+                'message':(
+                    'Unknown authorization type, neither API key or session.'
+                ),
+                'result':None
+            }
+
+
 
     @gen.coroutine
     def prepare(self):
@@ -614,7 +847,7 @@ class BaseHandler(tornado.web.RequestHandler):
            cookie with this session token and set self.current_user variable
            with session dict.
 
-        TODO: add in the use of api keys
+        Using API keys:
 
         1. If the Authorization: Bearer <token> pattern is present in the
            header, assume that we're using API key authentication.
@@ -623,16 +856,15 @@ class BaseHandler(tornado.web.RequestHandler):
            associated with a valid user account.
 
         3. If it is, go ahead and populate the self.current_user with the user
-           information. The API key will be used as the session_token.
+           information. The API key random token will be used as the
+           session_token.
 
         4. If it's not and we've assumed that we're using the API key method,
            fail the request.
 
         '''
 
-        # FIXME: cookie secure=True won't work if
-        # you're developing on localhost
-        # will probably have to go through the whole local CA nonsense
+        # localhost secure cookies over HTTP don't work anymore
         if self.request.remote_ip != '127.0.0.1':
             self.csecure = True
         else:
@@ -736,23 +968,47 @@ class BaseHandler(tornado.web.RequestHandler):
                     # smart enough to accept the set-cookie response header
                     self.redirect(self.request.uri)
 
+
         # if using the API Key
         else:
 
+            LOGGER.info('checking the API key in prepare function.')
+
             # check if the API key is valid
-            apikey_info = self.check_apikey()
+            apikey_info = yield self.check_auth_header_apikey()
+            LOGGER.info(apikey_info)
 
-            # FIXME: how would we deal with the user removing their account or
-            # being locked? we may have to hit the database after all to at
-            # least check if the user is still active. otherwise, their API key
-            # will live on until it expires instead of being instantly revoked
-            # when their account goes inactive.
-            if apikey_info['status'] == 'ok':
+            if not apikey_info['status'] == 'ok':
 
-                # FIXME: if the API key is valid, get the current user,
-                # etc. info from the decrypted API key instead of hitting the
-                # database to look up the API key. minimum keys required in the
-                # self.current_user dict:
+                message = apikey_info['message']
+
+                self.keycheck = {
+                    'status':'failed',
+                    'message': message,
+                    'result':None
+                }
+
+                self.write({
+                    'status':'failed',
+                    'message':message,
+                    'result':None
+                })
+                raise tornado.web.Finish()
+
+            # if API key auth succeeds, fill in the current_user dict with info
+            # from there
+            else:
+
+                message = apikey_info['message']
+                self.keycheck = {
+                    'status':'ok',
+                    'message': message,
+                    'result':apikey_info['result']
+                }
+
+                #
+                # set up the current_user object for this API key request
+                #
 
                 # - user_id
                 # - email
@@ -763,23 +1019,19 @@ class BaseHandler(tornado.web.RequestHandler):
                 # - session_token <- set this to the API key itself
                 # - created <- set this to the API key created time
                 # - expires <- set this to the API key expiry time
-
-                # FIXME: this is temporary
-                self.write(apikey_info)
-                self.finish()
-
-
-            # if the API key check also fails, return a 403
-            else:
-
-                message = apikey_info['message']
-
-                self.write({
-                    'status':'failed',
-                    'message':message,
-                    'result':None
-                })
-                raise tornado.web.Finish()
+                self.current_user = {
+                    'user_id':self.apikey_dict['uid'],
+                    'email':None,
+                    'is_active':True,
+                    'user_role':self.apikey_dict['rol'],
+                    'ip_address':self.request.remote_ip,
+                    'client_header':self.request.headers['User-Agent'],
+                    'session_token':self.apikey_dict['tkn'],
+                    'created':self.apikey_dict['iat'],
+                    'expires':self.apikey_dict['exp'],
+                }
+                self.user_id = self.current_user['user_id']
+                self.user_role = self.current_user['user_role']
 
 
 
@@ -791,230 +1043,6 @@ class BaseHandler(tornado.web.RequestHandler):
 
         self.httpclient.close()
 
-
-
-    def check_apikey(self):
-        '''
-        This checks the API key.
-
-        FIXME: change this to use the new Fernet-encrypted API key scheme.
-
-        '''
-        try:
-
-            authorization = self.request.headers.get('Authorization')
-
-            if authorization:
-
-                key = authorization.split()[1].strip()
-
-                # the key lifetime is the same as that for the session
-                uns = self.signer.loads(
-                    key,
-                    max_age=self.session_expiry*86400.0
-                )
-
-                # match the remote IP and API version
-                keyok = ((self.request.remote_ip == uns['ip']) and
-                         (self.apiversion == uns['ver']))
-
-            else:
-
-                LOGGER.error('no Authorization header key found')
-                retdict = {
-                    'status':'failed',
-                    'message':('No credentials provided or '
-                               'they could not be parsed safely'),
-                    'result':None
-                }
-
-                self.set_status(401)
-                return retdict
-
-
-            if not keyok:
-
-                if 'X-Real-Host' in self.request.headers:
-                    self.req_hostname = self.request.headers['X-Real-Host']
-                else:
-                    self.req_hostname = self.request.host
-
-                newkey_url = "%s://%s/api/key" % (
-                    self.request.protocol,
-                    self.req_hostname,
-                )
-
-                LOGGER.error('API key is valid, but IP or API version mismatch')
-                retdict = {
-                    'status':'failed',
-                    'message':('API key invalid for current LCC API '
-                               'version: %s or your IP address has changed. '
-                               'Get an up-to-date key from %s' %
-                               (self.apiversion, newkey_url)),
-                    'result':None
-                }
-
-                self.set_status(401)
-                return retdict
-
-            # SUCCESS HERE ONLY
-            else:
-
-                LOGGER.warning('successful API key auth: %r' % uns)
-
-                retdict = {
-                    'status':'ok',
-                    'message':('API key verified successfully. Expires: %s' %
-                               uns['expiry']),
-                    'result':{'expiry':uns['expiry']},
-                }
-
-                LOGGER.info(retdict['message'])
-                return retdict
-
-        except itsdangerous.SignatureExpired:
-
-            LOGGER.error('API key "%s" from %s has expired' %
-                         (key, self.request.remote_ip))
-
-            if 'X-Real-Host' in self.request.headers:
-                self.req_hostname = self.request.headers['X-Real-Host']
-            else:
-                self.req_hostname = self.request.host
-
-            newkey_url = "%s://%s/api/key" % (
-                self.request.protocol,
-                self.req_hostname,
-            )
-
-            retdict = {
-                'status':'failed',
-                'message':('API key has expired. '
-                           'Get a new one from %s' % newkey_url),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-        except itsdangerous.BadSignature:
-
-            LOGGER.error('API key "%s" from %s did not pass verification' %
-                         (key, self.request.remote_ip))
-
-            retdict = {
-                'status':'failed',
-                'message':'API key could not be verified or has expired.',
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-        except Exception as e:
-
-            LOGGER.exception('API key "%s" from %s did not pass verification' %
-                             (key, self.request.remote_ip))
-
-            retdict = {
-                'status':'failed',
-                'message':('API key was not provided, '
-                           'could not be verified, '
-                           'or has expired.'),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-
-
-    def tornado_check_xsrf_cookie(self):
-        '''This is the original Tornado XSRF token checker.
-
-        From: http://www.tornadoweb.org
-              /en/stable/_modules/tornado/web.html
-              #RequestHandler.check_xsrf_cookie
-
-        Modified a bit to not immediately raise 403s since we want to return
-        JSON all the time.
-
-        '''
-
-        token = (self.get_argument("_xsrf", None) or
-                 self.request.headers.get("X-Xsrftoken") or
-                 self.request.headers.get("X-Csrftoken"))
-
-        if not token:
-
-            retdict = {
-                'status':'failed',
-                'message':("'_xsrf' argument missing from POST'"),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-        _, token, _ = self._decode_xsrf_token(token)
-        _, expected_token, _ = self._get_raw_xsrf_token()
-
-        if not token:
-
-            retdict = {
-                'status':'failed',
-                'message':("'_xsrf' argument missing from POST"),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-
-        if not _time_independent_equals(utf8(token),
-                                        utf8(expected_token)):
-
-            retdict = {
-                'status':'failed',
-                'message':("XSRF cookie does not match POST argument"),
-                'result':None
-            }
-
-            self.set_status(401)
-            return retdict
-
-        else:
-
-            retdict = {
-                'status':'ok',
-                'message':("Successful XSRF cookie match to POST argument"),
-                'result': None
-            }
-            LOGGER.warning(retdict['message'])
-            return retdict
-
-
-
-    def check_xsrf_cookie(self):
-        '''This overrides the usual Tornado XSRF checker.
-
-        We use this because we want the same endpoint to support POSTs from an
-        API or from the browser.
-
-        '''
-
-        xsrf_auth = (self.get_argument("_xsrf", None) or
-                     self.request.headers.get("X-Xsrftoken") or
-                     self.request.headers.get("X-Csrftoken"))
-
-        if xsrf_auth:
-            LOGGER.info('using tornado XSRF auth...')
-            self.xsrf_type = 'session'
-            self.keycheck = self.tornado_check_xsrf_cookie()
-        else:
-            LOGGER.info('using API Authorization header auth...')
-            self.xsrf_type = 'apikey'
-            self.keycheck = self.check_apikey()
 
 
 ######################################

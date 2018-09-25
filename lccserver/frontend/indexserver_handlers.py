@@ -16,8 +16,10 @@ import os
 import os.path
 import logging
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
+# for generating encrypted token information
+from cryptography.fernet import Fernet
 
 
 ######################################
@@ -76,10 +78,7 @@ import tornado.web
 from tornado.escape import xhtml_escape
 from tornado import gen
 from tornado.httpclient import AsyncHTTPClient
-
 import markdown
-import secrets
-import itsdangerous
 
 
 
@@ -130,6 +129,7 @@ class IndexHandler(BaseHandler):
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
@@ -243,6 +243,7 @@ class DocsHandler(BaseHandler):
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
         #
@@ -364,8 +365,6 @@ class CollectionListHandler(BaseHandler):
                    assetpath,
                    executor,
                    basedir,
-                   signer,
-                   fernet,
                    siteinfo,
                    authnzerver,
                    session_expiry,
@@ -381,12 +380,11 @@ class CollectionListHandler(BaseHandler):
         self.assetpath = assetpath
         self.executor = executor
         self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
         # this is used to render collection descriptions to HTML
@@ -505,8 +503,6 @@ class DatasetListHandler(BaseHandler):
                    assetpath,
                    executor,
                    basedir,
-                   signer,
-                   fernet,
                    siteinfo,
                    authnzerver,
                    session_expiry,
@@ -522,12 +518,11 @@ class DatasetListHandler(BaseHandler):
         self.assetpath = assetpath
         self.executor = executor
         self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
@@ -806,231 +801,3 @@ class DatasetListHandler(BaseHandler):
 
         self.write(dataset_info)
         self.finish()
-
-
-
-######################
-## API KEY HANDLERS ##
-######################
-
-# TODO: make all of these use POST instead of GET
-# TODO: make these inherit from BaseHandler
-
-# TODO: need to decide if anonymous people should be able to get API Keys
-
-class APIKeyHandler(tornado.web.RequestHandler):
-    '''This handles API key generation
-
-    '''
-
-    def initialize(self, apiversion, signer, fernet):
-        '''
-        handles initial setup.
-
-        '''
-        self.apiversion = apiversion
-        self.signer = signer
-        self.fernet = fernet
-
-
-    @gen.coroutine
-    def get(self):
-        '''This generates an API key.
-
-        It is used to generate a token to be used in place of an XSRF token for
-        the POST functions (or possibly other API enabled functions later). This
-        is mostly useful for direct API request since we will not enable POST
-        with XSRF. So for an API enabled service, the workflow on first hit is:
-
-        - /api/key GET to receive a token
-
-        Then one can run any /api/<method> with the following in the header:
-
-        Authorization: Bearer <token>
-
-        keys expire in 1 day and contain:
-
-        ip: the remote IP address
-        ver: the version of the API
-        token: a random hex
-        expiry: the ISO format date of expiry
-
-        '''
-
-        # using the signer, generate a key
-        expires = '%sZ' % (datetime.utcnow() +
-                           timedelta(seconds=86400.0)).isoformat()
-        key = {'ip':self.request.remote_ip,
-               'ver':self.apiversion,
-               'token':secrets.token_urlsafe(10),
-               'expiry':expires}
-        signed = self.signer.dumps(key)
-        LOGGER.warning('new API key generated for %s, '
-                       'expires on: %s, typeof: %s' % (key['ip'],
-                                                       expires,
-                                                       type(signed)))
-
-        retdict = {
-            'status':'ok',
-            'message':'key expires: %s' % key['expiry'],
-            'result':{'key': signed,
-                      'expires':expires}
-        }
-
-        self.write(retdict)
-        self.finish()
-
-
-
-class APIAuthHandler(tornado.web.RequestHandler):
-    '''This handles API key authentication
-
-    '''
-
-    def initialize(self, apiversion, signer, fernet):
-        '''
-        handles initial setup.
-
-        '''
-        self.apiversion = apiversion
-        self.signer = signer
-        self.fernet = fernet
-
-
-    @gen.coroutine
-    def get(self):
-        '''This is used to check if an API key is valid.
-
-        '''
-
-        try:
-
-            key = self.get_argument('key', default=None)
-
-            if not key:
-
-                LOGGER.error('no key was provided')
-
-                retdict = {
-                    'status':'failed',
-                    'message':'no key was provided to authenticate',
-                    'result':None
-                }
-
-                self.set_status(400)
-                self.write(retdict)
-                self.finish()
-
-            else:
-
-                #
-                # if we have a key
-                #
-                key = xhtml_escape(key)
-                uns = self.signer.loads(key, max_age=86400.0)
-
-                # match the remote IP and API version
-                keyok = ((self.request.remote_ip == uns['ip']) and
-                         (self.apiversion == uns['ver']))
-
-                if not keyok:
-
-                    if 'X-Real-Host' in self.request.headers:
-                        self.req_hostname = self.request.headers['X-Real-Host']
-                    else:
-                        self.req_hostname = self.request.host
-
-                    newkey_url = "%s://%s/api/key" % (
-                        self.request.protocol,
-                        self.req_hostname,
-                    )
-
-                    LOGGER.error('API key is valid, but '
-                                 'IP or API version mismatch')
-
-                    retdict = {
-                        'status':'failed',
-                        'message':('API key invalid for current LCC API '
-                                   'version: %s or your '
-                                   'IP address has changed. '
-                                   'Get an up-to-date key from %s' %
-                                   (self.apiversion, newkey_url)),
-                        'result':None
-                    }
-
-                    self.set_status(401)
-                    self.write(retdict)
-                    self.finish()
-
-                else:
-
-                    LOGGER.warning('successful API key auth: %r' % uns)
-
-                    retdict = {
-                        'status':'ok',
-                        'message':('API key verified successfully. '
-                                   'Expires: %s' %
-                                   uns['expiry']),
-                        'result':{'expires':uns['expiry']},
-                    }
-
-                    self.write(retdict)
-                    self.finish()
-
-        except itsdangerous.SignatureExpired:
-
-            LOGGER.exception('API key "%s" from %s has expired' %
-                             (key, self.request.remote_ip))
-
-            if 'X-Real-Host' in self.request.headers:
-                self.req_hostname = self.request.headers['X-Real-Host']
-            else:
-                self.req_hostname = self.request.host
-
-            newkey_url = "%s://%s/api/key" % (
-                self.request.protocol,
-                self.req_hostname,
-            )
-
-            retdict = {
-                'status':'failed',
-                'message':('API key has expired. '
-                           'Get a new one from %s' % newkey_url),
-                'result':None
-            }
-
-            self.status(401)
-            self.write(retdict)
-            self.finish()
-
-        except itsdangerous.BadSignature:
-
-            LOGGER.exception('API key "%s" from %s did not pass verification' %
-                             (key, self.request.remote_ip))
-
-            retdict = {
-                'status':'failed',
-                'message':'API key could not be verified or has expired.',
-                'result':None
-            }
-
-            self.set_status(401)
-            self.write(retdict)
-            self.finish()
-
-        except Exception as e:
-
-            LOGGER.exception('API key "%s" from %s did not pass verification' %
-                             (key, self.request.remote_ip))
-
-            retdict = {
-                'status':'failed',
-                'message':('API key was not provided, '
-                           'could not be verified, '
-                           'or has expired.'),
-                'result':None
-            }
-
-            self.set_status(401)
-            self.write(retdict)
-            self.finish()

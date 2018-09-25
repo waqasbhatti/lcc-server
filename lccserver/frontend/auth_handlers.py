@@ -14,6 +14,9 @@ how to authenticate a user.
 
 import logging
 import secrets
+from datetime import datetime
+
+from cryptography.fernet import Fernet, InvalidToken
 
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
@@ -25,7 +28,6 @@ import secrets
 # - datetime
 import json
 import numpy as np
-from datetime import datetime
 
 class FrontendEncoder(json.JSONEncoder):
 
@@ -67,13 +69,13 @@ LOGGER = logging.getLogger(__name__)
 import tornado.web
 from tornado import gen
 from tornado.escape import xhtml_escape
+from tornado.httpclient import AsyncHTTPClient
 
 
 ###################
 ## LOCAL IMPORTS ##
 ###################
 
-from cryptography.fernet import InvalidToken
 from lccserver import __version__
 from lccserver.frontend.basehandler import BaseHandler
 
@@ -86,7 +88,6 @@ class LoginHandler(BaseHandler):
     This handles /users/login.
 
     '''
-
 
     @gen.coroutine
     def get(self):
@@ -104,7 +105,6 @@ class LoginHandler(BaseHandler):
         if current_user:
 
             # if we're already logged in, redirect to the index page
-            # FIXME: in the future, this may redirect to /users/home
             if ((current_user['user_role'] in
                  ('authenticated', 'staff', 'superuser')) and
                 (current_user['user_id'] != 2)):
@@ -144,8 +144,8 @@ class LoginHandler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -230,8 +230,8 @@ class LogoutHandler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -338,8 +338,8 @@ class NewUserHandler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -510,8 +510,8 @@ class VerifyUserHandler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -696,8 +696,8 @@ class ForgotPassStep1Handler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -865,8 +865,8 @@ class ForgotPassStep2Handler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -997,8 +997,8 @@ class ChangePassHandler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -1144,8 +1144,8 @@ class DeleteUserHandler(BaseHandler):
             retdict = {
                 'status':'failed',
                 'result':None,
-                'message':"Sorry, you don't have access. "
-                "API keys are not allowed for this endpoint."
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
             }
             self.write(retdict)
             raise tornado.web.Finish()
@@ -1271,3 +1271,170 @@ class UserHomeHandler(BaseHandler):
                 "warning"
             )
             self.redirect('/users/login')
+
+
+
+######################
+## API KEY HANDLING ##
+######################
+
+class APIKeyHandler(BaseHandler):
+    '''This handles API key generation
+
+    '''
+
+    def initialize(self,
+                   apiversion,
+                   authnzerver,
+                   fernetkey,
+                   executor,
+                   session_expiry,
+                   siteinfo):
+        '''
+        handles initial setup.
+
+        '''
+        self.apiversion = apiversion
+        self.authnzerver = authnzerver
+        self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
+        self.executor = executor
+        self.session_expiry = session_expiry
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.siteinfo = siteinfo
+
+
+    @gen.coroutine
+    def get(self):
+        '''This generates an API key.
+
+        Then one can run any /api/<method> with the following in the header:
+
+        Authorization: Bearer <token>
+
+        keys expire in 1 day and contain:
+
+        ip: the remote IP address
+        ver: the version of the API
+        token: a random hex
+        expiry: the ISO format date of expiry
+
+        '''
+
+        # redirect completely unknown clients
+        if not self.current_user:
+            self.redirect('/')
+
+        client_header = self.current_user['client_header']
+        ip_address = self.current_user['ip_address']
+        user_id = self.current_user['user_id']
+        user_role = self.current_user['user_role']
+        expires_days = self.session_expiry
+        session_token = self.current_user['session_token']
+
+        # send this info to the backend to store and make an API key dict
+        ok, resp, msgs = yield self.authnzerver_request(
+            'apikey-new',
+            {'user_id':user_id,
+             'user_role':user_role,
+             'expires_days':expires_days,
+             'ip_address':ip_address,
+             'client_header':client_header,
+             'session_token':session_token,
+             'apiversion':self.apiversion}
+        )
+
+        # when we get back the API key dict, encode to bytes, then
+        # Fernet encrypt+sign it.
+        if ok:
+
+            apikey_bytes = resp['apikey'].encode()
+            apikey_encrypted_signed = self.ferneter.encrypt(
+                apikey_bytes
+            )
+
+            retdict = {
+                'status':'ok',
+                'result':{
+                    'apikey':apikey_encrypted_signed,
+                    'expires':'%sZ' % resp['expires'],
+                },
+                'message':('API key generated successfully. Expires: %sZ'
+                           % resp['expires'])
+            }
+
+            self.write(retdict)
+            self.finish()
+
+        else:
+
+            LOGGER.error(msgs)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':(
+                    'API key could not be generated because of a backend error.'
+                )
+            }
+
+            self.write(retdict)
+            self.finish()
+
+
+
+class APIVerifyHandler(BaseHandler):
+    '''This handles API key verification.
+
+    '''
+
+    def initialize(self,
+                   apiversion,
+                   authnzerver,
+                   fernetkey,
+                   executor,
+                   session_expiry,
+                   siteinfo):
+        '''
+        handles initial setup.
+
+        '''
+        self.apiversion = apiversion
+        self.authnzerver = authnzerver
+        self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
+        self.executor = executor
+        self.session_expiry = session_expiry
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.siteinfo = siteinfo
+
+
+
+    @gen.coroutine
+    def post(self):
+        '''This is used to check if an API key is valid.
+
+        This transparently uses the BaseHandler's POST API key verification.
+
+        '''
+
+        if ((not self.keycheck['status'] == 'ok') or
+            (not self.xsrf_type == 'apikey')):
+
+            self.set_status(401)
+            retdict = {
+                'status':'failed',
+                'result': None,
+                'message': self.keycheck['message']
+            }
+            self.write(retdict)
+            self.finish()
+
+        else:
+
+            retdict = {
+                'status':'ok',
+                'result': None,
+                'message': self.keycheck['message']
+            }
+            self.write(retdict)
+            self.finish()

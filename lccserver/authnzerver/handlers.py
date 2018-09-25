@@ -172,6 +172,8 @@ request_functions = {
     'user-verify-email':actions.verify_user_email_address,
     'user-forgotpass-email':actions.send_forgotpass_verification_email,
     'user-resetpass':actions.verify_password_reset,
+    'apikey-new':actions.issue_new_apikey,
+    'apikey-verify':actions.verify_apikey,
 }
 
 

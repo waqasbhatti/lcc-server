@@ -177,6 +177,7 @@ Preferences = Table(
 
 
 # API keys that are in use
+# FIXME: should API keys be deleted via CASCADE when the sessions are deleted?
 APIKeys = Table(
     'apikeys',
     AUTHDB_META,

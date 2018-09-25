@@ -19,6 +19,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import re
 
+from cryptography.fernet import Fernet
 
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
@@ -567,11 +568,6 @@ class BackgroundQueryMixin(object):
         This runs the background query.
 
         '''
-
-        # FIXME: before anything else, we need to test if the current user can
-        # actually create a dataset. We'll test the 'create' permission against
-        # the target 'dataset'.
-
 
         # Q1. prepare the dataset
         setinfo = yield self.executor.submit(
@@ -1167,8 +1163,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
                    executor,
                    basedir,
                    uselcdir,
-                   signer,
-                   fernet,
                    siteinfo,
                    authnzerver,
                    session_expiry,
@@ -1185,12 +1179,11 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
-        self.signer = signer
-        self.fernet = fernet
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
@@ -1359,7 +1352,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
         LOGGER.info('conditions = %s' % conditions)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
-        LOGGER.info('email_when_done = %s' % email_when_done)
+        LOGGER.info('emailwhendone = %s' % email_when_done)
 
         # get user info, dataset disposition, and result sort/sample/limit specs
         (incoming_userid,
@@ -1423,8 +1416,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
                    executor,
                    basedir,
                    uselcdir,
-                   signer,
-                   fernet,
                    siteinfo,
                    authnzerver,
                    session_expiry,
@@ -1441,12 +1432,11 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
-        self.signer = signer
-        self.fernet = fernet
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
@@ -1596,6 +1586,21 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
                 )
 
             #
+            # OPTIONAL: email_when_done
+            #
+            email_when_done = self.get_body_argument('emailwhendone',
+                                                     default=None)
+            if email_when_done is not None and len(email_when_done.strip()) > 0:
+                email_when_done = xhtml_escape(email_when_done.strip())
+                if email_when_done == 'true':
+                    email_when_done = True
+                else:
+                    email_when_done = False
+            else:
+                email_when_done = False
+
+
+            #
             # now we've collected all the parameters for
             # sqlite_kdtree_conesearch
             #
@@ -1631,6 +1636,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
         LOGGER.info('conditions = %s' % conditions)
+        LOGGER.info('emailwhendone = %s' % email_when_done)
 
         # get user info, dataset disposition, and result sort/sample/limit specs
         (incoming_userid,
@@ -1674,7 +1680,8 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
-            results_samplespec=results_samplespec
+            results_samplespec=results_samplespec,
+            email_when_done=email_when_done
         )
 
 
@@ -1697,8 +1704,6 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
                    executor,
                    basedir,
                    uselcdir,
-                   signer,
-                   fernet,
                    siteinfo,
                    authnzerver,
                    session_expiry,
@@ -1715,12 +1720,11 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
-        self.signer = signer
-        self.fernet = fernet
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
@@ -1876,6 +1880,20 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
                 )
 
             #
+            # OPTIONAL: email_when_done
+            #
+            email_when_done = self.get_body_argument('emailwhendone',
+                                                     default=None)
+            if email_when_done is not None and len(email_when_done.strip()) > 0:
+                email_when_done = xhtml_escape(email_when_done.strip())
+                if email_when_done == 'true':
+                    email_when_done = True
+                else:
+                    email_when_done = False
+            else:
+                email_when_done = False
+
+            #
             # now we've collected all the parameters for
             # sqlite_fulltext_search
             #
@@ -1911,6 +1929,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
         LOGGER.info('conditions = %s' % conditions)
+        LOGGER.info('emailwhendone = %s' % email_when_done)
 
         # get user info, dataset disposition, and result sort/sample/limit specs
         (incoming_userid,
@@ -1957,7 +1976,8 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
-            results_samplespec=results_samplespec
+            results_samplespec=results_samplespec,
+            email_when_done=email_when_done
         )
 
 
@@ -1979,8 +1999,6 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
                    executor,
                    basedir,
                    uselcdir,
-                   signer,
-                   fernet,
                    siteinfo,
                    authnzerver,
                    session_expiry,
@@ -1997,12 +2015,11 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
         self.executor = executor
         self.basedir = basedir
         self.uselcdir = uselcdir
-        self.signer = signer
-        self.fernet = fernet
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
@@ -2138,6 +2155,19 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             else:
                 lcclist = None
 
+            #
+            # OPTIONAL: email_when_done
+            #
+            email_when_done = self.get_body_argument('emailwhendone',
+                                                     default=None)
+            if email_when_done is not None and len(email_when_done.strip()) > 0:
+                email_when_done = xhtml_escape(email_when_done.strip())
+                if email_when_done == 'true':
+                    email_when_done = True
+                else:
+                    email_when_done = False
+            else:
+                email_when_done = False
 
             #
             # now we've collected all the parameters for
@@ -2167,6 +2197,7 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
         LOGGER.info('conditions = %s' % conditions)
         LOGGER.info('getcolumns = %s' % getcolumns)
         LOGGER.info('lcclist = %s' % lcclist)
+        LOGGER.info('emailwhendone = %s' % email_when_done)
         LOGGER.info('xmq = %s' % parsed_xmq)
         LOGGER.info('xmd = %s' % parsed_xmd)
 
@@ -2212,5 +2243,6 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             dataset_sharedwith=dataset_sharedwith,
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
-            results_samplespec=results_samplespec
+            results_samplespec=results_samplespec,
+            email_when_done=email_when_done
         )

@@ -18,6 +18,8 @@ import logging
 import numpy as np
 import glob
 
+from cryptography.fernet import Fernet
+
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
 ######################################
@@ -192,8 +194,6 @@ class ObjectInfoHandler(BaseHandler):
                    assetpath,
                    executor,
                    basedir,
-                   signer,
-                   fernet,
                    cpsharedkey,
                    cpaddress,
                    siteinfo,
@@ -211,14 +211,13 @@ class ObjectInfoHandler(BaseHandler):
         self.assetpath = assetpath
         self.executor = executor
         self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
         self.cpkey = cpsharedkey
         self.cpaddr = cpaddress
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
@@ -752,8 +751,6 @@ class ObjectInfoPageHandler(BaseHandler):
                    assetpath,
                    executor,
                    basedir,
-                   signer,
-                   fernet,
                    cpsharedkey,
                    cpaddress,
                    siteinfo,
@@ -771,14 +768,13 @@ class ObjectInfoPageHandler(BaseHandler):
         self.assetpath = assetpath
         self.executor = executor
         self.basedir = basedir
-        self.signer = signer
-        self.fernet = fernet
         self.cpkey = cpsharedkey
         self.cpaddr = cpaddress
         self.siteinfo = siteinfo
         self.authnzerver = authnzerver
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
 
 
