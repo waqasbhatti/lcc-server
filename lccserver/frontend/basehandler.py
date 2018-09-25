@@ -976,7 +976,6 @@ class BaseHandler(tornado.web.RequestHandler):
 
             # check if the API key is valid
             apikey_info = yield self.check_auth_header_apikey()
-            LOGGER.info(apikey_info)
 
             if not apikey_info['status'] == 'ok':
 
