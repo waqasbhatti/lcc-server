@@ -104,7 +104,9 @@ class DatasetHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -122,6 +124,8 @@ class DatasetHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
 
@@ -1074,7 +1078,9 @@ class AllDatasetsHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -1091,6 +1097,8 @@ class AllDatasetsHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
     @gen.coroutine

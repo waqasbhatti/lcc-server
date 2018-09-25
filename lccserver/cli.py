@@ -210,6 +210,8 @@ def prepare_basedir(basedir,
             "institution_link":site_institution_link,
             "signups_allowed": True,
             "logins_allowed": True,
+            "rate_limit_active": True,
+            "cache_location": "/tmp/lccserver_cache"
         }
 
         # check if the site institution logo file is not None and exists

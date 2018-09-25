@@ -199,7 +199,9 @@ class ObjectInfoHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -219,6 +221,8 @@ class ObjectInfoHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
 
@@ -756,7 +760,9 @@ class ObjectInfoPageHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -776,6 +782,8 @@ class ObjectInfoPageHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
 

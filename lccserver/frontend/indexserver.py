@@ -304,6 +304,11 @@ def main():
     AUTHNZERVER = options.authnzerver
     SESSION_EXPIRY = options.sessionexpiry
 
+    #
+    # rate limit options
+    #
+    RATELIMIT = SITEINFO['rate_limit_active']
+    CACHEDIR = SITEINFO['cache_location']
 
     ###########################
     ## WORK AROUND APPLE BUG ##
@@ -352,7 +357,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         ########################
         ## AUTH RELATED PAGES ##
@@ -365,7 +372,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the logout page
         (r'/users/logout',
@@ -374,7 +383,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the new user page
         (r'/users/new',
@@ -383,7 +394,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the verification page for verifying email addresses
         (r'/users/verify',
@@ -392,7 +405,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is step 1 page for forgotten passwords
         (r'/users/forgot-password-step1',
@@ -401,7 +416,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the verification page for verifying email addresses
         (r'/users/forgot-password-step2',
@@ -410,7 +427,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the verification page for verifying email addresses
         (r'/users/password-change',
@@ -419,7 +438,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is user-prefs page
         (r'/users/home',
@@ -428,7 +449,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is user-delete page
         (r'/users/delete',
@@ -437,7 +460,9 @@ def main():
           'executor':EXECUTOR,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         ################
         ## DOCS PAGES ##
@@ -457,7 +482,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         ###################################
         ## STATIC FILE DOWNLOAD HANDLERS ##
@@ -490,7 +517,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this handles static file downloads for dataset products
         (r'/p/(.*)',
@@ -504,7 +533,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this handles static file downloads for individual light curves
         (r'/l/(.*)',
@@ -518,7 +549,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
 
         ######################
@@ -533,7 +566,9 @@ def main():
           'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this checks the API key to see if it's still valid
         (r'/api/verify',
@@ -543,7 +578,9 @@ def main():
           'fernetkey':FERNETSECRET,
           'executor':EXECUTOR,
           'session_expiry':SESSION_EXPIRY,
-          'siteinfo':SITEINFO}),
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this returns a JSON list of the currently available LC collections
         (r'/api/collections',
@@ -557,7 +594,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this returns a JSON list of the currently available datasets
         (r'/api/datasets',
@@ -571,7 +610,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
 
         ##################################
@@ -591,7 +632,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the cone search API endpoint
         (r'/api/conesearch',
@@ -606,7 +649,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the FTS search API endpoint
         (r'/api/ftsquery',
@@ -621,7 +666,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this is the xmatch search API endpoint
         (r'/api/xmatch',
@@ -636,7 +683,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
 
         ##############################################
@@ -655,7 +704,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # this just shows all datasets in a big table
         (r'/datasets',
@@ -668,7 +719,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
 
         ################################################
@@ -689,7 +742,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
         # renders objectinfo from API above to an HTML page for easy viewing
         (r'/obj/(\S+)/(\S+)',
@@ -705,7 +760,9 @@ def main():
           'siteinfo':SITEINFO,
           'authnzerver':AUTHNZERVER,
           'session_expiry':SESSION_EXPIRY,
-          'fernetkey':FERNETSECRET}),
+          'fernetkey':FERNETSECRET,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
 
     ]
 

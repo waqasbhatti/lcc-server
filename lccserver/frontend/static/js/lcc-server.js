@@ -201,6 +201,44 @@ var lcc_ui = {
     },
 
 
+    // this asks for an API key and puts it into the target elements
+    generate_new_apikey: function (target_key, target_expiry) {
+
+        let geturl = '/api/key';
+        $.getJSON(geturl, function(data) {
+
+            let result = data.result;
+            let message = data.message;
+            let status = data.status;
+
+            if (status == 'ok') {
+
+                $(target_key).val(result.apikey);
+                $(target_expiry).text('Expires at: ' + result.expires + ' UTC');
+
+                // save the API key to browser local storage. this should be OK
+                // because the key is encrypted and tied to an IP address
+
+
+            }
+
+            else {
+                lcc_ui.alert_box('Could not fetch a new API key.','primary');
+            }
+
+        }).fail(function (xhr) {
+            lcc_ui.alert_box('Could not fetch a new API key.','primary');
+        });
+
+    },
+
+
+    // this attempts to load a saved API key from local storage
+    load_previous_apikey: function () {
+
+    },
+
+
     // this updates all of the column associated controls whenever there's an
     // update needed
     update_column_associated_controls: function (columns,

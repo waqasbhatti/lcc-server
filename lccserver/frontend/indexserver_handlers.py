@@ -112,7 +112,9 @@ class IndexHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -129,6 +131,8 @@ class IndexHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
 
@@ -226,7 +230,9 @@ class DocsHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -243,6 +249,8 @@ class DocsHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
         #
         # these are the doc index JSONs parsed into dicts
@@ -366,7 +374,9 @@ class CollectionListHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -384,6 +394,8 @@ class CollectionListHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
         # this is used to render collection descriptions to HTML
         self.markdowner = markdown.Markdown(
@@ -504,7 +516,9 @@ class DatasetListHandler(BaseHandler):
                    siteinfo,
                    authnzerver,
                    session_expiry,
-                   fernetkey):
+                   fernetkey,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -522,6 +536,8 @@ class DatasetListHandler(BaseHandler):
         self.fernetkey = fernetkey
         self.ferneter = Fernet(fernetkey)
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
     @gen.coroutine

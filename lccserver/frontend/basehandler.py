@@ -220,7 +220,9 @@ class BaseHandler(tornado.web.RequestHandler):
                    fernetkey,
                    executor,
                    session_expiry,
-                   siteinfo):
+                   siteinfo,
+                   ratelimit,
+                   cachedir):
         '''
         This just sets up some stuff.
 
@@ -233,6 +235,8 @@ class BaseHandler(tornado.web.RequestHandler):
         self.session_expiry = session_expiry
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.siteinfo = siteinfo
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
         # initialize this to None
         # we'll set this later in self.prepare()
@@ -909,45 +913,49 @@ class BaseHandler(tornado.web.RequestHandler):
                     self.user_id = self.current_user['user_id']
                     self.user_role = self.current_user['user_role']
 
-                    # # increment the rate counter for this session token
-                    # yield self.executor.submit(
-                    #     cache.cache_increment,
-                    #     self.basedir,
-                    #     session_token
-                    # )
+                    if self.ratelimit:
 
-                    # # check the rate for this session token
-                    # request_rate, keycount, time_zero = (
-                    #     yield self.executor.submit(
-                    #         cache.cache_getrate,
-                    #         self.basedir,
-                    #         session_token,
-                    #     )
-                    # )
-                    # rate_ok = check_role_limits(self.user_role,
-                    #                             rate_60sec=request_rate)
+                        # increment the rate counter for this session token
+                        yield self.executor.submit(
+                            cache.cache_increment,
+                            session_token,
+                            cache_dirname=self.cachedir
 
-                    # self.request_rate_60sec = request_rate
-                    # if not rate_ok:
+                        )
 
-                    #     LOGGER.error(
-                    #         'session token: %s: current rate = %s exceeds '
-                    #         'their allowed rate for their role = %s'
-                    #         % (session_token,
-                    #            request_rate,
-                    #            self.user_role)
-                    #     )
-                    #     self.set_status(429)
-                    #     self.set_header('Retry-After','120')
-                    #     self.write({
-                    #         'status':'failed',
-                    #         'result':{
-                    #             'rate':request_rate,
-                    #         },
-                    #         'message':'You have exceeded your API request rate.'
-                    #     })
-                    #     raise tornado.web.Finish()
+                        # check the rate for this session token
+                        request_rate, keycount, time_zero = (
+                            yield self.executor.submit(
+                                cache.cache_getrate,
+                                session_token,
+                                cache_dirname=self.cachedir
+                            )
+                        )
+                        rate_ok = check_role_limits(self.user_role,
+                                                    rate_60sec=request_rate)
 
+                        self.request_rate_60sec = request_rate
+                        if not rate_ok:
+
+                            LOGGER.error(
+                                'session token: %s: current rate = %s exceeds '
+                                'their allowed rate for their role = %s'
+                                % (session_token,
+                                   request_rate,
+                                   self.user_role)
+                            )
+                            self.set_status(429)
+                            self.set_header('Retry-After','120')
+                            self.write({
+                                'status':'failed',
+                                'result':{
+                                    'rate':request_rate,
+                                },
+                                'message':(
+                                    'You have exceeded your API request rate.'
+                                )
+                            })
+                            raise tornado.web.Finish()
 
                 else:
 
@@ -992,44 +1000,49 @@ class BaseHandler(tornado.web.RequestHandler):
                     self.user_id = self.current_user['user_id']
                     self.user_role = self.current_user['user_role']
 
-                    # # increment the rate counter for this session token
-                    # yield self.executor.submit(
-                    #     cache.cache_increment,
-                    #     self.basedir,
-                    #     session_token
-                    # )
+                    if self.ratelimit:
 
-                    # # check the rate for this session token
-                    # request_rate, keycount, time_zero = (
-                    #     yield self.executor.submit(
-                    #         cache.cache_getrate,
-                    #         self.basedir,
-                    #         session_token,
-                    #     )
-                    # )
-                    # rate_ok = check_role_limits(self.user_role,
-                    #                             rate_60sec=request_rate)
-                    # self.request_rate_60sec = request_rate
+                        # increment the rate counter for this session token
+                        yield self.executor.submit(
+                            cache.cache_increment,
+                            session_token,
+                            cache_dirname=self.cachedir
 
-                    # if not rate_ok:
+                        )
 
-                    #     LOGGER.error(
-                    #         'session token: %s: current rate = %s exceeds '
-                    #         'their allowed rate for their role = %s'
-                    #         % (session_token,
-                    #            request_rate,
-                    #            self.user_role)
-                    #     )
-                    #     self.set_status(429)
-                    #     self.set_header('Retry-After','120')
-                    #     self.write({
-                    #         'status':'failed',
-                    #         'result':{
-                    #             'rate':request_rate,
-                    #         },
-                    #         'message':'You have exceeded your API request rate.'
-                    #     })
-                    #     raise tornado.web.Finish()
+                        # check the rate for this session token
+                        request_rate, keycount, time_zero = (
+                            yield self.executor.submit(
+                                cache.cache_getrate,
+                                session_token,
+                                cache_dirname=self.cachedir
+                            )
+                        )
+                        rate_ok = check_role_limits(self.user_role,
+                                                    rate_60sec=request_rate)
+
+                        self.request_rate_60sec = request_rate
+                        if not rate_ok:
+
+                            LOGGER.error(
+                                'session token: %s: current rate = %s exceeds '
+                                'their allowed rate for their role = %s'
+                                % (session_token,
+                                   request_rate,
+                                   self.user_role)
+                            )
+                            self.set_status(429)
+                            self.set_header('Retry-After','120')
+                            self.write({
+                                'status':'failed',
+                                'result':{
+                                    'rate':request_rate,
+                                },
+                                'message':(
+                                    'You have exceeded your API request rate.'
+                                )
+                            })
+                            raise tornado.web.Finish()
 
                 else:
 
@@ -1113,44 +1126,49 @@ class BaseHandler(tornado.web.RequestHandler):
                 self.user_id = self.current_user['user_id']
                 self.user_role = self.current_user['user_role']
 
-                # # increment the rate counter for this session token
-                # # FIXME: maybe make this async later
-                # yield self.executor.submit(
-                #     cache.cache_increment,
-                #     self.basedir,
-                #     self.apikey_dict['tkn']
-                # )
+                if self.ratelimit:
 
-                # # check the rate for this session token
-                # request_rate, keycount, time_zero = yield self.executor.submit(
-                #     cache.cache_getrate,
-                #     self.basedir,
-                #     self.apikey_dict['tkn'],
-                # )
-                # self.request_rate_60sec = request_rate
+                    # increment the rate counter for this session token
+                    yield self.executor.submit(
+                        cache.cache_increment,
+                        self.apikey_dict['tkn'],
+                        cache_dirname=self.cachedir
 
-                # rate_ok = check_role_limits(self.user_role,
-                #                             rate_60sec=request_rate)
+                    )
 
-                # if not rate_ok:
+                    # check the rate for this session token
+                    request_rate, keycount, time_zero = (
+                        yield self.executor.submit(
+                            cache.cache_getrate,
+                            self.apikey_dict['tkn'],
+                            cache_dirname=self.cachedir
+                        )
+                    )
+                    rate_ok = check_role_limits(self.user_role,
+                                                rate_60sec=request_rate)
 
-                #     LOGGER.error(
-                #         'session token: %s: current rate = %s exceeds '
-                #         'their allowed rate for their role = %s'
-                #         % (self.apikey_dict['tkn'],
-                #            request_rate,
-                #            self.user_role)
-                #     )
-                #     self.set_status(429)
-                #     self.set_header('Retry-After','120')
-                #     self.write({
-                #         'status':'failed',
-                #         'result':{
-                #             'rate':request_rate,
-                #         },
-                #         'message':'You have exceeded your API request rate.'
-                #     })
-                #     raise tornado.web.Finish()
+                    self.request_rate_60sec = request_rate
+                    if not rate_ok:
+
+                        LOGGER.error(
+                            'API key: %s: current rate = %s exceeds '
+                            'their allowed rate for their role = %s'
+                            % (self.apikey_dict['tkn'],
+                               request_rate,
+                               self.user_role)
+                        )
+                        self.set_status(429)
+                        self.set_header('Retry-After','120')
+                        self.write({
+                            'status':'failed',
+                            'result':{
+                                'rate':request_rate,
+                            },
+                            'message':(
+                                'You have exceeded your API request rate.'
+                            )
+                        })
+                        raise tornado.web.Finish()
 
 
     def on_finish(self):
@@ -1262,6 +1280,8 @@ class AuthEnabledStaticHandler(BaseHandler):
             authnzerver,
             session_expiry,
             fernetkey,
+            ratelimit,
+            cachedir,
             default_filename=None,
     ):
 
@@ -1277,6 +1297,8 @@ class AuthEnabledStaticHandler(BaseHandler):
         self.session_expiry = session_expiry
         self.fernetkey = fernetkey
         self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
     @classmethod

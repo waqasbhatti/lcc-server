@@ -33,19 +33,16 @@ from diskcache import FanoutCache
 ## CACHE HANDLING FUNCTIONS ##
 ##############################
 
-def cache_add(basedir,
-              key, value,
+def cache_add(key, value,
               timeout_seconds=0.3,
               expires_seconds=None,
-              cache_dirname='lccserver-cache'):
+              cache_dirname='/tmp/lccserver-cache'):
     '''
     This sets a key to the value specified in the cache.
 
     '''
 
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
     added = cache.add(value, expire=expires_seconds)
     cache.close()
@@ -54,17 +51,14 @@ def cache_add(basedir,
 
 
 
-def cache_get(basedir,
-              key,
+def cache_get(key,
               timeout_seconds=0.3,
-              cache_dirname='lccserver-cache'):
+              cache_dirname='/tmp/lccserver-cache'):
     '''
     This sets a key to the value specified in the cache.
 
     '''
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
     val = cache.get(key)
     cache.close()
@@ -73,17 +67,14 @@ def cache_get(basedir,
 
 
 
-def cache_pop(basedir,
-              key,
+def cache_pop(key,
               timeout_seconds=0.3,
-              cache_dirname='lccserver-cache'):
+              cache_dirname='/tmp/lccserver-cache'):
     '''
     This sets a key to the value specified in the cache.
 
     '''
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
     val = cache.pop(key)
     cache.close()
@@ -92,17 +83,14 @@ def cache_pop(basedir,
 
 
 
-def cache_delete(basedir,
-                 key,
+def cache_delete(key,
                  timeout_seconds=0.3,
-                 cache_dirname='lccserver-cache'):
+                 cache_dirname='/tmp/lccserver-cache'):
     '''
     This sets a key to the value specified in the cache.
 
     '''
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
     deleted = cache.delete(key)
     cache.close()
@@ -111,8 +99,7 @@ def cache_delete(basedir,
 
 
 
-def cache_increment(basedir,
-                    key,
+def cache_increment(key,
                     timeout_seconds=0.3,
                     cache_dirname='lccserver-cache'):
     '''
@@ -122,9 +109,7 @@ def cache_increment(basedir,
     Then increments 'key-counter'.
 
     '''
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
 
     # add the key if not already present
@@ -141,17 +126,14 @@ def cache_increment(basedir,
 
 
 
-def cache_decrement(basedir,
-                    key,
+def cache_decrement(key,
                     timeout_seconds=0.3,
-                    cache_dirname='lccserver-cache'):
+                    cache_dirname='/tmp/lccserver-cache'):
     '''
     This decrements the counter for key.
 
     '''
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
     decremented_val = cache.decr('%s-counter' % key)
 
@@ -166,10 +148,9 @@ def cache_decrement(basedir,
 
 
 
-def cache_getrate(basedir,
-                  key,
+def cache_getrate(key,
                   timeout_seconds=0.3,
-                  cache_dirname='lccserver-cache'):
+                  cache_dirname='/tmp/lccserver-cache'):
     '''This gets the rate of increment for the key by looking at the time of
     insertion inserted at key and the number of times it was incremented in
     key-counter. The rate is then:
@@ -177,9 +158,7 @@ def cache_getrate(basedir,
     key-counter_val/((time_now - time_insertion)/60.0)
 
     '''
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
 
     # get the counter value
@@ -202,16 +181,13 @@ def cache_getrate(basedir,
     )
 
 
-def cache_flush(basedir,
-                timeout_seconds=0.3,
-                cache_dirname='lccserver-cache'):
+def cache_flush(timeout_seconds=0.3,
+                cache_dirname='/tmp/lccserver-cache'):
     '''
     This removes all keys from the cache.
 
     '''
-    cachedir = os.path.abspath(
-        os.path.join(basedir, cache_dirname)
-    )
+    cachedir = os.path.abspath(cache_dirname)
     cache = FanoutCache(cachedir, timeout=timeout_seconds)
     items_removed = cache.clear()
     cache.close()
