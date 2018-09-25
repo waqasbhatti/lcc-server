@@ -57,15 +57,6 @@ import tornado.web
 import tornado.options
 from tornado.options import define, options
 
-########################
-## OTHER USEFUL STUFF ##
-########################
-
-# for signing our API tokens
-from itsdangerous import URLSafeTimedSerializer
-
-# for generating encrypted token information
-from cryptography.fernet import Fernet
 
 ###############################
 ### APPLICATION SETUP BELOW ###
@@ -179,8 +170,8 @@ def main():
     from . import objectserver_handlers as oh
     from . import auth_handlers as ah
     from .basehandler import AuthEnabledStaticHandler
-
     from ..authnzerver import authdb
+
 
     ####################################
     ## SET THE GLOBAL VERSION STRINGS ##
@@ -230,10 +221,6 @@ def main():
         ),
         LOGGER
     )
-
-    # get our crypto contexts
-    FERNET = Fernet(FERNETSECRET)
-    SIGNER = URLSafeTimedSerializer(SESSIONSECRET, 'lcc-server-api')
 
     #
     # site docs
@@ -342,6 +329,7 @@ def main():
     ####################################
 
     EXECUTOR = ProcessPoolExecutor(MAXWORKERS)
+
 
     ##################
     ## URL HANDLERS ##

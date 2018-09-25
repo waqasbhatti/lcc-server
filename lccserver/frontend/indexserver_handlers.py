@@ -81,7 +81,6 @@ from tornado.httpclient import AsyncHTTPClient
 import markdown
 
 
-
 ###################
 ## LOCAL IMPORTS ##
 ###################
@@ -91,7 +90,6 @@ from ..backend import datasets
 from ..backend import dbsearch
 
 from .basehandler import BaseHandler
-
 
 
 #####################

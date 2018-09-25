@@ -202,7 +202,7 @@ ROLE_PERMISSIONS = {
     'superuser':{
         'limits':{
             'max_rows': 5000000,
-            'max_reqs_60sec': 50000,
+            'max_reqs_60sec': 60000,
         },
         'can_own':{'dataset','object','collection','apikeys','preferences'},
         'for_owned': {
@@ -267,7 +267,7 @@ ROLE_PERMISSIONS = {
     'staff':{
         'limits':{
             'max_rows': 1000000,
-            'max_reqs_60sec': 10000,
+            'max_reqs_60sec': 60000,
         },
         'can_own':{'dataset','object','collection','apikeys','preferences'},
         'for_owned': {
@@ -308,7 +308,7 @@ ROLE_PERMISSIONS = {
     'authenticated':{
         'limits':{
             'max_rows': 500000,
-            'max_reqs_60sec': 5000,
+            'max_reqs_60sec': 6000,
         },
         'can_own':{'dataset','apikeys','preferences'},
         'for_owned': {
@@ -341,7 +341,7 @@ ROLE_PERMISSIONS = {
     'anonymous':{
         'limits':{
             'max_rows': 100000,
-            'max_reqs_60sec': 1000,
+            'max_reqs_60sec': 600,
         },
         'can_own':{'dataset'},
         'for_owned': {
@@ -672,7 +672,7 @@ def check_role_limits(role,
     if rows is not None:
         return ROLE_PERMISSIONS[role]['limits']['max_rows'] <= rows
     elif rate_60sec is not None:
-        return ROLE_PERMISSIONS[role]['limits']['max_reqs_60sec'] <= rate_60sec
+        return ROLE_PERMISSIONS[role]['limits']['max_reqs_60sec'] >= rate_60sec
     else:
         return ROLE_PERMISSIONS[role]['limits']
 

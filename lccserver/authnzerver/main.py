@@ -185,6 +185,7 @@ def main():
 
     from .handlers import AuthHandler, EchoHandler
     from . import authdb
+    from . import cache
 
 
     ###################
@@ -257,6 +258,16 @@ def main():
 
     # start up the HTTP server and our application
     http_server = tornado.httpserver.HTTPServer(app)
+
+
+    ################################
+    ## CLEAR THE CACHE ON STARTUP ##
+    ################################
+
+    removed_items = cache.cache_flush(
+        options.basedir
+    )
+    LOGGER.info('removed %s stale items from authdb cache' % removed_items)
 
 
     ######################
