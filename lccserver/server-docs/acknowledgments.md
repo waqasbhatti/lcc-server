@@ -54,6 +54,7 @@ following packages available on [PyPi](https://pypi.org):
 - [diskcache](https://github.com/grantjenks/python-diskcache)
 - [fuzzywuzzy](https://github.com/seatgeek/fuzzywuzzy)
 - [bleach](https://bleach.readthedocs.io/en/latest/)
+- [sqlparse](https://sqlparse.readthedocs.io/en/latest/)
 
 The databases used for the server include:
 
@@ -67,6 +68,8 @@ frontend:
 - [jQuery](https://jquery.com)
 - [oboe.js](http://oboejs.com/)
 - [moment.js](http://momentjs.com/)
+- [js-cookie](https://github.com/js-cookie/js-cookie)
+- [CodeMirror](https://codemirror.net/)
 
 The icons used are from the Google [Material Design
 Icons](https://material.io/tools/icons/?style=baseline) project.
