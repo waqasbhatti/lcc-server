@@ -761,12 +761,6 @@ def change_user_password(payload,
                          max_similarity=30):
     '''This changes the user's password.
 
-    This requires a successful email verification challenge. We'll use this both
-    for forgotten passwords and actual password change requests.
-
-    This will immediately invalidate the current session after the password is
-    changed so the user has to login with their new password.
-
     '''
     if 'user_id' not in payload:
         return {
@@ -1157,7 +1151,7 @@ def delete_user(payload,
             'success': False,
             'user_id':None,
             'email':None,
-            'messages':["Invalid user deleteion request."],
+            'messages':["Invalid user deletion request."],
         }
     if 'user_id' not in payload:
         return {
@@ -1191,6 +1185,44 @@ def delete_user(payload,
 
     users = currproc.table_meta.tables['users']
     sessions = currproc.table_meta.tables['sessions']
+
+    # check if the incoming email address actually belongs to the user making
+    # the request
+    sel = select([
+        users.c.user_id,
+        users.c.email,
+        users.c.password,
+    ]).select_from(
+        users
+    ).where(
+        users.c.user_id == payload['user_id']
+    )
+    result = currproc.connection.execute(sel)
+    row = result.fetchone()
+
+    if (not row) or (row['email'] != payload['email']):
+
+        return {
+            'success': False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':["We could not verify your email address or password."]
+        }
+
+    # check if the user's password is valid and matches the one on record
+    pass_ok = authdb.password_context.verify(
+        payload['password'],
+        row['password']
+    )
+
+    if not pass_ok:
+        return {
+            'success': False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':["We could not verify your email address or password."]
+        }
+
 
     delete = users.delete().where(
         users.c.user_id == payload['user_id']

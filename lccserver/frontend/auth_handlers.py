@@ -76,7 +76,6 @@ from tornado.escape import xhtml_escape
 from cryptography.fernet import InvalidToken
 from lccserver import __version__
 from lccserver.frontend.basehandler import BaseHandler
-from lccserver.authnzerver import actions
 
 ###########################
 ## VARIOUS AUTH HANDLERS ##
@@ -859,11 +858,7 @@ class ChangePassHandler(BaseHandler):
         '''This handles submission of the password change request form.
 
         If the authnzerver accepts the new password, redirects to the
-        /users/home or / page.
-
-        FIXME: or should this log the user out and force them to sign back in?
-
-        TODO: finish this
+        /users/home page.
 
         '''
 
@@ -893,7 +888,7 @@ class ChangePassHandler(BaseHandler):
 
             try:
 
-                email_address = self.current_user['email']
+                email_address = xhtml_escape(self.current_user['email'])
                 current_password = self.get_argument('currpassword')
                 new_password = self.get_argument('newpassword')
 
@@ -970,7 +965,6 @@ class DeleteUserHandler(BaseHandler):
             current_user['is_active'] and
             current_user['email_verified']):
 
-
             # then, we'll render the verification form.
             self.render('delete.html',
                         user_account_box=self.render_user_account_box(),
@@ -980,10 +974,10 @@ class DeleteUserHandler(BaseHandler):
                         siteinfo=self.siteinfo)
 
         # superuser accounts cannot be deleted from the web interface
-        if (current_user and
-            (current_user['user_role'] == 'superuser') and
-            current_user['is_active'] and
-            current_user['email_verified']):
+        elif (current_user and
+              (current_user['user_role'] == 'superuser') and
+              current_user['is_active'] and
+              current_user['email_verified']):
 
             self.save_flash_messages(
                 "You have a superuser account. This cannot be deleted "
@@ -1017,8 +1011,6 @@ class DeleteUserHandler(BaseHandler):
         - delete all lccserver_* cookies
         - redirect to /
 
-        TODO: finish this
-
         '''
         if ((not self.keycheck['status'] == 'ok') and
             (not self.xsrf_type == 'session')):
@@ -1032,6 +1024,83 @@ class DeleteUserHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
+
+        if ((self.current_user) and
+            (self.current_user['is_active']) and
+            (self.current_user['user_role'] in ('authenticated',
+                                                'superuser',
+                                                'staff')) and
+            (self.current_user['email_verified'])):
+
+            try:
+
+                email_address = xhtml_escape(self.get_argument('email'))
+                password = self.get_argument('password')
+
+                if email_address != self.current_user['email']:
+
+                    self.save_flash_messages(
+                        "We could not verify your email address "
+                        "or password.",
+                        'warning',
+                    )
+                    self.redirect('/users/delete')
+
+                else:
+
+                    delete_ok, resp, msgs = yield self.authnzerver_request(
+                        'user-delete',
+                        {'user_id':self.current_user['user_id'],
+                         'email': email_address,
+                         'password': password},
+                    )
+
+                    if delete_ok:
+
+                        # make double-sure the current session is dead
+                        sessdel_ok, resp, msgs = yield self.authnzerver_request(
+                            'session-delete',
+                            {'session_token':(
+                                self.current_user['session_token']
+                            )},
+                        )
+
+                        self.save_flash_messages(
+                            "Your account has been deleted successfully.",
+                            'danger',
+                        )
+
+                        self.clear_cookie('lccserver_session')
+                        self.clear_cookie('lccserver_prefs')
+                        self.redirect('/')
+
+                    else:
+
+                        self.save_flash_messages(
+                            msgs,
+                            'warning',
+                        )
+                        self.redirect('/users/delete')
+
+            except Exception as e:
+
+                self.save_flash_messages(
+                    "We could not validate the password change form. "
+                    "All fields are required.",
+                    "warning"
+                )
+                self.redirect('/users/delete')
+
+        # unknown users get sent back to /
+        else:
+
+            self.save_flash_messages(
+                "Sign in with your existing account credentials. "
+                "If you do not have a user account, "
+                "please <a href=\"/users/new\">sign up</a>.",
+                "primary"
+            )
+            self.redirect('/users/login')
 
 
 
