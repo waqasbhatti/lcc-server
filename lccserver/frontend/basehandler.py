@@ -911,7 +911,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
                     # increment the rate counter for this session token
                     yield self.executor.submit(
-                        cache.cache_increment.
+                        cache.cache_increment,
                         self.basedir,
                         session_token
                     )
