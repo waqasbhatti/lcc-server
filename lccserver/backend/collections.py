@@ -482,13 +482,22 @@ def collection_overview_plot(collection_dirlist,
                 np.radians(covdecls),
                 linewidth=0.0,
             )
-            collection_label = ax.text(np.radians(np.mean(covras)),
-                                       np.radians(np.mean(covdecls)),
-                                       footprint['collection'],
-                                       fontsize=11,
-                                       ha='center',
-                                       va='center',
-                                       zorder=100)
+            collection_label = ax.text(
+                np.radians(np.mean(covras)),
+                np.radians(np.mean(covdecls)),
+                footprint['collection'],
+                fontsize=12,
+                ha='center',
+                va='center',
+                zorder=100,
+                color='#b8daff',
+            )
+            # add an outline to the label so it's visible against any background
+            # https://matplotlib.org/users/patheffects_guide.html
+            collection_label.set_path_effects(
+                [path_effects.Stroke(linewidth=2, foreground='black'),
+                 path_effects.Normal()]
+            )
             collection_labels[footprint['collection']] = {
                 'label':collection_label,
                 'collection_dir':os.path.abspath(cdir)
