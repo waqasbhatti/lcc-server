@@ -335,17 +335,16 @@ def generate_collection_footprint(
 
 
 
-####################################
-## COLLECTION OVERVIEW SVG MAKING ##
-####################################
+#####################################
+## COLLECTION OVERVIEW PLOT MAKING ##
+#####################################
 
 def collection_overview_plot(collection_dirlist,
                              outfile,
                              use_hull='concave',
                              use_projection='mollweide',
                              show_galactic_plane=True,
-                             show_ecliptic_plane=True,
-                             optimize_svg=True):
+                             show_ecliptic_plane=True):
     '''This generates a coverage map plot for all of the collections in
     collection_dirlist.
 
