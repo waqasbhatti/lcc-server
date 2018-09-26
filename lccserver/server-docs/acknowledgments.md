@@ -54,6 +54,8 @@ following packages available on [PyPi](https://pypi.org):
 - [fuzzywuzzy](https://github.com/seatgeek/fuzzywuzzy)
 - [bleach](https://bleach.readthedocs.io/en/latest/)
 - [sqlparse](https://sqlparse.readthedocs.io/en/latest/)
+- [shapely](https://shapely.readthedocs.io/en/latest/)
+- [matplotlib](https://matplotlib.org/)
 
 The databases used for the server include:
 
@@ -61,8 +63,8 @@ The databases used for the server include:
 - [PostgreSQL](https://www.postgresql.org)
 
 The [Bootstrap CSS and HTML framework](https://getbootstrap.com/) underpins much
-of the frontend web design. The following JS packages are used for the server
-frontend:
+of the frontend web design. The following Javascript packages are used for the
+server frontend:
 
 - [jQuery](https://jquery.com)
 - [oboe.js](http://oboejs.com/)

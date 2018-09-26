@@ -1622,7 +1622,7 @@ def sqlite_collect_lcc_info(
 
         # now test the normalization function
         if normmodule and normfunc:
-            _ = normfunc(lcdict)
+            normfunc(lcdict)
             LOGINFO('normalization function tested and works OK')
 
     except Exception as e:
@@ -1744,16 +1744,3 @@ def sqlite_collect_lcc_info(
             raise
         else:
             return None
-
-
-
-#############################################
-## FUNCTIONS FOR COLLECTION INDEX DATABASE ##
-#############################################
-
-def calculate_collection_footprint(lcc_basedir,
-                                   collection_id=None):
-    '''This calculates the sky footprint of a single or all collections in an
-    lcc-index.sqlite file.
-
-    '''
