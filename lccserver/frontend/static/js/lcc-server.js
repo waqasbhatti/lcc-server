@@ -1,4 +1,4 @@
-/*global $, moment, oboe, setTimeout, clearTimeout, Image, Cookies */
+/*global $, moment, oboe, setTimeout, clearTimeout, Image, Cookies, localStorage */
 
 /*
   lcc-server.js - Waqas Bhatti (wbhatti@astro.princeton.edu) - Jun 2018
@@ -214,27 +214,54 @@ var lcc_ui = {
             if (status == 'ok') {
 
                 $(target_key).val(result.apikey);
-                $(target_expiry).text('Expires at: ' + result.expires + ' UTC');
+                $(target_expiry).html(
+                    (' expires at ' +
+                     moment.utc(result.expires).format('Y-M-d HH:mm:ss Z'))
+                );
 
                 // save the API key to browser local storage. this should be OK
-                // because the key is encrypted and tied to an IP address
-
+                // because the key is encrypted and signed and tied to an IP
+                // address. (famous last words)
+                localStorage.setItem('lccserver_apikey_token', result.apikey);
+                localStorage.setItem('lccserver_apikey_expiry', result.expires);
 
             }
 
             else {
-                lcc_ui.alert_box('Could not fetch a new API key.','primary');
+                lcc_ui.alert_box('Could not fetch a new API key.','warning');
             }
 
         }).fail(function (xhr) {
-            lcc_ui.alert_box('Could not fetch a new API key.','primary');
+            lcc_ui.alert_box('Could not fetch a new API key.','warning');
         });
 
     },
 
 
     // this attempts to load a saved API key from local storage
-    load_previous_apikey: function () {
+    load_previous_apikey: function (target_key, target_expiry) {
+
+        let apikey = localStorage.getItem('lccserver_apikey_token');
+        let expires = localStorage.getItem('lccserver_apikey_expiry');
+
+        if (apikey !== null && expires !== null) {
+
+            $(target_key).val(apikey);
+
+            // check expiry date
+            let expiry_utc = moment.utc(expires);
+            if (expiry_utc.isBefore(moment.utc())) {
+                $(target_expiry).html('. <span class="text-danger">' +
+                                      'This API key has expired!' +
+                                      '</span>');
+            }
+            else {
+                $(target_expiry).html(
+                    (' expires at ' + expiry_utc.format('Y-M-d HH:mm:ss Z'))
+                );
+            }
+
+        }
 
     },
 
@@ -368,6 +395,16 @@ var lcc_ui = {
         // bind the cookie setters
         $('#prefs-save').on('click', function(evt) {
             lcc_ui.save_prefs_cookie();
+        });
+
+        // delete the API key on session end
+        $('#user-logout-form').on('submit', function(evt) {
+            localStorage.clear();
+        });
+
+        // bind the apikey generate button
+        $('#prefs-generate-apikey').on('click', function(evt) {
+            lcc_ui.generate_new_apikey('#api-key','#apikey-expiry');
         });
 
         // bind the form submit for the cone search
@@ -3086,8 +3123,15 @@ var lcc_datasets = {
             if (rowind == 0) {
                 prev_objectid = null;
                 prev_lcfname = null;
-                next_objectid = data.rows[rowind+1][colind_objectid];
-                next_lcfname = data.rows[rowind+1][colind_lcfname];
+
+                if (max_rows > 1) {
+                    next_objectid = data.rows[rowind+1][colind_objectid];
+                    next_lcfname = data.rows[rowind+1][colind_lcfname];
+                }
+                else {
+                    next_objectid = null;
+                    next_lcfname = null;
+                }
             }
             else if (rowind == max_rows - 1) {
                 next_objectid = null;

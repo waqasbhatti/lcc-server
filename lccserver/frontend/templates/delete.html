@@ -20,7 +20,7 @@
           </div>
 
           <div class="card-text" >
-            <form action="/users/delete" method="post">
+            <form action="/users/delete" method="post" id="user-delete-form">
               {% module xsrf_form_html() %}
 
               <div class="form-group" >
@@ -63,5 +63,20 @@
   </div>
 
 </div>
+
+{% end %}
+
+{% block pagejs %}
+
+$(document).ready(function() {
+
+$('#user-delete-form').on('submit', function (evt) {
+
+// clear user's apikeys from localStorage so they don't show up again
+localStorage.clear();
+
+});
+
+});
 
 {% end %}

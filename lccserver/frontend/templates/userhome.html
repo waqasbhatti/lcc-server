@@ -70,7 +70,7 @@
               </div>
             </fieldset>
 
-            <button type="button" class="mt-2 btn btn-outline-secondary btn-sm" id="prefs-save">Update preferences</button>
+            <button type="button" class="mt-2 btn btn-outline-secondary" id="prefs-save">Update preferences</button>
 
           </div>
         </div>
@@ -80,13 +80,19 @@
     <div class="col-sm-12 col-md-5">
       <h3>Generate an API key</h3>
 
-      <form class="form" id="apikey-form">
+      <div class="row mt-2" >
+        <div class="col-12" >
+          <a href="/docs/api#api-keys">How to use API keys</a>
+        </div>
+      </div>
+
+      <form class="form mt-2" id="apikey-form">
 
         <div class="row" >
           <div class="col-12" >
 
             <label for="api-key">Current API key<span id="apikey-expiry"></span></label>
-            <textarea class="form-control" id="api-key" placeholder="None" rows="3" readonly>
+            <textarea class="form-control" id="api-key" placeholder="None" rows="6" readonly>
             </textarea>
 
           </div>
@@ -94,9 +100,7 @@
 
         <div class="row mt-2">
           <div class="col-12" >
-
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="prefs-generate-apikey">Get new key</button>
-
+            <button type="button" class="btn btn-outline-secondary" id="prefs-generate-apikey">Get new key</button>
           </div>
         </div>
 
@@ -152,6 +156,9 @@ lcc_ui.prefs_cookie_secure = {{ cookie_secure }};
 
 // load the current settings
 lcc_ui.load_cookie_prefs('prefs-page');
+
+// load the user's API keys if any
+lcc_ui.load_previous_apikey('#api-key','#apikey-expiry');
 
 });
 

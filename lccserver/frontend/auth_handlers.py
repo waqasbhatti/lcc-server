@@ -1289,7 +1289,9 @@ class APIKeyHandler(BaseHandler):
                    fernetkey,
                    executor,
                    session_expiry,
-                   siteinfo):
+                   siteinfo,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -1302,6 +1304,8 @@ class APIKeyHandler(BaseHandler):
         self.session_expiry = session_expiry
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.siteinfo = siteinfo
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
     @gen.coroutine
@@ -1393,7 +1397,9 @@ class APIVerifyHandler(BaseHandler):
                    fernetkey,
                    executor,
                    session_expiry,
-                   siteinfo):
+                   siteinfo,
+                   ratelimit,
+                   cachedir):
         '''
         handles initial setup.
 
@@ -1406,6 +1412,8 @@ class APIVerifyHandler(BaseHandler):
         self.session_expiry = session_expiry
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.siteinfo = siteinfo
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
 
 
 

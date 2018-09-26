@@ -98,6 +98,11 @@ code {
     padding: 0.25rem 0.5rem;
 }
 
+#api-key {
+  font-size: 10px;
+  font-family: monospace;
+}
+
 /* styles for the objectinfo modal  */
 
 .modal-dialog {
