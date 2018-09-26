@@ -344,6 +344,84 @@ def auth_session_delete(payload,
         }
 
 
+def auth_kill_old_sessions(
+        session_expiry_days=7,
+        raiseonfail=False,
+        override_authdb_path=None
+):
+    '''
+    This kills all expired sessions.
+
+    payload is:
+
+    {'session_expiry_days': session older than this number will be removed}
+
+    '''
+
+    expires_days = session_expiry_days
+    earliest_date = datetime.utcnow() - timedelta(days=expires_days)
+
+    # this checks if the database connection is live
+    currproc = mp.current_process()
+    engine = getattr(currproc, 'engine', None)
+
+    if override_authdb_path:
+        currproc.auth_db_path = override_authdb_path
+
+    if not engine:
+        currproc.engine, currproc.connection, currproc.table_meta = (
+            authdb.get_auth_db(
+                currproc.auth_db_path,
+                echo=raiseonfail
+            )
+        )
+
+    sessions = currproc.table_meta.tables['sessions']
+
+    sel = select(
+        [sessions.c.session_token,
+         sessions.c.created,
+         sessions.c.expires]
+    ).select_from(
+        sessions
+    ).where(sessions.c.expires < earliest_date)
+
+    result = currproc.connection.execute(sel)
+    rows = result.fetchall()
+    result.close()
+
+    if len(rows) > 0:
+
+        LOGGER.warning('will kill %s sessions older than %sZ' %
+                       (len(rows), earliest_date.isoformat()))
+
+        delete = sessions.delete().where(
+            sessions.c.expires < earliest_date
+        )
+        result = currproc.connection.execute(delete)
+        result.close()
+
+        return {
+            'success':True,
+            'messages':["%s sessions older than %sZ deleted." %
+                        (len(rows),
+                         earliest_date.isoformat())]
+        }
+
+    else:
+
+        LOGGER.warning(
+            'no sessions older than %sZ found to delete. returning...' %
+            earliest_date.isoformat()
+        )
+        return {
+            'success':False,
+            'messages':['no sessions older than %sZ found to delete' %
+                        earliest_date.isoformat()]
+        }
+
+
+
 
 ###################################
 ## USER LOGIN HANDLING FUNCTIONS ##

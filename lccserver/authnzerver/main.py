@@ -29,6 +29,7 @@ import socket
 import sys
 import signal
 import time
+from functools import partial
 
 # setup signal trapping on SIGINT
 def recv_sigint(signum, stack):
@@ -119,6 +120,11 @@ define('cachedir',
              'file.'),
        type=str)
 
+define('sessionexpiry',
+       default=7,
+       help=('This tells the lcc-server the session-expiry time in days.'),
+       type=int)
+
 
 #######################
 ## UTILITY FUNCTIONS ##
@@ -195,6 +201,7 @@ def main():
     from .handlers import AuthHandler, EchoHandler
     from . import authdb
     from . import cache
+    from . import actions
 
 
     ###################
@@ -269,15 +276,21 @@ def main():
     http_server = tornado.httpserver.HTTPServer(app)
 
 
-    ################################
-    ## CLEAR THE CACHE ON STARTUP ##
-    ################################
+    ######################################################
+    ## CLEAR THE CACHE AND REAP OLD SESSIONS ON STARTUP ##
+    ######################################################
 
     removed_items = cache.cache_flush(
         cache_dirname=options.cachedir
     )
     LOGGER.info('removed %s stale items from authdb cache' % removed_items)
 
+    session_killer = partial(actions.auth_kill_old_sessions,
+                             session_expiry_days=options.sessionexpiry,
+                             override_authdb_path=AUTHDB_PATH)
+
+    # run once at start up
+    session_killer()
 
     ######################
     ## start the server ##
@@ -318,6 +331,17 @@ def main():
     try:
 
         loop = tornado.ioloop.IOLoop.current()
+
+        # add our periodic callback for the session-killer
+        # runs daily
+        periodic_session_kill = tornado.ioloop.PeriodicCallback(
+            session_killer,
+            86400000.0,
+            jitter=0.1,
+        )
+        periodic_session_kill.start()
+
+        # start the IOLoop
         loop.start()
 
     except KeyboardInterrupt:
@@ -330,6 +354,20 @@ def main():
 
         tornado.ioloop.IOLoop.instance().stop()
 
+        currproc = mp.current_process()
+        if getattr(currproc, 'table_meta', None):
+            del currproc.table_meta
+
+        if getattr(currproc, 'connection', None):
+            currproc.connection.close()
+            del currproc.connection
+
+        if getattr(currproc, 'engine', None):
+            currproc.engine.dispose()
+            del currproc.engine
+
+        print('Shutting down database engine in process: %s' % currproc.name,
+              file=sys.stdout)
 
 
 # run the server
