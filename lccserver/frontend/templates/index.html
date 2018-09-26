@@ -145,9 +145,42 @@
 
               <h3>Available light curve collections</h3>
 
+            </div>
+          </div>
+
+          <div class="row justify-content-md-center" >
+            <div class="col-sm-12 col-md-8" >
+              <form class="form" action="/api/collections" method="POST" id="collection-search-form" >
+                {% module xsrf_form_html() %}
+
+                <div class="input-group" >
+                  <input class="form-control" id="collection-searchbox"
+                         name="collectionsearch" autocomplete="on"
+                         type="search" maxlength="1024"
+                         placeholder="search for collections by name, description, columns, etc."
+                         aria-label="search for collections by name, description, columns, etc.">
+                  <div class="input-group-append" >
+                    <button class="btn btn-primary"
+                            type="submit" id="collection-search-submit">Find a collection</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+          </div>
+
+          <div class="row mt-2" >
+            <div class="col-12" >
+
               <div id="footprint-svg">
                 {% raw footprint_svg %}
               </div>
+
+            </div>
+          </div>
+
+          <div class="row mt-2" >
+            <div class="col-12" >
 
               <table id="lcc-collections-table" class="table table-sm">
 
