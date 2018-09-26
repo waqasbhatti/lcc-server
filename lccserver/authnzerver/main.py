@@ -274,7 +274,7 @@ def main():
     ################################
 
     removed_items = cache.cache_flush(
-        options.cachedir
+        cache_dirname=options.cachedir
     )
     LOGGER.info('removed %s stale items from authdb cache' % removed_items)
 
