@@ -56,6 +56,7 @@ following packages available on [PyPi](https://pypi.org):
 - [sqlparse](https://sqlparse.readthedocs.io/en/latest/)
 - [shapely](https://shapely.readthedocs.io/en/latest/)
 - [matplotlib](https://matplotlib.org/)
+- [astropy](http://www.astropy.org)
 
 The databases used for the server include:
 

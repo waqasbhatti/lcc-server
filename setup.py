@@ -54,7 +54,14 @@ with open('requirements.txt') as infd:
     INSTALL_REQUIRES = [x.strip('\n') for x in infd.readlines()]
 
 EXTRAS_REQUIRE = {
-    'postgres':['psycopg2'],
+    'postgres':[
+        'psycopg2'
+    ],
+    'footprints':[
+        'matplotlib>=2.0',
+        'shapely>=1.6',
+        'astropy>=3.0',
+    ],
 }
 
 ###############
@@ -75,6 +82,9 @@ setup(
         "Topic :: Scientific/Engineering :: Astronomy",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
     ],
     keywords='astronomy',
     url='https://github.com/waqasbhatti/lcc-server',
@@ -83,7 +93,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
-    # extras_require=EXTRAS_REQUIRE,
+    extras_require=EXTRAS_REQUIRE,
     tests_require=['pytest',],
     entry_points={
         'console_scripts':[
