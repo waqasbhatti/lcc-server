@@ -101,6 +101,7 @@ define('basedir',
        help=('The base directory of the light curve collections.'),
        type=str)
 
+# the path to the authentication DB
 define('authdb',
        default=None,
        help=('An SQLAlchemy database URL to override the use of '
@@ -108,6 +109,14 @@ define('authdb',
              'This should be in the form discussed at: '
              'https://docs.sqlalchemy.org/en/latest'
              '/core/engines.html#database-urls'),
+       type=str)
+
+# the path to the cache directory used by indexserver
+define('cachedir',
+       default='/tmp/lccserver-cache',
+       help=('Path to the cache directory used by the main LCC-Server '
+             'indexserver process as defined in its site-info.json config '
+             'file.'),
        type=str)
 
 
@@ -265,7 +274,7 @@ def main():
     ################################
 
     removed_items = cache.cache_flush(
-        options.basedir
+        options.cachedir
     )
     LOGGER.info('removed %s stale items from authdb cache' % removed_items)
 
