@@ -47,12 +47,16 @@ import numpy as np
 from scipy.spatial import ConvexHull, Delaunay
 
 try:
+    from astropy.coordinates import SkyCoord
+
     from shapely.ops import cascaded_union, polygonize
     import shapely.geometry as geometry
+
     import matplotlib
+    import matplotlib.patheffects as path_effects
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    from astropy.coordinates import SkyCoord
+
 
 except ImportError:
     raise ImportError(
@@ -344,7 +348,8 @@ def collection_overview_plot(collection_dirlist,
                              use_hull='concave',
                              use_projection='mollweide',
                              show_galactic_plane=True,
-                             show_ecliptic_plane=True):
+                             show_ecliptic_plane=True,
+                             dpi=100):
     '''This generates a coverage map plot for all of the collections in
     collection_dirlist.
 
@@ -386,8 +391,11 @@ def collection_overview_plot(collection_dirlist,
 
     fig = plt.figure(figsize=(15,12))
     ax = fig.add_subplot(111, projection=use_projection)
+    ax.set_facecolor('#e2e3e5')
 
     if show_galactic_plane:
+
+        LOGINFO('plotting the Galactic plane')
 
         galactic_plane = [
             SkyCoord(x,0.0,frame='galactic',unit='deg').icrs
@@ -402,12 +410,14 @@ def collection_overview_plot(collection_dirlist,
         ax.scatter(np.radians(galra),
                    np.radians(galdec),
                    s=25,
-                   color='orange',
+                   color='#ffc107',
                    marker='o',
                    zorder=-99,
                    label='Galactic plane')
 
     if show_ecliptic_plane:
+
+        LOGINFO('plotting the ecliptic plane')
 
         # ecliptic plane
         ecliptic_equator = [
@@ -428,7 +438,7 @@ def collection_overview_plot(collection_dirlist,
         ax.scatter(np.radians(eclra),
                    np.radians(ecldec),
                    s=25,
-                   color='#6699cc',
+                   color='#6c757d',
                    marker='o',
                    zorder=-80,
                    label='Ecliptic plane')
@@ -452,11 +462,14 @@ def collection_overview_plot(collection_dirlist,
 
     for cdir in collection_dirlist:
 
+        LOGINFO('plotting footprint for collection: %s' % cdir.replace('-','_'))
+
         footprint_pkl = os.path.join(cdir, 'catalog-footprint.pkl')
         with open(footprint_pkl,'rb') as infd:
             footprint = pickle.load(infd)
 
         hull_boundary = footprint['%s_hull_boundary' % use_hull]
+        hull = footprint['%s_hull' % use_hull]
 
         if isinstance(hull_boundary, np.ndarray):
 
@@ -477,12 +490,17 @@ def collection_overview_plot(collection_dirlist,
                                        va='center',
                                        zorder=100)
             collection_labels[footprint['collection']] = {
-                'label':collection_label
+                'label':collection_label,
+                'collection_dir':os.path.abspath(cdir)
             }
 
         elif isinstance(hull_boundary, list):
 
-            for bound in hull_boundary:
+            LOGWARNING('this collection is not contiguous')
+
+            part_center_ras, part_center_decls, part_areas = [], [], []
+
+            for part, bound in zip(hull, hull_boundary):
 
                 covras = bound[:,0]
                 covdecls = bound[:,1]
@@ -494,29 +512,37 @@ def collection_overview_plot(collection_dirlist,
                     linewidth=0.0,
                 )
 
+                part_center_ras.append(np.mean(covras))
+                part_center_decls.append(np.mean(covdecls))
+                part_areas.append(part.area)
+
+            # since the collection is not contiguous, we'll move its label from
+            # the center of the collection to a weighted center calculated by
+            # weighting the area of the separate parts
+            collection_label_ra = np.average(part_center_ras,
+                                             weights=part_areas)
+            collection_label_decl = np.average(part_center_decls,
+                                               weights=part_areas)
+
             collection_label = ax.text(
-                np.radians(
-                    np.mean(
-                        np.concatenate(
-                            [x[:,0] for x in hull_boundary]
-                        )
-                    )
-                ),
-                np.radians(
-                    np.mean(
-                        np.concatenate(
-                            [x[:,1] for x in hull_boundary]
-                        )
-                    )
-                ),
+                np.radians(collection_label_ra),
+                np.radians(collection_label_decl),
                 footprint['collection'],
-                fontsize=11,
+                fontsize=12,
                 ha='center',
                 va='center',
-                zorder=100
+                zorder=100,
+                color='#b8daff',
+            )
+            # add an outline to the label so it's visible against any background
+            # https://matplotlib.org/users/patheffects_guide.html
+            collection_label.set_path_effects(
+                [path_effects.Stroke(linewidth=2, foreground='black'),
+                 path_effects.Normal()]
             )
             collection_labels[footprint['collection']] = {
-                'label':collection_label
+                'label':collection_label,
+                'collection_dir':os.path.abspath(cdir)
             }
 
     # make the grid and the ticks
@@ -544,7 +570,7 @@ def collection_overview_plot(collection_dirlist,
     # save the plot to the designated file
     plt.savefig(outfile,
                 bbox_inches='tight',
-                dpi=200,
+                dpi=dpi,
                 transparent=False)
 
     # get the image coordinate extents of all the collection label bounding
@@ -553,11 +579,26 @@ def collection_overview_plot(collection_dirlist,
     # the format is: [[left, bottom],[right, top]]
     #
     # for PNGs on the web, we'll have to invert this because they measure from
-    # the top of the timage
+    # the top of the image
     for key in collection_labels:
+
         collection_labels[key]['bbox'] = (
             np.array(collection_labels[key]['label'].get_window_extent())
         )
-    plt.close('all')
 
+        # put the collection labels back into the footprint pickles so we can
+        # look them up easily.
+        footprint_pkl = os.path.join(collection_labels[key]['collection_dir'],
+                                     'catalog-footprint.pkl')
+
+        with open(footprint_pkl,'rb') as infd:
+            footprint = pickle.load(infd)
+
+        footprint['footprint_map_labelcoords'] = collection_labels[key]['bbox']
+        with open(footprint_pkl,'wb') as outfd:
+            pickle.dump(footprint, outfd, pickle.HIGHEST_PROTOCOL)
+        LOGINFO('wrote collection label coords back to %s' % footprint_pkl)
+
+
+    plt.close('all')
     return outfile, collection_labels
