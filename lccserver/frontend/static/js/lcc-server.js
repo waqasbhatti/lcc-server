@@ -130,6 +130,23 @@ var lcc_ui = {
     },
 
 
+    // this interprets the URL from the click on a collection in the SVG
+    svgurl_to_collection_id: function (url) {
+
+        let u = new URL(url);
+        let hash = u.hash;
+        let collection_id = hash.replace(/#fp-collection\//g,'');
+
+        if (lcc_ui.collections['db_collection_id'].indexOf(collection_id) != -1) {
+            return collection_id;
+        }
+        else {
+            return null;
+        }
+
+    },
+
+
     // this saves UI prefs on the user home page to the lccserver_prefs cookie
     save_prefs_cookie: function () {
 
@@ -391,6 +408,24 @@ var lcc_ui = {
 
     // this wires up all the controls
     action_setup: function () {
+
+        // bind the click on the svg URL
+        $('#footprint-svg > svg').find('a').on('click', function (evt) {
+
+            evt.preventDefault();
+            let collection_id =
+                lcc_ui.svgurl_to_collection_id($(this).attr('xlink:href'));
+
+            if (collection_id !== null) {
+
+                // find the appropriate row in the collections table
+                let collrow = '#collection-row-' + collection_id;
+                $(collrow).addClass('table-active');
+                $(collrow).scrollTop();
+
+            }
+
+        });
 
         // bind the cookie setters
         $('#prefs-save').on('click', function(evt) {
@@ -1962,7 +1997,7 @@ var lcc_ui = {
                     //
                     // build this table row
                     //
-                    var table_row = '<tr>' +
+                    var table_row = '<tr id="collection-row-' + db_collid + '">' +
                         table_column_name +
                         table_column_desc +
                         table_column_coords +
