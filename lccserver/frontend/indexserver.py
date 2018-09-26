@@ -230,6 +230,21 @@ def main():
     with open(os.path.join(SITE_DOCSPATH, 'doc-index.json'),'r') as infd:
         SITE_DOCINDEX = json.load(infd)
 
+
+    #
+    # find the collection footprint SVG if any and read it in.
+    #
+    footprint_svgf = os.path.join(BASEDIR,
+                                  'docs',
+                                  'static',
+                                  'collection-footprints.svg')
+
+    if os.path.exists(footprint_svgf):
+        with open(footprint_svgf, 'r') as infd:
+            footprint_svg = infd.read()
+    else:
+        footprint_svg = None
+
     #
     # site specific info
     #
@@ -298,6 +313,7 @@ def main():
         SERVER_DOCINDEX = json.load(infd)
 
 
+
     #
     # authentication server options
     #
@@ -359,7 +375,8 @@ def main():
           'session_expiry':SESSION_EXPIRY,
           'fernetkey':FERNETSECRET,
           'ratelimit':RATELIMIT,
-          'cachedir':CACHEDIR}),
+          'cachedir':CACHEDIR,
+          'footprint_svg':footprint_svg}),
 
         ########################
         ## AUTH RELATED PAGES ##

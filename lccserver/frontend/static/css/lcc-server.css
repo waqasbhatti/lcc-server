@@ -7,6 +7,14 @@
 
 /* various text, image, and table styles */
 
+#footprint-svg {
+  text-align: center;
+}
+
+#footprint-svg > svg {
+  height: 63vh;
+}
+
 a.tab-link {
   text-align: center;
   color: inherit;

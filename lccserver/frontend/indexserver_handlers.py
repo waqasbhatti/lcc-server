@@ -114,7 +114,8 @@ class IndexHandler(BaseHandler):
                    session_expiry,
                    fernetkey,
                    ratelimit,
-                   cachedir):
+                   cachedir,
+                   footprint_svg):
         '''
         handles initial setup.
 
@@ -133,6 +134,7 @@ class IndexHandler(BaseHandler):
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.ratelimit = ratelimit
         self.cachedir = cachedir
+        self.footprint_svg = footprint_svg
 
 
 
@@ -148,7 +150,8 @@ class IndexHandler(BaseHandler):
             page_title='%s - LCC Server' % self.siteinfo['project'],
             lccserver_version=__version__,
             siteinfo=self.siteinfo,
-            current_user=self.current_user
+            current_user=self.current_user,
+            footprint_svg=self.footprint_svg
         )
 
 
