@@ -448,19 +448,9 @@ def collection_overview_plot(collection_dirlist,
     # now, we'll go through each collection
     #
 
-    #
-    # set up a color cycler to change colors between collections
-    #
-    from cycler import cycler
-    plt.rcParams['axes.prop_cycle'] = cycler(
-        'color',
-        [plt.get_cmap('summer')(1.0 * i/len(collection_dirlist))
-         for i in range(len(collection_dirlist))]
-    )
-
     collection_labels = {}
 
-    for cdir in collection_dirlist:
+    for ci, cdir in enumerate(collection_dirlist):
 
         LOGINFO('plotting footprint for collection: %s' % cdir.replace('-','_'))
 
@@ -481,6 +471,10 @@ def collection_overview_plot(collection_dirlist,
                 np.radians(covras),
                 np.radians(covdecls),
                 linewidth=0.0,
+                color=plt.get_cmap('RdYlBu')(
+                    1.0 * ci/len(collection_dirlist)
+                ),
+                alpha=0.3
             )
             collection_label = ax.text(
                 np.radians(np.mean(covras)),
@@ -519,6 +513,10 @@ def collection_overview_plot(collection_dirlist,
                     np.radians(covras),
                     np.radians(covdecls),
                     linewidth=0.0,
+                    color=plt.get_cmap('RdYlBu')(
+                        1.0 * ci/len(collection_dirlist)
+                    ),
+                    alpha=0.3
                 )
 
                 part_center_ras.append(np.mean(covras))
@@ -528,10 +526,14 @@ def collection_overview_plot(collection_dirlist,
             # since the collection is not contiguous, we'll move its label from
             # the center of the collection to a weighted center calculated by
             # weighting the area of the separate parts
-            collection_label_ra = np.average(part_center_ras,
-                                             weights=part_areas)
-            collection_label_decl = np.average(part_center_decls,
-                                               weights=part_areas)
+            collection_label_ra = np.average(
+                part_center_ras,
+                weights=np.array(part_areas)**2.0
+            )
+            collection_label_decl = np.average(
+                part_center_decls,
+                weights=np.array(part_areas)**2.0
+            )
 
             collection_label = ax.text(
                 np.radians(collection_label_ra),
