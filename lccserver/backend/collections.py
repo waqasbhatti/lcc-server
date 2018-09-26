@@ -448,6 +448,8 @@ def collection_overview_plot(collection_dirlist,
          for i in range(len(collection_dirlist))]
     )
 
+    collection_labels = {}
+
     for cdir in collection_dirlist:
 
         footprint_pkl = os.path.join(cdir, 'catalog-footprint.pkl')
@@ -467,13 +469,16 @@ def collection_overview_plot(collection_dirlist,
                 np.radians(covdecls),
                 linewidth=0.0,
             )
-            ax.text(np.radians(np.mean(covras)),
-                    np.radians(np.mean(covdecls)),
-                    footprint['collection'],
-                    fontsize=11,
-                    ha='center',
-                    va='center',
-                    zorder=100)
+            collection_label = ax.text(np.radians(np.mean(covras)),
+                                       np.radians(np.mean(covdecls)),
+                                       footprint['collection'],
+                                       fontsize=11,
+                                       ha='center',
+                                       va='center',
+                                       zorder=100)
+            collection_labels[footprint['collection']] = {
+                'label':collection_label
+            }
 
         elif isinstance(hull_boundary, list):
 
@@ -489,7 +494,7 @@ def collection_overview_plot(collection_dirlist,
                     linewidth=0.0,
                 )
 
-            ax.text(
+            collection_label = ax.text(
                 np.radians(
                     np.mean(
                         np.concatenate(
@@ -510,7 +515,9 @@ def collection_overview_plot(collection_dirlist,
                 va='center',
                 zorder=100
             )
-
+            collection_labels[footprint['collection']] = {
+                'label':collection_label
+            }
 
     # make the grid and the ticks
     ax.grid()
@@ -539,4 +546,18 @@ def collection_overview_plot(collection_dirlist,
                 bbox_inches='tight',
                 dpi=200,
                 transparent=False)
+
+    # get the image coordinate extents of all the collection label bounding
+    # boxes so we can put image maps on them.
+    #
+    # the format is: [[left, bottom],[right, top]]
+    #
+    # for PNGs on the web, we'll have to invert this because they measure from
+    # the top of the timage
+    for key in collection_labels:
+        collection_labels[key]['bbox'] = (
+            np.array(collection_labels[key]['label'].get_window_extent())
+        )
     plt.close('all')
+
+    return outfile, collection_labels
