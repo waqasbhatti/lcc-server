@@ -52,16 +52,13 @@ try:
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    from astropy import units as u
     from astropy.coordinates import SkyCoord
-    import scour
 
 except ImportError:
     raise ImportError(
         "The following packages must be installed (via pip) "
         "to use this module:"
-        "matplotlib>=2.0, shapely>=1.6, descartes>=1.1.0, "
-        "scour>0.37, and astropy>=3.0"
+        "matplotlib>=2.0, shapely>=1.6, and astropy>=3.0"
     )
 
 
