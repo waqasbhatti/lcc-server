@@ -177,7 +177,7 @@ def main():
     ## SET THE GLOBAL VERSION STRINGS ##
     ####################################
 
-    APIVERSION = 1
+    APIVERSION = 2
 
 
     ###################
