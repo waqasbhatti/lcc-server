@@ -45,7 +45,6 @@ following packages available on [PyPi](https://pypi.org):
 - [tqdm](https://tqdm.github.io/)
 - [markdown](https://python-markdown.github.io/)
 - [pygments](http://pygments.org/)
-- [itsdangerous](https://www.palletsprojects.com/p/itsdangerous/)
 - [cryptography](https://cryptography.io/en/latest/)
 - [astrobase](https://github.com/waqasbhatti/astrobase)
 - [SQLAlchemy](http://www.sqlalchemy.org/)

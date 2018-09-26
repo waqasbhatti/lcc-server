@@ -2,11 +2,10 @@ ipython
 numpy
 scipy
 tornado>=5.1
-requests
+requests>=2.19.1
 tqdm
 markdown
 pygments
-itsdangerous>=0.24
 cryptography>=2.3
 astrobase>=0.3.18
 SQLAlchemy>=1.2.11
@@ -16,3 +15,4 @@ argon2-cffi>=18.3.0
 diskcache>=3.0.6
 fuzzywuzzy>=0.17.0
 bleach>=2.1.3
+sqlparse>=0.2.4
