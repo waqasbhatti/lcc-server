@@ -42,6 +42,7 @@ LOGEXCEPTION = LOGGER.exception
 import pickle
 import os.path
 import math
+import subprocess
 
 import numpy as np
 from scipy.spatial import ConvexHull, Delaunay
@@ -56,13 +57,13 @@ try:
     import matplotlib.patheffects as path_effects
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-
+    import scour
 
 except ImportError:
     raise ImportError(
         "The following packages must be installed (via pip) "
         "to use this module:"
-        "matplotlib>=2.0, shapely>=1.6, and astropy>=3.0"
+        "matplotlib>=2.0, shapely>=1.6, astropy>=3.0, and scour>=0.37"
     )
 
 
@@ -349,7 +350,7 @@ def collection_overview_plot(collection_dirlist,
                              use_projection='mollweide',
                              show_galactic_plane=True,
                              show_ecliptic_plane=True,
-                             dpi=100):
+                             dpi=200):
     '''This generates a coverage map plot for all of the collections in
     collection_dirlist.
 
@@ -389,6 +390,9 @@ def collection_overview_plot(collection_dirlist,
     matplotlib.rcParams['ytick.minor.width'] = 1.0
     matplotlib.rcParams['ytick.major.pad'] = 8.0
 
+    # svg font setup
+    plt.rcParams['svg.fonttype'] = 'none'
+
     fig = plt.figure(figsize=(15,12))
     ax = fig.add_subplot(111, projection=use_projection)
     ax.set_facecolor('#e2e3e5')
@@ -407,13 +411,16 @@ def collection_overview_plot(collection_dirlist,
         galdec = galactic_plane_decl[::]
         galra[galra > 180.0] = galra[galra > 180.0] - 360.0
 
-        ax.scatter(np.radians(galra),
-                   np.radians(galdec),
-                   s=25,
-                   color='#ffc107',
-                   marker='o',
-                   zorder=-99,
-                   label='Galactic plane')
+        ax.scatter(
+            np.radians(galra),
+            np.radians(galdec),
+            s=25,
+            color='#ffc107',
+            marker='o',
+            zorder=-99,
+            label='Galactic plane',
+            rasterized=True
+        )
 
     if show_ecliptic_plane:
 
@@ -435,13 +442,16 @@ def collection_overview_plot(collection_dirlist,
         eclra = ecliptic_equator_ra[::]
         ecldec = ecliptic_equator_decl[::]
         eclra[eclra > 180.0] = eclra[eclra > 180.0] - 360.0
-        ax.scatter(np.radians(eclra),
-                   np.radians(ecldec),
-                   s=25,
-                   color='#6c757d',
-                   marker='o',
-                   zorder=-80,
-                   label='Ecliptic plane')
+        ax.scatter(
+            np.radians(eclra),
+            np.radians(ecldec),
+            s=25,
+            color='#6c757d',
+            marker='o',
+            zorder=-80,
+            label='Ecliptic plane',
+            rasterized=True
+        )
 
 
     #
@@ -474,7 +484,8 @@ def collection_overview_plot(collection_dirlist,
                 color=plt.get_cmap('RdYlBu')(
                     1.0 * ci/len(collection_dirlist)
                 ),
-                alpha=0.3
+                alpha=0.6,
+                rasterized=True
             )
             collection_label = ax.text(
                 np.radians(np.mean(covras)),
@@ -485,6 +496,7 @@ def collection_overview_plot(collection_dirlist,
                 va='center',
                 zorder=100,
                 color='#b8daff',
+                url='#fp-collection/%s' % footprint['collection']
             )
             # add an outline to the label so it's visible against any background
             # https://matplotlib.org/users/patheffects_guide.html
@@ -516,7 +528,8 @@ def collection_overview_plot(collection_dirlist,
                     color=plt.get_cmap('RdYlBu')(
                         1.0 * ci/len(collection_dirlist)
                     ),
-                    alpha=0.3
+                    alpha=0.6,
+                    rasterized=True
                 )
 
                 part_center_ras.append(np.mean(covras))
@@ -544,6 +557,7 @@ def collection_overview_plot(collection_dirlist,
                 va='center',
                 zorder=100,
                 color='#b8daff',
+                url='#fp-collection/%s' % footprint['collection']
             )
             # add an outline to the label so it's visible against any background
             # https://matplotlib.org/users/patheffects_guide.html
@@ -572,14 +586,19 @@ def collection_overview_plot(collection_dirlist,
     # make the axis labels
     ax.set_xlabel('right ascension [hr]')
     ax.set_ylabel('declination [deg]')
-    ax.set_title('Available Light Curve Collections')
 
-    ax.legend(loc='lower center', fontsize=12,
-              numpoints=1,scatterpoints=1,markerscale=3.0,
-              ncol=1,frameon=False)
+    ax.legend(
+        loc='lower center',
+        fontsize=12,
+        numpoints=1,
+        scatterpoints=1,
+        markerscale=3.0,
+        ncol=1,
+        frameon=False
+    )
 
     # save the plot to the designated file
-    plt.savefig(outfile,
+    fig.savefig(outfile,
                 bbox_inches='tight',
                 dpi=dpi,
                 transparent=False)
@@ -589,13 +608,19 @@ def collection_overview_plot(collection_dirlist,
     #
     # the format is: [[left, bottom],[right, top]]
     #
+    # the format for HTML maps is left-top-right-bottom
+    #
     # for PNGs on the web, we'll have to invert this because they measure from
     # the top of the image
     for key in collection_labels:
 
-        collection_labels[key]['bbox'] = (
-            np.array(collection_labels[key]['label'].get_window_extent())
-        )
+        bbox = collection_labels[key]['label'].get_window_extent()
+        xmin, xmax, ymin, ymax = bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax
+
+        collection_labels[key]['bbox'] = {'xmin':xmin,
+                                          'xmax':xmax,
+                                          'ymin':ymin,
+                                          'ymax':ymax}
 
         # put the collection labels back into the footprint pickles so we can
         # look them up easily.
@@ -604,8 +629,8 @@ def collection_overview_plot(collection_dirlist,
 
         with open(footprint_pkl,'rb') as infd:
             footprint = pickle.load(infd)
+        footprint['footprint_map_label_bbox'] = bbox
 
-        footprint['footprint_map_labelcoords'] = collection_labels[key]['bbox']
         with open(footprint_pkl,'wb') as outfd:
             pickle.dump(footprint, outfd, pickle.HIGHEST_PROTOCOL)
         LOGINFO('wrote collection label coords back to %s' % footprint_pkl)
@@ -613,3 +638,46 @@ def collection_overview_plot(collection_dirlist,
 
     plt.close('all')
     return outfile, collection_labels
+
+
+
+def collection_overview_svg(
+        basedir,
+        collection_dirlist,
+        use_hull='concave',
+        use_projection='mollweide',
+        show_galactic_plane=True,
+        show_ecliptic_plane=True,
+        dpi=200,
+        optimize_svg=True
+):
+    '''This generates a coverage map plot for all of the collections in
+    collection_dirlist.
+
+    This version just calls collection_overview_plot with the file type set to
+    SVG and outputs to a file called collection-footprints.svg in the
+    LCC-Server's basedir/docs/static directory.
+
+    '''
+
+    outfile = os.path.join(basedir,'docs','static','collection-footprints-temp.svg')
+
+    outfile, labels = collection_overview_plot(
+        collection_dirlist,
+        outfile,
+        use_hull=use_hull,
+        use_projection=use_projection,
+        show_galactic_plane=show_galactic_plane,
+        show_ecliptic_plane=show_ecliptic_plane,
+        dpi=dpi
+    )
+
+    if optimize_svg:
+        ret = subprocess.run('scour -i %s -o %s' %
+                             (outfile, outfile.replace('-temp','')),
+                             shell=True)
+        LOGINFO('optimized SVG -> %s' % outfile.replace('-temp',''))
+        if ret.returncode == 0:
+            os.remove(outfile)
+        else:
+            LOGERROR('could not optimize the SVG. Left as %s' % outfile)
