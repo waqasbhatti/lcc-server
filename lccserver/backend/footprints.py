@@ -51,6 +51,8 @@ try:
 
     from shapely.ops import cascaded_union, polygonize
     import shapely.geometry as geometry
+    from shapeply.geometry.polygon import Polygon
+    from shapeply.geometry.multipolygon import MultiPolygon
 
     import matplotlib
     import matplotlib.patheffects as path_effects
@@ -258,8 +260,30 @@ def collection_alpha_shape(basedir,
                        'might be too high. returning a shapely.MultiPolygon '
                        'object and list of edge coords')
             hull_coords = []
-            for geom in shapely_concave_hull:
-                hull_coords.append(np.array(geom.exterior.coords))
+
+            if isinstance(shapely_concave_hull, MultiPolygon):
+
+                for geom in shapely_concave_hull:
+                    hull_coords.append(np.array(geom.exterior.coords))
+
+            elif isinstance(shapely_concave_hull, Polygon):
+
+                if (shapely_concave_hull.area > 0.0 and
+                    shapely_concave_hull.exterior):
+
+                    hull_coords = np.array(shapely_concave_hull.exterior.coords)
+
+                else:
+                    LOGERROR('the concave hull has area = 0.0, '
+                             'alpha = %s is likely too high '
+                             'for this object' % alpha)
+                    return shapely_concave_hull, None
+
+            else:
+
+                LOGERROR('unknown geometry returned')
+                return None, None
+
 
         return shapely_concave_hull, hull_coords
 
