@@ -1323,7 +1323,7 @@ class AuthEnabledStaticHandler(BaseHandler):
                 lcclist=[collection],
                 incoming_userid=self.current_user['user_id'],
                 incoming_role=self.current_user['user_role'],
-                overide_action='view',
+                override_action='view',
             )
 
             object_access_check = len(object_lookup[collection]['result']) > 0
