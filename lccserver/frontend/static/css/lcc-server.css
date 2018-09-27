@@ -7,12 +7,20 @@
 
 /* various text, image, and table styles */
 
-#footprint-svg {
+#footprint {
   text-align: center;
 }
 
-#footprint-svg > svg {
-  height: 60vh;
+#footprint > svg {
+  height: 66vh;
+}
+
+.collection-column-list {
+  font-size: 13px;
+}
+
+#collection-container ul {
+  font-size: 13px;
 }
 
 a.tab-link {
@@ -21,7 +29,7 @@ a.tab-link {
 }
 
 table.table-sm {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .primary-controlbox {

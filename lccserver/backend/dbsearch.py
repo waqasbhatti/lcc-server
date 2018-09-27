@@ -430,7 +430,7 @@ def sqlite_get_collections(basedir,
     # get the info we need
     query = ("select collection_id, object_catalog_path, kdtree_pkl_path, "
              "columnlist, indexedcols, ftsindexedcols, name, "
-             "description, project, datarelease, "
+             "description, project, datarelease, last_updated, citation, "
              "ra_min, ra_max, decl_min, decl_max, nobjects, "
              "lcformat_key, lcformat_desc_path, lcformat_magcols, "
              "catalog_columninfo_json, "
@@ -507,6 +507,7 @@ def sqlite_get_collections(basedir,
              kdtree_pkl_path, columnlist,
              indexedcols, ftsindexedcols, name,
              description, project, datarelease,
+             last_updated, citation,
              minra, maxra, mindecl, maxdecl,
              nobjects,
              lcformatkey, lcformatdesc, lcmagcols,
@@ -581,6 +582,8 @@ def sqlite_get_collections(basedir,
                     'description':description,
                     'project':project,
                     'datarelease':datarelease,
+                    'last_updated':last_updated,
+                    'citation':citation,
                     'minra':minra,
                     'maxra':maxra,
                     'mindecl':mindecl,

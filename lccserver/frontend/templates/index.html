@@ -140,49 +140,25 @@
         <div class="tab-pane"
              id="collections" role="tabpanel" aria-labelledby="collections-tab">
 
-          <div class="row mt-2">
-            <div class="col-12">
-
-              <h3>Available light curve collections</h3>
-
-            </div>
-          </div>
-
           <div class="row mt-2" >
             <div class="col-12" >
 
-              <div id="footprint-svg">
+              <div id="footprint">
+                <a id="lcc-coverage"></a>
                 {% raw footprint_svg %}
               </div>
 
             </div>
           </div>
 
-          <div class="row mt-2" >
-            <div class="col-12" >
-
-              <table id="lcc-collections-table" class="table table-sm">
-
-                <thead class="bg-light">
-                  <tr>
-                    <th scope="col" width="80">Name</th>
-                    <th scope="col" width="150">Description</th>
-                    <th scope="col" width="100">Coordinates<br>(&alpha;, &delta;) [decimal deg]</th>
-                    <th scope="col" width="200">Columns
-                      (<span class="kdtree-col" data-toggle="tooltip"
-                             title="full text search is available for these columns">FTS indexed columns</span>)
-
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody id="lcc-collection-tablerows">
-
-                </tbody>
-
-              </table>
-
+          <div class="row mt-2">
+            <div class="col-12">
+              <h3>Available light curve collections</h3>
             </div>
+          </div>
+
+          <!-- all of the collections go in here -->
+          <div id="collection-container" >
           </div>
 
         </div>

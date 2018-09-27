@@ -133,7 +133,7 @@ var lcc_ui = {
     // this interprets the URL from the click on a collection in the SVG
     svgurl_to_collection_id: function (url) {
 
-        let u = new URL(url);
+        let u = new window.URL(url);
         let hash = u.hash;
         let collection_id = hash.replace(/#fp-collection\//g,'');
 
@@ -233,7 +233,7 @@ var lcc_ui = {
                 $(target_key).val(result.apikey);
                 $(target_expiry).html(
                     (' expires at ' +
-                     moment.utc(result.expires).format('Y-M-d HH:mm:ss Z'))
+                     moment.utc(result.expires).format('Y-M-D HH:mm Z'))
                 );
 
                 // save the API key to browser local storage. this should be OK
@@ -274,7 +274,7 @@ var lcc_ui = {
             }
             else {
                 $(target_expiry).html(
-                    (' expires at ' + expiry_utc.format('Y-M-d HH:mm:ss Z'))
+                    (' expires at ' + expiry_utc.format('Y-M-D HH:mm Z'))
                 );
             }
 
@@ -410,7 +410,7 @@ var lcc_ui = {
     action_setup: function () {
 
         // bind the click on the svg URL
-        $('#footprint-svg > svg').find('a').on('click', function (evt) {
+        $('#footprint > svg').find('a').on('click', function (evt) {
 
             evt.preventDefault();
 
@@ -421,8 +421,8 @@ var lcc_ui = {
             if (collection_id !== null) {
 
                 // find the appropriate row in the collections table
-                let collrow = '#collection-row-' + collection_id;
-                $(collrow).addClass('table-active');
+                let collrow = '#lccid-' + collection_id.replace(/_/g,'-');
+                console.log(collrow);
                 $(collrow).scrollTop();
 
             }
@@ -1801,7 +1801,243 @@ var lcc_ui = {
     },
 
 
-    // this gets the latest LC collections
+    // this renders a single collection
+    render_collection: function (collections, ind) {
+
+        // get the column list for this collection
+        let columns =
+            collections.columnlist[ind].split(',').sort();
+
+        // get the indexed columns for the collection
+        let indexedcols =
+            collections.indexedcols[ind].split(',').sort();
+
+        // get the FTS columns for this collection
+        let ftscols =
+            collections.ftsindexedcols[ind].split(',').sort();
+
+        // get the collection DB ID and name
+        let db_collection_id = collections.db_collection_id[ind];
+        let collection_name = collections.name[ind];
+
+        // get the project
+        let project = collections.project[ind];
+
+        // get the description
+        let description = collections.description[ind];
+
+        // get the description
+        let citation = collections.citation[ind];
+
+        // get the description
+        let last_updated = moment.utc(
+            collections.last_updated[ind] + 'Z'
+        ).format('Y-M-D HH:mm Z');
+
+
+        // get the number of objects
+        let nobjects = collections.nobjects[ind];
+
+        // get the center RA and DEC
+        let center_ra = ((collections.minra[ind] + collections.maxra[ind])/2.0).toFixed(3);
+        let center_decl = ((collections.mindecl[ind] + collections.maxdecl[ind])/2.0).toFixed(3);
+
+        // format the columns
+        let formatted_colspec = [];
+
+        for (let thiscol of columns) {
+
+            var thiscol_title =
+                collections.columnjson[ind][thiscol]['title'];
+            var thiscol_desc =
+                collections.columnjson[ind][thiscol][
+                    'description'
+                ];
+
+            if (thiscol_title != null && thiscol_desc != null) {
+
+                var col_popover = '<span class="pop-span" ' +
+                    'data-toggle="popover" ' +
+                    'data-placement="top" ' +
+                    'data-title="' + thiscol_title + '" ' +
+                    'data-content="' + thiscol_desc + '" ' +
+                    'data-html="true">' + thiscol + '</span>';
+
+                if (ftscols.indexOf(thiscol) != -1) {
+                    formatted_colspec.push(
+                        '<span class="kdtree-col">' +
+                            col_popover + '</span>'
+                    );
+                }
+                // indexed columns are not interesting, because
+                // everyone expects fast searches on any column and
+                // we indexed pretty much every column anyway. let's
+                // get rid of <span class="kdtree-col"></span> for
+                // these for now
+                else if (indexedcols.indexOf(thiscol) != -1) {
+                    formatted_colspec.push(col_popover);
+                }
+                else {
+                    formatted_colspec.push(col_popover);
+                }
+
+            }
+
+        }
+
+        var formatted_column_list = formatted_colspec.join(', ');
+
+        //
+        // now we have everything. fill in the column row template
+        //
+        let collection_row = `
+<div class="row mt-2">
+<div class="col-12">
+
+<h4><a id="lccid-${db_collection_id.replace(/_/g,'-')}"></a>${collection_name} (<code>${db_collection_id}</code>)</h4>
+
+<div class="row">
+
+<div class="col-sm-12 col-md-3">
+<h5>About this collection</h5>
+
+<div class="row">
+<div class="col-12">
+${lcc_ui.bibcode_linkify(description)}
+</div>
+</div>
+
+<div class="row mt-2">
+<div class="col-12">
+
+<table class="table table-sm">
+<tr>
+<th scope="row">Objects</th>
+<td>${nobjects}</td>
+</tr>
+<tr>
+<th scope="row">Center [J2000 deg]</th>
+<td>(${center_ra}, ${center_decl})</td>
+</tr>
+<tr>
+<th scope="row">Updated [UTC]</th>
+<td>${last_updated}</td>
+</tr>
+<tr>
+<th scope="row">Project</th>
+<td>${project}</td>
+</tr>
+<tr>
+<th scope="row">Citation</th>
+<td>${citation}</td>
+</tr>
+</table>
+
+</div>
+</div>
+
+</div>
+
+<div class="col-sm-12 col-md-5">
+<h5>Available database columns</h5>
+<div class="collection-column-list">
+${formatted_column_list}
+</div>
+</div>
+
+<div class="col-sm-12 col-md-4">
+
+<h5>Search in this collection</h5>
+
+<ul class="list-unstyled">
+
+<li>
+<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="conesearch">
+Cone search to find objects by their coordinates
+</a>
+</li>
+
+<li>
+<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="ftsquery">
+Full-text search to find objects by name or description
+</a>
+</li>
+
+<li>
+<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="columnsearch">
+Build a database column search query for objects
+</a>
+</li>
+
+<li>
+<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="xmatch">
+Cross-match to objects in an uploaded list
+</a>
+</li>
+
+</ul>
+
+
+<h5>Explore this collection</h5>
+
+<ul class="list-unstyled">
+
+<li>
+<a href="#" class="collection-100random-init" data-collection="${db_collection_id}">
+100 random objects from this collection
+</a>
+</li>
+
+<li>
+<a href="#" class="collection-centercone-init" data-collection="${db_collection_id}">
+100 objects within 1 degree of the collection's center
+</a>
+</li>
+
+<li>
+<a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
+Top 100 objects sorted by their Stetson <em>J</em> variabiity index
+</a>
+</li>
+
+<li>
+<a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
+Top 100 objects sorted by the number of their LC measurements
+</a>
+</li>
+
+
+</ul>
+
+<p><a href="#lcc-coverage">[back to map]</a></p>
+</div>
+
+</div>
+`;
+
+        $('#collection-container').append(collection_row);
+
+
+    },
+
+
+    // this renders the LC collections page
+    render_collections_tab: function () {
+
+        let collind;
+        let collections = lcc_ui.collections;
+
+        for (collind = 0;
+             collind < collections.collection_id.length;
+             collind++) {
+            lcc_ui.render_collection(collections, collind);
+        }
+
+    },
+
+
+    // this gets the latest LC collections and updates the controls
+    // calls render_lc_collections to render the collections tab
     get_lc_collections: function() {
 
         var geturl = '/api/collections';
@@ -1860,64 +2096,17 @@ var lcc_ui = {
                     //
                     var db_collid = collections.db_collection_id[coll_idx];
                     var collname = collections.name[coll_idx];
-                    var table_column_name = '<td width="80">' +
-                        collname + ' (<code>' + db_collid + '</code>)' +
-                        '</td>';
 
                     // update the collection select boxes
                     collection_selectboxes.each(function () {
-
                         var thisbox = $(this);
-
                         thisbox.append('<option value="' +
                                        db_collid +
                                        '">' +
                                        collname +
                                        '</option>');
-
                     });
 
-                    //
-                    // description column
-                    //
-                    var desc = collections.description[coll_idx];
-                    var nobjects = collections.nobjects[coll_idx];
-                    var table_column_desc = '<td width="150">' +
-                        desc + '<br><br>Number of objects: <code>' +
-                        nobjects +
-                        '</code></td>';
-
-                    //
-                    // extent column
-                    //
-                    var minra = collections.minra[coll_idx];
-                    var maxra = collections.maxra[coll_idx];
-                    var mindecl = collections.mindecl[coll_idx];
-                    var maxdecl = collections.maxdecl[coll_idx];
-
-                    var center_ra = (minra + maxra)/2.0;
-                    var center_decl = (mindecl + maxdecl)/2.0;
-                    center_ra = center_ra.toFixed(2);
-                    center_decl = center_decl.toFixed(2);
-
-                    minra = minra.toFixed(2);
-                    maxra = maxra.toFixed(2);
-                    mindecl = mindecl.toFixed(2);
-                    maxdecl = maxdecl.toFixed(2);
-
-                    var table_column_coords = '<td width="100">' +
-                        'center: <code>(' +
-                        center_ra + ', ' + center_decl +
-                        ')</code><br>' +
-                        'SE: <code>(' +
-                        maxra + ', ' + mindecl +
-                        ')</code><br>' +
-                        'NW: <code>(' + minra + ', ' + maxdecl + ')</code>' +
-                        '</td>';
-
-                    //
-                    // coldesc column
-                    //
 
                     // get the column list for this collection
                     var columns =
@@ -1933,81 +2122,17 @@ var lcc_ui = {
 
                     var colind = 0;
 
-                    // we'll make an list with three sections
-                    // 1. indexed columns
-                    // 2. full-text search enabled columns
-                    // 3. other columns
-                    var formatted_colspec = [];
-
                     // add each column for this collection to the output
                     for (colind; colind < columns.length; colind++) {
 
                         var thiscol = columns[colind];
 
-                        var thiscol_title =
-                            collections.columnjson[coll_idx][thiscol]['title'];
-                        var thiscol_desc =
-                            collections.columnjson[coll_idx][thiscol][
-                                'description'
-                            ];
-
-                        if (thiscol_title != null && thiscol_desc != null) {
-
-                            var col_popover = '<span class="pop-span" ' +
-                                'data-toggle="popover" ' +
-                                'data-placement="top" ' +
-                                'data-title="' + thiscol_title + '" ' +
-                                'data-content="' + thiscol_desc + '" ' +
-                                'data-html="true">' + thiscol + '</span>';
-
-                            if (ftscols.indexOf(thiscol) != -1) {
-                                formatted_colspec.push(
-                                    '<span class="kdtree-col">' +
-                                        col_popover + '</span>'
-                                );
-                            }
-                            // indexed columns are not interesting, because
-                            // everyone expects fast searches on any column and
-                            // we indexed pretty much every column anyway. let's
-                            // get rid of <span class="kdtree-col"></span> for
-                            // these for now
-                            else if (indexedcols.indexOf(thiscol) != -1) {
-                                formatted_colspec.push(col_popover);
-                            }
-                            else {
-                                formatted_colspec.push(col_popover);
-                            }
-
-                        }
-
-                        // at the end, check if a column by this name exists in
-                        // the lcc_search.coldefs key and put it in there if it
-                        // doesn't. we will not update the key if it does exist
-                        // FIXME: this has the potential to miss updated
-                        // columns, but hopefully column definitions for the
-                        // same column names don't change between collections
-                        // (or if they do, the change is backported to the
-                        // previous collection)
                         if (! (thiscol in lcc_search.coldefs) ) {
                             lcc_search.coldefs[thiscol] =
                                 collections.columnjson[coll_idx][thiscol];
                         }
 
                     }
-                    var formatted_column_list = formatted_colspec.join(', ');
-
-                    //
-                    // build this table row
-                    //
-                    var table_row = '<tr id="collection-row-' + db_collid + '">' +
-                        table_column_name +
-                        table_column_desc +
-                        table_column_coords +
-                        '<td width="200"><code>' +
-                        formatted_column_list +
-                        '</code></td>' +
-                        '</tr>';
-                    $('#lcc-collection-tablerows').append(table_row);
 
                 }
 
@@ -2020,10 +2145,6 @@ var lcc_ui = {
 
             }
 
-            // at the end, activate the tooltips and popovers
-            $('[data-toggle="tooltip"]').tooltip();
-            $('[data-toggle="popover"]').popover();
-
         }).fail(function (xhr) {
             var message = 'could not get list of recent ' +
                 'LC collections from the LCC server backend';
@@ -2034,6 +2155,16 @@ var lcc_ui = {
             }
 
             lcc_ui.alert_box(message, 'danger');
+
+
+        }).done(function (data) {
+
+            // this calls the render_collections_tab function
+            lcc_ui.render_collections_tab();
+
+            // at the end, activate the tooltips and popovers
+            $('[data-toggle="tooltip"]').tooltip();
+            $('[data-toggle="popover"]').popover();
 
         });
 
