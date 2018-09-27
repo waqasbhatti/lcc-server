@@ -12,15 +12,15 @@
 }
 
 #footprint > svg {
-  height: 66vh;
+  width: 90vw;
 }
 
 .collection-column-list {
-  font-size: 16px;
+  font-size: 15px;
 }
 
 #collection-container ul {
-  font-size: 16px;
+  font-size: 15px;
 }
 
 a.tab-link {

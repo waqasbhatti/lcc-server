@@ -458,8 +458,82 @@ var lcc_ui = {
             let target = $(this).attr('data-target');
             let collection = $(this).attr('data-collection');
 
+            // select the collection in the appropriate select box
+            $('#' + target + '-collection-select').val(collection);
+
+            // click on the earch tab
+            $('#' + target + '-tab').click();
+
+            // focus the main search controls
+
+            if (target == 'conesearch') {
+                $('#conesearch-query').focus();
+            }
+            else if (target == 'ftsquery') {
+                $('#ftsquery-query').focus();
+
+            }
+            else if (target == 'columnsearch') {
+                $('#columnsearch-filtercolumn-select').focus();
+
+            }
+            else if (target == 'xmatch') {
+                $('#xmatch-query').focus();
+
+            }
+
         });
 
+        // bind the 100random-init control
+        $('#collection-container').on('click', '.collection-100random-init', function(evt) {
+
+            evt.preventDefault();
+            let collection = $(this).attr('data-collection');
+
+        });
+
+
+        // bind the centercone-init control
+        $('#collection-container').on('click', '.collection-centercone-init', function(evt) {
+
+            evt.preventDefault();
+            let collection = $(this).attr('data-collection');
+
+        });
+
+
+        // bind the stetsonvar-init control
+        $('#collection-container').on('click', '.collection-stetsonvar-init', function(evt) {
+
+            evt.preventDefault();
+            let collection = $(this).attr('data-collection');
+
+        });
+
+
+        // bind the simbadok-init control
+        $('#collection-container').on('click', '.collection-simbadok-init', function(evt) {
+
+            evt.preventDefault();
+            let collection = $(this).attr('data-collection');
+
+        });
+
+        // bind the fastmovers-init control
+        $('#collection-container').on('click', '.collection-fastmovers-init', function(evt) {
+
+            evt.preventDefault();
+            let collection = $(this).attr('data-collection');
+
+        });
+
+        // bind the gaiadwarfs-init control
+        $('#collection-container').on('click', '.collection-gaiadwarfs-init', function(evt) {
+
+            evt.preventDefault();
+            let collection = $(this).attr('data-collection');
+
+        });
 
         /////////////////////////
         // USER PREFS BINDINGS //
@@ -2081,16 +2155,29 @@ var lcc_ui = {
               </li>
 
               <li>
-                <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
-                  Top 100 objects sorted by their Stetson <em>J</em> variabiity index
+                <a href="#" class="collection-simbadok-init" data-collection="${db_collection_id}">
+                  100 random objects with SIMBAD counterparts
                 </a>
               </li>
 
               <li>
                 <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
-                  Top 100 objects sorted by number of LC measurements
+                  Top 100 objects sorted by decreasing Stetson <em>J<sub>var</sub></em>
                 </a>
               </li>
+
+              <li>
+                <a href="#" class="collection-fastmovers-init" data-collection="${db_collection_id}">
+                  Top 100 objects sorted by decreasing GAIA parallax
+                </a>
+              </li>
+
+              <li>
+                <a href="#" class="collection-gaiadwarfs-init" data-collection="${db_collection_id}">
+                  Top 100 objects sorted by decreasing GAIA M<sub><em>G</em></sub>
+                </a>
+              </li>
+
             </ul>
 
           </div>
