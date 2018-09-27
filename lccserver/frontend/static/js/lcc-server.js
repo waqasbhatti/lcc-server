@@ -409,6 +409,10 @@ var lcc_ui = {
     // this wires up all the controls
     action_setup: function () {
 
+        ////////////////////////////////
+        // FOOTPRINT CONTROL BINDINGS //
+        ////////////////////////////////
+
         // translate the links in the footprint SVG
         $('#footprint > svg').find('a').on('hover focus', function (evt) {
 
@@ -439,9 +443,27 @@ var lcc_ui = {
 
         });
 
+
+        // also bind the paths inside the anchors so they active the link
         $('#footprint > svg').find('a').find('path').on('click', function (evt) {
             $(this).parent('a').click();
         });
+
+
+        // bind the collection-search-init controls
+        $('#collection-container').on('click', 'a.collection-search-init', function(evt) {
+
+            evt.preventDefault();
+
+            let target = $(this).attr('data-target');
+            let collection = $(this).attr('data-collection');
+
+        });
+
+
+        /////////////////////////
+        // USER PREFS BINDINGS //
+        /////////////////////////
 
         // bind the cookie setters
         $('#prefs-save').on('click', function(evt) {
@@ -457,6 +479,11 @@ var lcc_ui = {
         $('#prefs-generate-apikey').on('click', function(evt) {
             lcc_ui.generate_new_apikey('#api-key','#apikey-expiry');
         });
+
+
+        /////////////////////////////////
+        // SEARCH FORM SUBMIT BINDINGS //
+        /////////////////////////////////
 
         // bind the form submit for the cone search
         $('#conesearch-form').on('submit', function (event) {
@@ -492,6 +519,27 @@ var lcc_ui = {
 
             event.preventDefault();
             lcc_ui.debounce(lcc_search.do_xmatch(), 250);
+
+        });
+
+
+        /////////////////////////////////
+        // COLLECTION CONTROL BINDINGS //
+        /////////////////////////////////
+
+        // bind link to collections tab
+        $('#alert-box').on('click','.collection-link', function (e) {
+
+            e.preventDefault();
+            $('#collections-tab').click();
+
+        });
+
+        // bind link to collections tab
+        $('.tab-pane').on('click','.collection-link', function (e) {
+
+            e.preventDefault();
+            $('#collections-tab').click();
 
         });
 
@@ -626,11 +674,14 @@ var lcc_ui = {
             // will ignore non-existent columns that might get left behind if
             // the filter bucket remains unchanged after the collection change
             // is fired.
-            // FIXME: fix this on the backend too
             $('.lcc-filterbucket').empty();
 
         });
 
+
+        /////////////////////////////////
+        // RESULT ROW CONTROL BINDINGS //
+        /////////////////////////////////
 
         // bind the lcc-result-samplecheck checkbox so a click will toggle the
         // disabled state of the associated lcc-result-samplerows text box
@@ -667,6 +718,10 @@ var lcc_ui = {
 
         });
 
+
+        //////////////////////////////////
+        // SEARCH FILTERBUCKET BINDINGS //
+        //////////////////////////////////
 
         // bind the lcc-filtertarget so an Enter clicks the add-filter button
         $('.lcc-filtertarget').on('keyup', function (evt) {
@@ -896,28 +951,9 @@ var lcc_ui = {
         });
 
 
-        // bind link to collections tab
-        $('#alert-box').on('click','.collection-link', function (e) {
-
-            e.preventDefault();
-            $('#collections-tab').click();
-
-        });
-
-        // bind link to collections tab
-        $('.tab-pane').on('click','.collection-link', function (e) {
-
-            e.preventDefault();
-            $('#collections-tab').click();
-
-        });
-
-        // bind the lcc-datasets-open link
-        $('.lcc-datasets-tabopen').on('click', function (evt) {
-            evt.preventDefault();
-            $('#datasets-tab').click();
-        });
-
+        //////////////////////////////////
+        // SEARCH EXAMPLE LINK BINDINGS //
+        //////////////////////////////////
 
         // handle the columnsearch example 1 link
         $('#columnsearch-example-1').on('click', function (evt) {
@@ -991,6 +1027,17 @@ var lcc_ui = {
 
         });
 
+
+        //////////////////////////////
+        // DATASET CONTROL BINDINGS //
+        //////////////////////////////
+
+        // bind the lcc-datasets-open link
+        $('.lcc-datasets-tabopen').on('click', function (evt) {
+            evt.preventDefault();
+            $('#datasets-tab').click();
+        });
+
         // dataset page handling
         $('.dataset-pagination-prev').on('click', function (evt) {
 
@@ -1009,6 +1056,284 @@ var lcc_ui = {
             );
 
         });
+
+        // handle the dataset show all button
+        $('#dataset-show-all').on('click', function(evt) {
+
+            lcc_ui.get_recent_datasets(1000);
+            $('#dataset-result-header')
+                .html('All available datasets');
+
+        });
+
+        // handle the dataset search page
+        $('#dataset-search-form').on('submit', function (evt) {
+
+            evt.preventDefault();
+
+            var posturl = '/api/datasets';
+            var _xsrf = $('#dataset-search-form > input[type="hidden"]').val();
+            var postparams = {_xsrf:_xsrf,
+                              datasetsearch:$('#dataset-searchbox').val()};
+            $.post(posturl, postparams, function (data) {
+
+                var status = data.status;
+                var result = data.result;
+                var message = data.message;
+
+                // if something broke, alert the user
+                if (status != 'ok' || result === null || result.length == 0) {
+                    lcc_ui.alert_box(message, 'danger');
+                }
+
+                if (result === null) {
+                    $('#dataset-result-header')
+                        .html('No matching datasets found');
+                    $('#lcc-datasets-tablerows').empty();
+                }
+
+                else {
+
+                    // set up the dataset result header
+                    var ndatasets = result.length;
+                    if (ndatasets == 0) {
+                        $('#dataset-result-header')
+                            .html('No matching datasets found');
+                    }
+                    else if (ndatasets == 1) {
+                        $('#dataset-result-header')
+                            .html('1 matching dataset found');
+                    }
+                    else {
+                        $('#dataset-result-header')
+                            .html(ndatasets + ' matching datasets found');
+                    }
+
+                    var rowind = 0;
+                    $('#lcc-datasets-tablerows').empty();
+
+                    for (rowind; rowind < result.length; rowind++) {
+
+                        // setid and queried collections
+                        var setid = result[rowind]['setid'];
+                        var queriedcolls = result[rowind]['queried_collections'];
+
+                        // number of objects
+                        var nobjects = result[rowind]['nobjects'];
+
+                        // query type and params
+                        var set_name = result[rowind]['name'];
+                        var set_desc = lcc_ui.bibcode_linkify(result[rowind]['description']);
+                        var set_citation = lcc_ui.bibcode_linkify(result[rowind]['citation']);
+                        var set_owned = result[rowind]['owned'];
+                        var query_type = result[rowind]['query_type'];
+                        var query_params = result[rowind]['query_params'];
+
+                        // product download links
+                        var dataset_fpath = result[rowind]['dataset_fpath'];
+                        var dataset_csv = result[rowind]['dataset_csv'];
+                        var lczip_fpath = result[rowind]['lczip_fpath'];
+
+                        // last updated
+                        var lastupdated = result[rowind]['last_updated'];
+                        var createdon = result[rowind]['created_on'];
+
+                        //
+                        // Set ID column
+                        //
+                        var table_setid = '<td>' +
+                            '<a rel="nofollow" href="/set/' +
+                            setid + '">' +
+                            setid + '</a>' +
+                            '</td>';
+                        if (set_owned) {
+                            table_setid = '<td>' +
+                                '<a rel="nofollow" href="/set/' +
+                                setid + '">' +
+                                setid + '</a><br>' +
+                                '<span class="text-success">You own this dataset</span><br>' +
+                                'Dataset is ' + result[rowind]['dataset_visibility'] +
+                                '</td>';
+                        }
+
+
+                        //
+                        // Objects column
+                        //
+                        var table_nobjects = '<td>' +
+                            nobjects +
+                            '</td>';
+                        //
+                        // Query column
+                        //
+                        var table_query = '<td width="350">' +
+                            '<strong>name:</strong> ' + set_name + '<br>' +
+                            '<strong>description:</strong> ' + set_desc + '<br>' +
+                            '<strong>citation:</strong> ' + set_citation + '<br><br>' +
+                            '<details><summary><strong>query:</strong> <code>' + query_type + '</code>' +
+                            '</summary><pre>' +
+                            JSON.stringify(JSON.parse(query_params),null,2) +
+                            '</pre></details>' +
+                            '</td>';
+                        table_query = table_query
+                            .replace(/sqlite_/g,'')
+                            .replace(/postgres_/g,'');
+
+                        //
+                        // Products column
+                        //
+                        var dataset_download = '';
+                        var csv_download = '';
+                        var lczip_download = '';
+
+                        if (dataset_fpath != null) {
+                            dataset_download = '<a download rel="nofollow" ' +
+                                'href="' + dataset_fpath +
+                                '" title="download search results pickle">' +
+                                'dataset pickle' +
+                                '</a>';
+                        }
+                        if (dataset_csv != null) {
+                            csv_download = '<a download rel="nofollow" ' +
+                                'href="' + dataset_csv +
+                                '" title="download search results CSV">' +
+                                'dataset CSV' +
+                                '</a>';
+                        }
+
+                        if (lczip_fpath != null) {
+                            lczip_download = '<a download rel="nofollow" ' +
+                                'href="' + lczip_fpath +
+                                '" title="download light curves ZIP">' +
+                                'light curve ZIP' +
+                                '</a>';
+                        }
+
+                        // format the column
+                        var table_downloadlinks = '<td>' +
+                            dataset_download + '<br>' +
+                            csv_download + '<br>' +
+                            lczip_download + '</td>';
+
+
+                        //
+                        // Last updated columns
+                        //
+                        var table_lastupdated = '<td>' +
+                            'Created: <span data-toggle="tooltip" ' +
+                            'title="' + createdon + 'Z">' +
+                            moment(createdon + 'Z').fromNow() +
+                            '</span><br>' +
+                            'Updated: <span data-toggle="tooltip" ' +
+                            'title="' + lastupdated + 'Z">' +
+                            moment(lastupdated + 'Z').fromNow() +
+                            '</span>' +
+                            '</td>';
+
+                        //
+                        // finally, add this row
+                        //
+                        var setrow = '<tr>' +
+                            table_setid +
+                            table_nobjects +
+                            table_query +
+                            table_downloadlinks +
+                            table_lastupdated +
+                            '</tr>';
+
+                        $('#lcc-datasets-tablerows').append(setrow);
+
+                    }
+
+                }
+
+                // at the end, activate the tooltips
+                $('[data-toggle="tooltip"]').tooltip();
+
+            }, 'json').fail(function (xhr) {
+
+                var message = 'could not get list of recent ' +
+                    'datasets from the LCC server backend';
+
+                if (xhr.status == 500) {
+                    message = 'Something went wrong with the LCC-Server backend ' +
+                        ' while trying to fetch a list of recent datasets.';
+                }
+
+                lcc_ui.alert_box(message, 'danger');
+
+            });
+
+        });
+
+        // this handles editing dataset names
+        $('.accordion').on('click', '#dataset-name-submit', function (evt) {
+
+            lcc_datasets.edit_dataset_name(
+                lcc_datasets.setid,
+                $('#dataset-name-inputbox').val()
+            );
+
+        });
+        // this handles editing dataset names
+        $('.accordion').on('keyup', '#dataset-name-inputbox', function (evt) {
+
+            if (evt.key == 'Enter') {
+                $('#dataset-name-submit').click();
+            }
+
+        });
+
+        // this handles editing dataset descriptions
+        $('.accordion').on('click', '#dataset-desc-submit', function (evt) {
+
+            lcc_datasets.edit_dataset_description(
+                lcc_datasets.setid,
+                $('#dataset-desc-inputbox').val()
+            );
+
+        });
+        // this handles editing dataset descriptions
+        $('.accordion').on('keyup', '#dataset-desc-inputbox', function (evt) {
+
+            if (evt.key == 'Enter') {
+                $('#dataset-desc-submit').click();
+            }
+
+        });
+
+        // this handles editing dataset citations
+        $('.accordion').on('click', '#dataset-citation-submit', function (evt) {
+
+            lcc_datasets.edit_dataset_citation(
+                lcc_datasets.setid,
+                $('#dataset-citation-inputbox').val()
+            );
+
+        });
+        // this handles editing dataset descriptions
+        $('.accordion').on('keyup', '#dataset-citation-inputbox', function (evt) {
+
+            if (evt.key == 'Enter') {
+                $('#dataset-citation-submit').click();
+            }
+
+        });
+
+        // this handles changing dataset visibility
+        $('.accordion').on('click', '#dataset-visibility-submit', function (evt) {
+
+            lcc_datasets.change_dataset_visibility(
+                lcc_datasets.setid,
+                $('#dataset-visibility-select').val()
+            );
+
+        });
+
+
+        ////////////////////////////////////////
+        // OBJECTINFO POPUP AND PAGE BINDINGS //
+        ////////////////////////////////////////
 
         // fancy zoom and pan effects for a phased LC tile
         // see https://codepen.io/ccrch/pen/yyaraz
@@ -1283,278 +1608,6 @@ var lcc_ui = {
         });
 
 
-        // handle the dataset show all button
-        $('#dataset-show-all').on('click', function(evt) {
-
-            lcc_ui.get_recent_datasets(1000);
-            $('#dataset-result-header')
-                .html('All available datasets');
-
-        });
-
-        // handle the dataset search page
-        $('#dataset-search-form').on('submit', function (evt) {
-
-            evt.preventDefault();
-
-            var posturl = '/api/datasets';
-            var _xsrf = $('#dataset-search-form > input[type="hidden"]').val();
-            var postparams = {_xsrf:_xsrf,
-                              datasetsearch:$('#dataset-searchbox').val()};
-            $.post(posturl, postparams, function (data) {
-
-                var status = data.status;
-                var result = data.result;
-                var message = data.message;
-
-                // if something broke, alert the user
-                if (status != 'ok' || result === null || result.length == 0) {
-                    lcc_ui.alert_box(message, 'danger');
-                }
-
-                if (result === null) {
-                    $('#dataset-result-header')
-                        .html('No matching datasets found');
-                    $('#lcc-datasets-tablerows').empty();
-                }
-
-                else {
-
-                    // set up the dataset result header
-                    var ndatasets = result.length;
-                    if (ndatasets == 0) {
-                        $('#dataset-result-header')
-                            .html('No matching datasets found');
-                    }
-                    else if (ndatasets == 1) {
-                        $('#dataset-result-header')
-                            .html('1 matching dataset found');
-                    }
-                    else {
-                        $('#dataset-result-header')
-                            .html(ndatasets + ' matching datasets found');
-                    }
-
-                    var rowind = 0;
-                    $('#lcc-datasets-tablerows').empty();
-
-                    for (rowind; rowind < result.length; rowind++) {
-
-                        // setid and queried collections
-                        var setid = result[rowind]['setid'];
-                        var queriedcolls = result[rowind]['queried_collections'];
-
-                        // number of objects
-                        var nobjects = result[rowind]['nobjects'];
-
-                        // query type and params
-                        var set_name = result[rowind]['name'];
-                        var set_desc = lcc_ui.bibcode_linkify(result[rowind]['description']);
-                        var set_citation = lcc_ui.bibcode_linkify(result[rowind]['citation']);
-                        var set_owned = result[rowind]['owned'];
-                        var query_type = result[rowind]['query_type'];
-                        var query_params = result[rowind]['query_params'];
-
-                        // product download links
-                        var dataset_fpath = result[rowind]['dataset_fpath'];
-                        var dataset_csv = result[rowind]['dataset_csv'];
-                        var lczip_fpath = result[rowind]['lczip_fpath'];
-
-                        // last updated
-                        var lastupdated = result[rowind]['last_updated'];
-                        var createdon = result[rowind]['created_on'];
-
-                        //
-                        // Set ID column
-                        //
-                        var table_setid = '<td>' +
-                            '<a rel="nofollow" href="/set/' +
-                            setid + '">' +
-                            setid + '</a>' +
-                            '</td>';
-                        if (set_owned) {
-                            table_setid = '<td>' +
-                                '<a rel="nofollow" href="/set/' +
-                                setid + '">' +
-                                setid + '</a><br>' +
-                                '<span class="text-success">You own this dataset</span><br>' +
-                                'Dataset is ' + result[rowind]['dataset_visibility'] +
-                                '</td>';
-                        }
-
-
-                        //
-                        // Objects column
-                        //
-                        var table_nobjects = '<td>' +
-                            nobjects +
-                            '</td>';
-                        //
-                        // Query column
-                        //
-                        var table_query = '<td width="350">' +
-                            '<strong>name:</strong> ' + set_name + '<br>' +
-                            '<strong>description:</strong> ' + set_desc + '<br>' +
-                            '<strong>citation:</strong> ' + set_citation + '<br><br>' +
-                            '<details><summary><strong>query:</strong> <code>' + query_type + '</code>' +
-                            '</summary><pre>' +
-                            JSON.stringify(JSON.parse(query_params),null,2) +
-                            '</pre></details>' +
-                            '</td>';
-                        table_query = table_query
-                            .replace(/sqlite_/g,'')
-                            .replace(/postgres_/g,'');
-
-                        //
-                        // Products column
-                        //
-                        var dataset_download = '';
-                        var csv_download = '';
-                        var lczip_download = '';
-
-                        if (dataset_fpath != null) {
-                            dataset_download = '<a download rel="nofollow" ' +
-                                'href="' + dataset_fpath +
-                                '" title="download search results pickle">' +
-                                'dataset pickle' +
-                                '</a>';
-                        }
-                        if (dataset_csv != null) {
-                            csv_download = '<a download rel="nofollow" ' +
-                                'href="' + dataset_csv +
-                                '" title="download search results CSV">' +
-                                'dataset CSV' +
-                                '</a>';
-                        }
-
-                        if (lczip_fpath != null) {
-                            lczip_download = '<a download rel="nofollow" ' +
-                                'href="' + lczip_fpath +
-                                '" title="download light curves ZIP">' +
-                                'light curve ZIP' +
-                                '</a>';
-                        }
-
-                        // format the column
-                        var table_downloadlinks = '<td>' +
-                            dataset_download + '<br>' +
-                            csv_download + '<br>' +
-                            lczip_download + '</td>';
-
-
-                        //
-                        // Last updated columns
-                        //
-                        var table_lastupdated = '<td>' +
-                            'Created: <span data-toggle="tooltip" ' +
-                            'title="' + createdon + 'Z">' +
-                            moment(createdon + 'Z').fromNow() +
-                            '</span><br>' +
-                            'Updated: <span data-toggle="tooltip" ' +
-                            'title="' + lastupdated + 'Z">' +
-                            moment(lastupdated + 'Z').fromNow() +
-                            '</span>' +
-                            '</td>';
-
-                        //
-                        // finally, add this row
-                        //
-                        var setrow = '<tr>' +
-                            table_setid +
-                            table_nobjects +
-                            table_query +
-                            table_downloadlinks +
-                            table_lastupdated +
-                            '</tr>';
-
-                        $('#lcc-datasets-tablerows').append(setrow);
-
-                    }
-
-                }
-
-                // at the end, activate the tooltips
-                $('[data-toggle="tooltip"]').tooltip();
-
-            }, 'json').fail(function (xhr) {
-
-                var message = 'could not get list of recent ' +
-                    'datasets from the LCC server backend';
-
-                if (xhr.status == 500) {
-                    message = 'Something went wrong with the LCC-Server backend ' +
-                        ' while trying to fetch a list of recent datasets.';
-                }
-
-                lcc_ui.alert_box(message, 'danger');
-
-            });
-
-        });
-
-        // this handles editing dataset names
-        $('.accordion').on('click', '#dataset-name-submit', function (evt) {
-
-            lcc_datasets.edit_dataset_name(
-                lcc_datasets.setid,
-                $('#dataset-name-inputbox').val()
-            );
-
-        });
-        // this handles editing dataset names
-        $('.accordion').on('keyup', '#dataset-name-inputbox', function (evt) {
-
-            if (evt.key == 'Enter') {
-                $('#dataset-name-submit').click();
-            }
-
-        });
-
-        // this handles editing dataset descriptions
-        $('.accordion').on('click', '#dataset-desc-submit', function (evt) {
-
-            lcc_datasets.edit_dataset_description(
-                lcc_datasets.setid,
-                $('#dataset-desc-inputbox').val()
-            );
-
-        });
-        // this handles editing dataset descriptions
-        $('.accordion').on('keyup', '#dataset-desc-inputbox', function (evt) {
-
-            if (evt.key == 'Enter') {
-                $('#dataset-desc-submit').click();
-            }
-
-        });
-
-        // this handles editing dataset citations
-        $('.accordion').on('click', '#dataset-citation-submit', function (evt) {
-
-            lcc_datasets.edit_dataset_citation(
-                lcc_datasets.setid,
-                $('#dataset-citation-inputbox').val()
-            );
-
-        });
-        // this handles editing dataset descriptions
-        $('.accordion').on('keyup', '#dataset-citation-inputbox', function (evt) {
-
-            if (evt.key == 'Enter') {
-                $('#dataset-citation-submit').click();
-            }
-
-        });
-
-        // this handles changing dataset visibility
-        $('.accordion').on('click', '#dataset-visibility-submit', function (evt) {
-
-            lcc_datasets.change_dataset_visibility(
-                lcc_datasets.setid,
-                $('#dataset-visibility-select').val()
-            );
-
-        });
 
     },
 

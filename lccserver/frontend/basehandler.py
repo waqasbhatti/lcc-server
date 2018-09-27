@@ -367,7 +367,7 @@ class BaseHandler(tornado.web.RequestHandler):
             return ''
 
         # the user is not logged in - so the anonymous session is in play
-        if current_user and current_user['user_id'] == 2:
+        if current_user and current_user['user_role'] == 'anonymous':
 
             if ('signups_allowed' in self.siteinfo and
                 not self.siteinfo['signups_allowed']):
@@ -377,7 +377,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
 
         # normal authenticated user
-        elif current_user and current_user['user_id'] > 3:
+        elif current_user and current_user['user_role'] == 'authenticated':
 
             user_account_box = self.signedin_account_box.format(
                 current_user=current_user['email']
@@ -1322,7 +1322,8 @@ class AuthEnabledStaticHandler(BaseHandler):
                 '"%s"' % objectid,
                 lcclist=[collection],
                 incoming_userid=self.current_user['user_id'],
-                incoming_role=self.current_user['user_role']
+                incoming_role=self.current_user['user_role'],
+                overide_action='view',
             )
 
             object_access_check = len(object_lookup[collection]['result']) > 0

@@ -1700,6 +1700,7 @@ def sqlite_fulltext_search(
         incoming_role='anonymous',
         fail_if_conditions_invalid=True,
         censor_searchargs=False,
+        override_action=None,
 ):
 
     '''This searches the specified collections for a full-text match.
@@ -2019,7 +2020,10 @@ def sqlite_fulltext_search(
                     check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
-                        action='list',
+                        action=(
+                            'list' if not override_action
+                            else override_action
+                        ),
                         target_name='object',
                         target_owner=x['owner'],
                         target_visibility=x['visibility'],
@@ -2481,7 +2485,8 @@ def sqlite_kdtree_conesearch(basedir,
                              fail_if_conditions_invalid=True,
                              conesearchworkers=1,
                              raiseonfail=False,
-                             censor_searchargs=False):
+                             censor_searchargs=False,
+                             override_action=None):
     '''This does a cone-search using searchparams over all lcc in lcclist.
 
     - do an overlap between footprint of lcc and cone size
@@ -2848,7 +2853,9 @@ def sqlite_kdtree_conesearch(basedir,
                     check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
-                        action='list',
+                        action=(
+                            'list' if not override_action else override_action
+                        ),
                         target_name='object',
                         target_owner=x['owner'],
                         target_visibility=x['visibility'],
@@ -2991,7 +2998,8 @@ def sqlite_xmatch_search(basedir,
                          incoming_role='anonymous',
                          max_matchradius_arcsec=30.0,
                          raiseonfail=False,
-                         censor_searchargs=False):
+                         censor_searchargs=False,
+                         override_action=None):
     '''This does an xmatch between the input and LCC databases.
 
     - xmatch using coordinates and kdtrees
@@ -3478,7 +3486,10 @@ def sqlite_xmatch_search(basedir,
                         check_user_access(
                             userid=incoming_userid,
                             role=incoming_role,
-                            action='list',
+                            action=(
+                                'list' if not override_action
+                                else override_action
+                            ),
                             target_name='object',
                             target_owner=x['owner'],
                             target_visibility=x['visibility'],
@@ -3788,7 +3799,10 @@ def sqlite_xmatch_search(basedir,
                     check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
-                        action='list',
+                        action=(
+                            'list' if not override_action
+                            else override_action
+                        ),
                         target_name='object',
                         target_owner=x['owner'],
                         target_visibility=x['visibility'],
