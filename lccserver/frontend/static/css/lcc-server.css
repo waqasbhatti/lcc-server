@@ -16,7 +16,7 @@
 }
 
 .collection-column-list {
-  font-size: 13px;
+  font-size: 16px;
 }
 
 #collection-container ul {
@@ -39,11 +39,11 @@ table.table-sm {
 }
 
 span.fts-col {
-  color: #d95f02;
+  color: #28a745;
   font-weight: bold;
 }
 
-span.kdtree-col {
+span.indexed-col {
   color: #7570b3;
   font-weight: bold;
 }

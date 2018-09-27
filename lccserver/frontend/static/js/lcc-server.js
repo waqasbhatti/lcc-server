@@ -1843,49 +1843,64 @@ var lcc_ui = {
         let center_decl = ((collections.mindecl[ind] + collections.maxdecl[ind])/2.0).toFixed(3);
 
         // format the columns
-        let formatted_colspec = [];
+        let formatted_ftscol_colspec = [];
+        let formatted_indexed_colspec = [];
 
-        for (let thiscol of columns) {
+        for (let thiscol of indexedcols) {
 
-            var thiscol_title =
+            let thiscol_title =
                 collections.columnjson[ind][thiscol]['title'];
-            var thiscol_desc =
+            let thiscol_desc =
                 collections.columnjson[ind][thiscol][
                     'description'
                 ];
 
             if (thiscol_title != null && thiscol_desc != null) {
 
-                var col_popover = '<span class="pop-span" ' +
+                let col_popover = '<span class="pop-span" ' +
+                    'data-toggle="popover" ' +
+                    'data-placement="top" ' +
+                    'data-title="' + thiscol_title + '" ' +
+                    'data-content="' + thiscol_desc + '" ' +
+                    'data-html="true">' + thiscol + '</span>';
+                formatted_indexed_colspec.push(
+                    '<span class="indexed-col">' +
+                        col_popover + '</span>'
+                );
+
+            }
+
+        }
+
+        for (let thiscol of ftscols) {
+
+            let thiscol_title =
+                collections.columnjson[ind][thiscol]['title'];
+            let thiscol_desc =
+                collections.columnjson[ind][thiscol][
+                    'description'
+                ];
+
+            if (thiscol_title != null && thiscol_desc != null) {
+
+                let col_popover = '<span class="pop-span" ' +
                     'data-toggle="popover" ' +
                     'data-placement="top" ' +
                     'data-title="' + thiscol_title + '" ' +
                     'data-content="' + thiscol_desc + '" ' +
                     'data-html="true">' + thiscol + '</span>';
 
-                if (ftscols.indexOf(thiscol) != -1) {
-                    formatted_colspec.push(
-                        '<span class="kdtree-col">' +
-                            col_popover + '</span>'
-                    );
-                }
-                // indexed columns are not interesting, because
-                // everyone expects fast searches on any column and
-                // we indexed pretty much every column anyway. let's
-                // get rid of <span class="kdtree-col"></span> for
-                // these for now
-                else if (indexedcols.indexOf(thiscol) != -1) {
-                    formatted_colspec.push(col_popover);
-                }
-                else {
-                    formatted_colspec.push(col_popover);
-                }
+                formatted_ftscol_colspec.push(
+                    '<span class="fts-col">' +
+                        col_popover + '</span>'
+                );
 
             }
 
         }
 
-        var formatted_column_list = formatted_colspec.join(', ');
+        let formatted_ftscol_list = formatted_ftscol_colspec.join(', ');
+        let formatted_indexedcol_list = formatted_indexed_colspec.join(', ');
 
         //
         // now we have everything. fill in the column row template
@@ -2013,9 +2028,21 @@ var lcc_ui = {
     <div class="col-12">
 
       <h4>Available database columns</h4>
+
       <div class="collection-column-list">
-        ${formatted_column_list}
+        <details>
+        <summary>List of full-text-search indexed columns</summary>
+        ${formatted_ftscol_list}
+        </details>
       </div>
+
+      <div class="mt-2 collection-column-list">
+        <details>
+        <summary>List of other indexed columns</summary>
+        ${formatted_indexedcol_list}
+        </details>
+      </div>
+
     </div>
 
   </div>
