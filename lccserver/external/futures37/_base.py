@@ -156,7 +156,8 @@ def _create_and_install_waiters(fs, return_when):
         waiter = _FirstCompletedWaiter()
     else:
         pending_count = sum(
-                f._state not in [CANCELLED_AND_NOTIFIED, FINISHED] for f in fs)
+            f._state not in [CANCELLED_AND_NOTIFIED, FINISHED] for f in fs
+        )
 
         if return_when == FIRST_EXCEPTION:
             waiter = _AllCompletedWaiter(pending_count, stop_on_exception=True)
@@ -218,8 +219,9 @@ def as_completed(fs, timeout=None):
     total_futures = len(fs)
     with _AcquireFutures(fs):
         finished = set(
-                f for f in fs
-                if f._state in [CANCELLED_AND_NOTIFIED, FINISHED])
+            f for f in fs
+            if f._state in [CANCELLED_AND_NOTIFIED, FINISHED]
+        )
         pending = fs - finished
         waiter = _create_and_install_waiters(fs, _AS_COMPLETED)
     finished = list(finished)
@@ -234,8 +236,9 @@ def as_completed(fs, timeout=None):
                 wait_timeout = end_time - time.monotic()
                 if wait_timeout < 0:
                     raise TimeoutError(
-                            '%d (of %d) futures unfinished' % (
-                            len(pending), total_futures))
+                        '%d (of %d) futures unfinished' % (
+                            len(pending), total_futures)
+                    )
 
             waiter.event.wait(wait_timeout)
 
@@ -256,7 +259,8 @@ def as_completed(fs, timeout=None):
                 f._waiters.remove(waiter)
 
 DoneAndNotDoneFutures = collections.namedtuple(
-        'DoneAndNotDoneFutures', 'done not_done')
+    'DoneAndNotDoneFutures', 'done not_done'
+)
 def wait(fs, timeout=None, return_when=ALL_COMPLETED):
     """Wait for the futures in the given sequence to complete.
 

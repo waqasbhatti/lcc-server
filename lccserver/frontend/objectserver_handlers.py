@@ -291,7 +291,8 @@ class ObjectInfoHandler(BaseHandler):
             conditions="objectid = '%s'" % objectid.strip(),
             lcclist=[collection],
             incoming_userid=self.current_user['user_id'],
-            incoming_role=self.current_user['user_role']
+            incoming_role=self.current_user['user_role'],
+            override_action='view'
         )
 
         if access_check and len(access_check[collection]['result']) > 0:

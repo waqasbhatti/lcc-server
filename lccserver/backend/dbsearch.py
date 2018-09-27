@@ -2092,17 +2092,20 @@ def sqlite_fulltext_search(
 
 
 
-def sqlite_column_search(basedir,
-                         getcolumns=None,
-                         conditions=None,
-                         sortby=None,
-                         limit=None,
-                         lcclist=None,
-                         raiseonfail=False,
-                         fail_if_conditions_invalid=True,
-                         incoming_userid=2,
-                         incoming_role='anonymous',
-                         censor_searchargs=False):
+def sqlite_column_search(
+        basedir,
+        getcolumns=None,
+        conditions=None,
+        sortby=None,
+        limit=None,
+        lcclist=None,
+        raiseonfail=False,
+        fail_if_conditions_invalid=True,
+        incoming_userid=2,
+        incoming_role='anonymous',
+        censor_searchargs=False,
+        override_action=None,
+):
     '''This runs an arbitrary column search.
 
     basedir is the directory where lcc-index.sqlite is located.
@@ -2359,7 +2362,9 @@ def sqlite_column_search(basedir,
                     check_user_access(
                         userid=incoming_userid,
                         role=incoming_role,
-                        action='list',
+                        action=(
+                            'list' if not override_action else override_action
+                        ),
                         target_name='object',
                         target_owner=x['owner'],
                         target_visibility=x['visibility'],
