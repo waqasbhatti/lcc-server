@@ -387,7 +387,7 @@ class BaseHandler(tornado.web.RequestHandler):
         elif current_user and current_user['user_role'] in ('superuser',
                                                             'staff'):
 
-            user_account_box = self.superuser_account_box.format(
+            user_account_box = self.admin_account_box.format(
                 current_user=current_user['email']
             )
 
