@@ -1892,125 +1892,133 @@ var lcc_ui = {
         //
         let collection_row = `
 <div class="row mt-2">
-<div class="col-12">
+  <div class="col-12">
 
-<h4><a id="lccid-${db_collection_id.replace(/_/g,'-')}"></a>${collection_name} (<code>${db_collection_id}</code>)</h4>
+  <h3><a id="lccid-${db_collection_id.replace(/_/g,'-')}"></a>${collection_name} (<code>${db_collection_id}</code>)</h3>
 
-<div class="row">
+  <div class="row">
 
-<div class="col-sm-12 col-md-3">
-<h5>About this collection</h5>
+    <div class="col-sm-12 col-md-4">
+      <h4>About this collection</h4>
 
-<div class="row">
-<div class="col-12">
-${lcc_ui.bibcode_linkify(description)}
-</div>
-</div>
+      <div class="row">
+        <div class="col-12">
+          ${lcc_ui.bibcode_linkify(description)}
+        </div>
+      </div>
 
-<div class="row mt-2">
-<div class="col-12">
+      <div class="row mt-2">
+        <div class="col-12">
 
-<table class="table table-sm">
-<tr>
-<th scope="row">Objects</th>
-<td>${nobjects}</td>
-</tr>
-<tr>
-<th scope="row">Center [J2000 deg]</th>
-<td>(${center_ra}, ${center_decl})</td>
-</tr>
-<tr>
-<th scope="row">Updated [UTC]</th>
-<td>${last_updated}</td>
-</tr>
-<tr>
-<th scope="row">Project</th>
-<td>${project}</td>
-</tr>
-<tr>
-<th scope="row">Citation</th>
-<td>${citation}</td>
-</tr>
-</table>
+          <table class="table table-sm">
+            <tr>
+              <th scope="row">Objects</th>
+              <td>${nobjects}</td>
+            </tr>
+            <tr>
+              <th scope="row">Center [J2000 deg]</th>
+              <td>(${center_ra}, ${center_decl})</td>
+            </tr>
+            <tr>
+              <th scope="row">Updated [UTC]</th>
+              <td>${last_updated}</td>
+            </tr>
+            <tr>
+              <th scope="row">Project</th>
+              <td>${project}</td>
+            </tr>
+            <tr>
+              <th scope="row">Citation</th>
+              <td>${citation}</td>
+            </tr>
+          </table>
 
-</div>
-</div>
+          <p><a href="#lcc-coverage">[back to map]</a></p>
 
-</div>
+        </div>
+      </div>
 
-<div class="col-sm-12 col-md-5">
-<h5>Available database columns</h5>
-<div class="collection-column-list">
-${formatted_column_list}
-</div>
-</div>
+    </div>
 
-<div class="col-sm-12 col-md-4">
+    <div class="col-sm-12 col-md-8">
+      <div class="row">
 
-<h5>Search in this collection</h5>
+        <div class="col-sm-12 col-md-6">
+          <h4>Search in this collection</h4>
 
-<ul class="list-unstyled">
+          <ul class="list-unstyled">
 
-<li>
-<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="conesearch">
-Cone search to find objects by their coordinates
-</a>
-</li>
+            <li>
+              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="conesearch">
+                Cone search to find objects by their coordinates
+              </a>
+            </li>
 
-<li>
-<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="ftsquery">
-Full-text search to find objects by name or description
-</a>
-</li>
+            <li>
+              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="ftsquery">
+                Full-text search to find objects by name or description
+              </a>
+            </li>
 
-<li>
-<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="columnsearch">
-Build a database column search query for objects
-</a>
-</li>
+            <li>
+              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="columnsearch">
+                Build a database column search query for objects
+              </a>
+            </li>
 
-<li>
-<a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="xmatch">
-Cross-match to objects in an uploaded list
-</a>
-</li>
+            <li>
+              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="xmatch">
+                Cross-match to objects in an uploaded list
+              </a>
+            </li>
 
-</ul>
+          </ul>
+        </div>
 
+        <div class="col-sm-12 col-md-6">
+          <h4>Explore this collection</h4>
 
-<h5>Explore this collection</h5>
+            <ul class="list-unstyled">
 
-<ul class="list-unstyled">
+              <li>
+                <a href="#" class="collection-100random-init" data-collection="${db_collection_id}">
+                  100 random objects from this collection
+                </a>
+             </li>
 
-<li>
-<a href="#" class="collection-100random-init" data-collection="${db_collection_id}">
-100 random objects from this collection
-</a>
-</li>
+             <li>
+               <a href="#" class="collection-centercone-init" data-collection="${db_collection_id}">
+                 100 objects within 1 degree of the collection's center
+               </a>
+            </li>
 
-<li>
-<a href="#" class="collection-centercone-init" data-collection="${db_collection_id}">
-100 objects within 1 degree of the collection's center
-</a>
-</li>
+            <li>
+              <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
+                Top 100 objects sorted by their Stetson <em>J</em> variabiity index
+              </a>
+           </li>
 
-<li>
-<a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
-Top 100 objects sorted by their Stetson <em>J</em> variabiity index
-</a>
-</li>
+           <li>
+             <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
+               Top 100 objects sorted by number of LC measurements
+             </a>
+          </li>
 
-<li>
-<a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
-Top 100 objects sorted by the number of their LC measurements
-</a>
-</li>
+       </ul>
 
+     </div>
+  </div>
 
-</ul>
+  <div class="row">
+    <div class="col-12">
 
-<p><a href="#lcc-coverage">[back to map]</a></p>
-</div>
+      <h4>Available database columns</h4>
+      <div class="collection-column-list">
+        ${formatted_column_list}
+      </div>
+    </div>
+
+  </div>
 
 </div>
 `;
