@@ -1909,89 +1909,95 @@ var lcc_ui = {
 <div class="row mt-2">
   <div class="col-12">
 
-  <h3><a id="lccid-${db_collection_id.replace(/_/g,'-')}"></a>${collection_name} (<code>${db_collection_id}</code>)</h3>
+    <h3><a id="lccid-${db_collection_id.replace(/_/g,'-')}"></a>${collection_name} (<code>${db_collection_id}</code>)</h3>
 
-  <div class="row">
+    <div class="row">
 
-    <div class="col-sm-12 col-md-4">
-      <h4>About this collection</h4>
+      <div class="col-sm-12 col-md-4">
 
-      <div class="row">
-        <div class="col-12">
-          ${lcc_ui.bibcode_linkify(description)}
+        <h4>About this collection</h4>
+
+        <div class="row">
+          <div class="col-12">
+            ${lcc_ui.bibcode_linkify(description)}
+          </div>
         </div>
+
+        <div class="row mt-2">
+          <div class="col-12">
+
+            <table class="table table-sm">
+              <tr>
+                <th scope="row">Objects</th>
+                <td>${nobjects}</td>
+              </tr>
+              <tr>
+                <th scope="row">Center [J2000 deg]</th>
+                <td>(${center_ra}, ${center_decl})</td>
+              </tr>
+              <tr>
+                <th scope="row">Updated [UTC]</th>
+                <td>${last_updated}</td>
+              </tr>
+              <tr>
+                <th scope="row">Project</th>
+                <td>${project}</td>
+              </tr>
+              <tr>
+                <th scope="row">Citation</th>
+                <td>${citation}</td>
+              </tr>
+            </table>
+
+            <p><a href="#lcc-coverage">[back to map]</a></p>
+
+          </div>
+        </div>
+
       </div>
 
-      <div class="row mt-2">
-        <div class="col-12">
+      <div class="col-sm-12 col-md-4">
 
-          <table class="table table-sm">
-            <tr>
-              <th scope="row">Objects</th>
-              <td>${nobjects}</td>
-            </tr>
-            <tr>
-              <th scope="row">Center [J2000 deg]</th>
-              <td>(${center_ra}, ${center_decl})</td>
-            </tr>
-            <tr>
-              <th scope="row">Updated [UTC]</th>
-              <td>${last_updated}</td>
-            </tr>
-            <tr>
-              <th scope="row">Project</th>
-              <td>${project}</td>
-            </tr>
-            <tr>
-              <th scope="row">Citation</th>
-              <td>${citation}</td>
-            </tr>
-          </table>
+        <div class="row">
+          <div class="col-sm-12">
 
-          <p><a href="#lcc-coverage">[back to map]</a></p>
+            <h4>Search in this collection</h4>
 
-        </div>
-      </div>
+            <ul class="list-unstyled">
 
-    </div>
+              <li>
+                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="conesearch">
+                  Cone search to find objects by their coordinates
+                </a>
+              </li>
 
-    <div class="col-sm-12 col-md-8">
-      <div class="row">
+              <li>
+                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="ftsquery">
+                  Full-text search to find objects by name or description
+                </a>
+              </li>
 
-        <div class="col-sm-12 col-md-6">
-          <h4>Search in this collection</h4>
+              <li>
+                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="columnsearch">
+                  Build a database column search query for objects
+                </a>
+              </li>
 
-          <ul class="list-unstyled">
+              <li>
+                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="xmatch">
+                  Cross-match to objects in an uploaded list
+                </a>
+              </li>
 
-            <li>
-              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="conesearch">
-                Cone search to find objects by their coordinates
-              </a>
-            </li>
+            </ul>
 
-            <li>
-              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="ftsquery">
-                Full-text search to find objects by name or description
-              </a>
-            </li>
-
-            <li>
-              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="columnsearch">
-                Build a database column search query for objects
-              </a>
-            </li>
-
-            <li>
-              <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="xmatch">
-                Cross-match to objects in an uploaded list
-              </a>
-            </li>
-
-          </ul>
+          </div>
         </div>
 
-        <div class="col-sm-12 col-md-6">
-          <h4>Explore this collection</h4>
+        <div class="row">
+          <div class="col-sm-12">
+
+            <h4>Explore this collection</h4>
 
             <ul class="list-unstyled">
 
@@ -1999,54 +2005,60 @@ var lcc_ui = {
                 <a href="#" class="collection-100random-init" data-collection="${db_collection_id}">
                   100 random objects from this collection
                 </a>
-             </li>
+              </li>
 
-             <li>
-               <a href="#" class="collection-centercone-init" data-collection="${db_collection_id}">
-                 100 objects within 1 degree of the collection's center
-               </a>
-            </li>
+              <li>
+                <a href="#" class="collection-centercone-init" data-collection="${db_collection_id}">
+                  100 objects within 1 degree of the collection's center
+                </a>
+              </li>
 
-            <li>
-              <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
-                Top 100 objects sorted by their Stetson <em>J</em> variabiity index
-              </a>
-           </li>
+              <li>
+                <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
+                  Top 100 objects sorted by their Stetson <em>J</em> variabiity index
+                </a>
+              </li>
 
-           <li>
-             <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
-               Top 100 objects sorted by number of LC measurements
-             </a>
-          </li>
+              <li>
+                <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
+                  Top 100 objects sorted by number of LC measurements
+                </a>
+              </li>
+            </ul>
 
-       </ul>
+          </div>
+        </div>
 
-     </div>
-  </div>
-
-  <div class="row">
-    <div class="col-12">
-
-      <h4>Available database columns</h4>
-
-      <div class="collection-column-list">
-        <details>
-        <summary>List of full-text-search indexed columns</summary>
-        ${formatted_ftscol_list}
-        </details>
       </div>
 
-      <div class="mt-2 collection-column-list">
-        <details>
-        <summary>List of other indexed columns</summary>
-        ${formatted_indexedcol_list}
-        </details>
+      <div class="col-sm-12 col-md-4">
+        <div class="row">
+
+          <div class="col-12">
+
+            <h4>Available database columns</h4>
+
+            <div class="collection-column-list">
+              <details>
+                <summary>List of full-text-search indexed columns</summary>
+                ${formatted_ftscol_list}
+              </details>
+            </div>
+
+            <div class="mt-2 collection-column-list">
+              <details>
+                <summary>List of other indexed columns</summary>
+                ${formatted_indexedcol_list}
+              </details>
+            </div>
+
+          </div>
+        </div>
+
       </div>
 
     </div>
-
   </div>
-
 </div>
 `;
 
