@@ -51,8 +51,8 @@ try:
 
     from shapely.ops import cascaded_union, polygonize
     import shapely.geometry as geometry
-    from shapeply.geometry.polygon import Polygon
-    from shapeply.geometry.multipolygon import MultiPolygon
+    from shapely.geometry.polygon import Polygon
+    from shapely.geometry.multipolygon import MultiPolygon
 
     import matplotlib
     import matplotlib.patheffects as path_effects
@@ -63,7 +63,7 @@ try:
 except ImportError:
     raise ImportError(
         "The following packages must be installed (via pip) "
-        "to use this module:"
+        "to use this module: "
         "matplotlib>=2.0, shapely>=1.6, astropy>=3.0, and scour>=0.37"
     )
 
@@ -622,7 +622,7 @@ def collection_overview_plot(collection_dirlist,
     ax.set_ylabel('declination [deg]')
 
     ax.legend(
-        loc='lower center',
+        loc='lower right',
         fontsize=14,
         numpoints=1,
         scatterpoints=1,

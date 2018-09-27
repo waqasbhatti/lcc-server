@@ -490,6 +490,19 @@ var lcc_ui = {
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
 
+            let searchparams = {
+                collections: [collection],
+                columns: ['sdssr', 'ndet', 'dered_jmag_kmag'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000)',
+                visibility: 'unlisted',
+                sortspec: JSON.stringify([['sdssr','asc']]),
+                samplespec: 100,
+                limitspec: null,
+            };
+
+            lcc_search.do_columnsearch(searchparams);
+            $('#results-tab').click();
+
         });
 
 
@@ -498,6 +511,26 @@ var lcc_ui = {
 
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
+            let collind = lcc_ui.collections.db_collection_id.indexOf(collection);
+
+            let center_ra = ((lcc_ui.collections.minra[collind] +
+                              lcc_ui.collections.maxra[collind])/2.0);
+            let center_decl = ((lcc_ui.collections.mindecl[collind] +
+                                lcc_ui.collections.maxdecl[collind])/2.0);
+
+            let searchparams = {
+                coords: `${center_ra} ${center_decl} 60.0`,
+                collections: [collection],
+                columns: ['sdssr', 'ndet', 'dered_jmag_kmag'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000)',
+                visibility: 'unlisted',
+                sortspec: JSON.stringify([['dist_arcsec','asc']]),
+                samplespec: 100,
+                limitspec: null,
+            };
+
+            lcc_search.do_conesearch(searchparams);
+            $('#results-tab').click();
 
         });
 
@@ -508,6 +541,23 @@ var lcc_ui = {
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
 
+            // get this collection's magcols
+            let collind = lcc_ui.collections.db_collection_id.indexOf(collection);
+            let magcol = lcc_ui.collections.lcmagcols[collind].split(',')[0];
+
+            let searchparams = {
+                collections: [collection],
+                columns: [ magcol+'_stetsonj', 'sdssr', 'ndet', 'dered_jmag_kmag'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000)',
+                visibility: 'unlisted',
+                sortspec: JSON.stringify([[magcol + '_stetsonj','desc']]),
+                samplespec: null,
+                limitspec: 100,
+            };
+
+            lcc_search.do_columnsearch(searchparams);
+            $('#results-tab').click();
+
         });
 
 
@@ -517,13 +567,18 @@ var lcc_ui = {
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
 
-        });
+            let searchparams = {
+                collections: [collection],
+                columns: [ 'simbad_best_mainid', 'simbad_best_allids', 'simbad_best_objtype', 'sdssr'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000) and (simbad_best_mainid notnull)',
+                visibility: 'unlisted',
+                sortspec: JSON.stringify([['sdssr','asc']]),
+                samplespec: null,
+                limitspec: 100,
+            };
 
-        // bind the fastmovers-init control
-        $('#collection-container').on('click', '.collection-fastmovers-init', function(evt) {
-
-            evt.preventDefault();
-            let collection = $(this).attr('data-collection');
+            lcc_search.do_columnsearch(searchparams);
+            $('#results-tab').click();
 
         });
 
@@ -533,7 +588,42 @@ var lcc_ui = {
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
 
+            let searchparams = {
+                collections: [collection],
+                columns: [ 'propermotion', 'gaia_parallax', 'gaia_parallax_err', 'gaia_mag', 'gaia_absmag', 'sdssr'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000) and (gaia_absmag notnull) and (gaia_absmag gt 3.0)',
+                visibility: 'unlisted',
+                sortspec: JSON.stringify([['gaia_absmag','desc']]),
+                samplespec: null,
+                limitspec: 100,
+            };
+
+            lcc_search.do_columnsearch(searchparams);
+            $('#results-tab').click();
+
         });
+
+        // bind the gaiadwarfs-init control
+        $('#collection-container').on('click', '.collection-fastmovers-init', function(evt) {
+
+            evt.preventDefault();
+            let collection = $(this).attr('data-collection');
+
+            let searchparams = {
+                collections: [collection],
+                columns: ['gaia_parallax', 'gaia_parallax_err', 'propermotion', 'gaia_mag', 'gaia_absmag', 'sdssr'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000) and (gaia_parallax notnull)',
+                visibility: 'unlisted',
+                sortspec: JSON.stringify([['gaia_parallax','desc']]),
+                samplespec: null,
+                limitspec: 100,
+            };
+
+            lcc_search.do_columnsearch(searchparams);
+            $('#results-tab').click();
+
+        });
+
 
         /////////////////////////
         // USER PREFS BINDINGS //
@@ -2108,19 +2198,19 @@ var lcc_ui = {
 
               <li>
                 <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="conesearch">
-                  Cone search to find objects by their coordinates
+                  Find objects by their coordinates
                 </a>
               </li>
 
               <li>
                 <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="ftsquery">
-                  Full-text search to find objects by name or description
+                  Find objects by name or description
                 </a>
               </li>
 
               <li>
                 <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="columnsearch">
-                  Build a database column search query for objects
+                  Find objects using database column filters
                 </a>
               </li>
 
@@ -2159,7 +2249,8 @@ var lcc_ui = {
                   100 random objects with SIMBAD counterparts
                 </a>
               </li>
-
+            </ul>
+            <ul class="list-unstyled">
               <li>
                 <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
                   Top 100 objects sorted by decreasing Stetson <em>J<sub>var</sub></em>
@@ -2802,102 +2893,142 @@ var lcc_search = {
     },
 
 
-    do_xmatch: function () {
 
+    do_xmatch: function (override_params) {
+
+        var _xsrf;
+        var emailwhendone;
+        var posturl = '/api/xmatch';
+        var postparams;
         var proceed_step1 = false;
         var proceed_step2 = false;
 
-        // get the collections to use
-        var collections = $('#xmatch-collection-select').val();
+        if (override_params !== undefined) {
 
-        if (collections.length == 0) {
-            collections = null;
-        }
-
-        // get the columns to retrieve
-        var columns = $('#xmatch-column-select').val();
-
-        // get the xmatch input
-        proceed_step1 = lcc_search.validate_xmatch_query('#xmatch-query');
-        var xmatchtext = $('#xmatch-query').val().trim();
-
-        // get the xmatch distance param
-        var xmatchdistance = parseFloat($('#xmatch-matchradius').val().trim());
-        if (xmatchdistance != undefined &&
-            !isNaN(xmatchdistance) &&
-            xmatchdistance > 0.0) {
+            proceed_step1 = true;
             proceed_step2 = true;
+
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#xmatch-emailwhendone-check').prop('checked');
+
+            // get the value of the _xsrf token
+            _xsrf = $('#xmatch-form > input[type="hidden"]').val();
+
+            // put together the request params
+            postparams = {
+                _xsrf:_xsrf,
+                xmq: override_params.xmq,
+                xmd: override_params.xmd,
+                collections: override_params.collections,
+                columns: override_params.columns,
+                filters: override_params.filters,
+                visibility: override_params.visibility,
+                sortspec: override_params.sortspec,
+                samplespec: override_params.samplespec,
+                limitspec: override_params.limitspec,
+                emailwhendone: emailwhendone
+            };
+
         }
+
         else {
+
+            proceed_step1 = false;
             proceed_step2 = false;
-        }
 
-        // parse the extra filters
-        var [filters, filter_cols] = lcc_ui.parse_column_filters('xmatch');
+            // get the collections to use
+            var collections = $('#xmatch-collection-select').val();
 
-        if (filters.length == 0) {
-            filters = null;
-        }
-        // add any filter enabled columns to the columns to retrieve
-        else {
-            for (let thisfilt of filter_cols) {
-                if (columns.indexOf(thisfilt) == -1) {
-                    columns.push(thisfilt);
+            if (collections.length == 0) {
+                collections = null;
+            }
+
+            // get the columns to retrieve
+            var columns = $('#xmatch-column-select').val();
+
+            // get the xmatch input
+            proceed_step1 = lcc_search.validate_xmatch_query('#xmatch-query');
+            var xmatchtext = $('#xmatch-query').val().trim();
+
+            // get the xmatch distance param
+            var xmatchdistance = parseFloat($('#xmatch-matchradius').val().trim());
+            if (xmatchdistance != undefined &&
+                !isNaN(xmatchdistance) &&
+                xmatchdistance > 0.0) {
+                proceed_step2 = true;
+            }
+            else {
+                proceed_step2 = false;
+            }
+
+            // parse the extra filters
+            var [filters, filter_cols] = lcc_ui.parse_column_filters('xmatch');
+
+            if (filters.length == 0) {
+                filters = null;
+            }
+            // add any filter enabled columns to the columns to retrieve
+            else {
+                for (let thisfilt of filter_cols) {
+                    if (columns.indexOf(thisfilt) == -1) {
+                        columns.push(thisfilt);
+                    }
                 }
             }
+
+            // get the visibility parameter
+            var visibility = $('#xmatch-visibility-select').val();
+
+            // get the sort spec
+            var sortcol = $('#xmatch-sortcolumn-select').val();
+            var sortorder = $('#xmatch-sortorder-select').val();
+
+            // this is a list of list items
+            var sortspec = JSON.stringify([[sortcol, sortorder]]);
+
+            // also, add the sortby column to the retrieval column list
+            var sortcol_in_columns = columns.find(function (elem) {
+                return elem == sortcol;
+            });
+            if (!sortcol_in_columns) {
+                columns.push(sortcol);
+            }
+
+            // get the sample spec
+            var samplespec = parseInt($('#xmatch-samplerows').val());
+            if (isNaN(samplespec) || !$('#xmatch-samplecheck').prop('checked')) {
+                samplespec = null;
+            }
+
+            // get the limit spec
+            var limitspec = parseInt($('#xmatch-limitrows').val());
+            if (isNaN(limitspec) || !$('#xmatch-limitcheck').prop('checked')) {
+                limitspec = null;
+            }
+
+            // get the value of the _xsrf token
+            _xsrf = $('#xmatch-form > input[type="hidden"]').val();
+
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#xmatch-emailwhendone-check').prop('checked');
+
+            // put together the request params
+            posturl = '/api/xmatch';
+            postparams = {
+                _xsrf:_xsrf,
+                xmq: xmatchtext,
+                xmd: xmatchdistance,
+                collections: collections,
+                columns: columns,
+                filters: filters,
+                visibility: visibility,
+                sortspec: sortspec,
+                samplespec: samplespec,
+                limitspec: limitspec,
+                emailwhendone: emailwhendone
+            };
+
         }
-
-        // get the visibility parameter
-        var visibility = $('#xmatch-visibility-select').val();
-
-        // get the sort spec
-        var sortcol = $('#xmatch-sortcolumn-select').val();
-        var sortorder = $('#xmatch-sortorder-select').val();
-
-        // this is a list of list items
-        var sortspec = JSON.stringify([[sortcol, sortorder]]);
-
-        // also, add the sortby column to the retrieval column list
-        var sortcol_in_columns = columns.find(function (elem) {
-            return elem == sortcol;
-        });
-        if (!sortcol_in_columns) {
-            columns.push(sortcol);
-        }
-
-        // get the sample spec
-        var samplespec = parseInt($('#xmatch-samplerows').val());
-        if (isNaN(samplespec) || !$('#xmatch-samplecheck').prop('checked')) {
-            samplespec = null;
-        }
-
-        // get the limit spec
-        var limitspec = parseInt($('#xmatch-limitrows').val());
-        if (isNaN(limitspec) || !$('#xmatch-limitcheck').prop('checked')) {
-            limitspec = null;
-        }
-
-        // get the value of the _xsrf token
-        var _xsrf = $('#xmatch-form > input[type="hidden"]').val();
-
-        // get the value of the email_when_done checkbox
-        var emailwhendone = $('#xmatch-emailwhendone-check').prop('checked');
-
-        // put together the request params
-        var posturl = '/api/xmatch';
-        var postparams = {
-            xmq: xmatchtext,
-            xmd: xmatchdistance,
-            _xsrf:_xsrf,
-            collections: collections,
-            columns: columns,
-            filters: filters,
-            visibility: visibility,
-            sortspec: sortspec,
-            samplespec: samplespec,
-            limitspec: limitspec,
-            emailwhendone: emailwhendone
-        };
 
         if (proceed_step1 && proceed_step2) {
 
@@ -2920,113 +3051,150 @@ var lcc_search = {
 
             // we'll use oboe to fire the query and listen on events that fire
             // when we detect a 'message' key in the JSON
-            nrun = lcc_search.run_search_query(posturl,
-                                               postparams,
-                                               'POST',
-                                               'xmatch',
-                                               nrun);
+            nrun = lcc_search.run_search_query(
+                posturl,
+                postparams,
+                'POST',
+                'xmatch',
+                nrun
+            );
 
         }
+
         else {
             var error_message =
                 "Invalid input in the cross-match object list input box.";
             lcc_ui.alert_box(error_message, 'secondary');
         }
 
+
     },
 
 
 
     // this runs a full column search
-    do_columnsearch: function () {
+    do_columnsearch: function (override_params) {
 
+        var _xsrf;
+        var emailwhendone;
+        var posturl = '/api/columnsearch';
+        var postparams;
         var proceed = false;
 
-        // get the collections to use
-        var collections = $('#columnsearch-collection-select').val();
+        if (override_params !== undefined) {
 
-        if (collections.length == 0) {
-            collections = null;
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#columnsearch-emailwhendone-check').prop('checked');
+
+            // get the value of the _xsrf token
+            _xsrf = $('#columnsearch-form > input[type="hidden"]').val();
+
+            // get the params
+            postparams = {
+                _xsrf:_xsrf,
+                collections: override_params.collections,
+                columns: override_params.columns,
+                filters: override_params.filters,
+                visibility: override_params.visibility,
+                sortspec: override_params.sortspec,
+                samplespec: override_params.samplespec,
+                limitspec: override_params.limitspec,
+                emailwhendone: emailwhendone
+            };
+
+            proceed = true;
+
         }
 
-        // get the columns to retrieve
-        var columns = $('#columnsearch-column-select').val();
-
-        // parse the extra filters
-        var [filters, filter_cols] = lcc_ui.parse_column_filters('columnsearch');
-
-        if (filters.length == 0) {
-            filters = null;
-        }
-        // add any filter enabled columns to the columns to retrieve
         else {
-            for (let thisfilt of filter_cols) {
-                if (columns.indexOf(thisfilt) == -1) {
-                    columns.push(thisfilt);
+
+            // get the collections to use
+            var collections = $('#columnsearch-collection-select').val();
+
+            if (collections.length == 0) {
+                collections = null;
+            }
+
+            // get the columns to retrieve
+            var columns = $('#columnsearch-column-select').val();
+
+            // parse the extra filters
+            var [filters, filter_cols] = lcc_ui.parse_column_filters('columnsearch');
+
+            if (filters.length == 0) {
+                filters = null;
+            }
+            // add any filter enabled columns to the columns to retrieve
+            else {
+                for (let thisfilt of filter_cols) {
+                    if (columns.indexOf(thisfilt) == -1) {
+                        columns.push(thisfilt);
+                    }
                 }
             }
+
+            // if there are no filters, we won't be fetching the entire catalog
+            if (filters == null || filters.length == 0) {
+                filters = null;
+                lcc_ui.alert_box("No column filters were specified, " +
+                                 "not going to fetch entire collection tables.",
+                                 'secondary');
+                proceed = false;
+            }
+            else {
+                proceed = true;
+            }
+
+            // get the visibility parameter
+            var visibility = $('#columnsearch-visibility-select').val();
+
+            // get the sort spec
+            var sortcol = $('#columnsearch-sortcolumn-select').val();
+            var sortorder = $('#columnsearch-sortorder-select').val();
+
+            // this is a list of list items
+            var sortspec = JSON.stringify([[sortcol, sortorder]]);
+
+            // also, add the sortby column to the retrieval column list
+            var sortcol_in_columns = columns.find(function (elem) {
+                return elem == sortcol;
+            });
+            if (!sortcol_in_columns) {
+                columns.push(sortcol);
+            }
+
+            // get the sample spec
+            var samplespec = parseInt($('#columnsearch-samplerows').val());
+            if (isNaN(samplespec) || !$('#columnsearch-limitcheck').prop('checked')) {
+                samplespec = null;
+            }
+
+            // get the limit spec
+            var limitspec = parseInt($('#columnsearch-limitrows').val());
+            if (isNaN(limitspec) || !$('#columnsearch-limitcheck').prop('checked')) {
+                limitspec = null;
+            }
+
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#columnsearch-emailwhendone-check').prop('checked');
+
+            // get the value of the _xsrf token
+            _xsrf = $('#columnsearch-form > input[type="hidden"]').val();
+
+            // get the params
+            postparams = {
+                _xsrf:_xsrf,
+                collections: collections,
+                columns: columns,
+                filters: filters,
+                visibility: visibility,
+                sortspec: sortspec,
+                samplespec: samplespec,
+                limitspec: limitspec,
+                emailwhendone: emailwhendone
+            };
+
         }
-
-        // if there are no filters, we won't be fetching the entire catalog
-        if (filters == null || filters.length == 0) {
-            filters = null;
-            lcc_ui.alert_box("No column filters were specified, " +
-                             "not going to fetch entire collection tables.",
-                             'secondary');
-            proceed = false;
-        }
-        else {
-            proceed = true;
-        }
-
-        // get the visibility parameter
-        var visibility = $('#columnsearch-visibility-select').val();
-
-        // get the sort spec
-        var sortcol = $('#columnsearch-sortcolumn-select').val();
-        var sortorder = $('#columnsearch-sortorder-select').val();
-
-        // this is a list of list items
-        var sortspec = JSON.stringify([[sortcol, sortorder]]);
-
-        // also, add the sortby column to the retrieval column list
-        var sortcol_in_columns = columns.find(function (elem) {
-            return elem == sortcol;
-        });
-        if (!sortcol_in_columns) {
-            columns.push(sortcol);
-        }
-
-        // get the sample spec
-        var samplespec = parseInt($('#columnsearch-samplerows').val());
-        if (isNaN(samplespec) || !$('#columnsearch-limitcheck').prop('checked')) {
-            samplespec = null;
-        }
-
-        // get the limit spec
-        var limitspec = parseInt($('#columnsearch-limitrows').val());
-        if (isNaN(limitspec) || !$('#columnsearch-limitcheck').prop('checked')) {
-            limitspec = null;
-        }
-
-        // get the value of the email_when_done checkbox
-        var emailwhendone = $('#columnsearch-emailwhendone-check').prop('checked');
-
-        // get the value of the _xsrf token
-        var _xsrf = $('#columnsearch-form > input[type="hidden"]').val();
-
-        var posturl = '/api/columnsearch';
-        var postparams = {
-            _xsrf:_xsrf,
-            collections: collections,
-            columns: columns,
-            filters: filters,
-            visibility: visibility,
-            sortspec: sortspec,
-            samplespec: samplespec,
-            limitspec: limitspec,
-            emailwhendone: emailwhendone
-        };
 
         if (proceed) {
 
@@ -3047,14 +3215,16 @@ var lcc_search = {
                                        '</span>');
 
             // use the run_search_query to hit the backend
-            nrun = lcc_search.run_search_query(posturl,
-                                               postparams,
-                                               'POST',
-                                               'columnsearch',
-                                               nrun);
-
+            nrun = lcc_search.run_search_query(
+                posturl,
+                postparams,
+                'POST',
+                'columnsearch',
+                nrun
+            );
 
         }
+
         else {
             var error_message =
                 "No valid column filters were found for the column search query.";
@@ -3063,95 +3233,132 @@ var lcc_search = {
 
     },
 
-    // this runs an FTS query
-    do_ftsquery: function () {
 
+
+    // this runs an FTS query
+    do_ftsquery: function (override_params) {
+
+        var _xsrf;
+        var emailwhendone;
+        var posturl = '/api/ftsquery';
+        var postparams;
         var proceed = false;
 
-        // get the collections to use
-        var collections = $('#ftsquery-collection-select').val();
+        if (override_params !== undefined) {
 
-        if (collections.length == 0) {
-            collections = null;
-        }
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#ftsquery-emailwhendone-check').prop('checked');
 
-        // get the columns to retrieve
-        var columns = $('#ftsquery-column-select').val();
+            // get the value of the _xsrf token
+            _xsrf = $('#ftsquery-form > input[type="hidden"]').val();
 
-        // get the coord parameter
-        var ftstext = $('#ftsquery-query').val().trim();
-        if (ftstext.length > 0) {
+            // get the params
+            postparams = {
+                _xsrf:_xsrf,
+                ftstext: override_params.ftstext,
+                sesame: override_params.sesame_check,
+                collections: override_params.collections,
+                columns: override_params.columns,
+                filters: override_params.filters,
+                visibility: override_params.visibility,
+                sortspec: override_params.sortspec,
+                samplespec: override_params.samplespec,
+                limitspec: override_params.limitspec,
+                emailwhendone: emailwhendone
+            };
+
             proceed = true;
+
         }
 
-        // see if the user wants to resolve object names with SESAME
-        var sesame_check = $('#ftsquery-sesame-check').prop('checked');
-
-        // parse the extra filters
-        var [filters, filter_cols] = lcc_ui.parse_column_filters('ftsquery');
-
-        if (filters.length == 0) {
-            filters = null;
-        }
-        // add any filter enabled columns to the columns to retrieve
         else {
-            for (let thisfilt of filter_cols) {
-                if (columns.indexOf(thisfilt) == -1) {
-                    columns.push(thisfilt);
+
+            // get the collections to use
+            var collections = $('#ftsquery-collection-select').val();
+
+            if (collections.length == 0) {
+                collections = null;
+            }
+
+            // get the columns to retrieve
+            var columns = $('#ftsquery-column-select').val();
+
+            // get the coord parameter
+            var ftstext = $('#ftsquery-query').val().trim();
+            if (ftstext.length > 0) {
+                proceed = true;
+            }
+
+            // see if the user wants to resolve object names with SESAME
+            var sesame_check = $('#ftsquery-sesame-check').prop('checked');
+
+            // parse the extra filters
+            var [filters, filter_cols] = lcc_ui.parse_column_filters('ftsquery');
+
+            if (filters.length == 0) {
+                filters = null;
+            }
+            // add any filter enabled columns to the columns to retrieve
+            else {
+                for (let thisfilt of filter_cols) {
+                    if (columns.indexOf(thisfilt) == -1) {
+                        columns.push(thisfilt);
+                    }
                 }
             }
+
+            // get the visibility parameter
+            var visibility = $('#ftsquery-visibility-select').val();
+
+            // get the sort spec
+            var sortcol = $('#ftsquery-sortcolumn-select').val();
+            var sortorder = $('#ftsquery-sortorder-select').val();
+
+            // this is a list of list items
+            var sortspec = JSON.stringify([[sortcol, sortorder]]);
+
+            // also, add the sortby column to the retrieval column list
+            var sortcol_in_columns = columns.find(function (elem) {
+                return elem == sortcol;
+            });
+            if (!sortcol_in_columns) {
+                columns.push(sortcol);
+            }
+
+            // get the sample spec
+            var samplespec = parseInt($('#ftsquery-samplerows').val());
+            if (isNaN(samplespec) || !$('#ftsquery-samplecheck').prop('checked')) {
+                samplespec = null;
+            }
+
+            // get the limit spec
+            var limitspec = parseInt($('#ftsquery-limitrows').val());
+            if (isNaN(limitspec) || !$('#ftsquery-limitcheck').prop('checked')) {
+                limitspec = null;
+            }
+
+            // get the value of the _xsrf token
+            _xsrf = $('#ftsquery-form > input[type="hidden"]').val();
+
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#ftsquery-emailwhendone-check').prop('checked');
+
+            posturl = '/api/ftsquery';
+            postparams = {
+                ftstext: ftstext,
+                sesame: sesame_check,
+                _xsrf:_xsrf,
+                collections: collections,
+                columns: columns,
+                filters: filters,
+                visibility: visibility,
+                sortspec: sortspec,
+                samplespec: samplespec,
+                limitspec: limitspec,
+                emailwhendone: emailwhendone
+            };
+
         }
-
-        // get the visibility parameter
-        var visibility = $('#ftsquery-visibility-select').val();
-
-        // get the sort spec
-        var sortcol = $('#ftsquery-sortcolumn-select').val();
-        var sortorder = $('#ftsquery-sortorder-select').val();
-
-        // this is a list of list items
-        var sortspec = JSON.stringify([[sortcol, sortorder]]);
-
-        // also, add the sortby column to the retrieval column list
-        var sortcol_in_columns = columns.find(function (elem) {
-            return elem == sortcol;
-        });
-        if (!sortcol_in_columns) {
-            columns.push(sortcol);
-        }
-
-        // get the sample spec
-        var samplespec = parseInt($('#ftsquery-samplerows').val());
-        if (isNaN(samplespec) || !$('#ftsquery-samplecheck').prop('checked')) {
-            samplespec = null;
-        }
-
-        // get the limit spec
-        var limitspec = parseInt($('#ftsquery-limitrows').val());
-        if (isNaN(limitspec) || !$('#ftsquery-limitcheck').prop('checked')) {
-            limitspec = null;
-        }
-
-        // get the value of the _xsrf token
-        var _xsrf = $('#ftsquery-form > input[type="hidden"]').val();
-
-        // get the value of the email_when_done checkbox
-        var emailwhendone = $('#ftsquery-emailwhendone-check').prop('checked');
-
-        var posturl = '/api/ftsquery';
-        var postparams = {
-            ftstext: ftstext,
-            sesame: sesame_check,
-            _xsrf:_xsrf,
-            collections: collections,
-            columns: columns,
-            filters: filters,
-            visibility: visibility,
-            sortspec: sortspec,
-            samplespec: samplespec,
-            limitspec: limitspec,
-            emailwhendone: emailwhendone
-        };
 
         if (proceed) {
 
@@ -3187,91 +3394,127 @@ var lcc_search = {
 
     },
 
-    // this runs a cone search query
-    do_conesearch: function() {
 
+
+    // this runs a cone search query
+    do_conesearch: function(override_params) {
+
+        var _xsrf;
+        var emailwhendone;
+        var posturl = '/api/conesearch';
+        var postparams;
         var proceed = false;
 
-        // get the collections to use
-        var collections = $('#conesearch-collection-select').val();
+        if (override_params !== undefined) {
 
-        if (collections.length == 0) {
-            collections = null;
-        }
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#conesearch-emailwhendone-check').prop('checked');
 
-        // get the columns to retrieve
-        var columns = $('#conesearch-column-select').val();
+            // get the value of the _xsrf token
+            _xsrf = $('#conesearch-form > input[type="hidden"]').val();
 
-        // get the coord parameter
-        var coords = $('#conesearch-query').val().trim();
-        if (coords.length > 0) {
+            // get the params
+            postparams = {
+                _xsrf:_xsrf,
+                coords: override_params.coords,
+                collections: override_params.collections,
+                columns: override_params.columns,
+                filters: override_params.filters,
+                visibility: override_params.visibility,
+                sortspec: override_params.sortspec,
+                samplespec: override_params.samplespec,
+                limitspec: override_params.limitspec,
+                emailwhendone: emailwhendone
+            };
+
             proceed = true;
+
         }
 
-        // parse the extra filters
-        var [filters, filter_cols] = lcc_ui.parse_column_filters('conesearch');
-
-        if (filters.length == 0) {
-            filters = null;
-        }
-        // add any filter enabled columns to the columns to retrieve
         else {
-            for (let thisfilt of filter_cols) {
-                if (columns.indexOf(thisfilt) == -1) {
-                    columns.push(thisfilt);
+
+            // get the collections to use
+            var collections = $('#conesearch-collection-select').val();
+
+            if (collections.length == 0) {
+                collections = null;
+            }
+
+            // get the columns to retrieve
+            var columns = $('#conesearch-column-select').val();
+
+            // get the coord parameter
+            var coords = $('#conesearch-query').val().trim();
+            if (coords.length > 0) {
+                proceed = true;
+            }
+
+            // parse the extra filters
+            var [filters, filter_cols] = lcc_ui.parse_column_filters('conesearch');
+
+            if (filters.length == 0) {
+                filters = null;
+            }
+            // add any filter enabled columns to the columns to retrieve
+            else {
+                for (let thisfilt of filter_cols) {
+                    if (columns.indexOf(thisfilt) == -1) {
+                        columns.push(thisfilt);
+                    }
                 }
             }
+
+            // get the visibility parameter
+            var visibility = $('#conesearch-visibility-select').val();
+
+            // get the sort spec
+            var sortcol = $('#conesearch-sortcolumn-select').val();
+            var sortorder = $('#conesearch-sortorder-select').val();
+
+            // this is a list of list items
+            var sortspec = JSON.stringify([[sortcol, sortorder]]);
+
+            // also, add the sortby column to the retrieval column list
+            var sortcol_in_columns = columns.find(function (elem) {
+                return elem == sortcol;
+            });
+            if (!sortcol_in_columns) {
+                columns.push(sortcol);
+            }
+
+            // get the sample spec
+            var samplespec = parseInt($('#conesearch-samplerows').val());
+            if (isNaN(samplespec) || !$('#conesearch-samplecheck').prop('checked')) {
+                samplespec = null;
+            }
+
+            // get the limit spec
+            var limitspec = parseInt($('#conesearch-limitrows').val());
+            if (isNaN(limitspec) || !$('#conesearch-limitcheck').prop('checked')) {
+                limitspec = null;
+            }
+
+            // get the value of the _xsrf token
+            _xsrf = $('#conesearch-form > input[type="hidden"]').val();
+
+            // get the value of the email_when_done checkbox
+            emailwhendone = $('#conesearch-emailwhendone-check').prop('checked');
+
+            posturl = '/api/conesearch';
+            postparams = {
+                _xsrf: _xsrf,
+                coords: coords,
+                collections: collections,
+                columns: columns,
+                filters: filters,
+                visibility: visibility,
+                sortspec: sortspec,
+                samplespec: samplespec,
+                limitspec: limitspec,
+                emailwhendone: emailwhendone
+            };
+
         }
-
-        // get the visibility parameter
-        var visibility = $('#conesearch-visibility-select').val();
-
-        // get the sort spec
-        var sortcol = $('#conesearch-sortcolumn-select').val();
-        var sortorder = $('#conesearch-sortorder-select').val();
-
-        // this is a list of list items
-        var sortspec = JSON.stringify([[sortcol, sortorder]]);
-
-        // also, add the sortby column to the retrieval column list
-        var sortcol_in_columns = columns.find(function (elem) {
-            return elem == sortcol;
-        });
-        if (!sortcol_in_columns) {
-            columns.push(sortcol);
-        }
-
-        // get the sample spec
-        var samplespec = parseInt($('#conesearch-samplerows').val());
-        if (isNaN(samplespec) || !$('#conesearch-samplecheck').prop('checked')) {
-            samplespec = null;
-        }
-
-        // get the limit spec
-        var limitspec = parseInt($('#conesearch-limitrows').val());
-        if (isNaN(limitspec) || !$('#conesearch-limitcheck').prop('checked')) {
-            limitspec = null;
-        }
-
-        // get the value of the _xsrf token
-        var _xsrf = $('#conesearch-form > input[type="hidden"]').val();
-
-        // get the value of the email_when_done checkbox
-        var emailwhendone = $('#conesearch-emailwhendone-check').prop('checked');
-
-        var posturl = '/api/conesearch';
-        var postparams = {
-            _xsrf: _xsrf,
-            coords: coords,
-            collections: collections,
-            columns: columns,
-            filters: filters,
-            visibility: visibility,
-            sortspec: sortspec,
-            samplespec: samplespec,
-            limitspec: limitspec,
-            emailwhendone: emailwhendone
-        };
 
         if (proceed) {
 
