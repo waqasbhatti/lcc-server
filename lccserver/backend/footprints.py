@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''collections.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Sep 2018
+'''footprints.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Sep 2018
 License: MIT - see the LICENSE file for the full text.
 
-This contains functions that get info about LC collections, including footprints
-and overlapping calculations.
+This contains functions that get info about LC collection footprints.
 
 '''
 
@@ -45,7 +44,7 @@ import math
 import subprocess
 
 import numpy as np
-from scipy.spatial import ConvexHull, Delaunay
+from scipy.spatial import Delaunay
 
 try:
     from astropy.coordinates import SkyCoord
@@ -76,7 +75,7 @@ from .datasets import results_limit_rows, results_random_sample
 #################
 
 # generating a concave hull (or "alpha shape") of RADEC coverage, using the
-# Delaunay triangulation and removing triangles with too large area .
+# Delaunay triangulation and removing triangles with too large area.
 #
 # originally from:
 # http://blog.thehumangeo.com/2014/05/12/drawing-boundaries-in-python/
@@ -188,16 +187,6 @@ def collection_convex_hull(basedir,
         ra = np.array([x['ra'] for x in rows])
         decl = np.array([x['decl'] for x in rows])
         points = np.column_stack((ra, decl))
-
-        hull = ConvexHull(points)
-
-        hull_ras = []
-        hull_decls = []
-
-        for simplex in hull.simplices:
-
-            hull_ras.append(points[simplex,0])
-            hull_decls.append(points[simplex,1])
 
         # now generate a shapely convex_hull object that we can pickle
         shapely_points = geometry.MultiPoint(list(points))

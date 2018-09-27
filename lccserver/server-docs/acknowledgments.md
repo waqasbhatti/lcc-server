@@ -57,6 +57,7 @@ following packages available on [PyPi](https://pypi.org):
 - [shapely](https://shapely.readthedocs.io/en/latest/)
 - [matplotlib](https://matplotlib.org/)
 - [astropy](http://www.astropy.org)
+- [scour](https://github.com/scour-project/scour)
 
 The databases used for the server include:
 

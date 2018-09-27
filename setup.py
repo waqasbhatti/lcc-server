@@ -61,6 +61,7 @@ EXTRAS_REQUIRE = {
         'matplotlib>=2.0',
         'shapely>=1.6',
         'astropy>=3.0',
+        'scour>=0.37',
     ],
 }
 
