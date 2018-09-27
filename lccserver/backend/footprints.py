@@ -382,7 +382,8 @@ def collection_overview_plot(collection_dirlist,
     # svg font setup
     plt.rcParams['svg.fonttype'] = 'none'
 
-    fig = plt.figure(figsize=(15,12))
+    fig = plt.figure(figsize=(16,12))
+
     ax = fig.add_subplot(111, projection=use_projection)
     ax.set_facecolor('#e2e3e5')
 
@@ -390,10 +391,9 @@ def collection_overview_plot(collection_dirlist,
 
         LOGINFO('plotting the Galactic plane')
 
-        galactic_plane = [
-            SkyCoord(x,0.0,frame='galactic',unit='deg').icrs
-            for x in np.arange(0,360.0,0.25)
-        ]
+        galactic_plane = SkyCoord(
+            np.arange(0,360.0,0.25),0.0,frame='galactic',unit='deg'
+        ).icrs
         galactic_plane_ra = np.array([x.ra.value for x in galactic_plane])
         galactic_plane_decl = np.array([x.dec.value for x in galactic_plane])
         galra = galactic_plane_ra[::]
@@ -416,10 +416,11 @@ def collection_overview_plot(collection_dirlist,
         LOGINFO('plotting the ecliptic plane')
 
         # ecliptic plane
-        ecliptic_equator = [
-            SkyCoord(x,0.0,frame='geocentrictrueecliptic',unit='deg').icrs
-            for x in np.arange(0,360.0,0.25)
-        ]
+        ecliptic_equator = SkyCoord(
+            np.arange(0,360.0,0.25),
+            0.0,
+            frame='geocentrictrueecliptic',unit='deg'
+        ).icrs
 
         ecliptic_equator_ra = np.array(
             [x.ra.value for x in ecliptic_equator]
@@ -441,7 +442,6 @@ def collection_overview_plot(collection_dirlist,
             label='Ecliptic plane',
             rasterized=True
         )
-
 
     #
     # now, we'll go through each collection
@@ -466,6 +466,7 @@ def collection_overview_plot(collection_dirlist,
             covdecls = hull_boundary[:,1]
             # wrap the RAs
             covras[covras > 180.0] = covras[covras > 180.0] - 360.0
+
             ax.fill(
                 np.radians(covras),
                 np.radians(covdecls),
@@ -474,23 +475,31 @@ def collection_overview_plot(collection_dirlist,
                     1.0 * ci/len(collection_dirlist)
                 ),
                 alpha=0.6,
-                rasterized=True
+                rasterized=True,
+                gid="patch-collection-%s-part-%s" % (
+                    footprint['collection'],
+                    0
+                )
+
             )
+
             collection_label = ax.text(
                 np.radians(np.mean(covras)),
                 np.radians(np.mean(covdecls)),
                 footprint['collection'],
-                fontsize=12,
+                fontsize=13,
                 ha='center',
                 va='center',
                 zorder=100,
-                color='#b8daff',
-                url='#fp-collection/%s' % footprint['collection']
+                # color='#b8daff',
+                color='white',
+                url='#fp-collection/%s' % footprint['collection'],
+                gid="label-collection-%s" % footprint['collection'],
             )
             # add an outline to the label so it's visible against any background
             # https://matplotlib.org/users/patheffects_guide.html
             collection_label.set_path_effects(
-                [path_effects.Stroke(linewidth=2, foreground='black'),
+                [path_effects.Stroke(linewidth=3, foreground='black'),
                  path_effects.Normal()]
             )
             collection_labels[footprint['collection']] = {
@@ -498,13 +507,16 @@ def collection_overview_plot(collection_dirlist,
                 'collection_dir':os.path.abspath(cdir)
             }
 
+        # if we have an non-contiguous collection
         elif isinstance(hull_boundary, list):
 
             LOGWARNING('this collection is not contiguous')
 
             part_center_ras, part_center_decls, part_areas = [], [], []
 
-            for part, bound in zip(hull, hull_boundary):
+            for partind, part, bound in zip(range(len(hull)),
+                                            hull,
+                                            hull_boundary):
 
                 covras = bound[:,0]
                 covdecls = bound[:,1]
@@ -518,7 +530,11 @@ def collection_overview_plot(collection_dirlist,
                         1.0 * ci/len(collection_dirlist)
                     ),
                     alpha=0.6,
-                    rasterized=True
+                    rasterized=True,
+                    gid="patch-collection-%s-part-%s" % (
+                        footprint['collection'],
+                        partind
+                    )
                 )
 
                 part_center_ras.append(np.mean(covras))
@@ -528,6 +544,9 @@ def collection_overview_plot(collection_dirlist,
             # since the collection is not contiguous, we'll move its label from
             # the center of the collection to a weighted center calculated by
             # weighting the area of the separate parts
+
+            # we weight by an exponent to push more strongly towards larger
+            # parts of the collection.
             collection_label_ra = np.average(
                 part_center_ras,
                 weights=np.array(part_areas)**2.0
@@ -541,17 +560,19 @@ def collection_overview_plot(collection_dirlist,
                 np.radians(collection_label_ra),
                 np.radians(collection_label_decl),
                 footprint['collection'],
-                fontsize=12,
+                fontsize=13,
                 ha='center',
                 va='center',
                 zorder=100,
-                color='#b8daff',
-                url='#fp-collection/%s' % footprint['collection']
+                color='white',
+                # color='#b8daff',
+                url='#fp-collection/%s' % footprint['collection'],
+                gid="label-collection-%s" % footprint['collection'],
             )
             # add an outline to the label so it's visible against any background
             # https://matplotlib.org/users/patheffects_guide.html
             collection_label.set_path_effects(
-                [path_effects.Stroke(linewidth=2, foreground='black'),
+                [path_effects.Stroke(linewidth=3, foreground='black'),
                  path_effects.Normal()]
             )
             collection_labels[footprint['collection']] = {
@@ -578,7 +599,7 @@ def collection_overview_plot(collection_dirlist,
 
     ax.legend(
         loc='lower center',
-        fontsize=12,
+        fontsize=14,
         numpoints=1,
         scatterpoints=1,
         markerscale=3.0,
@@ -591,39 +612,6 @@ def collection_overview_plot(collection_dirlist,
                 bbox_inches='tight',
                 dpi=dpi,
                 transparent=False)
-
-    # get the image coordinate extents of all the collection label bounding
-    # boxes so we can put image maps on them.
-    #
-    # the format is: [[left, bottom],[right, top]]
-    #
-    # the format for HTML maps is left-top-right-bottom
-    #
-    # for PNGs on the web, we'll have to invert this because they measure from
-    # the top of the image
-    for key in collection_labels:
-
-        bbox = collection_labels[key]['label'].get_window_extent()
-        xmin, xmax, ymin, ymax = bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax
-
-        collection_labels[key]['bbox'] = {'xmin':xmin,
-                                          'xmax':xmax,
-                                          'ymin':ymin,
-                                          'ymax':ymax}
-
-        # put the collection labels back into the footprint pickles so we can
-        # look them up easily.
-        footprint_pkl = os.path.join(collection_labels[key]['collection_dir'],
-                                     'catalog-footprint.pkl')
-
-        with open(footprint_pkl,'rb') as infd:
-            footprint = pickle.load(infd)
-        footprint['footprint_map_label_bbox'] = bbox
-
-        with open(footprint_pkl,'wb') as outfd:
-            pickle.dump(footprint, outfd, pickle.HIGHEST_PROTOCOL)
-        LOGINFO('wrote collection label coords back to %s' % footprint_pkl)
-
 
     plt.close('all')
     return outfile, collection_labels
@@ -649,7 +637,10 @@ def collection_overview_svg(
 
     '''
 
-    outfile = os.path.join(basedir,'docs','static','collection-footprints-temp.svg')
+    outfile = os.path.join(basedir,
+                           'docs',
+                           'static',
+                           'collection-footprints-temp.svg')
 
     outfile, labels = collection_overview_plot(
         collection_dirlist,

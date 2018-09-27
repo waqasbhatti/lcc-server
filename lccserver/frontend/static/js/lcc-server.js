@@ -413,8 +413,10 @@ var lcc_ui = {
         $('#footprint-svg > svg').find('a').on('click', function (evt) {
 
             evt.preventDefault();
-            let collection_id =
-                lcc_ui.svgurl_to_collection_id($(this).attr('xlink:href'));
+
+            let full_url = window.location.protocol +
+                '//' + window.location.host + $(this).attr('xlink:href');
+            let collection_id = lcc_ui.svgurl_to_collection_id(full_url);
 
             if (collection_id !== null) {
 
