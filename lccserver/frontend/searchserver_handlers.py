@@ -616,9 +616,9 @@ class BackgroundQueryMixin(object):
         try:
 
             # here, we'll yield with_timeout
-            # give 15 seconds to the query to complete
+            # give 30 seconds to the query to complete
             self.query_result = yield gen.with_timeout(
-                timedelta(seconds=15.0),
+                timedelta(seconds=30.0),
                 self.query_result_future
             )
 
@@ -669,21 +669,59 @@ class BackgroundQueryMixin(object):
                     )
 
                     # only collect the LCs into a pickle if the user requested
-                    # less than 5000 light curves. generating bigger ones is
+                    # less than 2500 light curves. generating bigger ones is
                     # something we'll handle later
-                    if ds_nrows > 5000:
+                    if ds_nrows > 2500:
+                        donewithuser = True
+                    else:
+                        donewithuser = False
 
-                        dataset_url = "%s://%s/set/%s" % (
-                            self.request.protocol,
-                            self.req_hostname,
-                            dspkl_setid
-                        )
+                    dataset_url = "%s://%s/set/%s" % (
+                        self.request.protocol,
+                        self.req_hostname,
+                        dspkl_setid
+                    )
+
+                    #
+                    # we're continuing, but will only collect 2.5k LCs at most
+                    #
+
+                    #
+                    # user interaction may stop here, but we continue to zip
+                    # stuff in the background
+                    #
+                    if not donewithuser:
+
+                        # A3. we have the dataset pickle generated, send back an
+                        # update
+                        retdict = {
+                            "message":(
+                                "dataset pickle generation complete. "
+                                "collecting light curves into ZIP file..."
+                            ),
+                            "status":"running",
+                            "result":{
+                                "setid":dspkl_setid,
+                            },
+                            "time":'%sZ' % datetime.utcnow().isoformat()
+                        }
+                        retdict = '%s\n' % json.dumps(retdict)
+                        self.write(retdict)
+                        yield self.flush()
+
+                    # if there are more than 2.5k LCs to collect, we'll stop
+                    # here and tell the user their query has gone to the
+                    # background
+                    else:
 
                         retdict = {
                             "message":(
                                 "Dataset pickle generation complete. "
-                                "There are more than 5,000 light curves "
-                                "to collect so we won't generate a ZIP file. "
+                                "There are more than 2,500 light curves "
+                                "to collect, so we won't generate a "
+                                "complete ZIP file. "
+                                "Only the first 2.5k LCs will be "
+                                "collected instead. "
                                 "See %s for dataset object lists and a "
                                 "CSV when the query completes."
                             ) % dataset_url,
@@ -696,52 +734,7 @@ class BackgroundQueryMixin(object):
                         }
                         retdict = '%s\n' % json.dumps(retdict)
                         self.write(retdict)
-                        yield self.flush()
-
-                        if email_when_done:
-
-                            template_items = {
-                                'lccserver_baseurl':'%s://%s' % (
-                                    self.request.protocol,
-                                    self.req_hostname
-                                ),
-                                'setid':dspkl_setid,
-                                'set_nobjects':ds_nrows,
-                                'set_url':dataset_url,
-                                'set_csv':'%s://%s/d/%s.csv' % (
-                                    self.request.protocol,
-                                    self.req_hostname,
-                                    dspkl_setid
-                                ),
-                            }
-
-                            yield self.email_current_user(
-                                '[LCC-Server] Dataset %s is now ready' %
-                                dspkl_setid,
-                                DATASET_READY_EMAIL_TEMPLATE,
-                                template_items,
-                            )
-
-                        raise tornado.web.Finish()
-
-                    #
-                    # otherwise, we're continuing...
-                    #
-
-                    # A3. we have the dataset pickle generated, send back an
-                    # update
-                    retdict = {
-                        "message":("dataset pickle generation complete. "
-                                   "collecting light curves into ZIP file..."),
-                        "status":"running",
-                        "result":{
-                            "setid":dspkl_setid,
-                        },
-                        "time":'%sZ' % datetime.utcnow().isoformat()
-                    }
-                    retdict = '%s\n' % json.dumps(retdict)
-                    self.write(retdict)
-                    yield self.flush()
+                        self.finish()
 
                     #
                     # here, we'll once again do a yield with_timeout because LC
@@ -756,31 +749,37 @@ class BackgroundQueryMixin(object):
                         csvlcs_to_generate,
                         csvlcs_ready,
                         all_original_lcs,
-                        override_lcdir=self.uselcdir  # useful when testing LCC
-                                                      # server
+                        max_dataset_lcs=2500,
+                        override_lcdir=self.uselcdir
                     )
 
                     try:
 
-                        # we'll give zipping 15 seconds
+                        # we'll give zipping 30 seconds
                         lczip = yield gen.with_timeout(
-                            timedelta(seconds=15.0),
+                            timedelta(seconds=30.0),
                             self.lczip_future,
                         )
 
-                        # A4. we're done with collecting light curves
-                        retdict = {
-                            "message":("dataset LC ZIP complete. "),
-                            "status":"running",
-                            "result":{
-                                "setid":dspkl_setid,
-                                "lczip":'/p/%s' % os.path.basename(lczip)
-                            },
-                            "time":'%sZ' % datetime.utcnow().isoformat()
-                        }
-                        retdict = '%s\n' % json.dumps(retdict)
-                        self.write(retdict)
-                        yield self.flush()
+                        #
+                        # if we're still talking to the user, give them an
+                        # update when we're done with LC ZIP
+                        #
+                        if not donewithuser:
+
+                            # A4. we're done with collecting light curves
+                            retdict = {
+                                "message":("dataset LC ZIP complete."),
+                                "status":"running",
+                                "result":{
+                                    "setid":dspkl_setid,
+                                    "lczip":'/p/%s' % os.path.basename(lczip)
+                                },
+                                "time":'%sZ' % datetime.utcnow().isoformat()
+                            }
+                            retdict = '%s\n' % json.dumps(retdict)
+                            self.write(retdict)
+                            yield self.flush()
 
 
                         # Q5. load the dataset to make sure it loads OK
@@ -799,29 +798,34 @@ class BackgroundQueryMixin(object):
                             self.req_hostname,
                             dspkl_setid
                         )
-                        retdict = {
-                            "message":("dataset now ready: %s" % dataset_url),
-                            "status":"ok",
-                            "result":{
-                                "setid":dspkl_setid,
-                                "seturl":dataset_url,
-                                "created":setdict['created'],
-                                "updated":setdict['updated'],
-                                "owner":setdict['owner'],
-                                "visibility":setdict['visibility'],
-                                "sharedwith":setdict['sharedwith'],
-                                "backend_function":setdict['searchtype'],
-                                "backend_parsedargs":setdict['searchargs'],
-                                "total_nmatches":setdict['total_nmatches'],
-                                "actual_nrows":setdict['actual_nrows'],
-                                "npages":setdict['npages'],
-                                "rows_per_page":setdict['rows_per_page'],
-                            },
-                            "time":'%sZ' % datetime.utcnow().isoformat()
-                        }
-                        retdict = '%s\n' % json.dumps(retdict)
-                        self.write(retdict)
-                        yield self.flush()
+
+                        if not donewithuser:
+
+                            retdict = {
+                                "message":(
+                                    "dataset now ready: %s" % dataset_url
+                                ),
+                                "status":"ok",
+                                "result":{
+                                    "setid":dspkl_setid,
+                                    "seturl":dataset_url,
+                                    "created":setdict['created'],
+                                    "updated":setdict['updated'],
+                                    "owner":setdict['owner'],
+                                    "visibility":setdict['visibility'],
+                                    "sharedwith":setdict['sharedwith'],
+                                    "backend_function":setdict['searchtype'],
+                                    "backend_parsedargs":setdict['searchargs'],
+                                    "total_nmatches":setdict['total_nmatches'],
+                                    "actual_nrows":setdict['actual_nrows'],
+                                    "npages":setdict['npages'],
+                                    "rows_per_page":setdict['rows_per_page'],
+                                },
+                                "time":'%sZ' % datetime.utcnow().isoformat()
+                            }
+                            retdict = '%s\n' % json.dumps(retdict)
+                            self.write(retdict)
+                            yield self.flush()
 
                         if email_when_done:
 
@@ -847,8 +851,8 @@ class BackgroundQueryMixin(object):
                                 template_items,
                             )
 
-                        self.finish()
-
+                        if not donewithuser:
+                            self.finish()
 
                     # this handles a timeout when generating light curve ZIP
                     # files
@@ -864,26 +868,36 @@ class BackgroundQueryMixin(object):
                                        'background while zipping light curves' %
                                        self.setid)
 
-                        retdict = {
-                            "message":(
-                                "query sent to background after 30 seconds. "
-                                "query is complete, "
-                                "but light curves of matching objects "
-                                "are still being zipped. "
-                                "check %s for results later" %
-                                dataset_url
-                            ),
-                            "status":"background",
-                            "result":{
-                                "setid":self.setid,
-                                "seturl":dataset_url
-                            },
-                            "time":'%sZ' % datetime.utcnow().isoformat()
-                        }
-                        self.write(retdict)
-                        self.finish()
+                        if not donewithuser:
 
-                        # here, we'll re-yield to the uncancelled lczip_future
+                            retdict = {
+                                "message":(
+                                    "Query sent to background "
+                                    "after 60 seconds. "
+                                    "Query is complete, "
+                                    "but light curves of matching objects "
+                                    "are still being zipped. "
+                                    "Check %s for results later" %
+                                    dataset_url
+                                ),
+                                "status":"background",
+                                "result":{
+                                    "setid":self.setid,
+                                    "seturl":dataset_url
+                                },
+                                "time":'%sZ' % datetime.utcnow().isoformat()
+                            }
+                            self.write(retdict)
+                            self.finish()
+
+                            #
+                            # stop talking to the user here
+                            #
+
+                        #
+                        # continue zipping in the background by re-yielding from
+                        # the uncancelled Future
+                        #
                         lczip = yield self.lczip_future
 
                         # finalize the dataset
@@ -936,7 +950,7 @@ class BackgroundQueryMixin(object):
                     if query_type == 'conesearch':
                         message = (
                             "Sorry, your query failed. "
-                            "No matching objects were found. "
+                            "No matching objects were found.<br>"
                             "The object you searched "
                             "for may be outside the footprint of the "
                             "<a href=\"#collections\" "
@@ -974,7 +988,7 @@ class BackgroundQueryMixin(object):
 
                     message = (
                         "Sorry, your query failed. "
-                        "No matching objects were found. "
+                        "No matching objects were found.<br>"
                         "The object you searched "
                         "for may be outside the footprint of the "
                         "<a href=\"#collections\" class=\"collection-link\">"
@@ -1012,6 +1026,9 @@ class BackgroundQueryMixin(object):
             LOGGER.warning('search for setid: %s took too long, '
                            'moving query to background' % self.setid)
 
+            #
+            # tell the user that their query is now in the background
+            #
 
             dataset_url = "%s://%s/set/%s" % (
                 self.request.protocol,
@@ -1019,8 +1036,8 @@ class BackgroundQueryMixin(object):
                 self.setid
             )
             retdict = {
-                "message":("query sent to background after 15 seconds. "
-                           "query is still running, "
+                "message":("Query sent to background after 30 seconds. "
+                           "Query is still running, "
                            "check %s for results later" % dataset_url),
                 "status":"background",
                 "result":{
@@ -1033,7 +1050,8 @@ class BackgroundQueryMixin(object):
             self.finish()
 
 
-            # here, we'll yield to the uncancelled query_result_future
+            # here, we'll yield to the uncancelled query_result_future Future to
+            # continue waiting for its completion
             self.query_result = yield self.query_result_future
 
             # everything else proceeds as planned
@@ -1068,70 +1086,68 @@ class BackgroundQueryMixin(object):
                 )
 
                 # only collect the LCs into a pickle if the user requested
-                # less than 5000 light curves. generating bigger ones is
+                # less than 2500 light curves. generating bigger ones is
                 # something we'll handle later
-                if nrows > 5000:
+                if ds_nrows > 2500:
 
                     LOGGER.warning(
-                        '> 5k LCs requested for zipping in the '
-                        'background, will not do so, forcing set: %s to '
-                        '"complete" status' % dspkl_setid
+                        '> 2.5k LCs requested for zipping in the '
+                        'background, only collecting the first 2.5k LCs' %
+                        dspkl_setid
                     )
 
-                # if there are less than 20k rows, we will generate an LC zip
-                else:
+                # Q4. collect light curve ZIP files
+                # this is the LC zipping future
+                lczip = yield self.executor.submit(
+                    datasets.sqlite_make_dataset_lczip,
+                    self.basedir,
+                    dspkl_setid,
+                    csvlcs_to_generate,
+                    csvlcs_ready,
+                    all_original_lcs,
+                    max_dataset_lcs=2500,
+                    override_lcdir=self.uselcdir  # useful when testing LCC
+                                                  # server
+                )
 
-                    # Q4. collect light curve ZIP files
-                    # this is the LC zipping future
-                    lczip = yield self.executor.submit(
-                        datasets.sqlite_make_dataset_lczip,
-                        self.basedir,
+                # Q5. load the dataset to make sure it looks OK and
+                # finalize the dataset
+                setdict = yield self.executor.submit(
+                    datasets.sqlite_get_dataset,
+                    self.basedir,
+                    dspkl_setid,
+                    'json-header',
+                    incoming_userid=incoming_userid,
+                    incoming_role=incoming_role,
+                )
+
+                if email_when_done:
+
+                    template_items = {
+                        'lccserver_baseurl':'%s://%s' % (
+                            self.request.protocol,
+                            self.req_hostname
+                        ),
+                        'setid':dspkl_setid,
+                        'set_nobjects':setdict['actual_nrows'],
+                        'set_url':dataset_url,
+                        'set_csv':'%s://%s/d/%s.csv' % (
+                            self.request.protocol,
+                            self.req_hostname,
+                            dspkl_setid
+                        ),
+                    }
+
+                    yield self.email_current_user(
+                        '[LCC-Server] Dataset %s is now ready' %
                         dspkl_setid,
-                        csvlcs_to_generate,
-                        csvlcs_ready,
-                        all_original_lcs,
-                        override_lcdir=self.uselcdir  # useful when testing LCC
-                                                      # server
+                        DATASET_READY_EMAIL_TEMPLATE,
+                        template_items,
                     )
 
-                    # Q5. load the dataset to make sure it looks OK and
-                    # finalize the dataset
-                    setdict = yield self.executor.submit(
-                        datasets.sqlite_get_dataset,
-                        self.basedir,
-                        dspkl_setid,
-                        'json-header',
-                        incoming_userid=incoming_userid,
-                        incoming_role=incoming_role,
-                    )
-
-                    if email_when_done:
-
-                        template_items = {
-                            'lccserver_baseurl':'%s://%s' % (
-                                self.request.protocol,
-                                self.req_hostname
-                            ),
-                            'setid':dspkl_setid,
-                            'set_nobjects':setdict['actual_nrows'],
-                            'set_url':dataset_url,
-                            'set_csv':'%s://%s/d/%s.csv' % (
-                                self.request.protocol,
-                                self.req_hostname,
-                                dspkl_setid
-                            ),
-                        }
-
-                        yield self.email_current_user(
-                            '[LCC-Server] Dataset %s is now ready' %
-                            dspkl_setid,
-                            DATASET_READY_EMAIL_TEMPLATE,
-                            template_items,
-                        )
-
-                    LOGGER.warning('background LC zip for '
-                                   'background query: %s completed OK' %
-                                   dspkl_setid)
+                LOGGER.warning('background LC zip for '
+                               'background query: %s completed OK' %
+                               dspkl_setid)
 
             else:
 

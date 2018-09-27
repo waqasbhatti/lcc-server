@@ -2753,15 +2753,17 @@ var lcc_search = {
                     // actually decided to give up LC zipping because too
                     // many LCs were requested
                     if (msgdata.message.indexOf("won't generate") != -1) {
+
                         alertmsg = 'Query <code>' +
                             msgdata.result.setid +
                             '</code> is complete, but there are &gt; ' +
-                            '5,000 LCs to collect so no ZIP file was ' +
-                            'generated. Try refining your query, or see ' +
+                            '2,500 LCs to collect, so an abbreviated LC ZIP ' +
+                            'file will be generated instead. ' +
+                            'Try refining your query, or see ' +
                             '<a target="_blank" ' +
                             'rel="nofollow noreferer noopener" href="' +
                             msgdata.result.seturl +
-                            '">its dataset page</a> for a ' +
+                            '">the query result dataset page</a> for a ' +
                             'CSV that lists all objects and download links ' +
                             'for their individual light curves.';
                     }
@@ -2770,7 +2772,7 @@ var lcc_search = {
                         // notify the user that the query is in the background
                         alertmsg = 'Query <code>' +
                             msgdata.result.setid +
-                            '</code> now in background queue. ' +
+                            '</code> is now in the background queue. ' +
                             'Results will appear at ' +
                             '<a rel="nofollow noopener noreferrer"' +
                             'target="_blank" href="/set/' +

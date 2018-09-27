@@ -834,7 +834,7 @@ def sqlite_make_dataset_lczip(basedir,
                               converter_column_separator=',',
                               converter_skip_converted=True,
                               override_lcdir=None,
-                              max_dataset_lcs=5000):
+                              max_dataset_lcs=2500):
     '''
     This makes a zip file for the light curves in the dataset.
 
@@ -952,35 +952,37 @@ def sqlite_make_dataset_lczip(basedir,
                          ' will not generate a ZIP file.' %
                          (len(zipfile_lclist), max_dataset_lcs))
 
-            else:
+                # restrict the number of files to be zipped to
+                # max_dataset_lcs
+                zipfile_lclist = zipfile_lclist[:max_dataset_lcs]
 
-                # get the expected name of the output zipfile
-                lczip_fpath = dataset['lczipfpath']
+            # get the expected name of the output zipfile
+            lczip_fpath = dataset['lczipfpath']
 
-                LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
-                        (len(zipfile_lclist), lczip_fpath, setid))
+            LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
+                    (len(zipfile_lclist), lczip_fpath, setid))
 
-                # set up the zipfile
-                with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
+            # set up the zipfile
+            with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
 
-                    for ind_lcf, lcf in enumerate(zipfile_lclist):
+                for ind_lcf, lcf in enumerate(zipfile_lclist):
 
-                        if os.path.exists(lcf):
-                            outzip.write(lcf, os.path.basename(lcf))
-                        else:
-                            zipfile_lclist[ind_lcf] = (
-                                '%s missing' % (os.path.basename(lcf))
-                            )
-
-                    # add the manifest to the zipfile
-                    outzip.writestr(
-                        'lczip-manifest.json',
-                        json.dumps(
-                            [os.path.basename(x) for x in zipfile_lclist],
-                            ensure_ascii=True,
-                            indent=2
+                    if os.path.exists(lcf):
+                        outzip.write(lcf, os.path.basename(lcf))
+                    else:
+                        zipfile_lclist[ind_lcf] = (
+                            '%s missing' % (os.path.basename(lcf))
                         )
+
+                # add the manifest to the zipfile
+                outzip.writestr(
+                    'lczip-manifest.json',
+                    json.dumps(
+                        [os.path.basename(x) for x in zipfile_lclist],
+                        ensure_ascii=True,
+                        indent=2
                     )
+                )
 
                 LOGINFO('done, zip written successfully.')
 
