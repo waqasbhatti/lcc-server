@@ -409,8 +409,8 @@ var lcc_ui = {
     // this wires up all the controls
     action_setup: function () {
 
-        // bind the click on the svg URL
-        $('#footprint > svg').find('a').on('click', function (evt) {
+        // translate the links in the footprint SVG
+        $('#footprint > svg').find('a').on('hover focus', function (evt) {
 
             evt.preventDefault();
 
@@ -420,13 +420,27 @@ var lcc_ui = {
 
             if (collection_id !== null) {
 
+                let coll_ind = lcc_ui.collections.db_collection_id.indexOf(
+                    collection_id
+                );
+                console.log(coll_ind);
+                console.log(collection_id);
+
                 // find the appropriate row in the collections table
                 let collrow = '#lccid-' + collection_id.replace(/_/g,'-');
-                console.log(collrow);
-                $(collrow).scrollTop();
+                $(this).attr('href',collrow);
+                $(this).attr('title', lcc_ui.collections.name[coll_ind]);
 
             }
 
+            else {
+                $(this).attr('xlink:href',undefined);
+            }
+
+        });
+
+        $('#footprint > svg').find('a').find('path').on('click', function (evt) {
+            $(this).parent('a').click();
         });
 
         // bind the cookie setters
@@ -1909,7 +1923,7 @@ var lcc_ui = {
 <div class="row mt-2">
   <div class="col-12">
 
-    <h3><a id="lccid-${db_collection_id.replace(/_/g,'-')}"></a>${collection_name} (<code>${db_collection_id}</code>)</h3>
+    <h3><a id="lccid-${db_collection_id.replace(/_/g,'-')}">${collection_name} (<code>${db_collection_id}</code>)</a></h3>
 
     <div class="row">
 
