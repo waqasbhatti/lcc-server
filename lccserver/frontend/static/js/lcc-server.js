@@ -2225,7 +2225,7 @@ var lcc_ui = {
 
 </details>
 
-<details class="mt-2">
+<details class="mt-2 mb-4">
   <summary class="h5-summary">Explore this collection</summary>
 
   <ul class="list-unstyled">
