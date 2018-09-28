@@ -362,6 +362,196 @@ def sqlite_prepare_dataset(basedir,
 
 
 
+def process_dataset_pgrow(
+        entry,
+        basedir,
+        reqcols,
+        searchresult,
+        dataset,
+        all_original_lcs,
+        csvlcs_ready,
+        csvlcs_to_generate,
+        objectids_later_csvlcs,
+        outrows,
+        out_strformat_rows,
+        csvfd,
+):
+    '''
+    This processes a single row entry for a dataset page.
+
+    '''
+
+    all_original_lcs.append(entry['db_lcfname'])
+    csvlc = '%s-csvlc.gz' % entry['db_oid']
+    csvlc_path = os.path.join(os.path.abspath(basedir),
+                              'csvlcs',
+                              entry['collection'].replace('_','-'),
+                              csvlc)
+
+    if 'db_lcfname' in entry and os.path.exists(csvlc_path):
+
+        entry['db_lcfname'] = '/l/%s/%s' % (
+            entry['collection'].replace('_','-'),
+            csvlc
+        )
+        csvlcs_ready.append(csvlc_path)
+
+    elif 'db_lcfname' in entry and not os.path.exists(csvlc_path):
+
+        csvlcs_to_generate.append(
+            (entry['db_lcfname'],
+             entry['db_oid'],
+             searchresult[entry['collection']]['lcformatdesc'],
+             entry['collection'],
+             csvlc_path)
+        )
+        objectids_later_csvlcs.append(
+            (entry['db_oid'],
+             entry['collection'])
+        )
+
+        entry['db_lcfname'] = '/l/%s/%s' % (
+            entry['collection'].replace('_','-'),
+            csvlc
+        )
+
+    elif 'lcfname' in entry and os.path.exists(csvlc_path):
+
+        entry['lcfname'] = '/l/%s/%s' % (
+            entry['collection'].replace('_','-'),
+            csvlc
+        )
+        csvlcs_ready.append(csvlc_path)
+
+    elif 'lcfname' in entry and not os.path.exists(csvlc_path):
+
+        csvlcs_to_generate.append(
+            (entry['lcfname'],
+             entry['db_oid'],
+             searchresult[entry['collection']]['lcformatdesc'],
+             entry['collection'],
+             csvlc_path)
+        )
+        objectids_later_csvlcs.append(
+            (entry['db_oid'],
+             entry['collection'])
+        )
+
+        entry['lcfname'] = '/l/%s/%s' % (
+            entry['collection'].replace('_','-'),
+            csvlc
+        )
+
+    # the normal data table row
+    outrow = [entry[c] for c in reqcols]
+    outrows.append(outrow)
+
+    # the string formatted data table row
+    # this will be written to the CSV and to the page JSON
+    out_strformat_row = []
+
+    for c in reqcols:
+
+        cform = dataset['coldesc'][c]['format']
+        if 'f' in cform and entry[c] is None:
+            out_strformat_row.append('nan')
+        elif 'i' in cform and entry[c] is None:
+            out_strformat_row.append('-9999')
+        else:
+            thisr = cform % entry[c]
+            # replace any pipe characters with commas
+            # to save us from broken CSVs
+            thisr = thisr.replace('|',', ')
+            out_strformat_row.append(thisr)
+
+    # append the strformat row to the page JSON
+    out_strformat_rows.append(out_strformat_row)
+
+    # write this row to the CSV
+    outline = '%s\n' % '|'.join(out_strformat_row)
+    csvfd.write(outline.encode())
+
+
+
+def process_dataset_page(
+        basedir,
+        datasetdir,
+        searchresult,
+        reqcols,
+        setid,
+        dataset,
+        rows,
+        page,
+        pgslice,
+        all_original_lcs,
+        csvlcs_ready,
+        csvlcs_to_generate,
+        objectids_later_csvlcs,
+        csvfd,
+        premake_pages=None,
+):
+    '''
+    This processes a single dataset page.
+
+    '''
+    pgrows = rows[pgslice[0]:pgslice[1]]
+    page_number = page + 1
+
+    if premake_pages is not None and page_number < premake_pages:
+
+        # open the pageX.pkl file
+        page_rows_pkl = os.path.join(
+            datasetdir,
+            'dataset-%s-rows-page%s.pkl' %
+            (setid, page_number)
+        )
+        page_rows_strpkl = os.path.join(
+            datasetdir,
+            'dataset-%s-rows-page%s-strformat.pkl' %
+            (setid, page_number)
+        )
+        page_rows_pklfd = open(page_rows_pkl,'wb')
+        page_rows_strpklfd = open(page_rows_strpkl,'wb')
+
+    outrows = []
+    out_strformat_rows = []
+
+    # now we'll go through all the rows
+    for entry in pgrows:
+
+        process_dataset_pgrow(
+            entry,
+            basedir,
+            reqcols,
+            searchresult,
+            dataset,
+            all_original_lcs,
+            csvlcs_ready,
+            csvlcs_to_generate,
+            objectids_later_csvlcs,
+            outrows,
+            out_strformat_rows,
+            csvfd
+        )
+
+    #
+    # at the end of the page, write the JSON files for this page
+    #
+    if premake_pages is not None and page_number < premake_pages:
+
+        pickle.dump(outrows, page_rows_pklfd,
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(out_strformat_rows, page_rows_strpklfd,
+                    pickle.HIGHEST_PROTOCOL)
+
+        page_rows_pklfd.close()
+        page_rows_strpklfd.close()
+
+        LOGINFO('wrote page %s pickles: %s and %s, for setid: %s' %
+                (page_number, page_rows_pkl, page_rows_strpkl, setid))
+
+
+
 def sqlite_new_dataset(basedir,
                        setid,
                        creationdt,
@@ -375,7 +565,9 @@ def sqlite_new_dataset(basedir,
                        dataset_visibility='unlisted',
                        dataset_sharedwith=None,
                        make_dataset_csv=True,
-                       rows_per_page=1000):
+                       rows_per_page=1000,
+                       premake_pages=5,
+                       max_dataset_lcs=2500):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
@@ -566,9 +758,9 @@ def sqlite_new_dataset(basedir,
         "where setid = ?"
     )
 
-    # if the number of actual rows > 20000, then force this dataset to
+    # if the number of actual rows > max_dataset_lcs, then force this dataset to
     # completion because we'll skip collection of LCs
-    if dataset['actual_nrows'] > 20000:
+    if dataset['actual_nrows'] > max_dataset_lcs:
         set_status = 'complete'
     else:
         set_status = 'in progress'
@@ -616,132 +808,23 @@ def sqlite_new_dataset(basedir,
     # we'll iterate by pages
     for page, pgslice in enumerate(page_slices):
 
-        pgrows = rows[pgslice[0]:pgslice[1]]
-        page_number = page + 1
-
-        # open the pageX.pkl file
-        page_rows_pkl = os.path.join(
+        process_dataset_page(
+            basedir,
             datasetdir,
-            'dataset-%s-rows-page%s.pkl' %
-            (setid, page_number)
+            searchresult,
+            reqcols,
+            setid,
+            dataset,
+            rows,
+            page,
+            pgslice,
+            all_original_lcs,
+            csvlcs_ready,
+            csvlcs_to_generate,
+            objectids_later_csvlcs,
+            csvfd,
+            premake_pages=premake_pages,
         )
-        page_rows_strpkl = os.path.join(
-            datasetdir,
-            'dataset-%s-rows-page%s-strformat.pkl' %
-            (setid, page_number)
-        )
-        page_rows_pklfd = open(page_rows_pkl,'wb')
-        page_rows_strpklfd = open(page_rows_strpkl,'wb')
-
-        outrows = []
-        out_strformat_rows = []
-
-        # now we'll go through all the rows
-        for entry in pgrows:
-
-            all_original_lcs.append(entry['db_lcfname'])
-            csvlc = '%s-csvlc.gz' % entry['db_oid']
-            csvlc_path = os.path.join(os.path.abspath(basedir),
-                                      'csvlcs',
-                                      entry['collection'].replace('_','-'),
-                                      csvlc)
-
-            if 'db_lcfname' in entry and os.path.exists(csvlc_path):
-
-                entry['db_lcfname'] = '/l/%s/%s' % (
-                    entry['collection'].replace('_','-'),
-                    csvlc
-                )
-                csvlcs_ready.append(csvlc_path)
-
-            elif 'db_lcfname' in entry and not os.path.exists(csvlc_path):
-
-                csvlcs_to_generate.append(
-                    (entry['db_lcfname'],
-                     entry['db_oid'],
-                     searchresult[entry['collection']]['lcformatdesc'],
-                     entry['collection'],
-                     csvlc_path)
-                )
-                objectids_later_csvlcs.append(
-                    (entry['db_oid'],
-                     entry['collection'])
-                )
-
-                entry['db_lcfname'] = '/l/%s/%s' % (
-                    entry['collection'].replace('_','-'),
-                    csvlc
-                )
-
-            elif 'lcfname' in entry and os.path.exists(csvlc_path):
-
-                entry['lcfname'] = '/l/%s/%s' % (
-                    entry['collection'].replace('_','-'),
-                    csvlc
-                )
-                csvlcs_ready.append(csvlc_path)
-
-            elif 'lcfname' in entry and not os.path.exists(csvlc_path):
-
-                csvlcs_to_generate.append(
-                    (entry['lcfname'],
-                     entry['db_oid'],
-                     searchresult[entry['collection']]['lcformatdesc'],
-                     entry['collection'],
-                     csvlc_path)
-                )
-                objectids_later_csvlcs.append(
-                    (entry['db_oid'],
-                     entry['collection'])
-                )
-
-                entry['lcfname'] = '/l/%s/%s' % (
-                    entry['collection'].replace('_','-'),
-                    csvlc
-                )
-
-            # the normal data table row
-            outrow = [entry[c] for c in reqcols]
-            outrows.append(outrow)
-
-            # the string formatted data table row
-            # this will be written to the CSV and to the page JSON
-            out_strformat_row = []
-
-            for c in reqcols:
-
-                cform = dataset['coldesc'][c]['format']
-                if 'f' in cform and entry[c] is None:
-                    out_strformat_row.append('nan')
-                elif 'i' in cform and entry[c] is None:
-                    out_strformat_row.append('-9999')
-                else:
-                    thisr = cform % entry[c]
-                    # replace any pipe characters with commas
-                    # to save us from broken CSVs
-                    thisr = thisr.replace('|',', ')
-                    out_strformat_row.append(thisr)
-
-            # append the strformat row to the page JSON
-            out_strformat_rows.append(out_strformat_row)
-
-            # write this row to the CSV
-            outline = '%s\n' % '|'.join(out_strformat_row)
-            csvfd.write(outline.encode())
-
-        #
-        # at the end of the page, write the JSON files for this page
-        #
-        pickle.dump(outrows, page_rows_pklfd,
-                    pickle.HIGHEST_PROTOCOL)
-        pickle.dump(out_strformat_rows, page_rows_strpklfd,
-                    pickle.HIGHEST_PROTOCOL)
-
-        page_rows_pklfd.close()
-        page_rows_strpklfd.close()
-
-        LOGINFO('wrote page %s pickles: %s and %s, for setid: %s' %
-                (page_number, page_rows_pkl, page_rows_strpkl, setid))
 
     #
     # write the pickle to the datasets directory
