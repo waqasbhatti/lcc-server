@@ -365,92 +365,96 @@ def sqlite_prepare_dataset(basedir,
 def process_dataset_pgrow(
         entry,
         basedir,
-        reqcols,
-        searchresult,
+        lcformatdescs,
         dataset,
-        all_original_lcs,
-        csvlcs_ready,
-        csvlcs_to_generate,
-        objectids_later_csvlcs,
         outrows,
         out_strformat_rows,
-        csvfd,
+        all_original_lcs=None,
+        csvlcs_ready=None,
+        csvlcs_to_generate=None,
+        objectids_later_csvlcs=None,
+        csvfd=None,
 ):
     '''
     This processes a single row entry for a dataset page.
 
     '''
 
-    all_original_lcs.append(entry['db_lcfname'])
-    csvlc = '%s-csvlc.gz' % entry['db_oid']
-    csvlc_path = os.path.join(os.path.abspath(basedir),
-                              'csvlcs',
-                              entry['collection'].replace('_','-'),
-                              csvlc)
+    if ( (all_original_lcs is not None) and
+         (csvlcs_ready is not None) and
+         (csvlcs_to_generate is not None) and
+         (objectids_later_csvlcs is not None) ):
 
-    if 'db_lcfname' in entry and os.path.exists(csvlc_path):
+        all_original_lcs.append(entry['db_lcfname'])
+        csvlc = '%s-csvlc.gz' % entry['db_oid']
+        csvlc_path = os.path.join(os.path.abspath(basedir),
+                                  'csvlcs',
+                                  entry['collection'].replace('_','-'),
+                                  csvlc)
 
-        entry['db_lcfname'] = '/l/%s/%s' % (
-            entry['collection'].replace('_','-'),
-            csvlc
-        )
-        csvlcs_ready.append(csvlc_path)
+        if 'db_lcfname' in entry and os.path.exists(csvlc_path):
 
-    elif 'db_lcfname' in entry and not os.path.exists(csvlc_path):
+            entry['db_lcfname'] = '/l/%s/%s' % (
+                entry['collection'].replace('_','-'),
+                csvlc
+            )
+            csvlcs_ready.append(csvlc_path)
 
-        csvlcs_to_generate.append(
-            (entry['db_lcfname'],
-             entry['db_oid'],
-             searchresult[entry['collection']]['lcformatdesc'],
-             entry['collection'],
-             csvlc_path)
-        )
-        objectids_later_csvlcs.append(
-            (entry['db_oid'],
-             entry['collection'])
-        )
+        elif 'db_lcfname' in entry and not os.path.exists(csvlc_path):
 
-        entry['db_lcfname'] = '/l/%s/%s' % (
-            entry['collection'].replace('_','-'),
-            csvlc
-        )
+            csvlcs_to_generate.append(
+                (entry['db_lcfname'],
+                 entry['db_oid'],
+                 lcformatdescs[entry['collection']],
+                 entry['collection'],
+                 csvlc_path)
+            )
+            objectids_later_csvlcs.append(
+                (entry['db_oid'],
+                 entry['collection'])
+            )
 
-    elif 'lcfname' in entry and os.path.exists(csvlc_path):
+            entry['db_lcfname'] = '/l/%s/%s' % (
+                entry['collection'].replace('_','-'),
+                csvlc
+            )
 
-        entry['lcfname'] = '/l/%s/%s' % (
-            entry['collection'].replace('_','-'),
-            csvlc
-        )
-        csvlcs_ready.append(csvlc_path)
+        elif 'lcfname' in entry and os.path.exists(csvlc_path):
 
-    elif 'lcfname' in entry and not os.path.exists(csvlc_path):
+            entry['lcfname'] = '/l/%s/%s' % (
+                entry['collection'].replace('_','-'),
+                csvlc
+            )
+            csvlcs_ready.append(csvlc_path)
 
-        csvlcs_to_generate.append(
-            (entry['lcfname'],
-             entry['db_oid'],
-             searchresult[entry['collection']]['lcformatdesc'],
-             entry['collection'],
-             csvlc_path)
-        )
-        objectids_later_csvlcs.append(
-            (entry['db_oid'],
-             entry['collection'])
-        )
+        elif 'lcfname' in entry and not os.path.exists(csvlc_path):
 
-        entry['lcfname'] = '/l/%s/%s' % (
-            entry['collection'].replace('_','-'),
-            csvlc
-        )
+            csvlcs_to_generate.append(
+                (entry['lcfname'],
+                 entry['db_oid'],
+                 lcformatdescs[entry['collection']],
+                 entry['collection'],
+                 csvlc_path)
+            )
+            objectids_later_csvlcs.append(
+                (entry['db_oid'],
+                 entry['collection'])
+            )
+
+            entry['lcfname'] = '/l/%s/%s' % (
+                entry['collection'].replace('_','-'),
+                csvlc
+            )
 
     # the normal data table row
-    outrow = [entry[c] for c in reqcols]
+    outrow = [entry[c] for c in dataset['columns']]
     outrows.append(outrow)
 
     # the string formatted data table row
     # this will be written to the CSV and to the page JSON
     out_strformat_row = []
 
-    for c in reqcols:
+    for c in dataset['columns']:
 
         cform = dataset['coldesc'][c]['format']
         if 'f' in cform and entry[c] is None:
@@ -467,35 +471,41 @@ def process_dataset_pgrow(
     # append the strformat row to the page JSON
     out_strformat_rows.append(out_strformat_row)
 
-    # write this row to the CSV
-    outline = '%s\n' % '|'.join(out_strformat_row)
-    csvfd.write(outline.encode())
+    if csvfd is not None:
+        # write this row to the CSV
+        outline = '%s\n' % '|'.join(out_strformat_row)
+        csvfd.write(outline.encode())
 
 
 
 def process_dataset_page(
         basedir,
         datasetdir,
-        searchresult,
-        reqcols,
-        setid,
         dataset,
-        rows,
         page,
         pgslice,
-        all_original_lcs,
-        csvlcs_ready,
-        csvlcs_to_generate,
-        objectids_later_csvlcs,
-        csvfd,
+        all_original_lcs=None,
+        csvlcs_ready=None,
+        csvlcs_to_generate=None,
+        objectids_later_csvlcs=None,
+        csvfd=None,
         premake_pages=None,
 ):
     '''
     This processes a single dataset page.
 
     '''
-    pgrows = rows[pgslice[0]:pgslice[1]]
+    #
+    # these are all the dataset result row entries for this page
+    #
+    pgrows = dataset['result'][pgslice[0]:pgslice[1]]
+
+    # update the page number
     page_number = page + 1
+    setid = dataset['setid']
+
+    # get the lcformatdescs from the dataset
+    lcformatdescs = dataset['lcformatdescs']
 
     if premake_pages is not None and page_number < premake_pages:
 
@@ -522,16 +532,15 @@ def process_dataset_page(
         process_dataset_pgrow(
             entry,
             basedir,
-            reqcols,
-            searchresult,
+            lcformatdescs,
             dataset,
-            all_original_lcs,
-            csvlcs_ready,
-            csvlcs_to_generate,
-            objectids_later_csvlcs,
             outrows,
             out_strformat_rows,
-            csvfd
+            all_original_lcs=all_original_lcs,
+            csvlcs_ready=csvlcs_ready,
+            csvlcs_to_generate=csvlcs_to_generate,
+            objectids_later_csvlcs=objectids_later_csvlcs,
+            csvfd=csvfd
         )
 
     #
@@ -566,8 +575,7 @@ def sqlite_new_dataset(basedir,
                        dataset_sharedwith=None,
                        make_dataset_csv=True,
                        rows_per_page=1000,
-                       premake_pages=5,
-                       max_dataset_lcs=2500):
+                       premake_pages=5):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
@@ -602,10 +610,8 @@ def sqlite_new_dataset(basedir,
     columnspec = {x:searchresult[x]['columnspec'] for x in collections}
     collid = {x:searchresult[x]['collid'] for x in collections}
 
-    # get the columnspecs and actual collectionids for each collection searched
-    # so we can return the column names and descriptions as well
-    columnspec = {x:searchresult[x]['columnspec'] for x in collections}
-    collid = {x:searchresult[x]['collid'] for x in collections}
+    # get the lcformatdescs from the searchresults
+    lcformatdescs = {x:searchresult[x]['lcformatdesc'] for x in collections}
 
     xcolumns = []
     for coll in collections:
@@ -711,6 +717,7 @@ def sqlite_new_dataset(basedir,
         'searchargs': searchargs,
         'collections': collections,
         'lcmagcols':lcmagcols,
+        'lcformatdescs':lcformatdescs,
         'coll_dirs': collid,
         'npages':npages,
         'rows_per_page':rows_per_page,
@@ -729,7 +736,9 @@ def sqlite_new_dataset(basedir,
     csvheader = json.dumps(dataset, indent=2)
     csvheader = indent(csvheader, '# ')
 
+    #
     # add in the rows to turn the header into the complete dataset pickle
+    #
     dataset['result'] = rows
 
     # open the datasets database
@@ -758,13 +767,6 @@ def sqlite_new_dataset(basedir,
         "where setid = ?"
     )
 
-    # if the number of actual rows > max_dataset_lcs, then force this dataset to
-    # completion because we'll skip collection of LCs
-    if dataset['actual_nrows'] > max_dataset_lcs:
-        set_status = 'complete'
-    else:
-        set_status = 'in progress'
-
     params = (
         setname,
         setdesc,
@@ -774,7 +776,7 @@ def sqlite_new_dataset(basedir,
         dataset['visibility'],
         dataset['sharedwith'],
         incoming_session_token,
-        set_status,
+        'in progress',
         ', '.join(collections),
         searchtype,
         json.dumps(searchargs),
@@ -811,18 +813,14 @@ def sqlite_new_dataset(basedir,
         process_dataset_page(
             basedir,
             datasetdir,
-            searchresult,
-            reqcols,
-            setid,
             dataset,
-            rows,
             page,
             pgslice,
-            all_original_lcs,
-            csvlcs_ready,
-            csvlcs_to_generate,
-            objectids_later_csvlcs,
-            csvfd,
+            all_original_lcs=all_original_lcs,
+            csvlcs_ready=csvlcs_ready,
+            csvlcs_to_generate=csvlcs_to_generate,
+            objectids_later_csvlcs=objectids_later_csvlcs,
+            csvfd=csvfd,
             premake_pages=premake_pages,
         )
 
@@ -856,11 +854,13 @@ def sqlite_new_dataset(basedir,
     LOGINFO('wrote CSV: %s for setid: %s' % (dataset_csv, setid))
 
     # return the setid
-    return (setid,
-            csvlcs_to_generate,
-            csvlcs_ready,
-            sorted(all_original_lcs),
-            dataset['actual_nrows'])
+    return (
+        setid,
+        csvlcs_to_generate,
+        csvlcs_ready,
+        sorted(all_original_lcs),
+        dataset['actual_nrows']
+    )
 
 
 

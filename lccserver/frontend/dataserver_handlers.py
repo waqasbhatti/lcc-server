@@ -402,6 +402,10 @@ class DatasetHandler(BaseHandler):
             # censor the session_token
             ds['session_token'] = 'redacted'
 
+            # if lcformatdesc filepaths are in the ds, redact that as well
+            if 'lcformatdescs' in ds:
+                del ds['lcformatdescs']
+
             # if we're returning JSON
             if returnjson:
 
@@ -555,6 +559,10 @@ class DatasetHandler(BaseHandler):
 
             # censor the session_token
             ds['session_token'] = 'redacted'
+
+            # if lcformatdesc filepaths are in the ds, redact that as well
+            if 'lcformatdescs' in ds:
+                del ds['lcformatdescs']
 
             # if we're returning JSON
             if returnjson:
