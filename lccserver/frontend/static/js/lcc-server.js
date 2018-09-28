@@ -2255,13 +2255,6 @@ var lcc_ui = {
     </li>
 
     <li>
-      <a href="#" class="collection-centercone-init"
-         data-collection="${db_collection_id}">
-        100 objects within 1 degree of the collection's center
-      </a>
-    </li>
-
-    <li>
       <a href="#" class="collection-simbadok-init"
          data-collection="${db_collection_id}">
         100 random objects with SIMBAD counterparts
