@@ -1906,8 +1906,10 @@ def sqlite_fulltext_search(
         }
         lcc_columnspec['visibility'] = {
             'title': 'object visibility',
-            'description':("visibility tag for this object. "
-                           "One of 'public', 'shared', 'private'"),
+            'description':(
+                "visibility tag for this object. "
+                "One of 'public', 'shared', 'unlisted', 'private'"
+            ),
             'dtype':'U10',
             'format':'%s',
             'index':True,
@@ -2321,8 +2323,10 @@ def sqlite_column_search(
         }
         lcc_columnspec['visibility'] = {
             'title': 'object visibility',
-            'description':("visibility tag for this object. "
-                           "One of 'public', 'shared', 'private'"),
+            'description':(
+                "visibility tag for this object. "
+                "One of 'public', 'shared', 'unlisted', 'private'"
+            ),
             'dtype':'U10',
             'format':'%s',
             'index':True,
@@ -2711,8 +2715,10 @@ def sqlite_kdtree_conesearch(basedir,
         }
         lcc_columnspec['visibility'] = {
             'title': 'object visibility',
-            'description':("visibility tag for this object. "
-                           "One of 'public', 'shared', 'private'"),
+            'description':(
+                "visibility tag for this object. "
+                "One of 'public', 'shared', 'unlisted', 'private'"
+            ),
             'dtype':'U10',
             'format':'%s',
             'index':True,
@@ -3105,9 +3111,9 @@ def sqlite_xmatch_search(basedir,
              ('b.objectid as db_oid, '
               'b.ra as db_ra, b.decl as db_decl, '
               'b.lcfname as db_lcfname, '
-              'a.object_owner as owner, '
-              'a.object_visibility as visibility, '
-              'a.object_sharedwith as sharedwith')]
+              'b.object_owner as owner, '
+              'b.object_visibility as visibility, '
+              'b.object_sharedwith as sharedwith')]
         )
         columnstr = columnstr.lstrip(',').strip()
 
@@ -3125,9 +3131,9 @@ def sqlite_xmatch_search(basedir,
         columnstr = ('b.objectid as db_oid, '
                      'b.ra as db_ra, b.decl as db_decl, '
                      'b.lcfname as db_lcfname, '
-                     'a.object_owner as owner, '
-                     'a.object_visibility as visibility, '
-                     'a.object_sharedwith as sharedwith')
+                     'b.object_owner as owner, '
+                     'b.object_visibility as visibility, '
+                     'b.object_sharedwith as sharedwith')
         rescolumns = ['db_oid',
                       'db_ra',
                       'db_decl',
@@ -3360,8 +3366,10 @@ def sqlite_xmatch_search(basedir,
             }
             lcc_columnspec['visibility'] = {
                 'title': 'object visibility',
-                'description':("visibility tag for this object. "
-                               "One of 'public', 'shared', 'private'"),
+                'description':(
+                    "visibility tag for this object. "
+                    "One of 'public', 'shared', 'unlisted', 'private'"
+                ),
                 'dtype':'U10',
                 'format':'%s',
                 'index':True,
@@ -3756,8 +3764,10 @@ def sqlite_xmatch_search(basedir,
             }
             lcc_columnspec['visibility'] = {
                 'title': 'object visibility',
-                'description':("visibility tag for this object. "
-                               "One of 'public', 'shared', 'private'"),
+                'description':(
+                    "visibility tag for this object. "
+                    "One of 'public', 'shared', 'unlisted', 'private'"
+                ),
                 'dtype':'U10',
                 'format':'%s',
                 'index':True,
