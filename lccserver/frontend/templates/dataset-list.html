@@ -14,12 +14,12 @@
 <div class="container" >
   <div class="row mt-4" >
 
-    <div class="col-sm-2">
-      <button class="btn btn-secondary"
+    <div class="col-sm-12 col-md-2">
+      <button class="btn btn-secondary w-100"
               type="button" id="dataset-show-all">Show all datasets</button>
     </div>
 
-    <div class="col-sm-10" >
+    <div class="col-sm-12 col-md-10" >
       <form class="form" action="/api/datasets" method="POST" id="dataset-search-form" >
         {% module xsrf_form_html() %}
 
@@ -27,12 +27,12 @@
           <input class="form-control" id="dataset-searchbox"
                  name="datasetsearch" autocomplete="on"
                  type="search" maxlength="1024"
-                 placeholder="queried collections, query type or arguments, dataset ID, name, description, citation"
-                 aria-label="queried collections, query type or arguments, dataset ID, name, description, citation"
+                 placeholder="Search by collections used, query type or arguments, dataset name, description, citation"
+                 aria-label="Search by collections used, query type or arguments, dataset name, description, citation"
                  required>
           <div class="input-group-append" >
             <button class="btn btn-primary"
-                    type="submit" id="dataset-search-submit">Search for datasets</button>
+                    type="submit" id="dataset-search-submit">Find datasets</button>
           </div>
         </div>
       </form>

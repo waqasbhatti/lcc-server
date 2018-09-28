@@ -29,7 +29,7 @@
 
       <ul class="nav nav-tabs flex-column flex-sm-row" id="myTab" role="tablist">
 
-        <li class="nav-item mr-auto">
+        <li class="nav-item mr-md-auto">
           <a class="nav-link active tab-link"
              id="collections-tab"
              data-toggle="tab"
@@ -37,8 +37,10 @@
              role="tab"
              aria-controls="collections"
              aria-selected="true">
-            <img class="icon-svg"
-                 src="{{ static_url('images/twotone-shopping_cart-24px.svg') }}"><br>
+            <div class="d-none d-sm-none d-md-block">
+              <img class="icon-svg"
+                   src="{{ static_url('images/twotone-shopping_cart-24px.svg') }}">
+            </div>
             Collections
           </a>
         </li>
@@ -51,8 +53,10 @@
              role="tab"
              aria-controls="conesearch"
              aria-selected="false">
-            <img class="icon-svg"
-                 src="{{ static_url('images/twotone-language-24px.svg') }}"><br>
+            <div class="d-none d-sm-none d-md-block">
+              <img class="icon-svg"
+                   src="{{ static_url('images/twotone-language-24px.svg') }}">
+            </div>
             Search the sky
           </a>
         </li>
@@ -65,8 +69,10 @@
              role="tab"
              aria-controls="fts"
              aria-selected="false">
-            <img class="icon-svg"
-                 src="{{ static_url('images/twotone-brightness_high-24px.svg') }}"><br>
+            <div class="d-none d-sm-none d-md-block">
+              <img class="icon-svg"
+                   src="{{ static_url('images/twotone-brightness_high-24px.svg') }}">
+            </div>
             Find in text
           </a>
         </li>
@@ -79,8 +85,10 @@
              role="tab"
              aria-controls="columns"
              aria-selected="true">
-            <img class="icon-svg"
-                 src="{{ static_url('images/twotone-view_week-24px.svg') }}"><br>
+            <div class="d-none d-sm-none d-md-block">
+              <img class="icon-svg"
+                   src="{{ static_url('images/twotone-view_week-24px.svg') }}">
+            </div>
             Build a query
           </a>
         </li>
@@ -93,13 +101,15 @@
              role="tab"
              aria-controls="xmatch"
              aria-selected="false">
-            <img class="icon-svg"
-                 src="{{ static_url('images/twotone-cloud_upload-24px.svg') }}"><br>
+            <div class="d-none d-sm-none d-md-block">
+              <img class="icon-svg"
+                   src="{{ static_url('images/twotone-cloud_upload-24px.svg') }}">
+            </div>
             Find cross-matches
           </a>
         </li>
 
-        <li class="nav-item ml-auto">
+        <li class="nav-item ml-md-auto">
           <a class="nav-link tab-link"
              id="datasets-tab"
              data-toggle="tab"
@@ -107,8 +117,10 @@
              role="tab"
              aria-controls="datasets"
              aria-selected="false">
-            <img class="icon-svg" id="datasets-tab-icon"
-                 src="{{ static_url('images/twotone-archive-24px.svg') }}"><br>
+            <div class="d-none d-sm-none d-md-block">
+              <img class="icon-svg" id="datasets-tab-icon"
+                   src="{{ static_url('images/twotone-archive-24px.svg') }}">
+            </div>
             Datasets
           </a>
         </li>
@@ -122,9 +134,11 @@
              aria-controls="results"
              aria-selected="false">
             <span id="search-notifications">
-              <img id="search-notification-icon"
-                   class="icon-svg"
-                   src="{{ static_url('images/twotone-sync-24px.svg') }}"><br>
+              <div class="d-none d-sm-none d-md-block">
+                <img id="search-notification-icon"
+                     class="icon-svg"
+                     src="{{ static_url('images/twotone-sync-24px.svg') }}">
+              </div>
               Queries <span id="lcc-qstatus-run" data-nrun="0"></span> <span id="lcc-qstatus-back" data-nback="0"></span>
             </span>
           </a>
@@ -1324,12 +1338,12 @@
 
               <div class="row mt-4" >
 
-                <div class="col-sm-2">
-                  <button class="btn btn-secondary"
+                <div class="col-sm-12 col-md-2">
+                  <button class="btn btn-secondary w-100"
                           type="button" id="dataset-show-all">Refresh dataset list</button>
                 </div>
 
-                <div class="col-sm-10" >
+                <div class="col-sm-12 col-md-10" >
                   <form class="form" action="/api/datasets" method="POST" id="dataset-search-form" >
                     {% module xsrf_form_html() %}
 
@@ -1337,11 +1351,11 @@
                       <input class="form-control" id="dataset-searchbox"
                              name="datasetsearch" autocomplete="on"
                              type="search" maxlength="1024"
-                             placeholder="queried collections, query type or arguments, dataset ID, name, description, citation"
-                             aria-label="queried collections, query type or arguments, dataset ID, name, description, citation">
+                             placeholder="Search by collections used, query type or arguments, dataset name, description, citation"
+                             aria-label="Search by collections used, query type or arguments, dataset name, description, citation">
                       <div class="input-group-append" >
                         <button class="btn btn-primary"
-                                type="submit" id="dataset-search-submit">Search for datasets</button>
+                                type="submit" id="dataset-search-submit">Find datasets</button>
                       </div>
                     </div>
                   </form>

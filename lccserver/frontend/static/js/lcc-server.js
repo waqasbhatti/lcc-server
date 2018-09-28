@@ -451,7 +451,8 @@ var lcc_ui = {
 
 
         // bind the collection-search-init controls
-        $('#collection-container').on('click', 'a.collection-search-init', function(evt) {
+        $('#collection-container').on(
+            'click', 'a.collection-search-init', function(evt) {
 
             evt.preventDefault();
 
@@ -485,7 +486,8 @@ var lcc_ui = {
         });
 
         // bind the 100random-init control
-        $('#collection-container').on('click', '.collection-100random-init', function(evt) {
+        $('#collection-container').on(
+            'click', '.collection-100random-init', function(evt) {
 
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
@@ -501,13 +503,13 @@ var lcc_ui = {
             };
 
             lcc_search.do_columnsearch(searchparams);
-            $('#results-tab').click();
 
         });
 
 
         // bind the centercone-init control
-        $('#collection-container').on('click', '.collection-centercone-init', function(evt) {
+        $('#collection-container').on(
+            'click', '.collection-centercone-init', function(evt) {
 
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
@@ -530,13 +532,13 @@ var lcc_ui = {
             };
 
             lcc_search.do_conesearch(searchparams);
-            $('#results-tab').click();
 
         });
 
 
         // bind the stetsonvar-init control
-        $('#collection-container').on('click', '.collection-stetsonvar-init', function(evt) {
+        $('#collection-container').on(
+            'click', '.collection-stetsonvar-init', function(evt) {
 
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
@@ -556,21 +558,25 @@ var lcc_ui = {
             };
 
             lcc_search.do_columnsearch(searchparams);
-            $('#results-tab').click();
 
         });
 
 
         // bind the simbadok-init control
-        $('#collection-container').on('click', '.collection-simbadok-init', function(evt) {
+        $('#collection-container').on(
+            'click', '.collection-simbadok-init', function(evt) {
 
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
 
             let searchparams = {
                 collections: [collection],
-                columns: [ 'simbad_best_mainid', 'simbad_best_allids', 'simbad_best_objtype', 'sdssr'],
-                filters: '(sdssr lt 16.0) and (ndet gt 5000) and (simbad_best_mainid notnull)',
+                columns: ['simbad_best_mainid',
+                          'simbad_best_allids',
+                          'simbad_best_objtype',
+                          'sdssr'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000) and ' +
+                    '(simbad_best_mainid notnull)',
                 visibility: 'unlisted',
                 sortspec: JSON.stringify([['sdssr','asc']]),
                 samplespec: null,
@@ -578,20 +584,26 @@ var lcc_ui = {
             };
 
             lcc_search.do_columnsearch(searchparams);
-            $('#results-tab').click();
 
         });
 
         // bind the gaiadwarfs-init control
-        $('#collection-container').on('click', '.collection-gaiadwarfs-init', function(evt) {
+        $('#collection-container').on(
+            'click', '.collection-gaiadwarfs-init', function (evt) {
 
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
 
             let searchparams = {
                 collections: [collection],
-                columns: [ 'propermotion', 'gaia_parallax', 'gaia_parallax_err', 'gaia_mag', 'gaia_absmag', 'sdssr'],
-                filters: '(sdssr lt 16.0) and (ndet gt 5000) and (gaia_absmag notnull) and (gaia_absmag gt 3.0)',
+                columns: ['propermotion',
+                          'gaia_parallax',
+                          'gaia_parallax_err',
+                          'gaia_mag',
+                          'gaia_absmag',
+                          'sdssr'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000) and ' +
+                    '(gaia_absmag notnull) and (gaia_absmag gt 3.0)',
                 visibility: 'unlisted',
                 sortspec: JSON.stringify([['gaia_absmag','desc']]),
                 samplespec: null,
@@ -599,20 +611,26 @@ var lcc_ui = {
             };
 
             lcc_search.do_columnsearch(searchparams);
-            $('#results-tab').click();
 
         });
 
         // bind the gaiadwarfs-init control
-        $('#collection-container').on('click', '.collection-fastmovers-init', function(evt) {
+        $('#collection-container').on(
+            'click', '.collection-fastmovers-init', function (evt) {
 
             evt.preventDefault();
             let collection = $(this).attr('data-collection');
 
             let searchparams = {
                 collections: [collection],
-                columns: ['gaia_parallax', 'gaia_parallax_err', 'propermotion', 'gaia_mag', 'gaia_absmag', 'sdssr'],
-                filters: '(sdssr lt 16.0) and (ndet gt 5000) and (gaia_parallax notnull)',
+                columns: ['gaia_parallax',
+                          'gaia_parallax_err',
+                          'propermotion',
+                          'gaia_mag',
+                          'gaia_absmag',
+                          'sdssr'],
+                filters: '(sdssr lt 16.0) and (ndet gt 5000) ' +
+                    'and (gaia_parallax notnull)',
                 visibility: 'unlisted',
                 sortspec: JSON.stringify([['gaia_parallax','desc']]),
                 samplespec: null,
@@ -620,7 +638,6 @@ var lcc_ui = {
             };
 
             lcc_search.do_columnsearch(searchparams);
-            $('#results-tab').click();
 
         });
 
@@ -3775,10 +3792,13 @@ var lcc_datasets = {
             // simbad_best_obtype columns
             if (colind_extrainfo > -1) {
 
-                thisrow[colind_extrainfo] = '<details class="table-details-elem"><summary>view JSON</summary>' +
-                    lcc_ui.bibcode_linkify('<pre>' +
-                                           JSON.stringify(JSON.parse(thisrow[colind_extrainfo]),null, 2) +
-                                           '</pre>') +
+                thisrow[colind_extrainfo] =
+                    '<details class="table-details-elem"><summary>view JSON</summary>' +
+                    lcc_ui.bibcode_linkify(
+                        '<pre>' +
+                            JSON.stringify(JSON.parse(thisrow[colind_extrainfo]),null, 2) +
+                            '</pre>'
+                    ) +
                     '</details>';
 
             }

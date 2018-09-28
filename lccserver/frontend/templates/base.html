@@ -90,18 +90,20 @@
     <footer class="text-muted">
       <div class="container-fluid" >
         <div class="row" >
-          <div class="col" >
+          <div class="col-sm-12" >
             <hr>
           </div>
         </div>
         <div class="row justify-content-between p-3">
-          <div class="col-3" >
+
+          <div class="col-sm-12 col-md-3" >
             <ul class="list-unstyled" >
               <li><a href="https://github.com/waqasbhatti/lcc-server" >LCC Server</a> &mdash; <a href="/docs" >Docs</a></li>
               <li>v{{ lccserver_version }}</li>
             </ul>
           </div>
-          <div class="col-3" >
+
+          <div class="col-sm-12 col-md-3" >
             <ul class="list-unstyled" >
               <li><strong><a href="{{ siteinfo['project_link'] }}">{{ siteinfo['project'] }}</a></strong> &mdash; <a href="/docs/citation" >Citing data</a></li>
               <li><a href="{{ siteinfo['department_link'] }}">{{ siteinfo['department'] }}</a></li>
@@ -112,6 +114,7 @@
               {% end %}
             </ul>
           </div>
+
         </div>
       </div>
     </footer>
