@@ -3545,11 +3545,11 @@ var lcc_datasets = {
         // the first column of the table holds controls for getting
         // object info. add this column first
         $('#lcc-datatable-header').append(
-            '<th width="100" class="text-center table-warning">details</th>'
+            '<th width="60" class="text-center table-warning">details</th>'
         );
 
         // these are used to calculate the full table width
-        var column_widths = [100];
+        var column_widths = [60];
         var thiscol_width = null;
 
         // generate the column names and descriptions, put them into the
@@ -3808,7 +3808,7 @@ var lcc_datasets = {
             thisrow.splice(0,0,objectentry_firstcol);
 
             datarows_elem.append(
-                '<tr><td class="text-center table-warning">' +
+                '<tr><td width="60" class="text-center table-warning">' +
                     data.rows[rowind].join('</td><td class="text-center">')
                     .replace(/href/g,'rel="nofollow" href') +
                     '</td></tr>'
