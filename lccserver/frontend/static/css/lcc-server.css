@@ -5,14 +5,39 @@
  */
 
 
+.no-gutters {
+  margin-right: 0;
+  margin-left: 0;
+
+  > .col,
+  > [class*="col-"] {
+    padding-right: 0;
+    padding-left: 0;
+  }
+}
+
 /* various text, image, and table styles */
+
+summary.h5-summary {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.2;
+  color: inherit;
+}
+
+#collection-container {
+  height: 70vh;
+  overflow-y: auto;
+}
 
 #footprint {
   text-align: center;
 }
 
 #footprint > svg {
-  width: 77vw;
+  width: 100%;
 }
 
 .collection-column-list {
@@ -21,6 +46,10 @@
 
 #collection-container ul {
   font-size: 15px;
+}
+
+.collection-infotable {
+  width: 100%;
 }
 
 a.tab-link {

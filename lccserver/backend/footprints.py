@@ -406,7 +406,7 @@ def collection_overview_plot(collection_dirlist,
     # svg font setup
     plt.rcParams['svg.fonttype'] = 'none'
 
-    fig = plt.figure(figsize=(16,12))
+    fig = plt.figure(figsize=(14,12))
 
     ax = fig.add_subplot(111, projection=use_projection)
     ax.set_facecolor('#e2e3e5')
@@ -622,8 +622,9 @@ def collection_overview_plot(collection_dirlist,
     ax.set_ylabel('declination [deg]')
 
     ax.legend(
-        loc='lower right',
-        fontsize=14,
+        loc='upper right',
+        bbox_to_anchor=(1.0, 1.05),
+        fontsize=13,
         numpoints=1,
         scatterpoints=1,
         markerscale=3.0,

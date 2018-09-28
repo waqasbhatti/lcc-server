@@ -2137,174 +2137,143 @@ var lcc_ui = {
         // now we have everything. fill in the column row template
         //
         let collection_row = `
-<div class="row mt-2">
-  <div class="col-12">
+<h4><a id="lccid-${db_collection_id.replace(/_/g,'-')}">${collection_name}
+  <br>(<code>${db_collection_id}</code>)</a></h4>
 
-    <h3><a id="lccid-${db_collection_id.replace(/_/g,'-')}">${collection_name} (<code>${db_collection_id}</code>)</a></h3>
+<details class="mt-2" open><summary class="h5-summary">About this collection</summary>
 
-    <div class="row">
+  ${lcc_ui.bibcode_linkify(description)}
 
-      <div class="col-sm-12 col-md-4">
+  <table class="table table-sm collection-infotable mt-2 mx-auto">
+    <tr>
+      <th scope="row">Objects</th>
+      <td>${nobjects}</td>
+    </tr>
+    <tr>
+      <th scope="row">Center [J2000 deg]</th>
+      <td>(${center_ra}, ${center_decl})</td>
+    </tr>
+    <tr>
+      <th scope="row">Updated [UTC]</th>
+      <td>${last_updated}</td>
+    </tr>
+    <tr>
+      <th scope="row">Project</th>
+      <td>${project}</td>
+    </tr>
+    <tr>
+      <th scope="row">Citation</th>
+      <td>${citation}</td>
+    </tr>
+  </table>
 
-        <h4>About this collection</h4>
+</details>
 
-        <div class="row">
-          <div class="col-12">
-            ${lcc_ui.bibcode_linkify(description)}
-          </div>
-        </div>
 
-        <div class="row mt-2">
-          <div class="col-12">
+<details class="mt-2"><summary class="h5-summary">Available database columns</summary>
 
-            <table class="table table-sm">
-              <tr>
-                <th scope="row">Objects</th>
-                <td>${nobjects}</td>
-              </tr>
-              <tr>
-                <th scope="row">Center [J2000 deg]</th>
-                <td>(${center_ra}, ${center_decl})</td>
-              </tr>
-              <tr>
-                <th scope="row">Updated [UTC]</th>
-                <td>${last_updated}</td>
-              </tr>
-              <tr>
-                <th scope="row">Project</th>
-                <td>${project}</td>
-              </tr>
-              <tr>
-                <th scope="row">Citation</th>
-                <td>${citation}</td>
-              </tr>
-            </table>
-
-            <p><a href="#lcc-coverage">[back to map]</a></p>
-
-          </div>
-        </div>
-
-      </div>
-
-      <div class="col-sm-12 col-md-4">
-
-        <div class="row">
-          <div class="col-sm-12">
-
-            <h4>Search in this collection</h4>
-
-            <ul class="list-unstyled">
-
-              <li>
-                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="conesearch">
-                  Find objects by their coordinates
-                </a>
-              </li>
-
-              <li>
-                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="ftsquery">
-                  Find objects by name or description
-                </a>
-              </li>
-
-              <li>
-                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="columnsearch">
-                  Find objects using database column filters
-                </a>
-              </li>
-
-              <li>
-                <a href="#" class="collection-search-init" data-collection="${db_collection_id}" data-target="xmatch">
-                  Cross-match to objects in an uploaded list
-                </a>
-              </li>
-
-            </ul>
-
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="col-sm-12">
-
-            <h4>Explore this collection</h4>
-
-            <ul class="list-unstyled">
-
-              <li>
-                <a href="#" class="collection-100random-init" data-collection="${db_collection_id}">
-                  100 random objects from this collection
-                </a>
-              </li>
-
-              <li>
-                <a href="#" class="collection-centercone-init" data-collection="${db_collection_id}">
-                  100 objects within 1 degree of the collection's center
-                </a>
-              </li>
-
-              <li>
-                <a href="#" class="collection-simbadok-init" data-collection="${db_collection_id}">
-                  100 random objects with SIMBAD counterparts
-                </a>
-              </li>
-            </ul>
-            <ul class="list-unstyled">
-              <li>
-                <a href="#" class="collection-stetsonvar-init" data-collection="${db_collection_id}">
-                  Top 100 objects sorted by decreasing Stetson <em>J<sub>var</sub></em>
-                </a>
-              </li>
-
-              <li>
-                <a href="#" class="collection-fastmovers-init" data-collection="${db_collection_id}">
-                  Top 100 objects sorted by decreasing GAIA parallax
-                </a>
-              </li>
-
-              <li>
-                <a href="#" class="collection-gaiadwarfs-init" data-collection="${db_collection_id}">
-                  Top 100 objects sorted by decreasing GAIA M<sub><em>G</em></sub>
-                </a>
-              </li>
-
-            </ul>
-
-          </div>
-        </div>
-
-      </div>
-
-      <div class="col-sm-12 col-md-4">
-        <div class="row">
-
-          <div class="col-12">
-
-            <h4>Available database columns</h4>
-
-            <div class="collection-column-list">
-              <details>
-                <summary>List of full-text-search indexed columns</summary>
-                ${formatted_ftscol_list}
-              </details>
-            </div>
-
-            <div class="mt-2 collection-column-list">
-              <details>
-                <summary>List of other indexed columns</summary>
-                ${formatted_indexedcol_list}
-              </details>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-
-    </div>
+  <div class="ml-3 collection-column-list">
+    <details>
+      <summary>List of full-text-search indexed columns</summary>
+      ${formatted_ftscol_list}
+    </details>
   </div>
-</div>
+
+  <div class="mt-2 ml-3 collection-column-list">
+    <details>
+      <summary>List of other indexed columns</summary>
+      ${formatted_indexedcol_list}
+    </details>
+  </div>
+
+</details>
+
+
+<details class="mt-2"><summary class="h5-summary">Search this collection</summary>
+
+  <ul class="list-unstyled">
+
+    <li>
+      <a href="#" class="collection-search-init"
+         data-collection="${db_collection_id}" data-target="conesearch">
+        Find objects by their coordinates
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-search-init"
+         data-collection="${db_collection_id}" data-target="ftsquery">
+        Find objects by name or description
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-search-init"
+         data-collection="${db_collection_id}" data-target="columnsearch">
+        Find objects using database column filters
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-search-init"
+         data-collection="${db_collection_id}" data-target="xmatch">
+        Cross-match to objects in an uploaded list
+      </a>
+    </li>
+
+  </ul>
+
+</details>
+
+<details class="mt-2">
+  <summary class="h5-summary">Explore this collection</summary>
+
+  <ul class="list-unstyled">
+
+    <li>
+      <a href="#" class="collection-100random-init"
+         data-collection="${db_collection_id}">
+        100 random objects from this collection
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-centercone-init"
+         data-collection="${db_collection_id}">
+        100 objects within 1 degree of the collection's center
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-simbadok-init"
+         data-collection="${db_collection_id}">
+        100 random objects with SIMBAD counterparts
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-stetsonvar-init"
+         data-collection="${db_collection_id}">
+        Top 100 objects sorted by decreasing Stetson <em>J<sub>var</sub></em>
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-fastmovers-init"
+         data-collection="${db_collection_id}">
+        Top 100 objects sorted by decreasing GAIA parallax
+      </a>
+    </li>
+
+    <li>
+      <a href="#" class="collection-gaiadwarfs-init"
+         data-collection="${db_collection_id}">
+        Top 100 objects sorted by decreasing GAIA M<sub><em>G</em></sub>
+      </a>
+    </li>
+
+  </ul>
+</details>
 `;
 
         $('#collection-container').append(collection_row);
