@@ -3545,7 +3545,7 @@ var lcc_datasets = {
         // the first column of the table holds controls for getting
         // object info. add this column first
         $('#lcc-datatable-header').append(
-            '<th width="100" class="text-center">details</th>'
+            '<th width="100" class="text-center table-warning">details</th>'
         );
 
         // these are used to calculate the full table width
@@ -3775,7 +3775,7 @@ var lcc_datasets = {
             // simbad_best_obtype columns
             if (colind_extrainfo > -1) {
 
-                thisrow[colind_extrainfo] = '<details><summary>view JSON</summary>' +
+                thisrow[colind_extrainfo] = '<details class="table-details-elem"><summary>view JSON</summary>' +
                     lcc_ui.bibcode_linkify('<pre>' +
                                            JSON.stringify(JSON.parse(thisrow[colind_extrainfo]),null, 2) +
                                            '</pre>') +
@@ -3808,7 +3808,7 @@ var lcc_datasets = {
             thisrow.splice(0,0,objectentry_firstcol);
 
             datarows_elem.append(
-                '<tr><td class="text-center">' +
+                '<tr><td class="text-center table-warning">' +
                     data.rows[rowind].join('</td><td class="text-center">')
                     .replace(/href/g,'rel="nofollow" href') +
                     '</td></tr>'

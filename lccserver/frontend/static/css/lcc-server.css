@@ -27,6 +27,10 @@ summary.h5-summary {
   color: inherit;
 }
 
+details.table-details-elem {
+  width: 100px;
+}
+
 #collection-container {
   height: 70vh;
   overflow-y: auto;
