@@ -4108,7 +4108,9 @@ var lcc_datasets = {
     get_dataset_page: function (setid, pagenumber) {
 
         // do nothing if the page number is out of bounds
-        if ((pagenumber > lcc_datasets.npages) || (pagenumber < 1)) {
+        if ((pagenumber > lcc_datasets.npages) ||
+            (pagenumber < 1) ||
+            (pagenumber == lcc_datasets.currpage)) {
             return;
         }
 
