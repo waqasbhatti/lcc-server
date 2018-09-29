@@ -463,9 +463,9 @@ def process_dataset_pgrow(
             out_strformat_row.append('-9999')
         else:
             thisr = cform % entry[c]
-            # replace any pipe characters with commas
+            # replace any pipe characters with semi-colons
             # to save us from broken CSVs
-            thisr = thisr.replace('|',', ')
+            thisr = thisr.replace('|','; ')
             out_strformat_row.append(thisr)
 
     # append the strformat row to the page JSON
@@ -490,6 +490,7 @@ def process_dataset_page(
         objectids_later_csvlcs=None,
         csvfd=None,
         premake_pages=None,
+        single_page_mode=False
 ):
     '''
     This processes a single dataset page.
@@ -498,6 +499,7 @@ def process_dataset_page(
     #
     # these are all the dataset result row entries for this page
     #
+    LOGINFO('working on rows[%s:%s]' % (pgslice[0],pgslice[1]))
     pgrows = dataset['result'][pgslice[0]:pgslice[1]]
 
     # update the page number
@@ -507,7 +509,8 @@ def process_dataset_page(
     # get the lcformatdescs from the dataset
     lcformatdescs = dataset['lcformatdescs']
 
-    if premake_pages is not None and page_number < premake_pages:
+    if ( (premake_pages is not None and page_number <= premake_pages) or
+         (single_page_mode and len(pgrows) > 0) ):
 
         # open the pageX.pkl file
         page_rows_pkl = os.path.join(
@@ -546,7 +549,8 @@ def process_dataset_page(
     #
     # at the end of the page, write the JSON files for this page
     #
-    if premake_pages is not None and page_number < premake_pages:
+    if ( (premake_pages is not None and page_number <= premake_pages) or
+         (single_page_mode and len(pgrows) > 0) ):
 
         pickle.dump(outrows, page_rows_pklfd,
                     pickle.HIGHEST_PROTOCOL)
@@ -558,6 +562,9 @@ def process_dataset_page(
 
         LOGINFO('wrote page %s pickles: %s and %s, for setid: %s' %
                 (page_number, page_rows_pkl, page_rows_strpkl, setid))
+
+    if single_page_mode:
+        return page_rows_pkl, page_rows_strpkl
 
 
 
@@ -575,7 +582,7 @@ def sqlite_new_dataset(basedir,
                        dataset_sharedwith=None,
                        make_dataset_csv=True,
                        rows_per_page=1000,
-                       premake_pages=5):
+                       premake_pages=3):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
@@ -861,6 +868,54 @@ def sqlite_new_dataset(basedir,
         sorted(all_original_lcs),
         dataset['actual_nrows']
     )
+
+
+
+def sqlite_render_dataset_page(basedir,
+                               setid,
+                               page_number):
+    '''
+    This renders a single page of the already completed dataset.
+
+    The page_number is ** 1-indexed ** page number.
+
+    '''
+
+    # get the dataset dir
+    datasetdir = os.path.abspath(os.path.join(basedir, 'datasets'))
+
+    # get the full pickle
+    setpickle = os.path.join(datasetdir, 'dataset-%s.pkl.gz' % setid)
+
+    # open it and get the page slices we needed
+    with gzip.open(setpickle,'rb') as infd:
+        ds = pickle.load(infd)
+
+    page = page_number - 1
+    if page < 0:
+        page = 0
+
+    try:
+
+        pgslice = ds['page_slices'][page]
+
+        # process this page
+        page_pkl, strpage_pkl = process_dataset_page(
+            basedir,
+            datasetdir,
+            ds,
+            page,
+            pgslice,
+            single_page_mode=True
+        )
+        return page_pkl, strpage_pkl
+
+    except IndexError:
+        LOGERROR('requested page_number = %s is '
+                 'out of bounds for dataset: %s' %
+                 (page_number, setid))
+
+        return None, None
 
 
 
@@ -1511,7 +1566,7 @@ def sqlite_get_dataset(basedir,
 
                 getpath = dataset_fpath
 
-                with open(getpath,'rb') as infd:
+                with gzip.open(getpath,'rb') as infd:
                     outdict = pickle.load(infd)
 
                 db.close()
@@ -1591,27 +1646,65 @@ def sqlite_get_dataset(basedir,
 
             elif returnspec.startswith('json-page-'):
 
-                page_to_get = returnspec.split('-')[-1]
+                page_to_get = int(returnspec.split('-')[-1])
+
+                # get the header first
                 getpath1 = os.path.join(datasetdir,
                                         'dataset-%s-header.pkl' % setid)
                 with open(getpath1,'rb') as infd:
                     header = pickle.load(infd)
 
-                getpath2 = os.path.join(
-                    datasetdir,
-                    'dataset-%s-rows-page%s.pkl' % (setid, page_to_get)
-                )
-                if os.path.exists(getpath2):
-                    with open(getpath2, 'rb') as infd:
-                        setrows = pickle.load(infd)
+                # get the requested page
+                if 0 < page_to_get <= header['npages']:
+
+                    getpath2 = os.path.join(
+                        datasetdir,
+                        'dataset-%s-rows-page%s.pkl' % (setid, page_to_get)
+                    )
+                    if os.path.exists(getpath2):
+                        with open(getpath2, 'rb') as infd:
+                            setrows = pickle.load(infd)
+                    else:
+
+                        LOGWARNING(
+                            'requested page: %s for dataset: %s '
+                            'does not exist, attempting to generate...'
+                            % (page_to_get, setid)
+                        )
+
+                        pkl, strpkl = sqlite_render_dataset_page(
+                            basedir,
+                            setid,
+                            page_to_get
+                        )
+
+                        if pkl and os.path.exists(pkl):
+
+                            with open(pkl, 'rb') as infd:
+                                setrows = pickle.load(infd)
+
+                        else:
+
+                            LOGERROR(
+                                'could not generate page %s of '
+                                'dataset %s on-demand'
+                                % (page_to_get, setid)
+                            )
+                            setrows = []
+
+                        setrows = []
+
                 else:
-                    LOGERROR('requested page: %s for dataset: %s does not exist'
-                             % (page_to_get, setid))
+                    LOGERROR(
+                        'page requested: %s is out of bounds '
+                        'for dataset: %s, which has npages = %s'
+                        % (page_to_get, setid, header['npages'])
+                    )
                     setrows = []
 
                 header['rows'] = setrows
                 header['status'] = dataset_status
-                header['currpage'] = int(page_to_get)
+                header['currpage'] = page_to_get
                 header['session_token'] = row['dataset_sessiontoken']
                 if 'citation' not in header:
                     header['citation'] = None
@@ -1620,23 +1713,59 @@ def sqlite_get_dataset(basedir,
 
             elif returnspec.startswith('strjson-page-'):
 
-                page_to_get = returnspec.split('-')[-1]
+                page_to_get = int(returnspec.split('-')[-1])
                 getpath1 = os.path.join(datasetdir,
                                         'dataset-%s-header.pkl' % setid)
                 with open(getpath1,'rb') as infd:
                     header = pickle.load(infd)
 
-                getpath2 = os.path.join(
-                    datasetdir,
-                    'dataset-%s-rows-page%s-strformat.pkl' % (setid,
-                                                              page_to_get)
-                )
-                if os.path.exists(getpath2):
-                    with open(getpath2, 'rb') as infd:
-                        setrows = pickle.load(infd)
+                # get the requested page
+                if 0 < page_to_get <= header['npages']:
+
+                    getpath2 = os.path.join(
+                        datasetdir,
+                        'dataset-%s-rows-page%s-strformat.pkl' % (setid,
+                                                                  page_to_get)
+                    )
+                    if os.path.exists(getpath2):
+                        with open(getpath2, 'rb') as infd:
+                            setrows = pickle.load(infd)
+                    else:
+
+                        LOGWARNING(
+                            'requested page: %s for dataset: %s '
+                            'does not exist, attempting to generate...'
+                            % (page_to_get, setid)
+                        )
+
+                        pkl, strpkl = sqlite_render_dataset_page(
+                            basedir,
+                            setid,
+                            page_to_get
+                        )
+
+                        if strpkl and os.path.exists(strpkl):
+
+                            with open(pkl, 'rb') as infd:
+                                setrows = pickle.load(infd)
+
+                        else:
+
+                            LOGERROR(
+                                'could not generate page %s of '
+                                'dataset %s on-demand'
+                                % (page_to_get, setid)
+                            )
+                            setrows = []
+
+                        setrows = []
+
                 else:
-                    LOGERROR('requested page: %s for dataset: %s does not exist'
-                             % (page_to_get, setid))
+                    LOGERROR(
+                        'page requested: %s is out of bounds '
+                        'for dataset: %s, which has npages = %s'
+                        % (page_to_get, setid, header['npages'])
+                    )
                     setrows = []
 
                 header['rows'] = setrows

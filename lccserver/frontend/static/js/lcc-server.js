@@ -4106,6 +4106,23 @@ var lcc_datasets = {
                          strformat: 1,
                          page: pagenumber};
 
+
+        // set the loading indicators
+        var load_indicator = $('#setload-indicator');
+        if (load_indicator.text() == '') {
+
+            $('#setload-indicator').html(
+                '<span class="text-warning">getting dataset page...' +
+                    '</span>'
+            );
+
+            $('#setload-icon').html(
+                '<img src="/static/images/twotone-sync-24px.svg' +
+                    '" class="animated flash infinite">'
+            );
+
+        }
+
         // here we do the retrieval
         $.getJSON(geturl, getparams, function (data) {
 
@@ -4174,6 +4191,12 @@ var lcc_datasets = {
             }
 
             lcc_ui.alert_box(message, 'danger');
+
+            // clear out the loading indicators at the end
+            $('#setload-icon').empty();
+            $('#setload-indicator').empty();
+
+        }).done(function (data) {
 
             // clear out the loading indicators at the end
             $('#setload-icon').empty();
