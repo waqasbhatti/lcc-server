@@ -1102,7 +1102,7 @@ class BackgroundQueryMixin(object):
 
                     LOGGER.warning(
                         '> 2.5k LCs requested for zipping in the '
-                        'background, not making the LC ZIP' %
+                        'background, not making the LC ZIP for dataset: %s' %
                         dspkl_setid
                     )
 
