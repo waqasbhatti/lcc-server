@@ -366,7 +366,8 @@ def process_dataset_pgrow(
         entry,
         basedir,
         lcformatdescs,
-        dataset,
+        columnlist,
+        columndesc,
         outrows=None,
         out_strformat_rows=None,
         all_original_lcs=None,
@@ -447,8 +448,8 @@ def process_dataset_pgrow(
             )
 
     # generate the the normal data table row and append it to the output rows
+    outrow = [entry[c] for c in columnlist]
     if outrows is not None:
-        outrow = [entry[c] for c in dataset['columns']]
         outrows.append(outrow)
 
     # the string formatted data table row
@@ -456,9 +457,9 @@ def process_dataset_pgrow(
     out_strformat_row = []
 
     # generate the string formatted row.
-    for c in dataset['columns']:
+    for c in columnlist:
 
-        cform = dataset['coldesc'][c]['format']
+        cform = columndesc[c]['format']
         if 'f' in cform and entry[c] is None:
             out_strformat_row.append('nan')
         elif 'i' in cform and entry[c] is None:
@@ -479,6 +480,8 @@ def process_dataset_pgrow(
         outline = '%s\n' % '|'.join(out_strformat_row)
         csvfd.write(outline.encode())
 
+    if outrows is None and out_strformat_rows is None:
+        return outrow, out_strformat_row
 
 
 def process_dataset_page(
@@ -522,6 +525,9 @@ def process_dataset_page(
     outrows = []
     out_strformat_rows = []
 
+    columnlist = dataset['columns']
+    columndesc = dataset['coldesc']
+
     # now we'll go through all the rows
     for entry in pgrows:
 
@@ -529,7 +535,8 @@ def process_dataset_page(
             entry,
             basedir,
             lcformatdescs,
-            dataset,
+            columnlist,
+            columndesc,
             outrows=outrows,
             out_strformat_rows=out_strformat_rows,
             all_original_lcs=None,
