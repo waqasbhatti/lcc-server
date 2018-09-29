@@ -784,7 +784,6 @@ def sqlite_new_dataset(basedir,
     LOGINFO('updated DB entry for setid: %s, total nmatches: %s' %
             (setid, total_nmatches))
 
-
     csvfd = open(dataset_csv,'wb')
 
     # write the header to the CSV file
@@ -797,6 +796,8 @@ def sqlite_new_dataset(basedir,
     # this lets the frontend track which LCs are missing and update these later
     # this contains (objectid, collection) tuples
     objectids_later_csvlcs = []
+
+    LOGINFO('writing dataset rows to CSV and main pickle...')
 
     # run through the rows and generate the CSV
     for entry in dataset['result']:
