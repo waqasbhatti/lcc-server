@@ -1919,14 +1919,14 @@ def sqlite_change_dataset_visibility(
         #
         # update the main dataset pickle
         #
-        with open(dataset_fpath,'rb') as infd:
+        with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
         old_visibility = dataset['visibility'][::]
         dataset['visibility'] = new_visibility
         dataset['updated'] = datetime.utcnow().isoformat()
 
-        with open(dataset_fpath,'wb') as outfd:
+        with gzip.open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
         LOGINFO('updated dataset main pickle: %s '
@@ -2077,14 +2077,14 @@ def sqlite_change_dataset_owner(
         #
         # update the main dataset pickle
         #
-        with open(dataset_fpath,'rb') as infd:
+        with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
         old_owner_userid = dataset['owner']
         dataset['owner'] = new_owner_userid
         dataset['updated'] = datetime.utcnow().isoformat()
 
-        with open(dataset_fpath,'wb') as outfd:
+        with gzip.open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
         LOGINFO('updated dataset main pickle: %s '
@@ -2305,12 +2305,12 @@ def sqlite_edit_dataset(basedir,
         #
         # update the main dataset pickle
         #
-        with open(dataset_fpath,'rb') as infd:
+        with gzip.open(dataset_fpath,'rb') as infd:
             dataset = pickle.load(infd)
 
         dataset.update(ds_update)
         dataset['updated'] = datetime.utcnow().isoformat()
-        with open(dataset_fpath,'wb') as outfd:
+        with gzip.open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
         LOGINFO('updated dataset main pickle: %s '
