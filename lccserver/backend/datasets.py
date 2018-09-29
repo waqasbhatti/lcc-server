@@ -367,8 +367,8 @@ def process_dataset_pgrow(
         basedir,
         lcformatdescs,
         dataset,
-        outrows,
-        out_strformat_rows,
+        outrows=None,
+        out_strformat_rows=None,
         all_original_lcs=None,
         csvlcs_ready=None,
         csvlcs_to_generate=None,
@@ -446,14 +446,16 @@ def process_dataset_pgrow(
                 csvlc
             )
 
-    # the normal data table row
-    outrow = [entry[c] for c in dataset['columns']]
-    outrows.append(outrow)
+    # generate the the normal data table row and append it to the output rows
+    if outrows is not None:
+        outrow = [entry[c] for c in dataset['columns']]
+        outrows.append(outrow)
 
     # the string formatted data table row
     # this will be written to the CSV and to the page JSON
     out_strformat_row = []
 
+    # generate the string formatted row.
     for c in dataset['columns']:
 
         cform = dataset['coldesc'][c]['format']
@@ -468,11 +470,12 @@ def process_dataset_pgrow(
             thisr = thisr.replace('|','; ')
             out_strformat_row.append(thisr)
 
-    # append the strformat row to the page JSON
-    out_strformat_rows.append(out_strformat_row)
+    # append the strformat row to the output strformat rows
+    if out_strformat_rows is not None:
+        out_strformat_rows.append(out_strformat_row)
 
+    # write this row to the CSV
     if csvfd is not None:
-        # write this row to the CSV
         outline = '%s\n' % '|'.join(out_strformat_row)
         csvfd.write(outline.encode())
 
@@ -484,13 +487,6 @@ def process_dataset_page(
         dataset,
         page,
         pgslice,
-        all_original_lcs=None,
-        csvlcs_ready=None,
-        csvlcs_to_generate=None,
-        objectids_later_csvlcs=None,
-        csvfd=None,
-        premake_pages=None,
-        single_page_mode=False
 ):
     '''
     This processes a single dataset page.
@@ -509,22 +505,19 @@ def process_dataset_page(
     # get the lcformatdescs from the dataset
     lcformatdescs = dataset['lcformatdescs']
 
-    if ( (premake_pages is not None and page_number <= premake_pages) or
-         (single_page_mode and len(pgrows) > 0) ):
-
-        # open the pageX.pkl file
-        page_rows_pkl = os.path.join(
-            datasetdir,
-            'dataset-%s-rows-page%s.pkl' %
-            (setid, page_number)
-        )
-        page_rows_strpkl = os.path.join(
-            datasetdir,
-            'dataset-%s-rows-page%s-strformat.pkl' %
-            (setid, page_number)
-        )
-        page_rows_pklfd = open(page_rows_pkl,'wb')
-        page_rows_strpklfd = open(page_rows_strpkl,'wb')
+    # open the pageX.pkl file
+    page_rows_pkl = os.path.join(
+        datasetdir,
+        'dataset-%s-rows-page%s.pkl' %
+        (setid, page_number)
+    )
+    page_rows_strpkl = os.path.join(
+        datasetdir,
+        'dataset-%s-rows-page%s-strformat.pkl' %
+        (setid, page_number)
+    )
+    page_rows_pklfd = open(page_rows_pkl,'wb')
+    page_rows_strpklfd = open(page_rows_strpkl,'wb')
 
     outrows = []
     out_strformat_rows = []
@@ -537,34 +530,30 @@ def process_dataset_page(
             basedir,
             lcformatdescs,
             dataset,
-            outrows,
-            out_strformat_rows,
-            all_original_lcs=all_original_lcs,
-            csvlcs_ready=csvlcs_ready,
-            csvlcs_to_generate=csvlcs_to_generate,
-            objectids_later_csvlcs=objectids_later_csvlcs,
-            csvfd=csvfd
+            outrows=outrows,
+            out_strformat_rows=out_strformat_rows,
+            all_original_lcs=None,
+            csvlcs_ready=None,
+            csvlcs_to_generate=None,
+            objectids_later_csvlcs=None,
+            csvfd=None
         )
 
     #
     # at the end of the page, write the JSON files for this page
     #
-    if ( (premake_pages is not None and page_number <= premake_pages) or
-         (single_page_mode and len(pgrows) > 0) ):
+    pickle.dump(outrows, page_rows_pklfd,
+                pickle.HIGHEST_PROTOCOL)
+    pickle.dump(out_strformat_rows, page_rows_strpklfd,
+                pickle.HIGHEST_PROTOCOL)
 
-        pickle.dump(outrows, page_rows_pklfd,
-                    pickle.HIGHEST_PROTOCOL)
-        pickle.dump(out_strformat_rows, page_rows_strpklfd,
-                    pickle.HIGHEST_PROTOCOL)
+    page_rows_pklfd.close()
+    page_rows_strpklfd.close()
 
-        page_rows_pklfd.close()
-        page_rows_strpklfd.close()
+    LOGINFO('wrote page %s pickles: %s and %s, for setid: %s' %
+            (page_number, page_rows_pkl, page_rows_strpkl, setid))
 
-        LOGINFO('wrote page %s pickles: %s and %s, for setid: %s' %
-                (page_number, page_rows_pkl, page_rows_strpkl, setid))
-
-    if single_page_mode:
-        return page_rows_pkl, page_rows_strpkl
+    return page_rows_pkl, page_rows_strpkl
 
 
 
@@ -580,9 +569,8 @@ def sqlite_new_dataset(basedir,
                        incoming_session_token=None,
                        dataset_visibility='unlisted',
                        dataset_sharedwith=None,
-                       make_dataset_csv=True,
                        rows_per_page=1000,
-                       premake_pages=3):
+                       render_first_page=True):
     '''This is the new-style dataset pickle maker.
 
     Converts the results from the backend into a data table with rows from all
@@ -797,10 +785,6 @@ def sqlite_new_dataset(basedir,
             (setid, total_nmatches))
 
 
-    # we'll now create the auxiliary files in datasets/ for this dataset
-    # we'll open ALL of these files at once and go through the object row loop
-    # ONLY ONCE
-
     csvfd = open(dataset_csv,'wb')
 
     # write the header to the CSV file
@@ -814,31 +798,35 @@ def sqlite_new_dataset(basedir,
     # this contains (objectid, collection) tuples
     objectids_later_csvlcs = []
 
-    # we'll iterate by pages
-    for page, pgslice in enumerate(page_slices):
+    # run through the rows and generate the CSV
+    for entry in dataset['result']:
 
-        process_dataset_page(
+        process_dataset_pgrow(
+            entry,
             basedir,
-            datasetdir,
+            lcformatdescs,
             dataset,
-            page,
-            pgslice,
-            all_original_lcs=all_original_lcs,
-            csvlcs_ready=csvlcs_ready,
-            csvlcs_to_generate=csvlcs_to_generate,
-            objectids_later_csvlcs=objectids_later_csvlcs,
             csvfd=csvfd,
-            premake_pages=premake_pages,
+            all_original_lcs=all_original_lcs,
+            csvlcs_to_generate=csvlcs_to_generate,
+            csvlcs_ready=csvlcs_ready,
+            objectids_later_csvlcs=objectids_later_csvlcs,
         )
 
     #
-    # write the pickle to the datasets directory
+    # finish up the CSV when we're done with all of the rows
+    #
+    csvfd.close()
+    LOGINFO('wrote CSV: %s for setid: %s' % (dataset_csv, setid))
+
+    #
+    # next, write the pickle to the datasets directory
     #
 
     # add in the pointers to unready CSVLCs
     dataset['csvlcs_in_progress'] = objectids_later_csvlcs
 
-    # write the full pickle
+    # write the full pickle gz
     with gzip.open(dataset_fpath,'wb') as outfd:
         pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
@@ -855,10 +843,19 @@ def sqlite_new_dataset(basedir,
     LOGINFO('wrote dataset header pickle: %s for dataset setid: %s' %
             (dataset_header_pkl, setid))
 
-    # finish up the CSV when we're done with all of the pages
-    #
-    csvfd.close()
-    LOGINFO('wrote CSV: %s for setid: %s' % (dataset_csv, setid))
+    actual_nrows = dataset['actual_nrows']
+
+    if render_first_page:
+
+        process_dataset_page(
+            basedir,
+            datasetdir,
+            dataset,
+            0,
+            [0,rows_per_page]
+        )
+
+    del dataset
 
     # return the setid
     return (
@@ -866,7 +863,8 @@ def sqlite_new_dataset(basedir,
         csvlcs_to_generate,
         csvlcs_ready,
         sorted(all_original_lcs),
-        dataset['actual_nrows']
+        actual_nrows,
+        npages
     )
 
 
@@ -906,11 +904,13 @@ def sqlite_render_dataset_page(basedir,
             ds,
             page,
             pgslice,
-            single_page_mode=True
         )
+
+        del ds
         return page_pkl, strpage_pkl
 
     except IndexError:
+
         LOGERROR('requested page_number = %s is '
                  'out of bounds for dataset: %s' %
                  (page_number, setid))
@@ -972,6 +972,7 @@ def sqlite_make_dataset_lczip(basedir,
                               converter_column_separator=',',
                               converter_skip_converted=True,
                               override_lcdir=None,
+                              force_collection=False,
                               max_dataset_lcs=2500):
     '''
     This makes a zip file for the light curves in the dataset.
@@ -1044,7 +1045,7 @@ def sqlite_make_dataset_lczip(basedir,
 
         # only collect LCs if we have to, we'll use the already generated link
         # if we have the same LCs collected already somewhere else
-        if not skip_lc_collection:
+        if not skip_lc_collection or force_collection is True:
 
             LOGINFO('no cached LC zip found for dataset: %s, regenerating...' %
                     setid)
@@ -1090,39 +1091,40 @@ def sqlite_make_dataset_lczip(basedir,
                          ' will not generate a ZIP file.' %
                          (len(zipfile_lclist), max_dataset_lcs))
 
-                # restrict the number of files to be zipped to
-                # max_dataset_lcs
-                zipfile_lclist = zipfile_lclist[:max_dataset_lcs]
+                lczip_generated = False
 
-            # get the expected name of the output zipfile
-            lczip_fpath = dataset['lczipfpath']
+            else:
 
-            LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
-                    (len(zipfile_lclist), lczip_fpath, setid))
+                # get the expected name of the output zipfile
+                lczip_fpath = dataset['lczipfpath']
 
-            # set up the zipfile
-            with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
+                LOGINFO('writing %s LC files to zip file: %s for setid: %s...' %
+                        (len(zipfile_lclist), lczip_fpath, setid))
 
-                for ind_lcf, lcf in enumerate(zipfile_lclist):
+                # set up the zipfile
+                with ZipFile(lczip_fpath, 'w', allowZip64=True) as outzip:
 
-                    if os.path.exists(lcf):
-                        outzip.write(lcf, os.path.basename(lcf))
-                    else:
-                        zipfile_lclist[ind_lcf] = (
-                            '%s missing' % (os.path.basename(lcf))
+                    for ind_lcf, lcf in enumerate(zipfile_lclist):
+
+                        if os.path.exists(lcf):
+                            outzip.write(lcf, os.path.basename(lcf))
+                        else:
+                            zipfile_lclist[ind_lcf] = (
+                                '%s missing' % (os.path.basename(lcf))
+                            )
+
+                    # add the manifest to the zipfile
+                    outzip.writestr(
+                        'lczip-manifest.json',
+                        json.dumps(
+                            [os.path.basename(x) for x in zipfile_lclist],
+                            ensure_ascii=True,
+                            indent=2
                         )
-
-                # add the manifest to the zipfile
-                outzip.writestr(
-                    'lczip-manifest.json',
-                    json.dumps(
-                        [os.path.basename(x) for x in zipfile_lclist],
-                        ensure_ascii=True,
-                        indent=2
                     )
-                )
 
                 LOGINFO('done, zip written successfully.')
+                lczip_generated = True
 
 
         # if we don't need to collect LCs, then we can just re-use the other
@@ -1133,6 +1135,7 @@ def sqlite_make_dataset_lczip(basedir,
                     "ZIP from dataset: %s at %s, "
                     "symlinked to this dataset's LC ZIP: %s" %
                     (other_setid, other_lczip, dataset['lczipfpath']))
+            lczip_generated = True
 
         #
         # done with collecting light curves
@@ -1163,28 +1166,32 @@ def sqlite_make_dataset_lczip(basedir,
         # update the header pickle
         dataset_header_pkl = os.path.join(datasetdir,
                                           'dataset-%s-header.pkl' % setid)
+
         with open(dataset_header_pkl,'rb') as infd:
             setheader = pickle.load(infd)
+
         setheader['updated'] = datetime.utcnow().isoformat()
         setheader['csvlcs_in_progress'] = []
+
         with open(dataset_header_pkl,'wb') as outfd:
             pickle.dump(setheader, outfd, pickle.HIGHEST_PROTOCOL)
 
         # update the full dataset pickle
         dataset['updated'] = datetime.utcnow().isoformat()
         dataset['csvlcs_in_progress'] = []
-        with open(dataset_fpath,'wb') as outfd:
+
+        with gzip.open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
 
         LOGINFO('updated entry for setid: %s with LC zip cachekey' % setid)
 
-        return dataset['lczipfpath']
+        return dataset['lczipfpath'], lczip_generated
 
     else:
 
         LOGERROR('setid: %s, dataset pickle expected at %s does not exist!' %
                  (setid, dataset_fpath))
-        return None
+        return None, False
 
 
 
@@ -1586,6 +1593,7 @@ def sqlite_get_dataset(basedir,
                 db.close()
                 header['status'] = dataset_status
                 header['session_token'] = row['dataset_sessiontoken']
+                header['currpage'] = 1
                 if 'citation' not in header:
                     header['citation'] = None
                 return header
@@ -1709,6 +1717,7 @@ def sqlite_get_dataset(basedir,
                 if 'citation' not in header:
                     header['citation'] = None
                 db.close()
+
                 return header
 
             elif returnspec.startswith('strjson-page-'):
@@ -1775,6 +1784,7 @@ def sqlite_get_dataset(basedir,
                 if 'citation' not in header:
                     header['citation'] = None
                 db.close()
+
                 return header
 
             else:

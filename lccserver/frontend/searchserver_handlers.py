@@ -652,7 +652,8 @@ class BackgroundQueryMixin(object):
                      csvlcs_to_generate,
                      csvlcs_ready,
                      all_original_lcs,
-                     ds_nrows) = yield self.executor.submit(
+                     ds_nrows,
+                     ds_npages) = yield self.executor.submit(
                         datasets.sqlite_new_dataset,
                         self.basedir,
                         self.setid,
@@ -719,11 +720,9 @@ class BackgroundQueryMixin(object):
                                 "Dataset pickle generation complete. "
                                 "There are more than 2,500 light curves "
                                 "to collect, so we won't generate a "
-                                "complete ZIP file. "
-                                "Only the first 2.5k LCs will be "
-                                "collected instead. "
+                                "a ZIP file. "
                                 "See %s for dataset object lists and a "
-                                "CSV when the query completes."
+                                "CSV."
                             ) % dataset_url,
                             "status":"background",
                             "result":{
@@ -756,7 +755,7 @@ class BackgroundQueryMixin(object):
                     try:
 
                         # we'll give zipping 30 seconds
-                        lczip = yield gen.with_timeout(
+                        lczip, lczip_generated = yield gen.with_timeout(
                             timedelta(seconds=30.0),
                             self.lczip_future,
                         )
@@ -767,13 +766,23 @@ class BackgroundQueryMixin(object):
                         #
                         if not donewithuser:
 
+                            if lczip_generated:
+                                message = "dataset LC ZIP complete."
+                                lczip_url = '/p/%s' % os.path.basename(lczip)
+                            else:
+                                message = (
+                                    "dataset LC ZIP not generated "
+                                    "because > 2,500 LCs in dataset"
+                                )
+                                lczip_url = None
+
                             # A4. we're done with collecting light curves
                             retdict = {
-                                "message":("dataset LC ZIP complete."),
+                                "message":message,
                                 "status":"running",
                                 "result":{
                                     "setid":dspkl_setid,
-                                    "lczip":'/p/%s' % os.path.basename(lczip)
+                                    "lczip":lczip_url
                                 },
                                 "time":'%sZ' % datetime.utcnow().isoformat()
                             }
@@ -898,7 +907,7 @@ class BackgroundQueryMixin(object):
                         # continue zipping in the background by re-yielding from
                         # the uncancelled Future
                         #
-                        lczip = yield self.lczip_future
+                        lczip, lczip_generated = yield self.lczip_future
 
                         # finalize the dataset
                         setdict = yield self.executor.submit(
@@ -1070,7 +1079,8 @@ class BackgroundQueryMixin(object):
                  csvlcs_to_generate,
                  csvlcs_ready,
                  all_original_lcs,
-                 ds_nrows) = yield self.executor.submit(
+                 ds_nrows,
+                 ds_npages) = yield self.executor.submit(
                      datasets.sqlite_new_dataset,
                      self.basedir,
                      self.setid,
@@ -1092,13 +1102,13 @@ class BackgroundQueryMixin(object):
 
                     LOGGER.warning(
                         '> 2.5k LCs requested for zipping in the '
-                        'background, only collecting the first 2.5k LCs' %
+                        'background, not making the LC ZIP' %
                         dspkl_setid
                     )
 
                 # Q4. collect light curve ZIP files
                 # this is the LC zipping future
-                lczip = yield self.executor.submit(
+                lczip, lczip_generated = yield self.executor.submit(
                     datasets.sqlite_make_dataset_lczip,
                     self.basedir,
                     dspkl_setid,

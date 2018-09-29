@@ -2736,8 +2736,8 @@ var lcc_search = {
                         alertmsg = 'Query <code>' +
                             msgdata.result.setid +
                             '</code> is complete, but there are &gt; ' +
-                            '2,500 LCs to collect, so an abbreviated LC ZIP ' +
-                            'file will be generated instead. ' +
+                            '2,500 LCs to collect, ' +
+                            'so no LC ZIP file was generated. ' +
                             'Try refining your query, or see ' +
                             '<a target="_blank" ' +
                             'rel="nofollow noreferer noopener" href="' +

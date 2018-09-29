@@ -362,8 +362,9 @@ class DatasetHandler(BaseHandler):
             #
 
             # check if the current user is anonymous or not
-            if (self.current_user['user_id'] not in (2,3) and
-                self.current_user['user_id'] == ds['owner']):
+            if ( (self.current_user['user_role'] in
+                  ('authenticated','staff','superuser')) and
+                 (self.current_user['user_id'] == ds['owner']) ):
 
                 ds['owned'] = True
                 access_ok = True
@@ -371,7 +372,7 @@ class DatasetHandler(BaseHandler):
             # otherwise, if the current user's session_token matches the
             # session_token used to create the dataset, they're the
             # owner.
-            elif ( (self.current_user['user_id'] == 2) and
+            elif ( (self.current_user['user_role'] == 'anonymous') and
                    (self.current_user['session_token'] ==
                     ds['session_token']) ):
 
@@ -380,7 +381,7 @@ class DatasetHandler(BaseHandler):
 
             # if the current user is anonymous and the session tokens don't
             # match, check if the dataset is public or unlisted
-            elif ( (self.current_user['user_id'] == 2) and
+            elif ( (self.current_user['user_role'] == 'anonymous') and
                    (self.current_user['session_token'] !=
                     ds['session_token']) ):
 
@@ -416,7 +417,53 @@ class DatasetHandler(BaseHandler):
                     self.set_header('Content-Type',
                                     'application/json; charset=UTF-8')
                     self.write(dsjson)
-                    raise tornado.web.Finish()
+
+                    #
+                    # end the request here
+                    #
+                    self.finish()
+
+                    #
+                    # once we finish with the user and this was a dataset
+                    # preview or page request, check if there are any unmade
+                    # dataset pages after the current page. if so, make up to 3
+                    # more.
+                    #
+                    next_dspages = [
+                        (os.path.join(self.basedir,
+                                      'datasets',
+                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
+                         x)
+                        for x in range(ds['currpage'] + 1,
+                                       ds['currpage'] + 4)
+                        if (x <= ds['npages'])
+                    ]
+
+                    page_futures = []
+
+                    for next_dspage in next_dspages:
+
+                        if not os.path.exists(next_dspage[0]):
+
+                            LOGGER.info(
+                                'background queuing next '
+                                'dataset page: %s for setid: %s' %
+                                (next_dspage[1], setid)
+                            )
+
+                            page_futures.append(self.executor.submit(
+                                datasets.sqlite_render_dataset_page,
+                                self.basedir,
+                                setid,
+                                next_dspage[1]
+                            ))
+
+                    if len(page_futures) > 0:
+
+                        background_dspage_results = yield page_futures
+                        LOGGER.info('background dspage '
+                                    'generation complete: %r' %
+                                    background_dspage_results)
 
                 else:
 
@@ -464,7 +511,49 @@ class DatasetHandler(BaseHandler):
                         user_account_box=self.render_user_account_box(),
                     )
 
-                    raise tornado.web.Finish()
+                    #
+                    # end the request here
+                    #
+
+                    #
+                    # once we finish with the user and this was a dataset
+                    # preview or page request, check if there are any unmade
+                    # dataset pages after the current page. if so, make up to 3
+                    # more.
+                    #
+                    next_dspages = [
+                        (os.path.join(self.basedir,
+                                      'datasets',
+                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
+                         x)
+                        for x in range(ds['currpage'] + 1,
+                                       ds['currpage'] + 4)
+                        if (x <= ds['npages'])
+                    ]
+
+                    page_futures = []
+                    for next_dspage in next_dspages:
+
+                        if not os.path.exists(next_dspage[0]):
+
+                            LOGGER.info(
+                                'background queuing next '
+                                'dataset page: %s for setid: %s' %
+                                (next_dspage[1], setid)
+                            )
+                            page_futures.append(self.executor.submit(
+                                datasets.sqlite_render_dataset_page,
+                                self.basedir,
+                                setid,
+                                next_dspage[1]
+                            ))
+
+                    if len(page_futures) > 0:
+
+                        background_dspage_results = yield page_futures
+                        LOGGER.info('background dspage '
+                                    'generation complete: %r' %
+                                    background_dspage_results)
 
                 else:
 
@@ -520,7 +609,8 @@ class DatasetHandler(BaseHandler):
             #
 
             # check if the current user is anonymous or not
-            if (self.current_user['user_id'] not in (2,3) and
+            if (self.current_user['user_role'] in ('authenticated',
+                                                   'staff','superuser') and
                 self.current_user['user_id'] == ds['owner']):
 
                 ds['owned'] = True
@@ -529,7 +619,7 @@ class DatasetHandler(BaseHandler):
             # otherwise, if the current user's session_token matches the
             # session_token used to create the dataset, they're the
             # owner.
-            elif ( (self.current_user['user_id'] == 2) and
+            elif ( (self.current_user['user_role'] == 'anonymous') and
                    (self.current_user['session_token'] ==
                     ds['session_token']) ):
 
@@ -538,7 +628,7 @@ class DatasetHandler(BaseHandler):
 
             # if the current user is anonymous and the session tokens don't
             # match, check if the dataset is public or unlisted
-            elif ( (self.current_user['user_id'] == 2) and
+            elif ( (self.current_user['user_role'] == 'anonymous') and
                    (self.current_user['session_token'] !=
                     ds['session_token']) ):
 
@@ -574,7 +664,51 @@ class DatasetHandler(BaseHandler):
                     self.set_header('Content-Type',
                                     'application/json; charset=UTF-8')
                     self.write(dsjson)
-                    raise tornado.web.Finish()
+
+                    #
+                    # end the request here
+                    #
+                    self.finish()
+
+                    #
+                    # once we finish with the user and this was a dataset
+                    # preview or page request, check if there are any unmade
+                    # dataset pages after the current page. if so, make up to 3
+                    # more.
+                    #
+                    next_dspages = [
+                        (os.path.join(self.basedir,
+                                      'datasets',
+                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
+                         x)
+                        for x in range(ds['currpage'] + 1,
+                                       ds['currpage'] + 4)
+                        if (x <= ds['npages'])
+                    ]
+
+                    page_futures = []
+                    for next_dspage in next_dspages:
+
+                        if not os.path.exists(next_dspage[0]):
+
+                            LOGGER.info(
+                                'background queuing next '
+                                'dataset page: %s for setid: %s' %
+                                (next_dspage[1], setid)
+                            )
+                            page_futures.append(self.executor.submit(
+                                datasets.sqlite_render_dataset_page,
+                                self.basedir,
+                                setid,
+                                next_dspage[1]
+                            ))
+
+                    if len(page_futures) > 0:
+
+                        background_dspage_results = yield page_futures
+                        LOGGER.info('background dspage '
+                                    'generation complete: %r' %
+                                    background_dspage_results)
 
                 else:
 
@@ -622,7 +756,45 @@ class DatasetHandler(BaseHandler):
                         user_account_box=self.render_user_account_box(),
                     )
 
-                    raise tornado.web.Finish()
+                    #
+                    # once we finish with the user and this was a dataset
+                    # preview or page request, check if there are any unmade
+                    # dataset pages after the current page. if so, make up to 3
+                    # more.
+                    #
+                    next_dspages = [
+                        (os.path.join(self.basedir,
+                                      'datasets',
+                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
+                         x)
+                        for x in range(ds['currpage'] + 1,
+                                       ds['currpage'] + 4)
+                        if (x <= ds['npages'])
+                    ]
+
+                    page_futures = []
+                    for next_dspage in next_dspages:
+
+                        if not os.path.exists(next_dspage[0]):
+
+                            LOGGER.info(
+                                'background queuing next '
+                                'dataset page: %s for setid: %s' %
+                                (next_dspage[1], setid)
+                            )
+                            page_futures.append(self.executor.submit(
+                                datasets.sqlite_render_dataset_page,
+                                self.basedir,
+                                setid,
+                                next_dspage[1]
+                            ))
+
+                    if len(page_futures) > 0:
+
+                        background_dspage_results = yield page_futures
+                        LOGGER.info('background dspage '
+                                    'generation complete: %r' %
+                                    background_dspage_results)
 
                 else:
 
@@ -666,6 +838,7 @@ class DatasetHandler(BaseHandler):
                             siteinfo=self.siteinfo,
                             flash_messages=self.render_flash_messages(),
                             user_account_box=self.render_user_account_box())
+
 
 
     @gen.coroutine
