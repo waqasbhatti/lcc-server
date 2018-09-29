@@ -650,7 +650,6 @@ class BackgroundQueryMixin(object):
                     # DB
                     (dspkl_setid,
                      csvlcs_to_generate,
-                     csvlcs_ready,
                      all_original_lcs,
                      ds_nrows,
                      ds_npages) = yield self.executor.submit(
@@ -746,7 +745,6 @@ class BackgroundQueryMixin(object):
                         self.basedir,
                         dspkl_setid,
                         csvlcs_to_generate,
-                        csvlcs_ready,
                         all_original_lcs,
                         max_dataset_lcs=2500,
                         override_lcdir=self.uselcdir
@@ -1077,7 +1075,6 @@ class BackgroundQueryMixin(object):
                 # DB
                 (dspkl_setid,
                  csvlcs_to_generate,
-                 csvlcs_ready,
                  all_original_lcs,
                  ds_nrows,
                  ds_npages) = yield self.executor.submit(
@@ -1113,7 +1110,6 @@ class BackgroundQueryMixin(object):
                     self.basedir,
                     dspkl_setid,
                     csvlcs_to_generate,
-                    csvlcs_ready,
                     all_original_lcs,
                     max_dataset_lcs=2500,
                     override_lcdir=self.uselcdir  # useful when testing LCC

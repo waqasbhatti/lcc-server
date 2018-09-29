@@ -429,15 +429,45 @@ class DatasetHandler(BaseHandler):
                     # dataset pages after the current page. if so, make up to 3
                     # more.
                     #
-                    next_dspages = [
-                        (os.path.join(self.basedir,
-                                      'datasets',
-                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
-                         x)
-                        for x in range(ds['currpage'] + 1,
-                                       ds['currpage'] + 4)
-                        if (x <= ds['npages'])
-                    ]
+                    if ds['currpage'] == 1:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] + 1,
+                                           ds['currpage'] + 4)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    elif ds['currpage'] == ds['npages']:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 4,
+                                           ds['currpage'] - 1)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    else:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 3,
+                                           ds['currpage'] + 3)
+                            if (1 <= x <= ds['npages'])
+                        ]
+
 
                     page_futures = []
 
@@ -521,15 +551,44 @@ class DatasetHandler(BaseHandler):
                     # dataset pages after the current page. if so, make up to 3
                     # more.
                     #
-                    next_dspages = [
-                        (os.path.join(self.basedir,
-                                      'datasets',
-                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
-                         x)
-                        for x in range(ds['currpage'] + 1,
-                                       ds['currpage'] + 4)
-                        if (x <= ds['npages'])
-                    ]
+                    if ds['currpage'] == 1:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] + 1,
+                                           ds['currpage'] + 4)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    elif ds['currpage'] == ds['npages']:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 4,
+                                           ds['currpage'] - 1)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    else:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 3,
+                                           ds['currpage'] + 3)
+                            if(1 <= x <= ds['npages'])
+                        ]
 
                     page_futures = []
                     for next_dspage in next_dspages:
@@ -676,15 +735,44 @@ class DatasetHandler(BaseHandler):
                     # dataset pages after the current page. if so, make up to 3
                     # more.
                     #
-                    next_dspages = [
-                        (os.path.join(self.basedir,
-                                      'datasets',
-                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
-                         x)
-                        for x in range(ds['currpage'] + 1,
-                                       ds['currpage'] + 4)
-                        if (x <= ds['npages'])
-                    ]
+                    if ds['currpage'] == 1:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] + 1,
+                                           ds['currpage'] + 4)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    elif ds['currpage'] == ds['npages']:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 4,
+                                           ds['currpage'] - 1)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    else:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 3,
+                                           ds['currpage'] + 3)
+                            if(1 <= x <= ds['npages'])
+                        ]
 
                     page_futures = []
                     for next_dspage in next_dspages:
@@ -762,15 +850,44 @@ class DatasetHandler(BaseHandler):
                     # dataset pages after the current page. if so, make up to 3
                     # more.
                     #
-                    next_dspages = [
-                        (os.path.join(self.basedir,
-                                      'datasets',
-                                      'dataset-%s-rows-page%s.pkl' % (setid,x)),
-                         x)
-                        for x in range(ds['currpage'] + 1,
-                                       ds['currpage'] + 4)
-                        if (x <= ds['npages'])
-                    ]
+                    if ds['currpage'] == 1:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] + 1,
+                                           ds['currpage'] + 4)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    elif ds['currpage'] == ds['npages']:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 4,
+                                           ds['currpage'] - 1)
+                            if(1 <= x <= ds['npages'])
+                        ]
+
+                    else:
+
+                        next_dspages = [
+                            (os.path.join(self.basedir,
+                                          'datasets',
+                                          'dataset-%s-rows-page%s.pkl' %
+                                          (setid,x)),
+                             x)
+                            for x in range(ds['currpage'] - 3,
+                                           ds['currpage'] + 3)
+                            if(1 <= x <= ds['npages'])
+                        ]
 
                     page_futures = []
                     for next_dspage in next_dspages:

@@ -1237,6 +1237,24 @@ var lcc_ui = {
             );
 
         });
+        // dataset page handling
+        $('.dataset-pagination-first').on('click', function (evt) {
+
+            lcc_datasets.get_dataset_page(
+                lcc_datasets.setid,
+                1
+            );
+
+        });
+        // dataset page handling
+        $('.dataset-pagination-last').on('click', function (evt) {
+
+            lcc_datasets.get_dataset_page(
+                lcc_datasets.setid,
+                lcc_datasets.npages
+            );
+
+        });
 
         // handle the dataset show all button
         $('#dataset-show-all').on('click', function(evt) {
@@ -3695,12 +3713,6 @@ var lcc_datasets = {
         var thisrow_collection = null;
         var thisrow_lcmagcols = null;
 
-        // populate the list of object IDs that have CSV LCs in progress
-        var objectids_csvlcs_in_progress = [];
-        for (let item of data.csvlcs_in_progress) {
-            objectids_csvlcs_in_progress.push(item[0]);
-        }
-
         for (rowind; rowind < max_rows; rowind++) {
 
             // get this object's db_oid and collection. we'll use these
@@ -3770,16 +3782,13 @@ var lcc_datasets = {
 
             }
 
-            // check the csvlcs_in_progress item to see if this LC is in there
-            if (objectids_csvlcs_in_progress
-                .indexOf(thisrow[colind_objectid]) != -1) {
-                thisrow[colind_lcfname] = 'not available yet';
-            }
-            else {
-                thisrow[colind_lcfname] =
-                    '<a download rel="nofollow" href="' +
-                    thisrow_lclink + '">download light curve</a>';
-            }
+            // FIXME: note that if the LC isn't ready yet, this will throw a
+            // 404. use a handler to check the download link and display an
+            // alert if it returns a 404. if it doesn't, pass through the file
+            // to window.location (??). that should trigger a download.
+            thisrow[colind_lcfname] =
+                '<a class="download-lc-link" download rel="nofollow" href="' +
+                thisrow_lclink + '">download light curve</a>';
 
             // bibcode linkify the extra_info, simbad_best_allids, and
             // simbad_best_obtype columns
@@ -4036,7 +4045,9 @@ var lcc_datasets = {
                                           status +
                                           '</span>');
                 $('#setload-indicator').html(
-                    'waiting for LC ZIP completion...'
+                    '<span class="text-warning">' +
+                        'still collecting light curves...' +
+                        '</span>'
                 );
                 lcc_datasets.dataset_complete = false;
             }

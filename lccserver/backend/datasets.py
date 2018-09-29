@@ -371,9 +371,7 @@ def process_dataset_pgrow(
         outrows=None,
         out_strformat_rows=None,
         all_original_lcs=None,
-        csvlcs_ready=None,
         csvlcs_to_generate=None,
-        objectids_later_csvlcs=None,
         csvfd=None,
 ):
     '''
@@ -382,26 +380,17 @@ def process_dataset_pgrow(
     '''
 
     if ( (all_original_lcs is not None) and
-         (csvlcs_ready is not None) and
-         (csvlcs_to_generate is not None) and
-         (objectids_later_csvlcs is not None) ):
+         (csvlcs_to_generate is not None) ):
 
         all_original_lcs.append(entry['db_lcfname'])
+
         csvlc = '%s-csvlc.gz' % entry['db_oid']
         csvlc_path = os.path.join(os.path.abspath(basedir),
                                   'csvlcs',
                                   entry['collection'].replace('_','-'),
                                   csvlc)
 
-        if 'db_lcfname' in entry and os.path.exists(csvlc_path):
-
-            entry['db_lcfname'] = '/l/%s/%s' % (
-                entry['collection'].replace('_','-'),
-                csvlc
-            )
-            csvlcs_ready.append(csvlc_path)
-
-        elif 'db_lcfname' in entry and not os.path.exists(csvlc_path):
+        if 'db_lcfname' in entry:
 
             csvlcs_to_generate.append(
                 (entry['db_lcfname'],
@@ -410,25 +399,13 @@ def process_dataset_pgrow(
                  entry['collection'],
                  csvlc_path)
             )
-            objectids_later_csvlcs.append(
-                (entry['db_oid'],
-                 entry['collection'])
-            )
 
             entry['db_lcfname'] = '/l/%s/%s' % (
                 entry['collection'].replace('_','-'),
                 csvlc
             )
 
-        elif 'lcfname' in entry and os.path.exists(csvlc_path):
-
-            entry['lcfname'] = '/l/%s/%s' % (
-                entry['collection'].replace('_','-'),
-                csvlc
-            )
-            csvlcs_ready.append(csvlc_path)
-
-        elif 'lcfname' in entry and not os.path.exists(csvlc_path):
+        elif 'lcfname' in entry:
 
             csvlcs_to_generate.append(
                 (entry['lcfname'],
@@ -436,10 +413,6 @@ def process_dataset_pgrow(
                  lcformatdescs[entry['collection']],
                  entry['collection'],
                  csvlc_path)
-            )
-            objectids_later_csvlcs.append(
-                (entry['db_oid'],
-                 entry['collection'])
             )
 
             entry['lcfname'] = '/l/%s/%s' % (
@@ -482,6 +455,7 @@ def process_dataset_pgrow(
 
     if outrows is None and out_strformat_rows is None:
         return outrow, out_strformat_row
+
 
 
 def process_dataset_page(
@@ -540,9 +514,7 @@ def process_dataset_page(
             outrows=outrows,
             out_strformat_rows=out_strformat_rows,
             all_original_lcs=None,
-            csvlcs_ready=None,
             csvlcs_to_generate=None,
-            objectids_later_csvlcs=None,
             csvfd=None
         )
 
@@ -798,11 +770,6 @@ def sqlite_new_dataset(basedir,
 
     all_original_lcs = []
     csvlcs_to_generate = []
-    csvlcs_ready = []
-
-    # this lets the frontend track which LCs are missing and update these later
-    # this contains (objectid, collection) tuples
-    objectids_later_csvlcs = []
 
     LOGINFO('writing dataset rows to CSV and main pickle...')
 
@@ -813,12 +780,11 @@ def sqlite_new_dataset(basedir,
             entry,
             basedir,
             lcformatdescs,
-            dataset,
+            dataset['columns'],
+            dataset['coldesc'],
             csvfd=csvfd,
             all_original_lcs=all_original_lcs,
             csvlcs_to_generate=csvlcs_to_generate,
-            csvlcs_ready=csvlcs_ready,
-            objectids_later_csvlcs=objectids_later_csvlcs,
         )
 
     #
@@ -830,9 +796,6 @@ def sqlite_new_dataset(basedir,
     #
     # next, write the pickle to the datasets directory
     #
-
-    # add in the pointers to unready CSVLCs
-    dataset['csvlcs_in_progress'] = objectids_later_csvlcs
 
     # write the full pickle gz
     with gzip.open(dataset_fpath,'wb') as outfd:
@@ -869,7 +832,6 @@ def sqlite_new_dataset(basedir,
     return (
         setid,
         csvlcs_to_generate,
-        csvlcs_ready,
         sorted(all_original_lcs),
         actual_nrows,
         npages
@@ -972,7 +934,6 @@ def generate_lczip_cachekey(lczip_lclist):
 def sqlite_make_dataset_lczip(basedir,
                               setid,
                               dataset_csvlcs_to_generate,
-                              dataset_csvlcs_ready,
                               dataset_all_original_lcs,
                               converter_processes=4,
                               converter_csvlc_version=1,
@@ -1088,7 +1049,6 @@ def sqlite_make_dataset_lczip(basedir,
             # FINALLY, CARRY OUT THE ZIP OPERATION (IF NEEDED)
             #
             zipfile_lclist = (
-                dataset_csvlcs_ready +
                 [x[-1] for x in dataset_csvlcs_to_generate]
             )
 
@@ -1179,14 +1139,12 @@ def sqlite_make_dataset_lczip(basedir,
             setheader = pickle.load(infd)
 
         setheader['updated'] = datetime.utcnow().isoformat()
-        setheader['csvlcs_in_progress'] = []
 
         with open(dataset_header_pkl,'wb') as outfd:
             pickle.dump(setheader, outfd, pickle.HIGHEST_PROTOCOL)
 
         # update the full dataset pickle
         dataset['updated'] = datetime.utcnow().isoformat()
-        dataset['csvlcs_in_progress'] = []
 
         with gzip.open(dataset_fpath,'wb') as outfd:
             pickle.dump(dataset, outfd, pickle.HIGHEST_PROTOCOL)
@@ -1519,11 +1477,13 @@ def sqlite_list_datasets(basedir,
 
 
 
-def sqlite_get_dataset(basedir,
-                       setid,
-                       returnspec,
-                       incoming_userid=2,
-                       incoming_role='anonymous'):
+def sqlite_get_dataset(
+        basedir,
+        setid,
+        returnspec,
+        incoming_userid=2,
+        incoming_role='anonymous'
+):
     '''This gets the dataset as a dict.
 
     returnspec is what to return:
