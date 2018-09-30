@@ -88,7 +88,7 @@ var lcc_ui = {
     // regex adapted from the super awesome https://regex101.com/
     bibcode_linkify: function (text) {
 
-        const regex = /(\d{4}\S{5}\S{4}[a-zA-Z\.]\S{4}[A-Z])+/g;
+        const regex = /(\d{4}\S{5}\S{4}[a-zA-Z.]\S{4}[A-Z])+/g;
         let m;
         let bibcodes = [];
         let biblinks = [];
@@ -225,7 +225,6 @@ var lcc_ui = {
         $.getJSON(geturl, function(data) {
 
             let result = data.result;
-            let message = data.message;
             let status = data.status;
 
             if (status == 'ok') {
@@ -427,8 +426,6 @@ var lcc_ui = {
                 let coll_ind = lcc_ui.collections.db_collection_id.indexOf(
                     collection_id
                 );
-                console.log(coll_ind);
-                console.log(collection_id);
 
                 // find the appropriate row in the collections table
                 let collrow = '#lccid-' + collection_id.replace(/_/g,'-');
@@ -1315,7 +1312,6 @@ var lcc_ui = {
 
                         // setid and queried collections
                         var setid = result[rowind]['setid'];
-                        var queriedcolls = result[rowind]['queried_collections'];
 
                         // number of objects
                         var nobjects = result[rowind]['nobjects'];
@@ -1905,7 +1901,6 @@ var lcc_ui = {
 
                     // setid and queried collections
                     var setid = result[rowind]['setid'];
-                    var queriedcolls = result[rowind]['queried_collections'];
 
                     // number of objects
                     var nobjects = result[rowind]['nobjects'];
@@ -2069,10 +2064,6 @@ var lcc_ui = {
 
     // this renders a single collection
     render_collection: function (collections, ind) {
-
-        // get the column list for this collection
-        let columns =
-            collections.columnlist[ind].split(',').sort();
 
         // get the indexed columns for the collection
         let indexedcols =
@@ -2400,14 +2391,6 @@ var lcc_ui = {
                     // get the column list for this collection
                     var columns =
                         collections.columnlist[coll_idx].split(',').sort();
-
-                    // get the indexed columns for the collection
-                    var indexedcols =
-                        collections.indexedcols[coll_idx].split(',').sort();
-
-                    // get the FTS columns for this collection
-                    var ftscols =
-                        collections.ftsindexedcols[coll_idx].split(',').sort();
 
                     var colind = 0;
 
