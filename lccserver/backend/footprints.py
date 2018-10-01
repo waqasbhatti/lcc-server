@@ -361,6 +361,7 @@ def collection_overview_plot(collection_dirlist,
                              outfile,
                              use_hull='concave',
                              use_projection='mollweide',
+                             use_colormap='viridis_r',
                              show_galactic_plane=True,
                              show_ecliptic_plane=True,
                              dpi=200):
@@ -495,7 +496,7 @@ def collection_overview_plot(collection_dirlist,
                 np.radians(covras),
                 np.radians(covdecls),
                 linewidth=0.0,
-                color=plt.get_cmap('RdYlBu')(
+                color=plt.get_cmap(use_colormap)(
                     1.0 * ci/len(collection_dirlist)
                 ),
                 alpha=0.6,
@@ -550,7 +551,7 @@ def collection_overview_plot(collection_dirlist,
                     np.radians(covras),
                     np.radians(covdecls),
                     linewidth=0.0,
-                    color=plt.get_cmap('RdYlBu')(
+                    color=plt.get_cmap(use_colormap)(
                         1.0 * ci/len(collection_dirlist)
                     ),
                     alpha=0.6,
@@ -648,6 +649,7 @@ def collection_overview_svg(
         collection_dirlist,
         use_hull='concave',
         use_projection='mollweide',
+        use_colormap='viridis_r',
         show_galactic_plane=True,
         show_ecliptic_plane=True,
         dpi=200,
@@ -672,6 +674,7 @@ def collection_overview_svg(
         outfile,
         use_hull=use_hull,
         use_projection=use_projection,
+        use_colormap=use_colormap,
         show_galactic_plane=show_galactic_plane,
         show_ecliptic_plane=show_ecliptic_plane,
         dpi=dpi
