@@ -361,9 +361,10 @@ def collection_overview_plot(collection_dirlist,
                              outfile,
                              use_hull='concave',
                              use_projection='mollweide',
-                             use_colormap='viridis_r',
+                             use_colormap='inferno',
                              show_galactic_plane=True,
                              show_ecliptic_plane=True,
+                             east_is_left=True,
                              dpi=200):
     '''This generates a coverage map plot for all of the collections in
     collection_dirlist.
@@ -425,6 +426,9 @@ def collection_overview_plot(collection_dirlist,
         galdec = galactic_plane_decl[::]
         galra[galra > 180.0] = galra[galra > 180.0] - 360.0
 
+        if east_is_left:
+            galra = -galra
+
         ax.scatter(
             np.radians(galra),
             np.radians(galdec),
@@ -457,6 +461,10 @@ def collection_overview_plot(collection_dirlist,
         eclra = ecliptic_equator_ra[::]
         ecldec = ecliptic_equator_decl[::]
         eclra[eclra > 180.0] = eclra[eclra > 180.0] - 360.0
+
+        if east_is_left:
+            eclra = -eclra
+
         ax.scatter(
             np.radians(eclra),
             np.radians(ecldec),
@@ -491,6 +499,9 @@ def collection_overview_plot(collection_dirlist,
             covdecls = hull_boundary[:,1]
             # wrap the RAs
             covras[covras > 180.0] = covras[covras > 180.0] - 360.0
+
+            if east_is_left:
+                covras = -covras
 
             ax.fill(
                 np.radians(covras),
@@ -547,6 +558,10 @@ def collection_overview_plot(collection_dirlist,
                 covdecls = bound[:,1]
                 # wrap the RAs
                 covras[covras > 180.0] = covras[covras > 180.0] - 360.0
+
+                if east_is_left:
+                    covras = -covras
+
                 ax.fill(
                     np.radians(covras),
                     np.radians(covdecls),
@@ -616,12 +631,17 @@ def collection_overview_plot(collection_dirlist,
            '$6^{\mathrm{h}}$','$8^{\mathrm{h}}$',
            '$10^{\mathrm{h}}$']
     ax.set_xticks(xt)
+
+    if east_is_left:
+        xtl = list(reversed(xtl))
+
     ax.set_xticklabels(xtl)
 
     # make the axis labels
     ax.set_xlabel('right ascension [hr]')
     ax.set_ylabel('declination [deg]')
 
+    # make the legend
     ax.legend(
         loc='upper right',
         bbox_to_anchor=(1.0, 1.05),
@@ -633,7 +653,66 @@ def collection_overview_plot(collection_dirlist,
         frameon=False
     )
 
+    #
+    # make the compass
+    #
+
+    # north arrow
+    plt.arrow(0.16,0.66,0.0,0.03,
+              transform=plt.gcf().transFigure,
+              color='k',
+              clip_on=False)
+
+    if east_is_left:
+
+        # east arrow
+        plt.arrow(0.16,0.66,-0.03,0.00,
+                  transform=plt.gcf().transFigure,
+                  color='k',
+                  clip_on=False)
+
+    else:
+
+        # east arrow
+        plt.arrow(0.16,0.66,0.03,0.00,
+                  transform=plt.gcf().transFigure,
+                  color='k',
+                  clip_on=False)
+
+
+    # north text
+    plt.text(0.16,0.695,'North',
+             transform=plt.gcf().transFigure,
+             fontsize=14,
+             color='k',
+             ha='center',
+             va='bottom',
+             clip_on=False)
+
+    # east text
+    if east_is_left:
+
+        plt.text(0.123,0.66,'East',
+                 transform=plt.gcf().transFigure,
+                 fontsize=14,
+                 va='center',
+                 ha='right',
+                 color='k',
+                 clip_on=False)
+
+    else:
+
+        plt.text(0.197,0.66,'East',
+                 transform=plt.gcf().transFigure,
+                 fontsize=14,
+                 va='center',
+                 ha='left',
+                 color='k',
+                 clip_on=False)
+
+    #
     # save the plot to the designated file
+    #
     fig.savefig(outfile,
                 bbox_inches='tight',
                 dpi=dpi,
@@ -649,7 +728,7 @@ def collection_overview_svg(
         collection_dirlist,
         use_hull='concave',
         use_projection='mollweide',
-        use_colormap='viridis_r',
+        use_colormap='inferno',
         show_galactic_plane=True,
         show_ecliptic_plane=True,
         dpi=200,
