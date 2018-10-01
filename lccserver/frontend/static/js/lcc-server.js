@@ -2654,7 +2654,7 @@ var lcc_search = {
 
                         // hit the /api/datasets URL to update the datasets
                         // also highlight the row with our query result in it
-                        lcc_ui.get_recent_datasets(25, msgdata.result.setid);
+                        lcc_ui.get_recent_datasets(100, msgdata.result.setid);
 
                         // bounce the recent datasets tab if the dataset is done
                         $('#datasets-tab-icon').addClass('animated bounce');
