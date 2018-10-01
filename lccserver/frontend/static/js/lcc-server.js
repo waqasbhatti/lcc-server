@@ -2189,7 +2189,7 @@ var lcc_ui = {
     </tr>
     <tr>
       <th scope="row">Citation</th>
-      <td>${citation}</td>
+      <td>${lcc_ui.bibcode_linkify(citation)}</td>
     </tr>
   </table>
 
