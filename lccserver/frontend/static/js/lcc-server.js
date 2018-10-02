@@ -2220,28 +2220,28 @@ var lcc_ui = {
   <ul class="list-unstyled">
 
     <li>
-      <a href="#" class="collection-search-init"
+      <a href="#" rel="nofollow" class="collection-search-init"
          data-collection="${db_collection_id}" data-target="conesearch">
         Find objects by their coordinates
       </a>
     </li>
 
     <li>
-      <a href="#" class="collection-search-init"
+      <a href="#" rel="nofollow" class="collection-search-init"
          data-collection="${db_collection_id}" data-target="ftsquery">
         Find objects by name or description
       </a>
     </li>
 
     <li>
-      <a href="#" class="collection-search-init"
+      <a href="#" rel="nofollow" class="collection-search-init"
          data-collection="${db_collection_id}" data-target="columnsearch">
         Find objects using database column filters
       </a>
     </li>
 
     <li>
-      <a href="#" class="collection-search-init"
+      <a href="#" rel="nofollow" class="collection-search-init"
          data-collection="${db_collection_id}" data-target="xmatch">
         Cross-match to objects in an uploaded list
       </a>
@@ -2257,35 +2257,35 @@ var lcc_ui = {
   <ul class="list-unstyled">
 
     <li>
-      <a href="#" class="collection-100random-init"
+      <a href="#" rel="nofollow" class="collection-100random-init"
          data-collection="${db_collection_id}">
         100 random objects from this collection
       </a>
     </li>
 
     <li>
-      <a href="#" class="collection-simbadok-init"
+      <a href="#" rel="nofollow" class="collection-simbadok-init"
          data-collection="${db_collection_id}">
         100 random objects with SIMBAD counterparts
       </a>
     </li>
 
     <li>
-      <a href="#" class="collection-stetsonvar-init"
+      <a href="#" rel="nofollow" class="collection-stetsonvar-init"
          data-collection="${db_collection_id}">
         Top 100 objects sorted by decreasing Stetson <em>J<sub>var</sub></em>
       </a>
     </li>
 
     <li>
-      <a href="#" class="collection-fastmovers-init"
+      <a href="#" rel="nofollow" class="collection-fastmovers-init"
          data-collection="${db_collection_id}">
         Top 100 objects sorted by decreasing GAIA parallax
       </a>
     </li>
 
     <li>
-      <a href="#" class="collection-gaiadwarfs-init"
+      <a href="#" rel="nofollow" class="collection-gaiadwarfs-init"
          data-collection="${db_collection_id}">
         Top 100 objects sorted by decreasing GAIA M<sub><em>G</em></sub>
       </a>
