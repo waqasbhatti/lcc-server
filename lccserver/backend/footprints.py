@@ -731,6 +731,7 @@ def collection_overview_svg(
         use_colormap='inferno',
         show_galactic_plane=True,
         show_ecliptic_plane=True,
+        east_is_left=True,
         dpi=200,
         optimize_svg=True
 ):
@@ -756,6 +757,7 @@ def collection_overview_svg(
         use_colormap=use_colormap,
         show_galactic_plane=show_galactic_plane,
         show_ecliptic_plane=show_ecliptic_plane,
+        east_is_left=east_is_left,
         dpi=dpi
     )
 
