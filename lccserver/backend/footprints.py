@@ -658,7 +658,7 @@ def collection_overview_plot(collection_dirlist,
     #
 
     # north arrow
-    plt.arrow(0.16,0.66,0.0,0.03,
+    plt.arrow(0.16,0.25,0.0,0.03,
               transform=plt.gcf().transFigure,
               color='k',
               clip_on=False)
@@ -666,7 +666,7 @@ def collection_overview_plot(collection_dirlist,
     if east_is_left:
 
         # east arrow
-        plt.arrow(0.16,0.66,-0.03,0.00,
+        plt.arrow(0.16,0.25,-0.03,0.00,
                   transform=plt.gcf().transFigure,
                   color='k',
                   clip_on=False)
@@ -674,14 +674,14 @@ def collection_overview_plot(collection_dirlist,
     else:
 
         # east arrow
-        plt.arrow(0.16,0.66,0.03,0.00,
+        plt.arrow(0.16,0.25,0.03,0.00,
                   transform=plt.gcf().transFigure,
                   color='k',
                   clip_on=False)
 
 
     # north text
-    plt.text(0.16,0.695,'North',
+    plt.text(0.16,0.285,'North',
              transform=plt.gcf().transFigure,
              fontsize=14,
              color='k',
@@ -692,7 +692,7 @@ def collection_overview_plot(collection_dirlist,
     # east text
     if east_is_left:
 
-        plt.text(0.123,0.66,'East',
+        plt.text(0.123,0.25,'East',
                  transform=plt.gcf().transFigure,
                  fontsize=14,
                  va='center',
@@ -702,7 +702,7 @@ def collection_overview_plot(collection_dirlist,
 
     else:
 
-        plt.text(0.197,0.66,'East',
+        plt.text(0.197,0.25,'East',
                  transform=plt.gcf().transFigure,
                  fontsize=14,
                  va='center',
