@@ -154,6 +154,8 @@
         <div class="tab-pane show active"
              id="collections" role="tabpanel" aria-labelledby="collections-tab">
 
+          {% if footprint_svg is not None %}
+
           <div class="row mt-2 no-gutters" id="footprint-container" >
             <div class="col-sm-12 col-md-8" >
 
@@ -168,6 +170,16 @@
             </div>
 
           </div>
+
+          {% else %}
+
+          <div class="row mt-2">
+            <!-- all of the collections go in here -->
+            <div class="col-12" id="collection-container" >
+            </div>
+          </div>
+
+          {% end %}
 
         </div>
 
