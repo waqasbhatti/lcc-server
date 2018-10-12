@@ -44,15 +44,18 @@ query as it progresses through the execution stages. Clicking on the
 </figure>
 
 Finally, all queries produce [datasets](/docs/datasets) for their search
-results. By default, all datasets are public and show up in the
-<strong>Datasets</strong> tab. Your most recent query will be highlighted in
-this tab.
+results. By default, all datasets are **unlisted**, do not show up in the
+<strong>Datasets</strong> tab for any user other than yourself, but are
+accessible by other people if they know the dataset URL.
 
 <figure class="figure"> <img
   src="/server-static/lcc-server-search-recent-datasets.png" class="figure-img
   img-fluid" alt="The recent datasets tab"> <figcaption class="figure-caption
   text-center"> The recent datasets tab </figcaption> </figure>
 
-You can uncheck the <strong>Make dataset from query result publicly
-visible</strong> control to override this. In this case, the search results will
-be only visible to people who know the unique dataset URL.
+Other possible dataset visibility states are **private** and **public**. Setting
+the dataset visibility to **private** ensures that you alone can access the
+dataset and its contents. Other users will not be able to access the dataset URL
+or download the dataset products. Setting the dataset visibility to **public**
+will allow the dataset to show up in the list of public datasets on the
+**Datasets** tab and on the datasets page (<{{ server_url }}/datasets>).
