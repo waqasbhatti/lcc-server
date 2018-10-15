@@ -21,10 +21,21 @@ the collection information list on the right side of the page. Clicking on any
 of the headers in this entry will expand the selected entry section. The
 **Search this collection** links will bring you to the appropriate search
 service page tab with this collection loaded and ready to go. The **Explore this
-collection** links will launch searches that highlight objects in the
-collection based on their variability and other criteria.
+collection** links will launch searches that find objects in the collection
+based on their variability and other criteria.
 
 ## Searching for objects
+
+Clicking on any of the search service tabs will bring you to the search
+interface. Each of the services have their own detailed documentation laying out
+their input parameters:
+
+- [cone search around specified coordinates](/docs/conesearch)
+- [full-text search for object names and descriptions](/docs/ftsearch)
+- [search based on column filters and sort conditions](/docs/columnsearch)
+- [upload objects to match against available collections](/docs/xmatch)
+
+An example using the **conesearch** service is shown below:
 
 <figure class="figure">
   <img src="/server-static/lcc-server-search-overview.png"
@@ -34,13 +45,6 @@ collection based on their variability and other criteria.
     The LCC server search interface
   </figcaption>
 </figure>
-
-Choose a search type:
-
-- [cone search around specified coordinates](/docs/conesearch)
-- [full-text search for object names and descriptions](/docs/ftsearch)
-- [search based on column filters and sort conditions](/docs/columnsearch)
-- [upload objects to match against available collections](/docs/xmatch)
 
 All search services follow the same basic scheme:
 
@@ -54,7 +58,8 @@ All search services follow the same basic scheme:
 3. Add database column filters on the matched objects. This step is
    optional. See the [Filtering on database
    columns](#filtering-on-database-columns) section below for details.
-4. Choose the visibility of the search result. This step is optional.
+4. Choose the visibility of the [search result](#search-results). This step is
+   optional.
 5. Type in the query coordinates or text as appropriate.
 
 Hitting the search button will start the query immediately. All queries run
@@ -80,10 +85,13 @@ results. By default, all datasets are **unlisted**, do not show up in the
 <strong>Datasets</strong> tab for any user other than yourself, but are
 accessible by other people if they know the dataset URL.
 
-<figure class="figure"> <img
-  src="/server-static/lcc-server-search-recent-datasets.png" class="figure-img
-  img-fluid" alt="The recent datasets tab"> <figcaption class="figure-caption
-  text-center"> The recent datasets tab </figcaption> </figure>
+<figure class="figure">
+  <img src="/server-static/lcc-server-search-recent-datasets.png"
+       class="figure-img img-fluid" alt="The recent datasets tab">
+  <figcaption class="figure-caption text-center">
+    The recent datasets tab
+  </figcaption>
+</figure>
 
 Other possible dataset visibility states are **private** and **public**. Setting
 the dataset visibility to **private** ensures that you alone can access the
