@@ -607,9 +607,10 @@ class BackgroundQueryMixin(object):
         query_type = query_spec['name']
 
         # add the sortspec column to the getcolumns list kwarg
-        for sortspec in results_sortspec:
-            if sortspec[0] not in query_kwargs['getcolumns']:
-                query_kwargs['getcolumns'].append(sortspec[0])
+        if results_sortspec is not None:
+            for sortspec in results_sortspec:
+                if sortspec[0] not in query_kwargs['getcolumns']:
+                    query_kwargs['getcolumns'].append(sortspec[0])
 
         # this is the query Future
         self.query_result_future = self.executor.submit(
