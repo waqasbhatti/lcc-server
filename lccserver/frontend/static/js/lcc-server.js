@@ -296,7 +296,7 @@ var lcc_ui = {
 
             if (status == 'ok') {
 
-                $(target_key).val(result.apikey);
+                $(target_key).val(JSON.stringify(result, null, 2));
                 $(target_expiry).html(
                     (' expires at ' +
                      moment.utc(result.expires).format('Y-M-D HH:mm Z'))

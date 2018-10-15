@@ -92,8 +92,17 @@
           <div class="col-12" >
 
             <label for="api-key">Current API key<span id="apikey-expiry"></span></label>
-            <textarea class="form-control" id="api-key" placeholder="None" rows="6" readonly>
+            <textarea class="form-control"
+                      id="api-key"
+                      aria-describedby="apikey-help-block"
+                      placeholder="None"
+                      rows="6" readonly>
             </textarea>
+            <small id="apikey-help-block" class="form-text text-muted">
+              Use the <a href="https://github.com/waqasbhatti/astrobase/blob/2ed4f2faab43f295f82b3b8afbafa7762cfe2f4b/astrobase/services/lccs.py#L303"><code>import_apikey</code></a>
+              function to make this API key available for the search functions in the
+              <a href="https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py"><code>astrobase.services.lccs</code></a> LCC-Server API client Python module.
+            </small>
 
           </div>
         </div>
