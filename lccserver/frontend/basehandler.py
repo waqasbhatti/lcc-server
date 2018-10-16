@@ -1266,6 +1266,7 @@ class AuthEnabledStaticHandler(BaseHandler):
             fernetkey,
             ratelimit,
             cachedir,
+            apiversion,
             default_filename=None,
     ):
 
@@ -1283,6 +1284,8 @@ class AuthEnabledStaticHandler(BaseHandler):
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.ratelimit = ratelimit
         self.cachedir = cachedir
+        self.apiversion = apiversion
+        self.ferneter = Fernet(fernetkey)
 
 
     @classmethod
