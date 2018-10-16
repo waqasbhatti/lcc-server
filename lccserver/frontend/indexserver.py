@@ -536,7 +536,8 @@ def main():
           'session_expiry':SESSION_EXPIRY,
           'fernetkey':FERNETSECRET,
           'ratelimit':RATELIMIT,
-          'cachedir':CACHEDIR}),
+          'cachedir':CACHEDIR,
+          'apiversion':APIVERSION,}),
 
         # this handles static file downloads for dataset products
         (r'/p/(.*)',
@@ -552,7 +553,8 @@ def main():
           'session_expiry':SESSION_EXPIRY,
           'fernetkey':FERNETSECRET,
           'ratelimit':RATELIMIT,
-          'cachedir':CACHEDIR}),
+          'cachedir':CACHEDIR,
+          'apiversion':APIVERSION,}),
 
         # this handles static file downloads for individual light curves
         (r'/l/(.*)',
@@ -568,7 +570,8 @@ def main():
           'session_expiry':SESSION_EXPIRY,
           'fernetkey':FERNETSECRET,
           'ratelimit':RATELIMIT,
-          'cachedir':CACHEDIR}),
+          'cachedir':CACHEDIR,
+          'apiversion':APIVERSION,}),
 
 
         ######################
