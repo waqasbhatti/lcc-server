@@ -54,6 +54,7 @@ from textwrap import indent, dedent
 import gzip
 import operator
 from functools import partial
+from itertools import count as icounter
 from datetime import datetime
 
 import numpy as np
@@ -631,24 +632,65 @@ def objectinfo_to_sqlite(augcatpkl,
     # now we'll insert things into the table
     for rowind in tqdm(range(augcat['objects'][cols[0]].size)):
 
-        thisrow = [
-            y(augcat['objects'][x][rowind]) for x,y in zip(cols, colformatters)
-        ]
-        # add in the per-object permissions using the LCC permissions as base
-        thisrow.extend([lcc_owner,
-                        lcc_visibility,
-                        lcc_sharedwith])
+        instance_markers = icounter(start=1)
+        insert_done = False
+        this_marker = 1
 
-        for ind, rowelem in enumerate(thisrow):
+        # keep trying to insert until we succeed. this is to overcome multiple
+        # objects with the same objectid (a common occurence when we have
+        # multiple planets for a single transiting system for example). in this
+        # case, we'll insert the objects with markers indicating how many
+        # repeats there are
+        while not insert_done:
 
-            if isinstance(rowelem, (float, int)) and not np.isfinite(rowelem):
-                thisrow[ind] = None
-            elif isinstance(rowelem, str) and len(rowelem) == 0:
-                thisrow[ind] = None
-            elif isinstance(rowelem, str) and rowelem.strip() == 'nan':
-                thisrow[ind] = None
+            try:
 
-        cur.execute(sqlinsert, tuple(thisrow))
+                thisrow = [
+                    y(augcat['objects'][x][rowind]) for
+                    x,y in zip(cols, colformatters)
+                ]
+
+                if this_marker > 1:
+                    new_objectid = '%s-%s' % (
+                        augcat['objects']['objectid'][rowind],
+                        this_marker
+                    )
+                    thisrow[cols.index('objectid')] = new_objectid
+
+                # add in the per-object permissions using the LCC permissions as
+                # base
+                thisrow.extend([lcc_owner,
+                                lcc_visibility,
+                                lcc_sharedwith])
+
+                for ind, rowelem in enumerate(thisrow):
+
+                    if (isinstance(rowelem, (float, int)) and
+                        not np.isfinite(rowelem)):
+                        thisrow[ind] = None
+                    elif isinstance(rowelem, str) and len(rowelem) == 0:
+                        thisrow[ind] = None
+                    elif isinstance(rowelem, str) and rowelem.strip() == 'nan':
+                        thisrow[ind] = None
+
+
+                cur.execute(sqlinsert, tuple(thisrow))
+                instance_markers = icounter(start=1)
+                insert_done = True
+                this_marker = 1
+
+            except sqlite3.IntegrityError:
+
+                this_marker = next(instance_markers)
+
+                if this_marker > 1:
+                    LOGERROR(
+                        "objectid: %s already exists in the DB, "
+                        "will tag this objectid instance with marker '%s'"
+                        % (augcat['objects']['objectid'][rowind],
+                           this_marker)
+                    )
+
 
     # get the column information if there is any
     if isinstance(colinfo, dict):

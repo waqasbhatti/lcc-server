@@ -1917,9 +1917,16 @@ def main():
                                                 lcdict['objectinfo']['decl'],
                                                 5.0)
         setid, dt = datasets.sqlite_prepare_dataset(args.basedir)
-        setid = datasets.sqlite_new_dataset(args.basedir, setid, dt, res)
-        lcz = datasets.sqlite_make_dataset_lczip(args.basedir, setid)
-        ds = datasets.sqlite_get_dataset(args.basedir, setid)
+        setid, csvlcs_to_generate, all_original_lcs, actual_nrows, npages = (
+            datasets.sqlite_new_dataset(args.basedir, setid, dt, res)
+        )
+        lcz = datasets.sqlite_make_dataset_lczip(args.basedir,
+                                                 setid,
+                                                 csvlcs_to_generate,
+                                                 all_original_lcs)
+        ds = datasets.sqlite_get_dataset(args.basedir,
+                                         setid,
+                                         'json-preview')
 
         print('\nAll done!\n')
         print('You can start an LCC-Server instance '
