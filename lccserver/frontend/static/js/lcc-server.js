@@ -2382,6 +2382,22 @@ var lcc_ui = {
             lcc_ui.render_collection(collections, collind);
         }
 
+        // add the count of total objects below the footprint SVG
+        let total_objects = collections.nobjects.reduce(function (acc, curr) {
+            return acc + curr;
+        });
+        let total_collections = collections.nobjects.length;
+        total_objects = total_objects.toLocaleString();
+
+        let coll_plural = '';
+        if (total_collections > 1) {
+            coll_plural = 's';
+        }
+
+        $('#footprint').append(
+            `<h3>${total_objects} light curves in ${total_collections} collection${coll_plural}</h3>`
+        );
+
     },
 
 
