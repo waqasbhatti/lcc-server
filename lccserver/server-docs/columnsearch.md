@@ -119,7 +119,7 @@ Parameter          | Required | Default | Description
 Run the query from Example 1 above, using [HTTPie](https://httpie.org)[^1]:
 
 ```
-$ http --stream GET http://localhost:12500/api/columnsearch result_ispublic==1 columns[]=='jmag' columns[]=='hmag' columns[]=='kmag' columns[]=='ndet' columns[]=='objecttags' columns[]=='propermotion' filters=='(propermotion gt 200) and (sdssr gt 10) and (sdssr lt 13)' sortcolumn=='propermotion' sortorder=='desc'
+$ http --stream GET {{ server_url }}/api/columnsearch result_ispublic==1 columns[]=='jmag' columns[]=='hmag' columns[]=='kmag' columns[]=='ndet' columns[]=='objecttags' columns[]=='propermotion' filters=='(propermotion gt 200) and (sdssr gt 10) and (sdssr lt 13)' sortcolumn=='propermotion' sortorder=='desc'
 ```
 
 Run the query from Example 2 above, using the Python

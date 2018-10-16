@@ -7,21 +7,38 @@ documentation page.
 
 ## API Python client
 
-A client for the API is implemented as simple functions in a single-file Python module: [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py). This doesn't depend on anything other than the Python standard library, so can be dropped in anywhere it's needed.
+A client for the API is implemented as simple functions in a single-file Python
+module:
+[lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py). This
+doesn't depend on anything other than the Python standard library, so can be
+dropped in anywhere it's needed.
 
 
 ## Search query services
 
 Service | Method and URL | Parameters | API key | Response
 ------- | --- | ---------- | ---------------- | ----------
-`conesearch` | `GET {{ server_url }}/api/conesearch` | [docs](/docs/conesearch#the-api) | **no** | streaming<br>ND-JSON
-`ftsquery` | `GET {{ server_url }}/api/ftsquery` | [docs](/docs/ftsearch#the-api) | **no** | streaming<br>ND-JSON
-`columnsearch` | `GET {{ server_url }}/api/columnsearch` | [docs](/docs/columnsearch#the-api) | **no** | streaming<br>ND-JSON
+`conesearch` | `POST {{ server_url }}/api/conesearch` | [docs](/docs/conesearch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
+`ftsquery` | `POST {{ server_url }}/api/ftsquery` | [docs](/docs/ftsearch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
+`columnsearch` | `POST {{ server_url }}/api/columnsearch` | [docs](/docs/columnsearch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
 `xmatch` | `POST {{ server_url }}/api/xmatch` | [docs](/docs/xmatch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
+
 
 ## Streaming search query responses
 
-Query results are returned with `Content-Type: application/json`. The LCC server is an asynchronous service, with queries running in the foreground for up to 30 seconds, and then relegated to a background queue after that. The JSON returned is in [newline-delimited format](https://github.com/ndjson/ndjson-spec), with each line describing the current state of the query. The final line represents the disposition of the query. You may want to use a streaming JSON parser if you want to react to the query stages in real-time: the LCC server itself uses [oboe.js](https://github.com/jimhigson/oboe.js) to handle this process on the frontend; see also [ijson](https://github.com/isagalaev/ijson) for a Python package. Most command-line applications like HTTPie (with the `--stream` flag) and cURL (with the `-N` flag) can handle this as well. You can also simply wait for up to 30 seconds to get the whole stream at once, and parse it later as needed.
+Query results are returned with `Content-Type: application/json`. The LCC server
+is an asynchronous service, with queries running in the foreground for up to 30
+seconds, and then relegated to a background queue after that. The JSON returned
+is in [newline-delimited format](https://github.com/ndjson/ndjson-spec), with
+each line describing the current state of the query. The final line represents
+the disposition of the query. You may want to use a streaming JSON parser if you
+want to react to the query stages in real-time: the LCC server itself uses
+[oboe.js](https://github.com/jimhigson/oboe.js) to handle this process on the
+frontend; see also [ijson](https://github.com/isagalaev/ijson) for a Python
+package. Most command-line applications like HTTPie (with the `--stream` flag)
+and cURL (with the `-N` flag) can handle this as well. You can also simply wait
+for up to 30 seconds to get the whole stream at once, and parse it later as
+needed.
 
 An example of results from a query that finishes within 30 seconds:
 
@@ -64,7 +81,7 @@ objects.
 ```json
 {"message": "query in run-queue. executing with set ID: FOkEGSTvMmw...", "status": "queued", "result": {"setid": "FOkEGSTvMmw", "api_service": "columnsearch", "api_args": {"conditions": "(sdssr < 12.0)", "sortcol": "sdssr", "sortorder": "asc", "result_ispublic": true, "collections": null, "getcolumns": ["sdssr"]}}, "time": "2018-08-09T01:17:52.904297Z"}
 {"message": "query finished OK. objects matched: 50011, building dataset...", "status": "running", "result": {"setid": "FOkEGSTvMmw", "nobjects": 50011}, "time": "2018-08-09T01:17:53.654130Z"}
-{"message": "Dataset pickle generation complete. There are more than 20,000 light curves to collect so we won't generate a ZIP file. See http://localhost:12500/set/FOkEGSTvMmw for dataset object lists and a CSV when the query completes.", "status": "background", "result": {"setid": "FOkEGSTvMmw", "seturl": "{{ server_url }}/set/FOkEGSTvMmw"}, "time": "2018-08-09T01:17:55.349453Z"}
+{"message": "Dataset pickle generation complete. There are more than 20,000 light curves to collect so we won't generate a ZIP file. See {{ server_url }} for dataset object lists and a CSV when the query completes.", "status": "background", "result": {"setid": "FOkEGSTvMmw", "seturl": "{{ server_url }}/set/FOkEGSTvMmw"}, "time": "2018-08-09T01:17:55.349453Z"}
 ```
 
 
@@ -120,7 +137,8 @@ Key | Contents
 
 ### Dataset list API
 
-The dataset list API is used to get lists of public datasets available on the LCC server. The service can be accessed via a `GET` request to:
+The dataset list API is used to get lists of public datasets available on the
+LCC server. The service can be accessed via a `GET` request to:
 
 ```
 {{ server_url }}/api/datasets
@@ -132,7 +150,9 @@ Parameter | Required | Default | Description
 --------- | -------- | ------- | -----------
 `nsets` | **no** | `25` | The number of recent datasets to return. This is capped at 1000.
 
-This returns a JSON. The `result` key contains a list of objects detailing each dataset sorted in time order with the most recently generated public datasets at the top of the list. Each dataset object contains the following useful items:
+This returns a JSON. The `result` key contains a list of objects detailing each
+dataset sorted in time order with the most recently generated public datasets at
+the top of the list. Each dataset object contains the following useful items:
 
 Key | Value
 --- | -----
@@ -150,13 +170,18 @@ Key | Value
 
 ### Dataset API
 
-The dataset API can be used to fetch a dataset in JSON form. It is available for any dataset page generated by the results of search queries. To view any dataset in JSON form, use:
+The dataset API can be used to fetch a dataset in JSON form. It is available for
+any dataset page generated by the results of search queries. To view any dataset
+in JSON form, use:
 
 ```
 {{ server_url }}/set/[setid]?json=1
 ```
 
-This will return a JSON containing the dataset header as well as the data table in raw format. To get the data table in formatted string format, add `&strformat=1` to the URL. The returned JSON contains the following useful elements.
+This will return a JSON containing the dataset header as well as the data table
+in raw format. To get the data table in formatted string format, add
+`&strformat=1` to the URL. The returned JSON contains the following useful
+elements.
 
 Key | Value
 --- | -----
@@ -165,11 +190,15 @@ Key | Value
 `coldesc` | a JSON object listing each column's title, string format, description, and Numpy dtype
 `created` | an [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) time formatted string in UTC, indicating when the dataset was created
 `updated` | an [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) time formatted string in UTC, indicating when the dataset was last updated
-`nobjects` | the number of objects in the dataset
-`rowstatus` | a message indicating if all rows of the data table are returned in the JSON; datasets with more than 3000 objects in them will have only 3000 rows returned, use the dataset CSV for the entire data table
+`total_nmatches` | the initial number of objects in the search results.
+`actual_nrows` | the actual number of objects in this dataset after row limits (from search args and user privilege level) are applied
+`npages`   | the total number of pages for the dataset. Use the argument `&page=[pagenum]` to get to a specific page.
+`currpage` | the current page of the dataset.
+`rows_per_page` | the number of rows per page
+`page_slices` | a list containing the page-sliced row indices
 `dataset_csv` | a link for the data table's CSV file; add `{{ server_url }}` to the front of this to generate a full URL
 `dataset_pickle` | a link for the dataset's pickle file; add `{{ server_url }}` to the front of this to generate a full URL
-`lczip` | a link for the dataset's light curve ZIP file; add `{{ server_url }}` to the front of this to generate a full URL. **NOTE:** If there are more than 20,000 objects in the dataset, the LC ZIP file will not be created.
+`lczipfpath` | a link for the dataset's light curve ZIP file; add `{{ server_url }}` to the front of this to generate a full URL. **NOTE:** If there are more than 5,000 objects in the dataset, the LC ZIP file will not be created.
 `searchtype` | the search service used to generate this dataset
 `searchargs` | the parsed input arguments used by the backend search function
 `status` | if the dataset is ready, this will be `complete`. if the search or light curve ZIP operation for the dataset is still running, the status will be `in progress`.
@@ -177,7 +206,10 @@ Key | Value
 
 ### Object information API
 
-This service is used to get detailed information including finding charts, comments, object type and variability tags, and period-search results (if available) for any object made available publicly in the LCC server's collection databases. A `GET` request can be made to the following URL.
+This service is used to get detailed information including finding charts,
+comments, object type and variability tags, and period-search results (if
+available) for any object made available publicly in the LCC server's collection
+databases. A `GET` request can be made to the following URL.
 
 ```
 {{ server_url }}/api/object
@@ -188,9 +220,10 @@ The following parameters are all required:
 Parameter | Required | Description
 --------- | -------- | -----------
 `objectid` | **yes** | the database object ID of the object. **NOTE:** this is returned as the column `db_oid` in any search query result.
-`collection` | **yes** | the database collection ID of the object. **NOTE:** this is returned as the column `collection` in any search query result.
+`collection` | **yes** | the database collection ID of the object. **NOTE:** this is returned as the `collection` column in any search query result.
 
-This returns a JSON containing all available object information in the `result` key. Some important items include:
+This returns a JSON containing all available object information in the `result`
+key. Some important items include:
 
 Key | Value
 --- | -----
@@ -225,19 +258,23 @@ This will return a JSON formatted object with the key to use, e.g.:
 }
 ```
 
-Use the value of the `result.key` item in the HTTP headers of any subsequent requests to the search API endpoint which requires an API key. This is of the form:
+Use the value of the `result.key` item in the HTTP headers of any subsequent
+requests to the search API endpoint which requires an API key. This is of the
+form:
 
 ```
 Authorization: Bearer [API key token]
 ```
 
-You can check if your API key is still valid by performing an HTTP `GET` request
+You can check if your API key is still valid by performing an HTTP `POST` request
 to:
 
 ```
 {{ server_url }}/api/auth?key=[API key token]
 
 ```
+
+and including the `Authorization: Bearer [apikey]` in the header of the request.
 
 If your key passes verification, then it's good to use:
 

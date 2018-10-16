@@ -88,13 +88,23 @@ var lcc_ui = {
     // regex adapted from the super awesome https://regex101.com/
     bibcode_linkify: function (text) {
 
+        let match_text;
+
+        // turn &amp; back into &
+        if (text !== null && text !== undefined) {
+            match_text = text.replace(/&amp;/g,'&');
+        }
+        else {
+            match_text = '';
+        }
+
         const regex = /(\d{4}\S{5}\S{4}[a-zA-Z.]\S{4}[A-Z])+/g;
         let m;
         let bibcodes = [];
         let biblinks = [];
-        let new_text = text;
+        let new_match_text = match_text;
 
-        while ((m = regex.exec(text)) !== null) {
+        while ((m = regex.exec(match_text)) !== null) {
             // This is necessary to avoid infinite loops with zero-width matches
             if (m.index === regex.lastIndex) {
                 regex.lastIndex++;
@@ -111,7 +121,7 @@ var lcc_ui = {
         // remove all the bib codes
         let ind = 0;
         for (ind = 0; ind < bibcodes.length; ind++) {
-            new_text = new_text.replace(
+            new_match_text = new_match_text.replace(
                 bibcodes[ind],
                 '_bib' + ind + '_'
             );
@@ -119,13 +129,70 @@ var lcc_ui = {
 
         // add back the linkified bibcodes
         for (ind = 0; ind < bibcodes.length; ind++) {
-            new_text = new_text.replace(
+            new_match_text = new_match_text.replace(
                 '_bib' + ind + '_',
                 biblinks[ind]
             );
         }
 
+        return new_match_text;
+
+    },
+
+
+    // also finds DOIs in text and linkifies them to an dx.doi.org lookup
+    // https://en.wikipedia.org/wiki/Digital_object_identifier
+    doi_linkify: function (text) {
+
+        const regex = /(doi:\d{2}.[0-9]+\/[.:a-zA-Z0-9_-]+)+/g;
+        let m;
+        let doicodes = [];
+        let doilinks = [];
+        let new_text = text;
+
+        while ((m = regex.exec(text)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+
+            // The result can be accessed through the `m`-variable.
+            m.forEach((match, groupIndex) => {
+                doicodes.push(match);
+                doilinks.push(
+                    `<a target="_blank" rel="noopener noreferer" href="https://dx.doi.org/${match.replace(/doi:/g,'')}">${match}</a>`);
+            });
+        }
+
+        // remove all the doi codes
+        let ind = 0;
+        for (ind = 0; ind < doicodes.length; ind++) {
+            new_text = new_text.replace(
+                doicodes[ind],
+                '_doi' + ind + '_'
+            );
+        }
+
+        // add back the linkified doicodes
+        for (ind = 0; ind < doicodes.length; ind++) {
+            new_text = new_text.replace(
+                '_doi' + ind + '_',
+                doilinks[ind]
+            );
+        }
+
         return new_text;
+
+    },
+
+
+    // this finds ADS bibcodes and DOIs in the given text and linkifies them
+    bib_linkify: function (text) {
+
+        let one = lcc_ui.bibcode_linkify(text);
+        let two = lcc_ui.doi_linkify(one);
+
+        return two;
 
     },
 
@@ -229,7 +296,7 @@ var lcc_ui = {
 
             if (status == 'ok') {
 
-                $(target_key).val(result.apikey);
+                $(target_key).val(JSON.stringify(result, null, 2));
                 $(target_expiry).html(
                     (' expires at ' +
                      moment.utc(result.expires).format('Y-M-D HH:mm Z'))
@@ -262,7 +329,9 @@ var lcc_ui = {
 
         if (apikey !== null && expires !== null) {
 
-            $(target_key).val(apikey);
+            $(target_key).val(
+                JSON.stringify({apikey:apikey, expires:expires},null,2)
+            );
 
             // check expiry date
             let expiry_utc = moment.utc(expires);
@@ -1318,8 +1387,8 @@ var lcc_ui = {
 
                         // query type and params
                         var set_name = result[rowind]['name'];
-                        var set_desc = lcc_ui.bibcode_linkify(result[rowind]['description']);
-                        var set_citation = lcc_ui.bibcode_linkify(result[rowind]['citation']);
+                        var set_desc = lcc_ui.bib_linkify(result[rowind]['description']);
+                        var set_citation = lcc_ui.bib_linkify(result[rowind]['citation']);
                         var set_owned = result[rowind]['owned'];
                         var query_type = result[rowind]['query_type'];
                         var query_params = result[rowind]['query_params'];
@@ -1907,8 +1976,8 @@ var lcc_ui = {
 
                     // query type and params
                     var set_name = result[rowind]['name'];
-                    var set_desc = lcc_ui.bibcode_linkify(result[rowind]['description']);
-                    var set_citation = lcc_ui.bibcode_linkify(result[rowind]['citation']);
+                    var set_desc = lcc_ui.bib_linkify(result[rowind]['description']);
+                    var set_citation = lcc_ui.bib_linkify(result[rowind]['citation']);
                     var set_owned = result[rowind]['owned'];
                     var query_type = result[rowind]['query_type'];
                     var query_params = result[rowind]['query_params'];
@@ -2168,7 +2237,7 @@ var lcc_ui = {
 
 <details class="mt-2" open><summary class="h5-summary">About this collection</summary>
 
-  ${lcc_ui.bibcode_linkify(description)}
+  ${lcc_ui.bib_linkify(description)}
 
   <table class="table table-sm collection-infotable mt-2 mx-auto">
     <tr>
@@ -2189,7 +2258,7 @@ var lcc_ui = {
     </tr>
     <tr>
       <th scope="row">Citation</th>
-      <td>${lcc_ui.bibcode_linkify(citation)}</td>
+      <td>${lcc_ui.bib_linkify(citation)}</td>
     </tr>
   </table>
 
@@ -3779,7 +3848,7 @@ var lcc_datasets = {
 
                 thisrow[colind_extrainfo] =
                     '<details class="table-details-elem"><summary>view JSON</summary>' +
-                    lcc_ui.bibcode_linkify(
+                    lcc_ui.bib_linkify(
                         '<pre>' +
                             JSON.stringify(JSON.parse(thisrow[colind_extrainfo]),null, 2) +
                             '</pre>'
@@ -3789,12 +3858,12 @@ var lcc_datasets = {
             }
 
             if (colind_simbad_best_allids > -1) {
-                thisrow[colind_simbad_best_allids] = lcc_ui.bibcode_linkify(
+                thisrow[colind_simbad_best_allids] = lcc_ui.bib_linkify(
                     thisrow[colind_simbad_best_allids]
                 );
             }
             if (colind_simbad_best_objtype > -1) {
-                thisrow[colind_simbad_best_objtype] = lcc_ui.bibcode_linkify(
+                thisrow[colind_simbad_best_objtype] = lcc_ui.bib_linkify(
                     thisrow[colind_simbad_best_objtype]
                 );
             }
@@ -3944,10 +4013,10 @@ var lcc_datasets = {
 
                     let desc_controls = `
 <details>
-<summary>${lcc_ui.bibcode_linkify(data.desc)}</summary>
+<summary>${lcc_ui.bib_linkify(data.desc)}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-desc-inputbox"
-         value="${data.desc}" placeholder="Type in a description. ADS bibcodes will be auto-linked."
+         value="${data.desc}" placeholder="Type in a description. ADS bibcodes and DOIs will be auto-linked."
          maxlength="1024">
   <button class="ml-2 btn btn-outline-success"
           type="button" id="dataset-desc-submit">Update description</button>
@@ -3957,10 +4026,10 @@ var lcc_datasets = {
 
                     let citation_controls = `
 <details>
-<summary>${lcc_ui.bibcode_linkify(data.citation)}</summary>
+<summary>${lcc_ui.bib_linkify(data.citation)}</summary>
 <div class="form-inline">
   <input type="text" class="form-control flex-grow-1" id="dataset-citation-inputbox"
-         value="${data.citation}" placeholder="Type in a citation. ADS bibcodes will be auto-linked."
+         value="${data.citation}" placeholder="Type in a citation. ADS bibcodes and DOIs will be auto-linked."
          maxlength="1024">
   <button class="ml-2 btn btn-outline-success"
           type="button" id="dataset-citation-submit">Update citation</button>
@@ -3982,9 +4051,9 @@ var lcc_datasets = {
 
                 else {
                     let dataset_desc = $('#other-dataset-desc').html();
-                    $('#other-dataset-desc').html(lcc_ui.bibcode_linkify(dataset_desc));
+                    $('#other-dataset-desc').html(lcc_ui.bib_linkify(dataset_desc));
                     let dataset_citation = $('#other-dataset-citation').html();
-                    $('#other-dataset-citation').html(lcc_ui.bibcode_linkify(dataset_citation));
+                    $('#other-dataset-citation').html(lcc_ui.bib_linkify(dataset_citation));
                 }
 
             }
@@ -4328,7 +4397,7 @@ var lcc_datasets = {
 
                 // update the dataset's description
                 $('#dataset-desc > details > summary').html(
-                    lcc_ui.bibcode_linkify(result.desc)
+                    lcc_ui.bib_linkify(result.desc)
                 );
                 $('#dataset-desc-inputbox').val(result.desc);
 
@@ -4389,7 +4458,7 @@ var lcc_datasets = {
 
                 // update the dataset's citation
                 $('#dataset-citation > details > summary').html(
-                    lcc_ui.bibcode_linkify(result.citation)
+                    lcc_ui.bib_linkify(result.citation)
                 );
                 $('#dataset-citation-inputbox').val(result.citation);
 
@@ -4786,11 +4855,11 @@ var lcc_objectinfo = {
                     '<em>closest object ID</em>: ' +
                     result.simbad_best_mainid + '<br>' +
                     '<em>closest object type</em>: ' +
-                    lcc_ui.bibcode_linkify(
+                    lcc_ui.bib_linkify(
                         result.simbad_best_objtype
                     ) + '<br>' +
                     '<em>closest object other IDs</em>: ' +
-                    lcc_ui.bibcode_linkify(simbad_best_allids);
+                    lcc_ui.bib_linkify(simbad_best_allids);
 
                 $('#simbad-formatted-info').html(formatted_simbad);
 
@@ -5629,11 +5698,11 @@ var lcc_objectinfo = {
                 '<em>closest object ID</em>: ' +
                 currcp.objectinfo.simbad_best_mainid + '<br>' +
                 '<em>closest object type</em>: ' +
-                lcc_ui.bibcode_linkify(
+                lcc_ui.bib_linkify(
                     currcp.objectinfo.simbad_best_objtype
                 ) + '<br>' +
                 '<em>closest object other IDs</em>: ' +
-                lcc_ui.bibcode_linkify(simbad_best_allids);
+                lcc_ui.bib_linkify(simbad_best_allids);
 
         }
 
@@ -5866,7 +5935,7 @@ No SIMBAD information found for this object.
             $('#objectinfo-basic').append(
                 '<tr>' +
                     '<th>Comments</th>' +
-                    '<td>' + lcc_ui.bibcode_linkify(currcp.objectcomments) + '</td></tr>'
+                    '<td>' + lcc_ui.bib_linkify(currcp.objectcomments) + '</td></tr>'
             );
 
         }
