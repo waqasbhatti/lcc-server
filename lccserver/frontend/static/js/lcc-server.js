@@ -329,7 +329,9 @@ var lcc_ui = {
 
         if (apikey !== null && expires !== null) {
 
-            $(target_key).val(apikey);
+            $(target_key).val(
+                JSON.stringify({apikey:apikey, expires:expires},null,2)
+            );
 
             // check expiry date
             let expiry_utc = moment.utc(expires);
