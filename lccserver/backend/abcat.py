@@ -1172,7 +1172,7 @@ def convert_to_csvlc(lcfile,
     if objectid is not None:
 
         # the filename
-        outfile = '%s-csvlc.gz' % objectid
+        outfile = '%s-csvlc.gz' % squeeze(objectid).replace(' ','-')
 
         # we'll put the CSV LC in the same place as the original LC
         outpath = os.path.join(os.path.dirname(lcfile), outfile)

@@ -1056,9 +1056,8 @@ def new_lcc_datasets_db(basedir):
 
     '''
     from .backend import datasets
-    from .backend import abcat
 
-    return datasets.sqlite_datasets_db_create(basedir)
+    return datasets.sqlite_make_lcc_datasets_db(basedir)
 
 
 
@@ -1273,6 +1272,10 @@ def main():
 
     args = aparser.parse_args()
 
+    ########################
+    ## RUNNING THE SERVER ##
+    ########################
+
     if args.command == 'run-server':
 
         currdir = os.getcwd()
@@ -1292,6 +1295,11 @@ def main():
 
         # go back to the original directory
         os.chdir(currdir)
+
+
+    ############################
+    ## BASEDIR INITIALIZATION ##
+    ############################
 
     elif args.command == 'init-basedir':
 
@@ -1336,7 +1344,7 @@ def main():
             site_institution_logo = None
 
         # make the basedir
-        donebasedir = prepare_basedir(
+        prepare_basedir(
             args.basedir,
             site_project=site_project,
             site_project_link=site_project_link,
@@ -1344,15 +1352,20 @@ def main():
             site_department_link=site_department_link,
             site_institution=site_institution,
             site_institution_link=site_institution_link,
-            site_institution_logo=site_institution_logo
+            site_institution_logo=site_institution_logo,
+            interactive=True
         )
 
         # make the lcc-index.sqlite database
-        lcc_index = new_lcc_index_db(args.basedir)
+        new_lcc_index_db(args.basedir)
 
         # make the lcc-datasets.sqlite database
-        lcc_datasets = new_lcc_datasets_db(args.basedir)
+        new_lcc_datasets_db(args.basedir)
 
+
+    #########################################
+    ## ADDING A NEW LIGHT CURVE COLLECTION ##
+    #########################################
 
     elif args.command == 'add-collection':
 
@@ -1518,7 +1531,7 @@ def main():
         # the next step is to ask if we can reform the original LCs to the
         # common LCC CSV format
         #
-        ret = input(
+        input(
             "Please copy or symlink your original format "
             "light curves into this LC collection's "
             "lightcurves directory:\n\n"
@@ -1540,7 +1553,7 @@ def main():
 
             print('Launching conversion tasks. This might take a while...')
 
-            converted = convert_original_lightcurves(
+            convert_original_lightcurves(
                 args.basedir,
                 collection_id
             )
@@ -1665,7 +1678,8 @@ def main():
             lcform['readerfunc'],
             [timecol],
             [magcol],
-            [errcol]
+            [errcol],
+            magsarefluxes=lcform['magsarefluxes']
         )
 
         lclpkl = lcproc.make_lclist(
