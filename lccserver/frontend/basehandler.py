@@ -290,7 +290,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
         '''
 
-        if self.flash_messages:
+        if getattr(self, 'flash_messages', None) and self.flash_messages:
 
             messages = json.loads(self.flash_messages)
             message_text = messages['text']
