@@ -54,6 +54,7 @@ from textwrap import indent, dedent
 import gzip
 import operator
 from functools import partial
+from itertools import count as icounter
 from datetime import datetime
 
 import numpy as np
@@ -61,6 +62,7 @@ from scipy.spatial import cKDTree
 
 from tqdm import tqdm
 
+from tornado.escape import squeeze
 
 
 #########################################
@@ -630,24 +632,65 @@ def objectinfo_to_sqlite(augcatpkl,
     # now we'll insert things into the table
     for rowind in tqdm(range(augcat['objects'][cols[0]].size)):
 
-        thisrow = [
-            y(augcat['objects'][x][rowind]) for x,y in zip(cols, colformatters)
-        ]
-        # add in the per-object permissions using the LCC permissions as base
-        thisrow.extend([lcc_owner,
-                        lcc_visibility,
-                        lcc_sharedwith])
+        instance_markers = icounter(start=1)
+        insert_done = False
+        this_marker = 1
 
-        for ind, rowelem in enumerate(thisrow):
+        # keep trying to insert until we succeed. this is to overcome multiple
+        # objects with the same objectid (a common occurence when we have
+        # multiple planets for a single transiting system for example). in this
+        # case, we'll insert the objects with markers indicating how many
+        # repeats there are
+        while not insert_done:
 
-            if isinstance(rowelem, (float, int)) and not np.isfinite(rowelem):
-                thisrow[ind] = None
-            elif isinstance(rowelem, str) and len(rowelem) == 0:
-                thisrow[ind] = None
-            elif isinstance(rowelem, str) and rowelem.strip() == 'nan':
-                thisrow[ind] = None
+            try:
 
-        cur.execute(sqlinsert, tuple(thisrow))
+                thisrow = [
+                    y(augcat['objects'][x][rowind]) for
+                    x,y in zip(cols, colformatters)
+                ]
+
+                if this_marker > 1:
+                    new_objectid = '%s-%s' % (
+                        augcat['objects']['objectid'][rowind],
+                        this_marker
+                    )
+                    thisrow[cols.index('objectid')] = new_objectid
+
+                # add in the per-object permissions using the LCC permissions as
+                # base
+                thisrow.extend([lcc_owner,
+                                lcc_visibility,
+                                lcc_sharedwith])
+
+                for ind, rowelem in enumerate(thisrow):
+
+                    if (isinstance(rowelem, (float, int)) and
+                        not np.isfinite(rowelem)):
+                        thisrow[ind] = None
+                    elif isinstance(rowelem, str) and len(rowelem) == 0:
+                        thisrow[ind] = None
+                    elif isinstance(rowelem, str) and rowelem.strip() == 'nan':
+                        thisrow[ind] = None
+
+
+                cur.execute(sqlinsert, tuple(thisrow))
+                instance_markers = icounter(start=1)
+                insert_done = True
+                this_marker = 1
+
+            except sqlite3.IntegrityError:
+
+                this_marker = next(instance_markers)
+
+                if this_marker > 1:
+                    LOGERROR(
+                        "objectid: %s already exists in the DB, "
+                        "will tag this objectid instance with marker '%s'"
+                        % (augcat['objects']['objectid'][rowind],
+                           this_marker)
+                    )
+
 
     # get the column information if there is any
     if isinstance(colinfo, dict):
@@ -995,7 +1038,8 @@ def get_lcformat_description(descpath):
 
             fullkey = '%s%s%s' % (key, aperturejoiner, ap)
             desc, textform, dtype = formatdesc['column_keys'][key]
-            desc = desc % ap
+            if '%s' in desc:
+                desc = desc % ap
 
             column_info[fullkey] = {'desc':desc,
                                     'format':textform,
@@ -1048,12 +1092,13 @@ def get_lcformat_description(descpath):
     # do some convenient directory name substitutions in the norm module
     # import paths and norm function kwargs
     #
-    if '{{collection_dir}}' in norm_module_name:
+    if (norm_module_name is not None and
+        '{{collection_dir}}' in norm_module_name):
         norm_module_name = norm_module_name.replace(
             '{{collection_dir}}',
             os.path.abspath(os.path.dirname(descpath))
         )
-    elif '{{home_dir}}' in norm_module_name:
+    elif norm_module_name is not None and '{{home_dir}}' in norm_module_name:
         norm_module_name = norm_module_name.replace(
             '{{home_dir}}',
             os.path.abspath(os.path.expanduser('~'))
@@ -1107,6 +1152,13 @@ def get_lcformat_description(descpath):
     else:
         normfunc = None
 
+    # get whether the measurements are in mags or fluxes
+    flux_or_mag = formatdesc['lc_measurements_flux_or_mag']
+    if flux_or_mag == 'flux':
+        magsarefluxes = True
+    elif flux_or_mag == 'mag':
+        magsarefluxes = False
+
     # this is the final metadata dict
     returndict = {
         'formatkey':formatkey,
@@ -1117,7 +1169,8 @@ def get_lcformat_description(descpath):
         'normfunc':normfunc,
         'columns':column_info,
         'colkeys':column_keys,
-        'metadata':metadata_info
+        'metadata':metadata_info,
+        'magsarefluxes':magsarefluxes
     }
 
     return returndict
@@ -1161,7 +1214,7 @@ def convert_to_csvlc(lcfile,
     if objectid is not None:
 
         # the filename
-        outfile = '%s-csvlc.gz' % objectid
+        outfile = '%s-csvlc.gz' % squeeze(objectid).replace(' ','-')
 
         # we'll put the CSV LC in the same place as the original LC
         outpath = os.path.join(os.path.dirname(lcfile), outfile)
@@ -1187,7 +1240,7 @@ def convert_to_csvlc(lcfile,
         objectid = lcdict['objectid']
 
         # the filename
-        outfile = '%s-csvlc.gz' % objectid
+        outfile = '%s-csvlc.gz' % squeeze(objectid).replace(' ','-')
 
         # we'll put the CSV LC in the same place as the original LC
         outpath = os.path.join(os.path.dirname(lcfile), outfile)
@@ -1231,7 +1284,8 @@ def convert_to_csvlc(lcfile,
 
     for key in lcformat_dict['colkeys']:
 
-        if key in lcdict:
+        try:
+            dict_get(lcdict, key.split('.'))
 
             thiscolinfo = lcformat_dict['columns'][key]
 
@@ -1244,6 +1298,9 @@ def convert_to_csvlc(lcfile,
             }
             available_keys.append(key)
             ki = ki + 1
+
+        except Exception as e:
+            pass
 
     # generate the header bits
     metajson = indent(json.dumps(meta, indent=2), '%s ' % comment_char)
@@ -1285,10 +1342,12 @@ def convert_to_csvlc(lcfile,
                 try:
                     thisline.append(
                         lcformat_dict['columns'][x]['format'] %
-                        lcdict[x][lineind]
+                        dict_get(lcdict, x.split('.'))[lineind]
                     )
                 except Exception as e:
-                    thisline.append(str(lcdict[x][lineind]))
+                    thisline.append(
+                        str(dict_get(lcdict, x.split('.'))[lineind])
+                    )
 
             formline = '%s\n' % ('%s' % column_separator).join(thisline)
             outfd.write(formline.encode())

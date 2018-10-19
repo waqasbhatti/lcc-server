@@ -7,6 +7,7 @@
     "lc_normalizemodule": null,
     "lc_normalizefunc": null,
     "lc_normalizefunc_kwargs": null,
+    "lc_measurements_flux_or_mag": "mag",
     "unaffiliated_cols": [
         "bjd",
         "bgv",

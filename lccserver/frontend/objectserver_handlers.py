@@ -279,7 +279,10 @@ class ObjectInfoHandler(BaseHandler):
 
         if lcmagcols is not None:
             lcmagcols = xhtml_escape(lcmagcols).split(',')
-        if 'undefined' in lcmagcols or 'null' in lcmagcols:
+        if (lcmagcols is not None and
+            ('undefined' in lcmagcols or 'null' in lcmagcols)):
+            lcmagcols = None
+        else:
             lcmagcols = None
 
 
