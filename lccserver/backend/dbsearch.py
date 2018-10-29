@@ -399,6 +399,7 @@ SQLITE_ALLOWED_QUERY_STARTERS = [
 
 def sqlite_get_collections(basedir,
                            lcclist=None,
+                           return_sorted=False,
                            intended_action='view',
                            return_connection=True,
                            incoming_userid=2,
@@ -461,6 +462,9 @@ def sqlite_get_collections(basedir,
             query = query.format(
                 lccspec=lccspec
             )
+            if return_sorted:
+                query = '%s order by collection_id asc' % query
+
             cur.execute(query, params)
 
         # if no collection made it through sanitation, we'll search all of them
@@ -469,6 +473,8 @@ def sqlite_get_collections(basedir,
             query = query.format(
                 lccspec=''
             )
+            if return_sorted:
+                query = '%s order by collection_id asc' % query
             cur.execute(query)
 
 
@@ -616,6 +622,7 @@ def sqlite_get_collections(basedir,
 
 def sqlite_list_collections(basedir,
                             incoming_userid=2,
+                            return_sorted=True,
                             incoming_role='anonymous'):
     '''
     This just lists the collections in basedir.
@@ -623,6 +630,7 @@ def sqlite_list_collections(basedir,
     '''
 
     return sqlite_get_collections(basedir,
+                                  return_sorted=True,
                                   incoming_userid=incoming_userid,
                                   incoming_role=incoming_role,
                                   return_connection=False)
