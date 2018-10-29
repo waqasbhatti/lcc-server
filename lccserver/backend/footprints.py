@@ -362,6 +362,8 @@ def collection_overview_plot(collection_dirlist,
                              use_hull='concave',
                              use_projection='mollweide',
                              use_colormap='inferno',
+                             use_colorlist=None,
+                             use_alpha=0.5,
                              show_galactic_plane=True,
                              show_ecliptic_plane=True,
                              east_is_left=True,
@@ -376,6 +378,12 @@ def collection_overview_plot(collection_dirlist,
     directory.
 
     '''
+
+    if isinstance(use_colorlist, (list, tuple)):
+        if len(use_colorlist) != len(collection_dirlist):
+            LOGERROR("the color list provided must have the same "
+                     "length as the collection_dirlist")
+            return None
 
     # label sizes
     matplotlib.rcParams['xtick.labelsize'] = 16.0
@@ -503,21 +511,36 @@ def collection_overview_plot(collection_dirlist,
             if east_is_left:
                 covras = -covras
 
-            ax.fill(
-                np.radians(covras),
-                np.radians(covdecls),
-                linewidth=0.0,
-                color=plt.get_cmap(use_colormap)(
-                    1.0 * ci/len(collection_dirlist)
-                ),
-                alpha=0.6,
-                rasterized=True,
-                gid="patch-collection-%s-part-%s" % (
-                    footprint['collection'],
-                    0
+            if isinstance(use_colorlist, (list, tuple)):
+
+                ax.fill(
+                    np.radians(covras),
+                    np.radians(covdecls),
+                    linewidth=0.0,
+                    color=use_colorlist[ci],
+                    alpha=use_alpha,
+                    rasterized=True,
+                    gid="patch-collection-%s-part-%s" % (
+                        footprint['collection'],
+                        0
+                    )
                 )
 
-            )
+            else:
+                ax.fill(
+                    np.radians(covras),
+                    np.radians(covdecls),
+                    linewidth=0.0,
+                    color=plt.get_cmap(use_colormap)(
+                        1.0 * ci/len(collection_dirlist)
+                    ),
+                    alpha=use_alpha,
+                    rasterized=True,
+                    gid="patch-collection-%s-part-%s" % (
+                        footprint['collection'],
+                        0
+                    )
+                )
 
             collection_label = ax.text(
                 np.radians(np.mean(covras)),
@@ -562,20 +585,36 @@ def collection_overview_plot(collection_dirlist,
                 if east_is_left:
                     covras = -covras
 
-                ax.fill(
-                    np.radians(covras),
-                    np.radians(covdecls),
-                    linewidth=0.0,
-                    color=plt.get_cmap(use_colormap)(
-                        1.0 * ci/len(collection_dirlist)
-                    ),
-                    alpha=0.6,
-                    rasterized=True,
-                    gid="patch-collection-%s-part-%s" % (
-                        footprint['collection'],
-                        partind
+                if isinstance(use_colorlist, (list, tuple)):
+
+                    ax.fill(
+                        np.radians(covras),
+                        np.radians(covdecls),
+                        linewidth=0.0,
+                        color=use_colorlist[ci],
+                        alpha=use_alpha,
+                        rasterized=True,
+                        gid="patch-collection-%s-part-%s" % (
+                            footprint['collection'],
+                            partind
+                        )
                     )
-                )
+
+                else:
+                    ax.fill(
+                        np.radians(covras),
+                        np.radians(covdecls),
+                        linewidth=0.0,
+                        color=plt.get_cmap(use_colormap)(
+                            1.0 * ci/len(collection_dirlist)
+                        ),
+                        alpha=use_alpha,
+                        rasterized=True,
+                        gid="patch-collection-%s-part-%s" % (
+                            footprint['collection'],
+                            partind
+                        )
+                    )
 
                 part_center_ras.append(np.mean(covras))
                 part_center_decls.append(np.mean(covdecls))
@@ -589,11 +628,11 @@ def collection_overview_plot(collection_dirlist,
             # parts of the collection.
             collection_label_ra = np.average(
                 part_center_ras,
-                weights=np.array(part_areas)**2.0
+                weights=np.array(part_areas)**2.5
             )
             collection_label_decl = np.average(
                 part_center_decls,
-                weights=np.array(part_areas)**2.0
+                weights=np.array(part_areas)**2.5
             )
 
             collection_label = ax.text(
@@ -728,7 +767,9 @@ def collection_overview_svg(
         collection_dirlist,
         use_hull='concave',
         use_projection='mollweide',
+        use_colorlist=None,
         use_colormap='inferno',
+        use_alpha=0.5,
         show_galactic_plane=True,
         show_ecliptic_plane=True,
         east_is_left=True,
@@ -754,7 +795,9 @@ def collection_overview_svg(
         outfile,
         use_hull=use_hull,
         use_projection=use_projection,
+        use_colorlist=use_colorlist,
         use_colormap=use_colormap,
+        use_alpha=use_alpha,
         show_galactic_plane=show_galactic_plane,
         show_ecliptic_plane=show_ecliptic_plane,
         east_is_left=east_is_left,
