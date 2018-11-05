@@ -2571,9 +2571,9 @@ var lcc_search = {
     coordlist_contents: "",
 
     // regexes to match lines of the uploaded xmatch objects
-    decimal_regex: /^([a-zA-Z0-9_+\-\[\].])\s(\d{1,3}\.?\d*)\s([+-]?\d{1,2}\.?\d*)$/,
+    decimal_regex: /^([a-zA-Z0-9_+\-\[\].]+)\s(\d{1,3}\.?\d*)\s([+-]?\d{1,2}\.?\d*)$/,
 
-    sexagesimal_regex: /^([a-zA-Z0-9_+\-\[\].])\s(\d{1,2}[ :]\d{2}[ :]\d{2}\.?\d*)\s([+-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.?\d*)$/,
+    sexagesimal_regex: /^([a-zA-Z0-9_+\-\[\].]+)\s(\d{1,2}[ :]\d{2}[ :]\d{2}\.?\d*)\s([+-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.?\d*)$/,
 
     // this validates the lines in the xmatch input
     validate_xmatch_query: function (target) {
