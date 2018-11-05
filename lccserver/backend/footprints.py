@@ -224,7 +224,9 @@ def collection_alpha_shape(basedir,
     res = sqlite_column_search(basedir,
                                getcolumns=['ra','decl'],
                                conditions=conditions,
-                               lcclist=[collection])
+                               lcclist=[collection],
+                               incoming_userid=1,
+                               incoming_role='superuser')
 
     if res and len(res[collection]['result']) > 0:
 

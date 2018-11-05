@@ -114,10 +114,10 @@ COORD_HMSSEARCH_REGEX = re.compile(
 # multiple object search
 # objectid ra dec, objectid ra dec, objectid ra dec, etc.
 COORD_DEGMULTI_REGEX = re.compile(
-    r'^(\w+)\s(\d{1,3}\.{0,1}\d*)\s([+\-]?\d{1,2}\.{0,1}\d*)$'
+    r'^([a-zA-Z0-9_+\-\[\].])\s(\d{1,3}\.{0,1}\d*)\s([+\-]?\d{1,2}\.{0,1}\d*)$'
 )
 COORD_HMSMULTI_REGEX = re.compile(
-    r'^(\w+)\s(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)\s'
+    r'^([a-zA-Z0-9_+\-\[\].])\s(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)\s'
     '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$'
 )
 
