@@ -354,6 +354,47 @@ def parse_xmatch_input(inputtext, matchradtext,
         ra = [x[2] for x in oklines]
         decl = [x[3] for x in oklines]
 
+        # make sure to uniquify the objectids
+        uniques, counts = np.unique(objectid, return_counts=True)
+
+        duplicated_objectids = uniques[counts > 1]
+
+        if duplicated_objectids.size > 0:
+
+            objectid = np.array(objectid)
+
+            # redo the objectid array so it has a bit larger dtype so the extra
+            # tag can fit into the field
+            dt = objectid.dtype.str
+            dt = '<U%s' % (
+                int(dt.replace('<','').replace('U','').replace('S','')) + 4
+            )
+            objectid = np.array(
+                objectid,
+                dtype=dt
+            )
+
+            for dupe in duplicated_objectids:
+
+                objectid_inds = np.where(
+                    objectid == dupe
+                )
+
+                # mark the duplicates, assume the first instance is the actual
+                # one
+                for ncounter, nind in enumerate(objectid_inds[0][1:]):
+                    objectid[nind] = '%s_%s' % (
+                        objectid[nind],
+                        ncounter+2
+                    )
+                    LOGGER.warning(
+                        'xmatch input: tagging '
+                        'duplicated instance %s of objectid: '
+                        '%s as %s_%s' %
+                        (ncounter+2, dupe, dupe, ncounter+2)
+                    )
+            objectid = objectid.tolist()
+
         xmatchdict = {
             'data':{'objectid':objectid,
                     'ra':ra,
