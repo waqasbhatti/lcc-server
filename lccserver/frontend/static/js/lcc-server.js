@@ -5111,11 +5111,15 @@ var lcc_objectinfo = {
         if (gaia_ok) {
 
             gaiamag = currcp.objectinfo.gaia_mags[0].toFixed(3);
+
             if (currcp.objectinfo.gaiak_colors != null) {
                 gaiakcolor = currcp.objectinfo.gaiak_colors[0].toFixed(3);
             }
-            gaiaabsmag = currcp.objectinfo.gaia_absolute_mags[0].toFixed(3);
 
+            if (currcp.objectinfo.gaia_absolute_mags != null &&
+                currcp.objectinfo.gaia_absolute_mags[0] != null) {
+                gaiaabsmag = currcp.objectinfo.gaia_absolute_mags[0].toFixed(3);
+            }
         }
 
         //
