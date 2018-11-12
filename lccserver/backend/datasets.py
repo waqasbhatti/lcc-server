@@ -1075,7 +1075,17 @@ def sqlite_make_dataset_lczip(basedir,
                     for ind_lcf, lcf in enumerate(zipfile_lclist):
 
                         if os.path.exists(lcf):
-                            outzip.write(lcf, os.path.basename(lcf))
+
+                            lcf_collname = os.path.split(
+                                os.path.dirname(lcf)
+                            )[-1]
+                            lcf_archivename = os.path.basename(lcf)
+
+                            outzip.write(
+                                lcf,
+                                arcname='%s-%s' % (lcf_collname,
+                                                   lcf_archivename)
+                            )
                         else:
                             zipfile_lclist[ind_lcf] = (
                                 '%s missing' % (os.path.basename(lcf))
