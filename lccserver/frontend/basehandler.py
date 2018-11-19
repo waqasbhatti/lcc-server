@@ -526,11 +526,16 @@ class BaseHandler(tornado.web.RequestHandler):
 
         '''
 
+        if 'User-Agent' in self.request.headers:
+            client_header = self.request.headers['User-Agent']
+        else:
+            client_header = 'no-user-agent'
+
         # ask authnzerver for a session cookie
         ok, resp, msgs = yield self.authnzerver_request(
             'session-new',
             {'ip_address': self.request.remote_ip,
-             'client_header': self.request.headers['User-Agent'],
+             'client_header': client_header,
              'user_id': user_id,
              'expires': (datetime.utcnow() +
                          timedelta(days=expires_days)),
