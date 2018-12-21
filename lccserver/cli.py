@@ -1806,7 +1806,7 @@ def main():
             # - GAIA info with timeout of 5 seconds
             # - just the magseries plot
 
-            print("No existing checkplot pickles found.\n\n"
+            print("No existing checkplot pickles were found.\n\n"
                   "Do you want to generate checkplot pickles for "
                   "your light curves? These will contain the "
                   "following information:\n")
@@ -1933,7 +1933,8 @@ def main():
 
         # launch the user's editor to edit this LCC's description
         print("We'll now launch your editor to edit the description "
-              "for this collection. You can use Markdown here.")
+              "for this collection. You can use Markdown here."
+              "\nDOIs and NASA ADS bibcodes will be linkified automatically.")
 
         # get the user's editor
         if 'EDITOR' in os.environ:
