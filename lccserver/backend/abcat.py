@@ -240,7 +240,7 @@ def objectinfo_to_sqlite(augcatpkl,
         #
 
         # strings
-        if thiscol_dtype.type is np.str_:
+        if thiscol_dtype.type is np.str_ or thiscol_dtype.type is np.unicode_:
 
             coldefs.append(('%s text' % thiscol_name, str))
 

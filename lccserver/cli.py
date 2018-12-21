@@ -233,8 +233,8 @@ def prepare_basedir(basedir,
 
         # set up the email settings file
         emailsettings = {
-            "email_sender":"LCC-Server <smtp_user_name@example.email.server.org>",
-            "email_server":"smtp.example.email.server.org",
+            "email_sender":"LCC-Server <smtp_user_name@emailserver.org>",
+            "email_server":"smtp.emailserver.org",
             "email_port":587,
             "email_user":"smtp_user_name",
             "email_pass":"smtp_user_password",
@@ -780,6 +780,18 @@ def generate_augmented_lclist_catalog(
              np.unicode_, True, True, '', ''),
             ('objectinfo.simbad_best_distarcsec',
              np.float_, True, True, np.nan, np.nan),
+            #
+            # TIC info
+            #
+            ('objectinfo.ticid',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.tic_version',
+             np.unicode_, True, True, '', ''),
+            ('objectinfo.tessmag',
+             np.float_, True, True, np.nan, np.nan),
+            #
+            # variability info
+            #
             ('varinfo.vartags',
              np.unicode_, False, True, '', ''),
             ('varinfo.varperiod',
@@ -813,7 +825,7 @@ def generate_augmented_lclist_catalog(
             ('varinfo.features.magnitude_ratio',
              np.float_, False, True, np.nan, np.nan),
             ('varinfo.features.beyond1std',
-             np.float_, False, True, np.nan, np.nan)
+             np.float_, False, True, np.nan, np.nan),
         )
 ):
     '''This generates a lclist-catalog.pkl file containing extra info from

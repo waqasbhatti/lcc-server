@@ -559,6 +559,30 @@ COLUMN_INFO = {
         'index':True,
         'ftsindex':False,
     },
+    'ticid':{
+        'title':'TIC ID',
+        'dtype':'U20',
+        'format':'%s',
+        'description':'TESS input catalog ID',
+        'index':True,
+        'ftsindex':True,
+    },
+    'tic_version':{
+        'title':'TIC version',
+        'dtype':'U20',
+        'format':'%s',
+        'description':'TESS input catalog version',
+        'index':True,
+        'ftsindex':False,
+    },
+    'tessmag':{
+        'title':'<em>T</em>',
+        'dtype':'f8',
+        'format':'%.3f',
+        'description':'catalog TESS magnitude',
+        'index':True,
+        'ftsindex':False,
+    },
 }
 
 
