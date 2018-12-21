@@ -1568,11 +1568,35 @@ def main():
         )
         if convertlcs and convertlcs.strip().lower() == 'y':
 
-            print('Launching conversion tasks. This might take a while...')
+            # ask if the output converted LCs should be normalized if normfunc
+            # is not None
+            if lcform['normfunc'] is not None:
 
+                print(
+                    'An LC normalization function has been specified:'
+                    '\n\n\%s\n\n'
+                    'Generally, the output converted LCs should not be '
+                    'normalized to preserve their original measurement values.'
+                    % repr(lcform['normfunc'])
+                )
+                norm_converted_lcs = (
+                    input('Do you want to normalize the '
+                          'output converted light curves? [y/N]')
+                )
+                if (norm_converted_lcs and
+                    norm_converted_lcs.strip().lower() == 'y'):
+                    do_normalization_for_converted_lcs = True
+                else:
+                    do_normalization_for_converted_lcs = False
+
+            else:
+                do_normalization_for_converted_lcs = False
+
+            print('Launching conversion tasks. This might take a while...')
             convert_original_lightcurves(
                 args.basedir,
-                collection_id
+                collection_id,
+                normalize_lcs=do_normalization_for_converted_lcs
             )
 
             print('Done with LC conversion.')
@@ -1713,7 +1737,7 @@ def main():
         # now we'll reform this pickle by adding in checkplot info
         #
         print('Done.')
-        input("We will now generate an object catalog pickle "
+        input("We will now generate a base object catalog "
               "using the information from checkplot pickles "
               "you have prepared from these light curves. "
               "Please copy or symlink your checkplot pickles "
@@ -1772,7 +1796,7 @@ def main():
                     [None for x in collection_lclist],
                     cpdir,
                     os.path.join(collection_dir, 'lightcurves'),
-                    fast_mode=True,
+                    fast_mode=10.0,
                     lcfnamelist=collection_lclist,
                     lclistpkl=lclpkl,
                     minobservations=49,
@@ -1781,7 +1805,7 @@ def main():
 
                 print('Done.\n'
                       'Generating augmented object '
-                      'catalog pickle and kd-tree...')
+                      'catalog and kd-tree...')
                 augcat_pkl = generate_augmented_lclist_catalog(
                     args.basedir,
                     collection_id,
@@ -1792,8 +1816,8 @@ def main():
             else:
 
                 print('No checkplot pickles found. '
-                      'Generating bare-bones object '
-                      'catalog pickle and kd-tree...')
+                      'Generating bare-bones base object '
+                      'catalog and kd-tree...')
 
                 # add the magcols key to the unaugmented catalog
                 with open(lclpkl,'rb') as infd:
@@ -1808,7 +1832,7 @@ def main():
         else:
 
             print('Found %s checkplot pickles. '
-                  'Generating augmented object catalog pickle and kd-tree...' %
+                  'Generating augmented object catalog and kd-tree...' %
                   len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))))
 
             augcat_pkl = generate_augmented_lclist_catalog(
