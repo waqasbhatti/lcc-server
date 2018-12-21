@@ -1566,6 +1566,7 @@ def main():
             "Do you want to convert your original format "
             "light curves to LCC CSV format now? [y/N] "
         )
+
         if convertlcs and convertlcs.strip().lower() == 'y':
 
             # ask if the output converted LCs should be normalized if normfunc
@@ -1608,7 +1609,6 @@ def main():
         #
         # next, we'll set up the lclist.pkl file
         #
-
         from astrobase import lcproc
 
         try:
@@ -1710,9 +1710,11 @@ def main():
             print("lcc-server --basedir %s add-collection" % args.basedir)
             sys.exit(1)
 
-        print('Generating a light curve list pickle using magcol: %s...' %
+        #
+        # generate the LC list pickle
+        #
+        print('Generating a light curve list using magcol: %s...' %
               magcol)
-
         lcproc.register_custom_lcformat(
             lcform['formatkey'],
             lcform['fileglob'],
@@ -1731,19 +1733,20 @@ def main():
         )
         with open(lclpkl,'rb') as infd:
             collection_lcinfo = pickle.load(infd)
+
         collection_lclist = collection_lcinfo['objects']['lcfname']
+        print('Done. %s total light curves found.\n' % len(collection_lclist))
 
         #
-        # now we'll reform this pickle by adding in checkplot info
+        # Get the checkplot pickles from the user
         #
-        print('Done.')
         input("We will now generate a base object catalog "
-              "using the information from checkplot pickles "
+              "using the information from any checkplot pickles "
               "you have prepared from these light curves. "
               "Please copy or symlink your checkplot pickles "
               "into the directory:\n\n"
               "%s \n\n"
-              "Note that this is optional, but highly recommended. "
+              "NOTE: this is optional, but highly recommended. "
               "If you don't have any checkplot pickles prepared, "
               "we can prepare checkplot pickles "
               "automatically from your light curves.\n\n"
@@ -1752,6 +1755,47 @@ def main():
 
         cpdir = os.path.join(collection_dir,'checkplots')
 
+        #
+        # we'll ask the user if they want to run period-finding on their light
+        # curves next
+        #
+        print("Do you want to run period-finding on your light curves?")
+        print("This is optional and will probably take some time to run,\n"
+              "but will add in phased light curve plots to the detailed\n"
+              "object information displayed by the LCC-Server.\n"
+              "NOTE: If you have already generated checkplot pickles with\n"
+              "period-finding information in them, hit Enter below to skip\n"
+              "this step.\n")
+        run_periodfinding = input(
+            "Run period-finding now? [y/N]"
+        )
+
+        if run_periodfinding and run_periodfinding.strip().lower() == 'y':
+
+            print(
+                "Running period-finders: GLS, BLS, PDM with automatic "
+                "period interval determination for GLS & PDM, and\n"
+                "using a period interval of [1.0, 100.0] days for BLS.\n"
+                "This will take a while..."
+            )
+
+            periodfinding_pickles = lcproc.parallel_pf(
+                collection_lclist,
+                os.path.join(collection_dir,
+                             'periodfinding'),
+                lcformat=lcform['formatkey'],
+                pfmethods=('gls','bls','pdm'),
+                pfkwargs=({},{'startp':1.0,'endp':100.0},{}),
+                getblssnr=True
+            )
+            print('Done.\n')
+
+        else:
+            periodfinding_pickles = [None for x in collection_lclist]
+
+        #
+        # generate checkplot pickles now if None were found
+        #
         if len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))) == 0:
 
             # Here, we can optionally generate checkplot pickles in 'fast'
@@ -1762,8 +1806,8 @@ def main():
             # - GAIA info with timeout of 5 seconds
             # - just the magseries plot
 
-            print("Do you want to generate "
-                  "checkplot pickles for "
+            print("No existing checkplot pickles found.\n\n"
+                  "Do you want to generate checkplot pickles for "
                   "your light curves? These will contain the "
                   "following information:\n")
             print("finder chart, variability features, colors "
@@ -1793,7 +1837,7 @@ def main():
                     requests.get('http://captive.apple.com/hotspot-detect.html')
 
                 lcproc.parallel_cp(
-                    [None for x in collection_lclist],
+                    periodfinding_pickles,
                     cpdir,
                     os.path.join(collection_dir, 'lightcurves'),
                     fast_mode=10.0,
