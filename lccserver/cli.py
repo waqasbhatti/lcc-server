@@ -1185,9 +1185,13 @@ async def start_lccserver(basedir, executor):
                                               '.lccserver.secret-cpserver')),
         shell=True
     )
+
+    # we'll run the indexserver using 0.0.0.0:12500 so it can be accessed from
+    # outside localhost if no firewalls are in the way.
     subprocess_call_indexserver = partial(
         subprocess.call,
-        "indexserver --basedir='%s'" % os.path.abspath(basedir),
+        ("indexserver --serve='0.0.0.0' --basedir='%s'" %
+         os.path.abspath(basedir)),
         shell=True
     )
 
@@ -1799,13 +1803,7 @@ def main():
         if len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))) == 0:
 
             # Here, we can optionally generate checkplot pickles in 'fast'
-            # mode. these will contain:
-            # - finder chart with timeout of 5 seconds
-            # - variability features
-            # - colors, dereddening, and color classes
-            # - GAIA info with timeout of 5 seconds
-            # - just the magseries plot
-
+            # mode
             print("No existing checkplot pickles were found.\n\n"
                   "Do you want to generate checkplot pickles for "
                   "your light curves? These will contain the "
