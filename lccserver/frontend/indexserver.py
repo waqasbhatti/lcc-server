@@ -259,7 +259,7 @@ def main():
         with open(SITEINFO['email_settings_file'],'r') as infd:
             email_settings = json.load(infd)
 
-        if email_settings['email_server'] != "smtp.example.email.server.org":
+        if email_settings['email_server'] != "smtp.emailserver.org":
             SITEINFO.update(email_settings)
 
             LOGGER.info('Site info: email server to use: %s:%s.' %
