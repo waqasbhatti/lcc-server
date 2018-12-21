@@ -526,6 +526,7 @@ def new_collection_directories(basedir,
 def convert_original_lightcurves(basedir,
                                  collection_id,
                                  original_lcdir=None,
+                                 normalize_lcs=False,
                                  convert_workers=NCPUS,
                                  csvlc_version=1,
                                  comment_char='#',
@@ -542,11 +543,14 @@ def convert_original_lightcurves(basedir,
     present in the basedir/collection_id/lightcurves directory already.
 
     The light curves will be read using the module and function specified in the
-    basedir/collection_id/lcformat-description.json file. Next, they will be
-    normalized using the module and function specified in the
-    basedir/collection_id/lcformat-description.json file. Finally, the
-    conversion will take place and put the output light curves into the
-    basedir/lc_collection/lightcurves directory.
+    basedir/collection_id/lcformat-description.json file.
+
+    Next, if normalize_lcs is True, they will be normalized using the module and
+    function specified in the basedir/collection_id/lcformat-description.json
+    file.
+
+    Finally, the conversion will take place and put the output light curves into
+    the basedir/lc_collection/lightcurves directory.
 
     convert_workers controls the number of parallel workers used to convert
     the light curves.
@@ -609,6 +613,7 @@ def convert_original_lightcurves(basedir,
             return None
 
         converter_options = {'csvlc_version':csvlc_version,
+                             'normalize_lc':normalize_lcs,
                              'comment_char':comment_char,
                              'column_separator':column_separator,
                              'skip_converted':skip_converted}
