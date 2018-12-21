@@ -241,7 +241,8 @@ def main():
 
     if os.path.exists(footprint_svgf):
         with open(footprint_svgf, 'r') as infd:
-            footprint_svg = infd.read()
+            footprint_svg = infd.readlines()
+            footprint_svg = ''.join(footprint_svg[3:])
     else:
         footprint_svg = None
 
