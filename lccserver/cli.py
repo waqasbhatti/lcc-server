@@ -1919,20 +1919,25 @@ def main():
         if not lcc_citation or len(lcc_citation.strip()) == 0:
             lcc_citation = 'Me and my friends et al. (2018)'
 
-        lcc_ispublic = input(
-            'Is this LC collection public? [Y/n]: '
+        lcc_visibility = input(
+            'Is this LC collection publicly visible or unlisted? [P/u] '
         )
-        if ((not lcc_ispublic) or
-            (len(lcc_ispublic.strip()) == 0) or
-            (lcc_ispublic.strip().lower() == 'y')):
-            lcc_ispublic = True
+        if ((not lcc_visibility) or
+            (len(lcc_visibility.strip()) == 0) or
+            (lcc_visibility.strip().lower() == 'p')):
+            lcc_visibility = 'public'
         else:
-            False
+            lcc_visibility = 'unlisted'
 
         # launch the user's editor to edit this LCC's description
-        print("We'll now launch your editor to edit the description "
-              "for this collection. You can use Markdown here."
-              "\nDOIs and NASA ADS bibcodes will be linkified automatically.")
+        print(
+            textwrap.wrap(
+                "We'll now launch your editor to edit the description "
+                "for this collection. You can use Markdown here."
+                "\nDOIs and NASA ADS bibcodes will be linkified automatically."
+                ,width=termcols-1
+            )
+        )
 
         # get the user's editor
         if 'EDITOR' in os.environ:
@@ -1977,12 +1982,12 @@ def main():
         catsqlite = generate_catalog_database(
             args.basedir,
             collection_id,
+            collection_visibility=lcc_visibility,
             collection_info={'name':lcc_name,
                              'desc':lcc_desc,
                              'project':lcc_project,
                              'datarelease':lcc_datarelease,
-                             'citation':lcc_citation,
-                             'ispublic':lcc_ispublic}
+                             'citation':lcc_citation}
         )
 
         print("Adding this collection to the LCC-Server's index...")
