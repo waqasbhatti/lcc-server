@@ -1579,14 +1579,14 @@ def main():
 
                 print(
                     'An LC normalization function has been specified:'
-                    '\n\n\%s\n\n'
+                    '\n\n%s\n\n'
                     'Generally, the output converted LCs should not be '
                     'normalized to preserve their original measurement values.'
                     % repr(lcform['normfunc'])
                 )
                 norm_converted_lcs = (
                     input('Do you want to normalize the '
-                          'output converted light curves? [y/N]')
+                          'output converted light curves? [y/N] ')
                 )
                 if (norm_converted_lcs and
                     norm_converted_lcs.strip().lower() == 'y'):
@@ -1763,7 +1763,7 @@ def main():
         # we'll ask the user if they want to run period-finding on their light
         # curves next
         #
-        print("Do you want to run period-finding on your light curves?")
+        print("\nDo you want to run period-finding on your light curves?")
         print("This is optional and will probably take some time to run,\n"
               "but will add in phased light curve plots to the detailed\n"
               "object information displayed by the LCC-Server.\n"
@@ -1771,13 +1771,13 @@ def main():
               "period-finding information in them, hit Enter below to skip\n"
               "this step.\n")
         run_periodfinding = input(
-            "Run period-finding now? [y/N]"
+            "Run period-finding now? [y/N] "
         )
 
         if run_periodfinding and run_periodfinding.strip().lower() == 'y':
 
             print(
-                "Running period-finders: GLS, BLS, PDM with automatic "
+                "\nRunning period-finders: GLS, BLS, PDM with automatic\n"
                 "period interval determination for GLS & PDM, and\n"
                 "using a period interval of [1.0, 100.0] days for BLS.\n"
                 "This will take a while..."
