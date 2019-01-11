@@ -1848,7 +1848,7 @@ def main():
                 print('Done.\n'
                       'Generating augmented object '
                       'catalog and kd-tree...')
-                augcat_pkl = generate_augmented_lclist_catalog(
+                generate_augmented_lclist_catalog(
                     args.basedir,
                     collection_id,
                     lclpkl,
@@ -1877,7 +1877,7 @@ def main():
                   'Generating augmented object catalog and kd-tree...' %
                   len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))))
 
-            augcat_pkl = generate_augmented_lclist_catalog(
+            generate_augmented_lclist_catalog(
                 args.basedir,
                 collection_id,
                 lclpkl,
@@ -1885,8 +1885,7 @@ def main():
             )
 
         # generate the kd-tree pickle for fast spatial searches
-        kdt = generate_catalog_kdtree(args.basedir,
-                                      collection_id)
+        generate_catalog_kdtree(args.basedir, collection_id)
 
         #
         # next, we'll ask the user about their collection
@@ -1931,12 +1930,9 @@ def main():
 
         # launch the user's editor to edit this LCC's description
         print(
-            textwrap.wrap(
-                "We'll now launch your editor to edit the description "
-                "for this collection. You can use Markdown here."
-                "\nDOIs and NASA ADS bibcodes will be linkified automatically."
-                ,width=termcols-1
-            )
+            "We'll now launch your editor to edit the description "
+            "for this collection. You can use Markdown here."
+            "\nDOIs and NASA ADS bibcodes will be linkified automatically."
         )
 
         # get the user's editor
@@ -1979,7 +1975,7 @@ def main():
         os.remove(desc_tempfile)
 
         print('Building object database...')
-        catsqlite = generate_catalog_database(
+        generate_catalog_database(
             args.basedir,
             collection_id,
             collection_visibility=lcc_visibility,
@@ -1991,8 +1987,7 @@ def main():
         )
 
         print("Adding this collection to the LCC-Server's index...")
-        catindex = add_collection_to_lcc_index(args.basedir,
-                                               collection_id)
+        add_collection_to_lcc_index(args.basedir, collection_id)
 
         # we need to generate a tiny dataset so the LCC-server doesn't complain
         # that it can't find any existing datasets
@@ -2009,13 +2004,13 @@ def main():
         setid, csvlcs_to_generate, all_original_lcs, actual_nrows, npages = (
             datasets.sqlite_new_dataset(args.basedir, setid, dt, res)
         )
-        lcz = datasets.sqlite_make_dataset_lczip(args.basedir,
-                                                 setid,
-                                                 csvlcs_to_generate,
-                                                 all_original_lcs)
-        ds = datasets.sqlite_get_dataset(args.basedir,
-                                         setid,
-                                         'json-preview')
+        datasets.sqlite_make_dataset_lczip(args.basedir,
+                                           setid,
+                                           csvlcs_to_generate,
+                                           all_original_lcs)
+        datasets.sqlite_get_dataset(args.basedir,
+                                    setid,
+                                    'json-preview')
 
         print('\nAll done!\n')
         print('You can start an LCC-Server instance '
@@ -2242,7 +2237,7 @@ def main():
                 len(confirm.strip()) > 0 and
                 confirm.strip().lower() == 'y'):
 
-                removed = remove_collection_from_lcc_index(
+                remove_collection_from_lcc_index(
                     args.basedir,
                     removecoll
                 )
