@@ -659,6 +659,13 @@ class DatasetListHandler(BaseHandler):
                     else:
                         append_to_list = True
 
+                # show all datasets if the user is a superuser or admin
+                elif self.current_user['user_role'] in ('superuser','admin'):
+
+                    dataset['owned'] = (self.current_user['user_id'] ==
+                                        dataset['dataset_owner'])
+                    append_to_list = True
+
                 # otherwise, this is a dataset not owned by the current user
                 else:
 
@@ -798,6 +805,13 @@ class DatasetListHandler(BaseHandler):
                         append_to_list = False
                     else:
                         append_to_list = True
+
+                # show all datasets if the user is a superuser or admin
+                elif self.current_user['user_role'] in ('superuser','admin'):
+
+                    dataset['owned'] = (self.current_user['user_id'] ==
+                                        dataset['dataset_owner'])
+                    append_to_list = True
 
                 # otherwise, this is a dataset not owned by the current user
                 else:
