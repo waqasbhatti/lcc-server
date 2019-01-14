@@ -2000,9 +2000,19 @@ def main():
                                                 lcdict['objectinfo']['ra'],
                                                 lcdict['objectinfo']['decl'],
                                                 5.0)
-        setid, dt = datasets.sqlite_prepare_dataset(args.basedir)
+        setid, dt = datasets.sqlite_prepare_dataset(
+            args.basedir,
+            dataset_owner=2,
+            dataset_visibility='public'
+        )
         setid, csvlcs_to_generate, all_original_lcs, actual_nrows, npages = (
-            datasets.sqlite_new_dataset(args.basedir, setid, dt, res)
+            datasets.sqlite_new_dataset(
+                args.basedir,
+                setid,
+                dt,
+                res,
+                dataset_visibility='public',
+            )
         )
         datasets.sqlite_make_dataset_lczip(args.basedir,
                                            setid,
