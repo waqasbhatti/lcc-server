@@ -660,7 +660,7 @@ class DatasetListHandler(BaseHandler):
                         append_to_list = True
 
                 # show all datasets if the user is a superuser or admin
-                elif self.current_user['user_role'] in ('superuser','admin'):
+                elif self.current_user['user_role'] in ('superuser','staff'):
 
                     dataset['owned'] = (self.current_user['user_id'] ==
                                         dataset['dataset_owner'])
@@ -807,7 +807,7 @@ class DatasetListHandler(BaseHandler):
                         append_to_list = True
 
                 # show all datasets if the user is a superuser or admin
-                elif self.current_user['user_role'] in ('superuser','admin'):
+                elif self.current_user['user_role'] in ('superuser','staff'):
 
                     dataset['owned'] = (self.current_user['user_id'] ==
                                         dataset['dataset_owner'])
