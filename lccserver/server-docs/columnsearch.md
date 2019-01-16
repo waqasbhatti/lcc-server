@@ -96,7 +96,7 @@ matching objects.
 </figure>
 
 
-## The API
+## The HTTP API
 
 The column search query service accepts HTTP requests to its endpoint:
 

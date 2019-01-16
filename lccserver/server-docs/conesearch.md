@@ -111,7 +111,7 @@ and (propermotion > 50.0)`:
 </figure>
 
 
-## The API
+## The HTTP API
 
 The cone search query service accepts HTTP requests to its endpoint:
 

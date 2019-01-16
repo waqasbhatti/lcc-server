@@ -107,7 +107,7 @@ cross-match search query:
 </figure>
 
 
-## The API
+## The HTTP API
 
 The cross-match service accepts HTTP requests to its endpoint:
 
@@ -173,7 +173,7 @@ import requests, json
 
 # get the API key
 apikey_info = requests.get('{{ server_url }}/api/key')
-apikey = apikey_info.json()['result']['key']
+apikey = apikey_info.json()['result']['apikey']
 
 # read in our object name and coordinates file
 with open('xmatch-upload.txt','r') as infd:

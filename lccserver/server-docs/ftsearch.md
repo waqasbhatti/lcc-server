@@ -115,7 +115,7 @@ return only objects that match the condition: `(ndet > 10000) and
 </figure>
 
 
-## The API
+## The HTTP API
 
 The full-text-search service accepts HTTP requests to its endpoint:
 
