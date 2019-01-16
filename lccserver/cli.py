@@ -1142,6 +1142,21 @@ def remove_collection_from_lcc_index(basedir,
                    (os.path.abspath(os.path.join(basedir, collection_id))))
 
 
+#########################
+## GENERATING LCC MAPS ##
+#########################
+
+def update_lcc_map(basedir):
+    '''
+    This function updates all LCC maps to generate a coverage SVG.
+
+    '''
+
+    from lccserver.backend import footprints
+
+
+
+
 ########################################
 ## STARTING AN INSTANCE OF THE SERVER ##
 ########################################
