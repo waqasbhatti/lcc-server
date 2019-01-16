@@ -54,6 +54,25 @@ include:
    that will be applied to the objects that match the initial coordinate search
    specification.
 
+When searching for a single object by name, you may choose to look up the object name in
+the CDS SIMBAD database, resolving its coordinates by using the SESAME service. If the
+**Look up object names using SESAME** option is selected, the LCC-Server will
+query the SIMBAD name resolution service, obtain coordinates for the requested
+object if it is found there, and then search its own database for any objects
+within 5 arcseconds of the reported object coordinates. You can also use this
+option to look up extended sources, such as clusters and nebulae. If the object
+type returned by SIMBAD for a query is not a star, the LCC-Server will search in a
+1 degree radius around the object's center coordinates to find matches in its
+database associated with the queried object name.
+
+You may also choose a column to sort the results by and the desired sort order
+using the select boxes under the active column filters list. Finally, you may
+also restrict the number of rows returned or ask for a random sample of rows
+from the database matching your search conditions. If requested, these
+operations are carried out in the following order.
+
+**random sampling search results &rarr; sorting search results &rarr; limiting search result rows**
+
 Execute the full-text-search query by clicking on the **Search** button or just
 by hitting <kbd>Enter</kbd> once you're done typing into the input box. The
 query will enter the run-queue and begin executing as soon as possible. If it
@@ -101,10 +120,10 @@ return only objects that match the condition: `(ndet > 10000) and
 The full-text-search service accepts HTTP requests to its endpoint:
 
 ```
-GET {{ server_url }}/api/ftsquery
+POST {{ server_url }}/api/ftsquery
 ```
 
-See the general [API page](/docs/api) for how to handle the responses from the query service.
+See the general [API page](/docs/api) for how to handle the responses from the query service. This service requires an API key; see the [API key docs](/docs/api#api-keys) for how to request and use these.
 
 ### Parameters
 
@@ -114,10 +133,14 @@ described in the table below.
 Parameter          | Required | Default | Description
 ------------------ | -------- | ------- | -----------
 `ftstext`          | **yes**  |         | A string to match against the full-text indexed columns in the specified collections. For an exact match against object names, use `"` characters to quote the required string.
-`result_ispublic`  | **no**   | `1`     | `1` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `0` means the resulting dataset will only be accessible to people who know its URL.
-`collections[]`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
-`columns[]`          | **no**   | `null`  | Columns to retrieve. Columns used for filtering and sorting are returned automatically so there's no need to specify them here. The database object names, right ascensions, and declinations are returned automatically as well.
-`filters`          | **no**   | `null`  | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results. You will have to use special codes for mathematical operators since non-text symbols are automatically stripped from the query input:<br>&lt; &rarr; `lt`<br> &gt; &rarr; `gt`<br> &le; &rarr; `le`<br> &ge; &rarr; `ge`<br> = &rarr; `eq`<br> &ne; &rarr; `ne`<br> contains &rarr; `ct`
+`visibility`  | **yes**   | `unlisted`     | `public` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `unlisted` means the resulting dataset will only be accessible to people who know its URL. `private` means the dataset and any associated products will only be visible and accessible to the user running the search.
+`sesame`          | **no**  | `false`  | `true` indicates that the LCC-Server should try to search for the provided object's name in SIMBAD, resolve its coordinates, and then look it up in its own database. `false` indicates that the provided object name's will not be looked up using SIMBAD. This option should only be used for object names and not descriptive tags.
+`filters`          | **no**   |         | Database column filters to apply to the search results. This is a string in SQL format specifying the columns and operators to use to filter the results. You will have to use special codes for mathematical operators since non-text symbols are automatically stripped from the query input:<br>&lt; &rarr; `lt`<br> &gt; &rarr; `gt`<br> &le; &rarr; `le`<br> &ge; &rarr; `ge`<br> = &rarr; `eq`<br> &ne; &rarr; `ne`<br> contains &rarr; `ct`
+`sortspec`          | **no**  | `['relevance','asc']` | This is a string of the form: `"['column to sort by','asc|desc']"` indicating the database column to sort the results by and the desired sort order: `asc` for ascending, `desc` for descending order.
+`samplespec`        | **no**  |    | If this is specified, then random sampling for the search result is turned on. This parameter then indicates the number of rows to return in a uniform random sample of the search results.
+`limitspec`  | **no**   |      | If this is specified, then row limits for the search result are turned on. This parameter then indicates the number of rows to return from the search results. If random sampling is also turned on, the rows will be random sampled returning `samplespec` rows before applying the row limit in `limitspec`.
+`collections[]`      | **no**   |         | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is not specified, all LCC-Server collections will be searched.
+`columns[]`          | **no**   |         | Columns to retrieve. The database object names, right ascensions, and declinations are returned automatically. Columns used for filtering and sorting are **NOT** returned automatically (this is a convenience for the browser UI only). Specify them here if you want to see them in the output.
 
 
 ### Examples

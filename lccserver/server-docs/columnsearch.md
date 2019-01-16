@@ -26,9 +26,15 @@ and finally type the value to filter on in the input box on the right. Hit
 active filters. After the first filter is added, you can add an arbitrary number
 of additional filters, specifying the logical method to use (`AND`/`OR`) to
 chain them. This effectively builds up a `WHERE` SQL clause that will be applied
-to the objects that match the initial coordinate search specification. You may
-also choose a column to sort the results by and the desired sort order using the
-select boxes under the active filters list.
+to the objects that match the initial coordinate search specification.
+
+You may also choose a column to sort the results by and the desired sort order
+using the select boxes under the active column filters list. Finally, you may
+also restrict the number of rows returned or ask for a random sample of rows
+from the database matching your search conditions. If requested, these
+operations are carried out in the following order.
+
+**random sampling search results &rarr; sorting search results &rarr; limiting search result rows**
 
 The column-search service also takes two optional inputs. These include:
 
@@ -95,8 +101,10 @@ matching objects.
 The column search query service accepts HTTP requests to its endpoint:
 
 ```
-GET {{ server_url }}/api/columnsearch
+POST {{ server_url }}/api/columnsearch
 ```
+
+See the general [API page](/docs/api) for how to handle the responses from the query service. This service requires an API key; see the [API key docs](/docs/api#api-keys) for how to request and use these.
 
 
 ### Parameters
@@ -107,11 +115,12 @@ described in the table below.
 Parameter          | Required | Default | Description
 ------------------ | -------- | ------- | -----------
 `filters`          | **yes**  |         | Filters to apply to the objects found. This is a string in SQL format specifying the columns and operators to use to filter the results. You will have to use special codes for mathematical operators since non-text symbols are automatically stripped from the query input:<br>&lt; &rarr; `lt`<br> &gt; &rarr; `gt`<br> &le; &rarr; `le`<br> &ge; &rarr; `ge`<br> = &rarr; `eq`<br> &ne; &rarr; `ne`<br> contains &rarr; `ct`
-`sortcol`          | **yes**  | `sdssr` | The column to sort the results by. This is set to `sdssr` by default if this column is present in the collections being searched. If `sdssr` is not present, `sortcol` will be set to `objectid` by default if not specified otherwise.
-`sortorder`        | **yes**  | `asc`   | The sort order to return the results in. This is set to ascending values by default: `asc`. The only other option is descending sort order: `desc`.
-`result_ispublic`  | **no**   | `1`     | `1` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `0` means the resulting dataset will only be accessible to people who know its URL.
-`collections[]`      | **no**   | `null`  | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is null, all collections will be searched.
-`columns[]`          | **no**   | `null`  | Columns to retrieve. The database object names, right ascensions, and declinations are returned automatically. Columns used for filtering and sorting are **NOT** returned automatically (this is a convenience for the browser UI only). Specify them here if you want to see them in the output.
+`visibility`  | **yes**   | `unlisted`     | `public` means the resulting dataset will be public and visible on the [Recent Datasets](/datasets) page. `unlisted` means the resulting dataset will only be accessible to people who know its URL. `private` means the dataset and any associated products will only be visible and accessible to the user running the search.
+`sortspec`          | **yes**  | `['sdssr','asc']` | This is a string of the form: `"['column to sort by','asc|desc']"` indicating the database column to sort the results by and the desired sort order: `asc` for ascending, `desc` for descending order.
+`samplespec`        | **no**  |    | If this is specified, then random sampling for the search result is turned on. This parameter then indicates the number of rows to return in a uniform random sample of the search results.
+`limitspec`  | **no**   |      | If this is specified, then row limits for the search result are turned on. This parameter then indicates the number of rows to return from the search results. If random sampling is also turned on, the rows will be random sampled returning `samplespec` rows before applying the row limit in `limitspec`.
+`collections[]`      | **no**   |         | Collections to search in. Specify this multiple times to indicate multiple collections to search. If this is not specified, all LCC-Server collections will be searched.
+`columns[]`          | **no**   |         | Columns to retrieve. The database object names, right ascensions, and declinations are returned automatically. Columns used for filtering and sorting are **NOT** returned automatically (this is a convenience for the browser UI only). Specify them here if you want to see them in the output.
 
 
 ### Examples
