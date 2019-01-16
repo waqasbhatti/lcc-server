@@ -1146,13 +1146,44 @@ def remove_collection_from_lcc_index(basedir,
 ## GENERATING LCC MAPS ##
 #########################
 
-def update_lcc_map(basedir):
+def update_lcc_footprint_svg(basedir,
+                             overwrite=False):
     '''
     This function updates all LCC maps to generate a coverage SVG.
 
     '''
 
     from lccserver.backend import footprints
+    from lccserver.backend import dbsearch
+
+    # get all collections
+    coll_info = dbsearch.sqlite_list_collections(basedir,
+                                                 incoming_role='superuser',
+                                                 incoming_userid=1)
+    collections = coll_info['databases']
+    collection_dirs = [x.replace('_','-') for x in collections]
+
+    # generate the footprint pickles for all collections
+    for coll in collections:
+        coll_footprint_pkl = os.path.join(basedir,
+                                          coll.replace('_','-'),
+                                          'catalog-footprint.pkl')
+
+        if (not os.path.exists(coll_footprint_pkl)) or overwrite:
+            footprints.generate_collection_footprint(basedir,
+                                                     coll,
+                                                     conditions='ndet > 99')
+        else:
+            LOGWARNING('footprint info for collection: %s '
+                       'exists and overwrite = False, not updating...' % coll)
+
+    # now generate the updated SVG
+    footprints.collection_overview_svg(basedir,
+                                       collection_dirs,
+                                       use_alpha=0.8,
+                                       use_hull='concave',
+                                       use_projection='mollweide',
+                                       use_colormap='inferno')
 
 
 
@@ -2003,6 +2034,9 @@ def main():
 
         print("Adding this collection to the LCC-Server's index...")
         add_collection_to_lcc_index(args.basedir, collection_id)
+
+        print("Adding this collection the LCC-Server's footprint SVG...")
+        update_lcc_footprint_svg(args.basedir,overwrite=False)
 
         # we need to generate a tiny dataset so the LCC-server doesn't complain
         # that it can't find any existing datasets

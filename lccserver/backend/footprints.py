@@ -42,6 +42,7 @@ import pickle
 import os.path
 import math
 import subprocess
+import shutil
 
 import numpy as np
 from scipy.spatial import Delaunay
@@ -810,8 +811,10 @@ def collection_overview_svg(
         ret = subprocess.run('scour -i %s -o %s' %
                              (outfile, outfile.replace('-temp','')),
                              shell=True)
-        LOGINFO('optimized SVG -> %s' % outfile.replace('-temp',''))
+        LOGINFO('Optimized footprint SVG -> %s' % outfile.replace('-temp',''))
         if ret.returncode == 0:
             os.remove(outfile)
         else:
-            LOGERROR('could not optimize the SVG. Left as %s' % outfile)
+            shutil.move(outfile, outfile.replace('-temp',''))
+            LOGERROR('Could not optimize the footprint SVG. Left as is: %s' %
+                     outfile.replace('-temp',''))
