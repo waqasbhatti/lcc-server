@@ -56,8 +56,7 @@ All search services follow the same basic scheme:
    links for all matched objects will be returned by default so there is no need
    to specify them here.
 3. Add database column filters on the matched objects. This step is
-   optional. See the [Filtering on database
-   columns](#filtering-on-database-columns) section below for details.
+   optional.
 4. Choose the visibility of the [search result](#search-results). This step is
    optional.
 5. Type in the query coordinates or text as appropriate.
@@ -75,8 +74,6 @@ query as it progresses through the execution stages. Clicking on the
     The query status tab
   </figcaption>
 </figure>
-
-## Filtering on database columns
 
 ## Search results
 
