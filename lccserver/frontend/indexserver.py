@@ -241,7 +241,8 @@ def main():
 
     if os.path.exists(footprint_svgf):
         with open(footprint_svgf, 'r') as infd:
-            footprint_svg = infd.read()
+            footprint_svg = infd.readlines()
+            footprint_svg = ''.join(footprint_svg[3:])
     else:
         footprint_svg = None
 
@@ -259,7 +260,7 @@ def main():
         with open(SITEINFO['email_settings_file'],'r') as infd:
             email_settings = json.load(infd)
 
-        if email_settings['email_server'] != "smtp.example.email.server.org":
+        if email_settings['email_server'] != "smtp.emailserver.org":
             SITEINFO.update(email_settings)
 
             LOGGER.info('Site info: email server to use: %s:%s.' %

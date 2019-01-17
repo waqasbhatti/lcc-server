@@ -5,26 +5,121 @@ documentation page.
 
 [TOC]
 
-## API Python client
+## API client Python module
 
-A client for the API is implemented as simple functions in a single-file Python
-module:
+If you don't want to manually write up API calls, a client for the API is
+available as a single-file Python module:
 [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py). This
 doesn't depend on anything other than the Python standard library, so can be
 dropped in anywhere it's needed.
 
+This implements clients for the search service and information service APIs of
+the LCC-Server and automatically handles API key acquisition:
 
-## Search query services
+```python
+import lccs
+# or if you have astrobase installed
+# from astrobase.services import lccs
+
+lcc_server_url = '{{ server_url }}'
+
+# search services -- use help(<function name>) to see the docstrings
+lccs.cone_search(lcc_server_url, center_ra, center_decl, radius_arcmin=5.0, ...)
+lccs.fulltext_search(lcc_server_url, searchterm_text, sesame=False, ...)
+lccs.column_search(lcc_server_url, column_filters, ...)
+lccs.xmatch_search(lcc_server_url, file_to_upload, ...)
+
+# information services -- use help(<function name>) to see the docstrings
+lccs.list_lc_collections(lcc_server_url)
+lccs.list_recent_datasets(lcc_server, nrecent=25, ...)
+lccs.get_dataset(lcc_server_url, dataset_id)
+lccs.object_info(lcc_server_url, objectid, collection, ...)
+```
+
+## API keys
+
+Some LCC-Server APIs require an API token provided as part of the HTTP header.
+
+If you have an LCC-Server account, you can obtain an API key by [signing in into
+your account]({{ server_url }}/users/login). Once logged in, go to your user
+home page at [{{ server_url }}/users/home]({{ server_url }}/users/home), and
+click on the **Get new key** button.
+
+To get an anonymous API key token, perform an HTTP request of the form:
+
+```
+GET {{ server_url }}/api/key
+```
+
+Either of these methods will return a JSON formatted object with the API key to
+use and its expiry time, e.g.:
+
+```json
+{
+    "message": "API key generated successfully. Expires: 2018-08-03T16:06:36.684957Z",
+    "result": {
+        "apikey": "eyJpcCI6IjEyNy4wLjAuMSIsInZlciI6MSwidG9rZW4iOiJteE55dVhOUkZicmFoQSIsImV4cGlyeSI6IjIwMTgtMDgtMDNUMTY6MDY6MzYuNjg0OTU3WiJ9.DkS9jA.DXngAj-NToG-9qdGbP2QcoMQzFw",
+        "expires": "2018-08-03T16:06:36.684957Z"
+    },
+    "status": "ok"
+}
+```
+
+Use the value of the `apikey` item in the HTTP header of any subsequent `GET` or
+`POST` requests to the search API endpoint that requires an API key. This is of
+the form:
+
+```
+Authorization: Bearer <API key>
+```
+
+You can check if your API key is still valid by performing an HTTP request
+of the form:
+
+```
+POST {{ server_url }}/api/auth?key=[API key token]
+
+```
+
+and including the `Authorization: Bearer [apikey]` in the header of the request.
+
+If your key passes verification, then it's good to use:
+
+```json
+{
+    "message": "API key verified successfully. Expires: 2018-08-03T16:06:36.684957Z",
+    "result": {
+        "expires": "2018-08-03T16:06:36.684957Z"
+    },
+    "status": "ok"
+}
+```
+
+If it fails:
+
+```json
+{
+    "message": "API key could not be verified or has expired.",
+    "result": null,
+    "status": "failed"
+}
+```
+
+Then you can simply request a new key and continue with your previous requests
+to the API key-secured API endpoints.
+
+
+## Search query service APIs
 
 Service | Method and URL | Parameters | API key | Response
 ------- | --- | ---------- | ---------------- | ----------
-`conesearch` | `POST {{ server_url }}/api/conesearch` | [docs](/docs/conesearch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
-`ftsquery` | `POST {{ server_url }}/api/ftsquery` | [docs](/docs/ftsearch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
-`columnsearch` | `POST {{ server_url }}/api/columnsearch` | [docs](/docs/columnsearch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
-`xmatch` | `POST {{ server_url }}/api/xmatch` | [docs](/docs/xmatch#the-api) | **[yes](#api-keys)** | streaming<br>ND-JSON
+`conesearch` | `POST {{ server_url }}/api/conesearch` | [docs](/docs/conesearch#the-api) | **[required](#api-keys)** | streaming<br>ND-JSON
+`ftsquery` | `POST {{ server_url }}/api/ftsquery` | [docs](/docs/ftsearch#the-api) | **[required](#api-keys)** | streaming<br>ND-JSON
+`columnsearch` | `POST {{ server_url }}/api/columnsearch` | [docs](/docs/columnsearch#the-api) | **[required](#api-keys)** | streaming<br>ND-JSON
+`xmatch` | `POST {{ server_url }}/api/xmatch` | [docs](/docs/xmatch#the-api) | **[required](#api-keys)** | streaming<br>ND-JSON
 
 
-## Streaming search query responses
+### Streaming search query responses
 
 Query results are returned with `Content-Type: application/json`. The LCC server
 is an asynchronous service, with queries running in the foreground for up to 30
@@ -85,23 +180,30 @@ objects.
 ```
 
 
-## Collections, datasets, and object information
+## Collections, datasets, and object information APIs
+
+The services in the table below can be used without an API key. If you have an
+API key associated with an LCC-Server account, you may use it as outlined
+[below](#api-keys). Objects, search result datasets, or light curve collections
+marked as **private** or **unlisted** will then become visible to the LCC-Server
+account that created them.
 
 Service | Method and URL | Parameters | API key | Response
 ------- | --- | ---------- | ---------------- | ----------
-`collection-list` | `GET {{ server_url }}/api/collections` | [docs](#collection-list-api) | **no** | JSON
-`dataset-list` | `GET {{ server_url }}/api/datasets` | [docs](#dataset-list-api) | **no** | JSON
-`dataset` | `GET {{ server_url }}/set/[setid]` | [docs](#dataset-api) | **no** | JSON
-`objectinfo` | `GET {{ server_url }}/object` | [docs](#object-information-api) | **no** | JSON
+`collection-list` | `GET {{ server_url }}/api/collections` | [docs](#collection-list-api) | **optional** | JSON
+`dataset-list` | `GET {{ server_url }}/api/datasets` | [docs](#dataset-list-api) | **optional** | JSON
+`dataset` | `GET {{ server_url }}/set/[setid]` | [docs](#dataset-api) | **optional** | JSON
+`objectinfo` | `GET {{ server_url }}/object` | [docs](#object-information-api) | **optional** | JSON
+
 
 ### Collection list API
 
 This returns a list of current light curve collections held by the LCC server
 and returns JSON. No arguments are allowed to this API service. It can be
-accessed using a `GET` request to:
+accessed using an HTTP request of the form:
 
 ```
-{{ server_url }}/api/collections
+GET {{ server_url }}/api/collections
 ```
 
 The returned JSON's `result` key contains the following items, each of which
@@ -138,10 +240,10 @@ Key | Contents
 ### Dataset list API
 
 The dataset list API is used to get lists of public datasets available on the
-LCC server. The service can be accessed via a `GET` request to:
+LCC server. The service can be accessed via an HTTP request of the form:
 
 ```
-{{ server_url }}/api/datasets
+GET {{ server_url }}/api/datasets
 ```
 
 and takes a single parameter:
@@ -172,10 +274,10 @@ Key | Value
 
 The dataset API can be used to fetch a dataset in JSON form. It is available for
 any dataset page generated by the results of search queries. To view any dataset
-in JSON form, use:
+in JSON form, use an HTTP request of the form:
 
 ```
-{{ server_url }}/set/[setid]?json=1
+GET {{ server_url }}/set/<setid>?json=1
 ```
 
 This will return a JSON containing the dataset header as well as the data table
@@ -209,10 +311,10 @@ Key | Value
 This service is used to get detailed information including finding charts,
 comments, object type and variability tags, and period-search results (if
 available) for any object made available publicly in the LCC server's collection
-databases. A `GET` request can be made to the following URL.
+databases. An HTTP request can be made to the following URL:
 
 ```
-{{ server_url }}/api/object
+GET {{ server_url }}/api/object
 ```
 
 The following parameters are all required:
@@ -235,68 +337,3 @@ Key | Value
 `finderchart` | a base-64 encoded PNG image of the object's DSS2 RED finder chart. To convert this to an actual PNG, try [this snippet of Python code](https://github.com/waqasbhatti/astrobase/blob/a05940886c729036d1471af5e4a5ff120e3e23eb/astrobase/checkplot.py#L1339).
 `magseries` | a base-64 encoded PNG image of the object's light curve. To convert this to an actual PNG, try [this snippet of Python code](https://github.com/waqasbhatti/astrobase/blob/a05940886c729036d1471af5e4a5ff120e3e23eb/astrobase/checkplot.py#L1339).
 `pfmethods` | a list of period-finding methods applied to the object if any. If this list is present, use the keys in it to get to the actual period-finding results for each method. These will contain base-64 encoded PNGs of the periodogram and phased light curves using the best three peaks in the periodogram, as well as period and epoch information.
-
-
-## API keys
-
-Some APIs require a token provided as part of the HTTP header. To get an
-API key token valid for 24 hours, perform an HTTP `GET` request to:
-
-```
-{{ server_url }}/api/key
-```
-
-This will return a JSON formatted object with the key to use, e.g.:
-
-```json
-{
-    "message": "key expires: 2018-08-03T16:06:36.684957Z",
-    "result": {
-        "key": "eyJpcCI6IjEyNy4wLjAuMSIsInZlciI6MSwidG9rZW4iOiJteE55dVhOUkZicmFoQSIsImV4cGlyeSI6IjIwMTgtMDgtMDNUMTY6MDY6MzYuNjg0OTU3WiJ9.DkS9jA.DXngAj-NToG-9qdGbP2QcoMQzFw"
-    },
-    "status": "ok"
-}
-```
-
-Use the value of the `result.key` item in the HTTP headers of any subsequent
-requests to the search API endpoint which requires an API key. This is of the
-form:
-
-```
-Authorization: Bearer [API key token]
-```
-
-You can check if your API key is still valid by performing an HTTP `POST` request
-to:
-
-```
-{{ server_url }}/api/auth?key=[API key token]
-
-```
-
-and including the `Authorization: Bearer [apikey]` in the header of the request.
-
-If your key passes verification, then it's good to use:
-
-```json
-{
-    "message": "API key verified successfully. Expires: 2018-08-03T16:06:36.684957Z",
-    "result": {
-        "expires": "2018-08-03T16:06:36.684957Z"
-    },
-    "status": "ok"
-}
-```
-
-If it fails:
-
-```json
-{
-    "message": "API key could not be verified or has expired.",
-    "result": null,
-    "status": "failed"
-}
-```
-
-Then you can simply request a new key and continue with your previous requests
-to the API key-secured API endpoints.

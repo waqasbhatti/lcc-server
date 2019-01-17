@@ -526,6 +526,7 @@ def new_collection_directories(basedir,
 def convert_original_lightcurves(basedir,
                                  collection_id,
                                  original_lcdir=None,
+                                 normalize_lcs=False,
                                  convert_workers=NCPUS,
                                  csvlc_version=1,
                                  comment_char='#',
@@ -542,11 +543,14 @@ def convert_original_lightcurves(basedir,
     present in the basedir/collection_id/lightcurves directory already.
 
     The light curves will be read using the module and function specified in the
-    basedir/collection_id/lcformat-description.json file. Next, they will be
-    normalized using the module and function specified in the
-    basedir/collection_id/lcformat-description.json file. Finally, the
-    conversion will take place and put the output light curves into the
-    basedir/lc_collection/lightcurves directory.
+    basedir/collection_id/lcformat-description.json file.
+
+    Next, if normalize_lcs is True, they will be normalized using the module and
+    function specified in the basedir/collection_id/lcformat-description.json
+    file.
+
+    Finally, the conversion will take place and put the output light curves into
+    the basedir/lc_collection/lightcurves directory.
 
     convert_workers controls the number of parallel workers used to convert
     the light curves.
@@ -609,6 +613,7 @@ def convert_original_lightcurves(basedir,
             return None
 
         converter_options = {'csvlc_version':csvlc_version,
+                             'normalize_lc':normalize_lcs,
                              'comment_char':comment_char,
                              'column_separator':column_separator,
                              'skip_converted':skip_converted}
@@ -1137,6 +1142,52 @@ def remove_collection_from_lcc_index(basedir,
                    (os.path.abspath(os.path.join(basedir, collection_id))))
 
 
+#########################
+## GENERATING LCC MAPS ##
+#########################
+
+def update_lcc_footprint_svg(basedir,
+                             overwrite=False):
+    '''
+    This function updates all LCC maps to generate a coverage SVG.
+
+    '''
+
+    from lccserver.backend import footprints
+    from lccserver.backend import dbsearch
+
+    # get all collections
+    coll_info = dbsearch.sqlite_list_collections(basedir,
+                                                 incoming_role='superuser',
+                                                 incoming_userid=1)
+    collections = coll_info['databases']
+    collection_dirs = [x.replace('_','-') for x in collections]
+
+    # generate the footprint pickles for all collections
+    for coll in collections:
+        coll_footprint_pkl = os.path.join(basedir,
+                                          coll.replace('_','-'),
+                                          'catalog-footprint.pkl')
+
+        if (not os.path.exists(coll_footprint_pkl)) or overwrite:
+            footprints.generate_collection_footprint(basedir,
+                                                     coll,
+                                                     conditions='ndet > 99')
+        else:
+            LOGWARNING('footprint info for collection: %s '
+                       'exists and overwrite = False, not updating...' % coll)
+
+    # now generate the updated SVG
+    footprints.collection_overview_svg(basedir,
+                                       collection_dirs,
+                                       use_alpha=0.8,
+                                       use_hull='concave',
+                                       use_projection='mollweide',
+                                       use_colormap='inferno')
+
+
+
+
 ########################################
 ## STARTING AN INSTANCE OF THE SERVER ##
 ########################################
@@ -1180,9 +1231,13 @@ async def start_lccserver(basedir, executor):
                                               '.lccserver.secret-cpserver')),
         shell=True
     )
+
+    # we'll run the indexserver using 0.0.0.0:12500 so it can be accessed from
+    # outside localhost if no firewalls are in the way.
     subprocess_call_indexserver = partial(
         subprocess.call,
-        "indexserver --basedir='%s'" % os.path.abspath(basedir),
+        ("indexserver --serve='0.0.0.0' --basedir='%s'" %
+         os.path.abspath(basedir)),
         shell=True
     )
 
@@ -1561,13 +1616,38 @@ def main():
             "Do you want to convert your original format "
             "light curves to LCC CSV format now? [y/N] "
         )
+
         if convertlcs and convertlcs.strip().lower() == 'y':
 
-            print('Launching conversion tasks. This might take a while...')
+            # ask if the output converted LCs should be normalized if normfunc
+            # is not None
+            if lcform['normfunc'] is not None:
 
+                print(
+                    'An LC normalization function has been specified:'
+                    '\n\n%s\n\n'
+                    'Generally, the output converted LCs should not be '
+                    'normalized to preserve their original measurement values.'
+                    % repr(lcform['normfunc'])
+                )
+                norm_converted_lcs = (
+                    input('Do you want to normalize the '
+                          'output converted light curves? [y/N] ')
+                )
+                if (norm_converted_lcs and
+                    norm_converted_lcs.strip().lower() == 'y'):
+                    do_normalization_for_converted_lcs = True
+                else:
+                    do_normalization_for_converted_lcs = False
+
+            else:
+                do_normalization_for_converted_lcs = False
+
+            print('Launching conversion tasks. This might take a while...')
             convert_original_lightcurves(
                 args.basedir,
-                collection_id
+                collection_id,
+                normalize_lcs=do_normalization_for_converted_lcs
             )
 
             print('Done with LC conversion.')
@@ -1579,7 +1659,6 @@ def main():
         #
         # next, we'll set up the lclist.pkl file
         #
-
         from astrobase import lcproc
 
         try:
@@ -1681,9 +1760,11 @@ def main():
             print("lcc-server --basedir %s add-collection" % args.basedir)
             sys.exit(1)
 
-        print('Generating a light curve list pickle using magcol: %s...' %
+        #
+        # generate the LC list pickle
+        #
+        print('Generating a light curve list using magcol: %s...' %
               magcol)
-
         lcproc.register_custom_lcformat(
             lcform['formatkey'],
             lcform['fileglob'],
@@ -1702,19 +1783,20 @@ def main():
         )
         with open(lclpkl,'rb') as infd:
             collection_lcinfo = pickle.load(infd)
+
         collection_lclist = collection_lcinfo['objects']['lcfname']
+        print('Done. %s total light curves found.\n' % len(collection_lclist))
 
         #
-        # now we'll reform this pickle by adding in checkplot info
+        # Get the checkplot pickles from the user
         #
-        print('Done.')
-        input("We will now generate an object catalog pickle "
-              "using the information from checkplot pickles "
+        input("We will now generate a base object catalog "
+              "using the information from any checkplot pickles "
               "you have prepared from these light curves. "
               "Please copy or symlink your checkplot pickles "
               "into the directory:\n\n"
               "%s \n\n"
-              "Note that this is optional, but highly recommended. "
+              "NOTE: this is optional, but highly recommended. "
               "If you don't have any checkplot pickles prepared, "
               "we can prepare checkplot pickles "
               "automatically from your light curves.\n\n"
@@ -1723,18 +1805,53 @@ def main():
 
         cpdir = os.path.join(collection_dir,'checkplots')
 
+        #
+        # we'll ask the user if they want to run period-finding on their light
+        # curves next
+        #
+        print("\nDo you want to run period-finding on your light curves?")
+        print("This is optional and will probably take some time to run,\n"
+              "but will add in phased light curve plots to the detailed\n"
+              "object information displayed by the LCC-Server.\n"
+              "NOTE: If you have already generated checkplot pickles with\n"
+              "period-finding information in them, hit Enter below to skip\n"
+              "this step.\n")
+        run_periodfinding = input(
+            "Run period-finding now? [y/N] "
+        )
+
+        if run_periodfinding and run_periodfinding.strip().lower() == 'y':
+
+            print(
+                "\nRunning period-finders: GLS, BLS, PDM with automatic\n"
+                "period interval determination for GLS & PDM, and\n"
+                "using a period interval of [1.0, 100.0] days for BLS.\n"
+                "This will take a while..."
+            )
+
+            periodfinding_pickles = lcproc.parallel_pf(
+                collection_lclist,
+                os.path.join(collection_dir,
+                             'periodfinding'),
+                lcformat=lcform['formatkey'],
+                pfmethods=('gls','bls','pdm'),
+                pfkwargs=({},{'startp':1.0,'endp':100.0},{}),
+                getblssnr=True
+            )
+            print('Done.\n')
+
+        else:
+            periodfinding_pickles = [None for x in collection_lclist]
+
+        #
+        # generate checkplot pickles now if None were found
+        #
         if len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))) == 0:
 
             # Here, we can optionally generate checkplot pickles in 'fast'
-            # mode. these will contain:
-            # - finder chart with timeout of 5 seconds
-            # - variability features
-            # - colors, dereddening, and color classes
-            # - GAIA info with timeout of 5 seconds
-            # - just the magseries plot
-
-            print("Do you want to generate "
-                  "checkplot pickles for "
+            # mode
+            print("No existing checkplot pickles were found.\n\n"
+                  "Do you want to generate checkplot pickles for "
                   "your light curves? These will contain the "
                   "following information:\n")
             print("finder chart, variability features, colors "
@@ -1764,10 +1881,10 @@ def main():
                     requests.get('http://captive.apple.com/hotspot-detect.html')
 
                 lcproc.parallel_cp(
-                    [None for x in collection_lclist],
+                    periodfinding_pickles,
                     cpdir,
                     os.path.join(collection_dir, 'lightcurves'),
-                    fast_mode=True,
+                    fast_mode=10.0,
                     lcfnamelist=collection_lclist,
                     lclistpkl=lclpkl,
                     minobservations=49,
@@ -1776,8 +1893,8 @@ def main():
 
                 print('Done.\n'
                       'Generating augmented object '
-                      'catalog pickle and kd-tree...')
-                augcat_pkl = generate_augmented_lclist_catalog(
+                      'catalog and kd-tree...')
+                generate_augmented_lclist_catalog(
                     args.basedir,
                     collection_id,
                     lclpkl,
@@ -1787,8 +1904,8 @@ def main():
             else:
 
                 print('No checkplot pickles found. '
-                      'Generating bare-bones object '
-                      'catalog pickle and kd-tree...')
+                      'Generating bare-bones base object '
+                      'catalog and kd-tree...')
 
                 # add the magcols key to the unaugmented catalog
                 with open(lclpkl,'rb') as infd:
@@ -1803,10 +1920,10 @@ def main():
         else:
 
             print('Found %s checkplot pickles. '
-                  'Generating augmented object catalog pickle and kd-tree...' %
+                  'Generating augmented object catalog and kd-tree...' %
                   len(glob.glob(os.path.join(cpdir,'checkplot-*.pkl*'))))
 
-            augcat_pkl = generate_augmented_lclist_catalog(
+            generate_augmented_lclist_catalog(
                 args.basedir,
                 collection_id,
                 lclpkl,
@@ -1814,8 +1931,7 @@ def main():
             )
 
         # generate the kd-tree pickle for fast spatial searches
-        kdt = generate_catalog_kdtree(args.basedir,
-                                      collection_id)
+        generate_catalog_kdtree(args.basedir, collection_id)
 
         #
         # next, we'll ask the user about their collection
@@ -1848,19 +1964,22 @@ def main():
         if not lcc_citation or len(lcc_citation.strip()) == 0:
             lcc_citation = 'Me and my friends et al. (2018)'
 
-        lcc_ispublic = input(
-            'Is this LC collection public? [Y/n]: '
+        lcc_visibility = input(
+            'Is this LC collection publicly visible or unlisted? [P/u] '
         )
-        if ((not lcc_ispublic) or
-            (len(lcc_ispublic.strip()) == 0) or
-            (lcc_ispublic.strip().lower() == 'y')):
-            lcc_ispublic = True
+        if ((not lcc_visibility) or
+            (len(lcc_visibility.strip()) == 0) or
+            (lcc_visibility.strip().lower() == 'p')):
+            lcc_visibility = 'public'
         else:
-            False
+            lcc_visibility = 'unlisted'
 
         # launch the user's editor to edit this LCC's description
-        print("We'll now launch your editor to edit the description "
-              "for this collection. You can use Markdown here.")
+        print(
+            "We'll now launch your editor to edit the description "
+            "for this collection. You can use Markdown here."
+            "\nDOIs and NASA ADS bibcodes will be linkified automatically."
+        )
 
         # get the user's editor
         if 'EDITOR' in os.environ:
@@ -1902,20 +2021,22 @@ def main():
         os.remove(desc_tempfile)
 
         print('Building object database...')
-        catsqlite = generate_catalog_database(
+        generate_catalog_database(
             args.basedir,
             collection_id,
+            collection_visibility=lcc_visibility,
             collection_info={'name':lcc_name,
                              'desc':lcc_desc,
                              'project':lcc_project,
                              'datarelease':lcc_datarelease,
-                             'citation':lcc_citation,
-                             'ispublic':lcc_ispublic}
+                             'citation':lcc_citation}
         )
 
         print("Adding this collection to the LCC-Server's index...")
-        catindex = add_collection_to_lcc_index(args.basedir,
-                                               collection_id)
+        add_collection_to_lcc_index(args.basedir, collection_id)
+
+        print("Adding this collection the LCC-Server's footprint SVG...")
+        update_lcc_footprint_svg(args.basedir,overwrite=False)
 
         # we need to generate a tiny dataset so the LCC-server doesn't complain
         # that it can't find any existing datasets
@@ -1928,17 +2049,27 @@ def main():
                                                 lcdict['objectinfo']['ra'],
                                                 lcdict['objectinfo']['decl'],
                                                 5.0)
-        setid, dt = datasets.sqlite_prepare_dataset(args.basedir)
-        setid, csvlcs_to_generate, all_original_lcs, actual_nrows, npages = (
-            datasets.sqlite_new_dataset(args.basedir, setid, dt, res)
+        setid, dt = datasets.sqlite_prepare_dataset(
+            args.basedir,
+            dataset_owner=2,
+            dataset_visibility='public'
         )
-        lcz = datasets.sqlite_make_dataset_lczip(args.basedir,
-                                                 setid,
-                                                 csvlcs_to_generate,
-                                                 all_original_lcs)
-        ds = datasets.sqlite_get_dataset(args.basedir,
-                                         setid,
-                                         'json-preview')
+        setid, csvlcs_to_generate, all_original_lcs, actual_nrows, npages = (
+            datasets.sqlite_new_dataset(
+                args.basedir,
+                setid,
+                dt,
+                res,
+                dataset_visibility='public',
+            )
+        )
+        datasets.sqlite_make_dataset_lczip(args.basedir,
+                                           setid,
+                                           csvlcs_to_generate,
+                                           all_original_lcs)
+        datasets.sqlite_get_dataset(args.basedir,
+                                    setid,
+                                    'json-preview')
 
         print('\nAll done!\n')
         print('You can start an LCC-Server instance '
@@ -2165,7 +2296,7 @@ def main():
                 len(confirm.strip()) > 0 and
                 confirm.strip().lower() == 'y'):
 
-                removed = remove_collection_from_lcc_index(
+                remove_collection_from_lcc_index(
                     args.basedir,
                     removecoll
                 )

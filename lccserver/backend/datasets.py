@@ -643,7 +643,21 @@ def sqlite_new_dataset(basedir,
     if results_samplespec is not None:
         rows = results_random_sample(rows, sample_count=results_samplespec)
 
-    if results_sortspec is not None:
+
+    if isinstance(results_sortspec, (tuple,list)):
+
+        # reform special case of single sortspec
+        if (len(results_sortspec) == 2 and
+            isinstance(results_sortspec[0],str) and
+            isinstance(results_sortspec[1],str) and
+            results_sortspec[1].strip().lower() in ('asc','desc')):
+            LOGWARNING(
+                'reforming single sortspec item %s to expected list of lists'
+                % results_sortspec
+            )
+            results_sortspec = [[results_sortspec[0], results_sortspec[1]]]
+
+        # apply the sort spec
         rows = results_sort_by_keys(rows,
                                     coldesc,
                                     sorts=results_sortspec)

@@ -57,12 +57,6 @@ EXTRAS_REQUIRE = {
     'postgres':[
         'psycopg2'
     ],
-    'footprints':[
-        'matplotlib>=2.0',
-        'shapely>=1.6',
-        'astropy>=3.0',
-        'scour>=0.37',
-    ],
 }
 
 ###############
@@ -77,7 +71,7 @@ setup(
     long_description=readme(),
     long_description_content_type="text/markdown",
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Astronomy",

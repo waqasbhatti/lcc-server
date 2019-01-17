@@ -1180,6 +1180,7 @@ def get_lcformat_description(descpath):
 def convert_to_csvlc(lcfile,
                      objectid,
                      lcformat_dict,
+                     normalize_lc=False,
                      csvlc_version=1,
                      comment_char='#',
                      column_separator=',',
@@ -1200,13 +1201,17 @@ def convert_to_csvlc(lcfile,
     astrobase.hatsurveys.hatlc.py).
 
     This will normalize the light curve as specified in the
-    lcformat-description.json file.
+    lcformat-description.json file if normalize_lc is True. If this is False,
+    will leave the light curve alone.
 
     '''
 
     # use the lcformat_dict to get the reader and normalization functions
     readerfunc = lcformat_dict['readerfunc']
-    normfunc = lcformat_dict['normfunc']
+    if normalize_lc:
+        normfunc = lcformat_dict['normfunc']
+    else:
+        normfunc = None
 
     # if the object is not None, we can return early without trying to read the
     # original format LC if the output file exists already and skip_converted =
