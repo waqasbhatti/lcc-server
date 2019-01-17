@@ -17,15 +17,8 @@ def get_test_authdb():
 
     '''
 
-    if os.path.exists('.authdb.sqlite'):
-        os.remove('.authdb.sqlite')
-    if os.path.exists('.authdb.sqlite-shm'):
-        os.remove('.authdb.sqlite-shm')
-    if os.path.exists('.authdb.sqlite-wal'):
-        os.remove('.authdb.sqlite-wal')
-
-    authdb.create_sqlite_auth_db('.authdb.sqlite')
-    authdb.initial_authdb_inserts('sqlite:///.authdb.sqlite')
+    authdb.create_sqlite_auth_db('test-loginlogout.authdb.sqlite')
+    authdb.initial_authdb_inserts('sqlite:///test-loginlogout.authdb.sqlite')
 
 
 
@@ -36,18 +29,31 @@ def test_login_logout():
 
     '''
 
+    try:
+        os.remove('test-loginlogout.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-loginlogout.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-loginlogout.authdb.sqlite-wal')
+    except Exception as e:
+        pass
+
+
     get_test_authdb()
 
     # create the user
-    user_payload = {'email':'testuser@test.org',
+    user_payload = {'email':'testuser3@test.org',
                     'password':'aROwQin9L8nNtPTEMLXd'}
     user_created = actions.create_new_user(
         user_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite'
     )
     assert user_created['success'] is True
-    assert user_created['user_email'] == 'testuser@test.org'
-    assert user_created['user_id'] == 4
+    assert user_created['user_email'] == 'testuser3@test.org'
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
 
@@ -64,7 +70,7 @@ def test_login_logout():
     # check creation of session
     session_token1 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite',
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
         raiseonfail=True
     )
     assert session_token1['success'] is True
@@ -75,7 +81,7 @@ def test_login_logout():
         {'session_token':session_token1['session_token'],
          'email': user_payload['email'],
          'password':user_payload['password']},
-        override_authdb_path='sqlite:///.authdb.sqlite',
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
         raiseonfail=True
     )
 
@@ -87,7 +93,7 @@ def test_login_logout():
         actions.verify_user_email_address(
             {'email':user_payload['email'],
              'user_id': user_created['user_id']},
-            override_authdb_path='sqlite:///.authdb.sqlite',
+            override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
             raiseonfail=True
         )
     )
@@ -109,7 +115,7 @@ def test_login_logout():
     # check creation of session
     session_token2 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite',
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
         raiseonfail=True
     )
     assert session_token2['success'] is True
@@ -120,18 +126,17 @@ def test_login_logout():
         {'session_token':session_token2['session_token'],
          'email': user_payload['email'],
          'password':user_payload['password']},
-        override_authdb_path='sqlite:///.authdb.sqlite',
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
         raiseonfail=True
     )
 
     assert login['success'] is True
-    assert login['user_id'] == 4
 
     # make sure the session token we used to log in is gone
     # check if our session was deleted correctly
     session_still_exists = actions.auth_session_exists(
         {'session_token':session_token2['session_token']},
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite'
     )
     assert session_still_exists['success'] is False
 
@@ -142,26 +147,38 @@ def test_login_logout():
          'expires':datetime.utcnow()+timedelta(hours=1),
          'ip_address': '1.1.1.1',
          'extra_info_json':{'pref_datasets_always_private':True}},
-        override_authdb_path='sqlite:///.authdb.sqlite',
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
         raiseonfail=True
     )
 
     # now see if we can log out
     logged_out = actions.auth_user_logout(
         {'session_token':authenticated_session_token['session_token'],
-         'user_id': 4},
-        override_authdb_path='sqlite:///.authdb.sqlite',
+         'user_id': login['user_id']},
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
         raiseonfail=True
     )
 
     assert logged_out['success'] is True
-    assert logged_out['user_id'] == 4
 
     # check if our session was deleted correctly
     session_still_exists = actions.auth_session_exists(
         {'session_token':authenticated_session_token},
-        override_authdb_path='sqlite:///.authdb.sqlite',
+        override_authdb_path='sqlite:///test-loginlogout.authdb.sqlite',
         raiseonfail=True
     )
 
     assert session_still_exists['success'] is False
+
+    try:
+        os.remove('test-loginlogout.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-loginlogout.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-loginlogout.authdb.sqlite-wal')
+    except Exception as e:
+        pass

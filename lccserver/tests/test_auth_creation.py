@@ -10,10 +10,6 @@ import os.path
 import os
 from datetime import datetime, timedelta
 import time
-import secrets
-
-import numpy as np
-from numpy.testing import assert_allclose
 
 
 
@@ -22,15 +18,8 @@ def get_test_authdb():
 
     '''
 
-    if os.path.exists('.authdb.sqlite'):
-        os.remove('.authdb.sqlite')
-    if os.path.exists('.authdb.sqlite-shm'):
-        os.remove('.authdb.sqlite-shm')
-    if os.path.exists('.authdb.sqlite-wal'):
-        os.remove('.authdb.sqlite-wal')
-
-    authdb.create_sqlite_auth_db('.authdb.sqlite')
-    authdb.initial_authdb_inserts('sqlite:///.authdb.sqlite')
+    authdb.create_sqlite_auth_db('test-creation.authdb.sqlite')
+    authdb.initial_authdb_inserts('sqlite:///test-creation.authdb.sqlite')
 
 
 
@@ -39,6 +28,19 @@ def test_create_user():
     This runs through various iterations of creating a user.
 
     '''
+    try:
+        os.remove('test-creation.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-wal')
+    except Exception as e:
+        pass
+
     get_test_authdb()
 
     # 1. dumb password
@@ -46,7 +48,7 @@ def test_create_user():
                'password':'password'}
     user_created = actions.create_new_user(
         payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is False
     assert user_created['user_email'] is 'testuser@test.org'
@@ -66,7 +68,7 @@ def test_create_user():
                'password':'239420349823904802398402375025'}
     user_created = actions.create_new_user(
         payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is False
     assert user_created['user_email'] is 'testuser@test.org'
@@ -79,7 +81,7 @@ def test_create_user():
                'password':'testuser'}
     user_created = actions.create_new_user(
         payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is False
     assert user_created['user_email'] is 'testuser@test.org'
@@ -97,7 +99,7 @@ def test_create_user():
                'password':'aROwQin9L8nNtPTEMLXd'}
     user_created = actions.create_new_user(
         payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is True
     assert user_created['user_email'] == 'testuser@test.org'
@@ -111,7 +113,7 @@ def test_create_user():
                'password':'aROwQin9L8nNtPTEMLXd'}
     user_created = actions.create_new_user(
         payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is False
     assert user_created['user_email'] == 'testuser@test.org'
@@ -124,6 +126,19 @@ def test_create_user():
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
 
+    try:
+        os.remove('test-creation.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-wal')
+    except Exception as e:
+        pass
+
 
 
 def test_sessions():
@@ -131,6 +146,20 @@ def test_sessions():
     This tests session token generation, readback, deletion, and expiry.
 
     '''
+
+    try:
+        os.remove('test-creation.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-wal')
+    except Exception as e:
+        pass
+
     get_test_authdb()
 
     # session token payload
@@ -145,7 +174,7 @@ def test_sessions():
     # check creation
     session_token1 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert session_token1['success'] is True
     assert session_token1['session_token'] is not None
@@ -153,14 +182,14 @@ def test_sessions():
     # check deletion
     deleted = actions.auth_session_delete(
         {'session_token':session_token1['session_token']},
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert deleted['success'] is True
 
     # check readback of deleted
     check = actions.auth_session_exists(
         {'session_token':session_token1['session_token']},
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert check['success'] is False
 
@@ -176,7 +205,7 @@ def test_sessions():
     # check creation
     session_token2 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert session_token2['success'] is True
     assert session_token2['session_token'] is not None
@@ -185,7 +214,7 @@ def test_sessions():
     # get items for session_token
     check = actions.auth_session_exists(
         {'session_token':session_token2['session_token']},
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
 
     assert check['success'] is True
@@ -230,7 +259,7 @@ def test_sessions():
     # check creation
     session_token3 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert session_token3['success'] is True
     assert session_token3['session_token'] is not None
@@ -241,7 +270,20 @@ def test_sessions():
 
     check = actions.auth_session_exists(
         {'session_token':session_token3['session_token']},
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
 
     assert check['success'] is False
+
+    try:
+        os.remove('test-creation.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-creation.authdb.sqlite-wal')
+    except Exception as e:
+        pass

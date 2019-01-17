@@ -22,15 +22,8 @@ def get_test_authdb():
 
     '''
 
-    if os.path.exists('.authdb.sqlite'):
-        os.remove('.authdb.sqlite')
-    if os.path.exists('.authdb.sqlite-shm'):
-        os.remove('.authdb.sqlite-shm')
-    if os.path.exists('.authdb.sqlite-wal'):
-        os.remove('.authdb.sqlite-wal')
-
-    authdb.create_sqlite_auth_db('.authdb.sqlite')
-    authdb.initial_authdb_inserts('sqlite:///.authdb.sqlite')
+    authdb.create_sqlite_auth_db('test-timing.authdb.sqlite')
+    authdb.initial_authdb_inserts('sqlite:///test-timing.authdb.sqlite')
 
 
 
@@ -40,18 +33,30 @@ def test_login_timing():
 
     '''
 
+    try:
+        os.remove('test-timing.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-timing.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-timing.authdb.sqlite-wal')
+    except Exception as e:
+        pass
+
     get_test_authdb()
 
     # create the user
-    user_payload = {'email':'testuser@test.org',
+    user_payload = {'email':'testuser4@test.org',
                     'password':'aROwQin9L8nNtPTEMLXd'}
     user_created = actions.create_new_user(
         user_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-timing.authdb.sqlite'
     )
     assert user_created['success'] is True
-    assert user_created['user_email'] == 'testuser@test.org'
-    assert user_created['user_id'] == 4
+    assert user_created['user_email'] == 'testuser4@test.org'
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
 
@@ -67,7 +72,7 @@ def test_login_timing():
     # check creation of session
     session_token1 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-timing.authdb.sqlite'
     )
     assert session_token1['success'] is True
     assert session_token1['session_token'] is not None
@@ -77,7 +82,7 @@ def test_login_timing():
         {'session_token':session_token1['session_token'],
          'email': user_payload['email'],
          'password':user_payload['password']},
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-timing.authdb.sqlite'
     )
 
     # this should fail because we haven't verified our email yet
@@ -88,7 +93,7 @@ def test_login_timing():
         actions.verify_user_email_address(
             {'email':user_payload['email'],
              'user_id': user_created['user_id']},
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
     )
 
@@ -109,7 +114,7 @@ def test_login_timing():
     # check creation of session
     session_token2 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-timing.authdb.sqlite'
     )
     assert session_token2['success'] is True
     assert session_token2['session_token'] is not None
@@ -119,11 +124,10 @@ def test_login_timing():
         {'session_token':session_token2['session_token'],
          'email': user_payload['email'],
          'password':user_payload['password']},
-        override_authdb_path='sqlite:///.authdb.sqlite'
+        override_authdb_path='sqlite:///test-timing.authdb.sqlite'
     )
 
     assert login['success'] is True
-    assert login['user_id'] == 4
 
 
     # basic tests for timing attacks
@@ -144,7 +148,7 @@ def test_login_timing():
         # check creation of session
         session_token2 = actions.auth_session_new(
             session_payload,
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
 
         start = time.time()
@@ -152,7 +156,7 @@ def test_login_timing():
             {'session_token':session_token2['session_token'],
              'email': user_payload['email'],
              'password':secrets.token_urlsafe(16)},
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
         end = time.time()
         incorrect_timings.append(end - start)
@@ -174,7 +178,7 @@ def test_login_timing():
         # check creation of session
         session_token2 = actions.auth_session_new(
             session_payload,
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
 
         start = time.time()
@@ -182,7 +186,7 @@ def test_login_timing():
             {'session_token':session_token2['session_token'],
              'email': user_payload['email'],
              'password':user_payload['password']},
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
         end = time.time()
         correct_timings.append(end - start)
@@ -204,7 +208,7 @@ def test_login_timing():
         # check creation of session
         session_token2 = actions.auth_session_new(
             session_payload,
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
 
         start = time.time()
@@ -212,7 +216,7 @@ def test_login_timing():
             {'session_token':session_token2['session_token'],
              'email': secrets.token_urlsafe(16),
              'password':secrets.token_urlsafe(16)},
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
         end = time.time()
         wronguser_timings.append(end - start)
@@ -234,7 +238,7 @@ def test_login_timing():
         # check creation of session
         session_token2 = actions.auth_session_new(
             session_payload,
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
 
         start = time.time()
@@ -242,7 +246,7 @@ def test_login_timing():
             {'session_token':'correcthorsebatterystaple',
              'email': user_payload['email'],
              'password':user_payload['password']},
-            override_authdb_path='sqlite:///.authdb.sqlite'
+            override_authdb_path='sqlite:///test-timing.authdb.sqlite'
         )
         end = time.time()
         broken_timings.append(end - start)
@@ -262,3 +266,16 @@ def test_login_timing():
     assert_allclose(correct_median, incorrect_median, atol=7.0e-3)
     assert_allclose(correct_median, broken_median, atol=7.0e-3)
     assert_allclose(correct_median, wronguser_median, atol=7.0e-3)
+
+    try:
+        os.remove('test-timing.authdb.sqlite')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-timing.authdb.sqlite-shm')
+    except Exception as e:
+        pass
+    try:
+        os.remove('test-timing.authdb.sqlite-wal')
+    except Exception as e:
+        pass
