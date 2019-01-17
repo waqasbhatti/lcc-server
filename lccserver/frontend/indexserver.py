@@ -502,6 +502,9 @@ def main():
         ## DOCS PAGES ##
         ################
 
+        # the /api endpoint redirects to /docs/api
+        (r'/api',tornado.web.RedirectHandler,{'url':'/docs/api'}),
+
         # docs page index and other subdirs, renders markdown to HTML
         # (r'/docs/?(\S*)',
         (r'/docs/?(.*)/*',
