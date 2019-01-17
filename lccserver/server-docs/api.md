@@ -5,16 +5,111 @@ documentation page.
 
 [TOC]
 
-## API Python client
+## API client Python module
 
-A client for the API is implemented as simple functions in a single-file Python
-module:
+If you don't want to manually write up API calls, a client for the API is
+available as a single-file Python module:
 [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py). This
 doesn't depend on anything other than the Python standard library, so can be
 dropped in anywhere it's needed.
 
+This implements the search service and information service APIs of the
+LCC-Server and automatically handles API key acquisition:
 
-## Search query services
+```python
+import lccs
+# or if you have astrobase installed
+# from astrobase.services import lccs
+
+lcc_server_url = '{{ server_url }}'
+
+# search services -- use help(<function name>) to see the docstrings
+lccs.cone_search(lcc_server_url, center_ra, center_decl, ...)
+lccs.fulltext_search(lcc_server_url, searchterm, sesame=False, ...)
+lccs.column_search(lcc_server_url, filters, ...)
+lccs.xmatch_search(lcc_server_url, file_to_upload, ...)
+
+# information services -- use help(<function name>) to see the docstrings
+lccs.list_lc_collections(lcc_server_url)
+lccs.list_recent_datasets(lcc_server, nrecent=25, ...)
+lccs.get_dataset(lcc_server_url, dataset_id)
+lccs.object_info(lcc_server_url, objectid, collection, ...)
+```
+
+## API keys
+
+Some LCC-Server APIs require an API token provided as part of the HTTP header.
+
+If you have an LCC-Server account, you can obtain an API key by [signing in into
+your account]({{ server_url }}/users/login). Once logged in, go to your user
+home page at [{{ server_url }}/users/home]({{ server_url }}/users/home), and
+click on the **Get new key** button.
+
+To get an anonymous API key token, perform an HTTP request of the form:
+
+```
+GET {{ server_url }}/api/key
+```
+
+Either of these methods will return a JSON formatted object with the API key to
+use and its expiry time, e.g.:
+
+```json
+{
+    "message": "API key generated successfully. Expires: 2018-08-03T16:06:36.684957Z",
+    "result": {
+        "apikey": "eyJpcCI6IjEyNy4wLjAuMSIsInZlciI6MSwidG9rZW4iOiJteE55dVhOUkZicmFoQSIsImV4cGlyeSI6IjIwMTgtMDgtMDNUMTY6MDY6MzYuNjg0OTU3WiJ9.DkS9jA.DXngAj-NToG-9qdGbP2QcoMQzFw",
+        "expires": "2018-08-03T16:06:36.684957Z"
+    },
+    "status": "ok"
+}
+```
+
+Use the value of the `apikey` item in the HTTP header of any subsequent `GET` or
+`POST` requests to the search API endpoint that requires an API key. This is of
+the form:
+
+```
+Authorization: Bearer <API key>
+```
+
+You can check if your API key is still valid by performing an HTTP request
+of the form:
+
+```
+POST {{ server_url }}/api/auth?key=[API key token]
+
+```
+
+and including the `Authorization: Bearer [apikey]` in the header of the request.
+
+If your key passes verification, then it's good to use:
+
+```json
+{
+    "message": "API key verified successfully. Expires: 2018-08-03T16:06:36.684957Z",
+    "result": {
+        "expires": "2018-08-03T16:06:36.684957Z"
+    },
+    "status": "ok"
+}
+```
+
+If it fails:
+
+```json
+{
+    "message": "API key could not be verified or has expired.",
+    "result": null,
+    "status": "failed"
+}
+```
+
+Then you can simply request a new key and continue with your previous requests
+to the API key-secured API endpoints.
+
+
+## Search query service APIs
 
 Service | Method and URL | Parameters | API key | Response
 ------- | --- | ---------- | ---------------- | ----------
@@ -24,7 +119,7 @@ Service | Method and URL | Parameters | API key | Response
 `xmatch` | `POST {{ server_url }}/api/xmatch` | [docs](/docs/xmatch#the-api) | **[required](#api-keys)** | streaming<br>ND-JSON
 
 
-## Streaming search query responses
+### Streaming search query responses
 
 Query results are returned with `Content-Type: application/json`. The LCC server
 is an asynchronous service, with queries running in the foreground for up to 30
@@ -85,7 +180,7 @@ objects.
 ```
 
 
-## Collections, datasets, and object information
+## Collections, datasets, and object information APIs
 
 The services in the table below can be used without an API key. If you have an
 API key associated with an LCC-Server account, you may use it as outlined
@@ -242,76 +337,3 @@ Key | Value
 `finderchart` | a base-64 encoded PNG image of the object's DSS2 RED finder chart. To convert this to an actual PNG, try [this snippet of Python code](https://github.com/waqasbhatti/astrobase/blob/a05940886c729036d1471af5e4a5ff120e3e23eb/astrobase/checkplot.py#L1339).
 `magseries` | a base-64 encoded PNG image of the object's light curve. To convert this to an actual PNG, try [this snippet of Python code](https://github.com/waqasbhatti/astrobase/blob/a05940886c729036d1471af5e4a5ff120e3e23eb/astrobase/checkplot.py#L1339).
 `pfmethods` | a list of period-finding methods applied to the object if any. If this list is present, use the keys in it to get to the actual period-finding results for each method. These will contain base-64 encoded PNGs of the periodogram and phased light curves using the best three peaks in the periodogram, as well as period and epoch information.
-
-
-## API keys
-
-Some APIs require a token provided as part of the HTTP header.
-
-If you have an LCC-Server account, you can obtain an API key by [signing in into
-your account]({{ server_url }}/users/login). Once logged in, go to your user
-home page at [{{ server_url }}/users/home]({{ server_url }}/users/home), and
-click on the **Get new key** button.
-
-To get an anonymous API key token, perform an HTTP request of the form:
-
-```
-GET {{ server_url }}/api/key
-```
-
-Either of these methods will return a JSON formatted object with the API key to
-use and its expiry time, e.g.:
-
-```json
-{
-    "message": "API key generated successfully. Expires: 2018-08-03T16:06:36.684957Z",
-    "result": {
-        "apikey": "eyJpcCI6IjEyNy4wLjAuMSIsInZlciI6MSwidG9rZW4iOiJteE55dVhOUkZicmFoQSIsImV4cGlyeSI6IjIwMTgtMDgtMDNUMTY6MDY6MzYuNjg0OTU3WiJ9.DkS9jA.DXngAj-NToG-9qdGbP2QcoMQzFw",
-        "expires": "2018-08-03T16:06:36.684957Z"
-    },
-    "status": "ok"
-}
-```
-
-Use the value of the `apikey` item in the HTTP header of any subsequent `GET` or
-`POST` requests to the search API endpoint that requires an API key. This is of
-the form:
-
-```
-Authorization: Bearer <API key>
-```
-
-You can check if your API key is still valid by performing an HTTP request
-of the form:
-
-```
-POST {{ server_url }}/api/auth?key=[API key token]
-
-```
-
-and including the `Authorization: Bearer [apikey]` in the header of the request.
-
-If your key passes verification, then it's good to use:
-
-```json
-{
-    "message": "API key verified successfully. Expires: 2018-08-03T16:06:36.684957Z",
-    "result": {
-        "expires": "2018-08-03T16:06:36.684957Z"
-    },
-    "status": "ok"
-}
-```
-
-If it fails:
-
-```json
-{
-    "message": "API key could not be verified or has expired.",
-    "result": null,
-    "status": "failed"
-}
-```
-
-Then you can simply request a new key and continue with your previous requests
-to the API key-secured API endpoints.

@@ -138,9 +138,9 @@ Parameter          | Required | Default | Description
 `columns[]`          | **no**   |         | Columns to retrieve. The database object names, right ascensions, and declinations are returned automatically. Columns used for filtering and sorting are **NOT** returned automatically (this is a convenience for the browser UI only). Specify them here if you want to see them in the output.
 
 
-### Examples
+### API usage example
 
-Let's run the query from the example above, using [HTTPie](https://httpie.org)[^1]. First, let's make a file of object names and coordinate rows. Let's call this `xmatch-upload.txt`:
+First, let's make a file of object names and coordinate rows. Let's call this `xmatch-upload.txt`:
 ```
 # example object and coordinate list
 # objectid ra dec
@@ -156,17 +156,8 @@ eee 19:25:27 -42:47:03.21
 # (max 5000 objects)
 ```
 
-Next, get an API key if we don't have one:
-```
-$ http GET {{ server_url }}/api/key
-```
-
-Finally, call the actual service endpoint and load in the xmatch object rows from the file we created:
-```
-$ http --stream -f POST {{ server_url }}/api/xmatch Authorization:'Bearer [apikey]' xmq=@xmatch-upload.txt xmd='3.0' result_ispublic=1
-```
-
-The same workflow is perhaps more straightforward in Python with the [Requests](http://docs.python-requests.org/en/master/)[^2] package:
+Now, run the query using the Python
+[Requests](http://docs.python-requests.org/en/master/)[^1] package:
 
 ```python
 import requests, json
@@ -182,7 +173,7 @@ with open('xmatch-upload.txt','r') as infd:
 # build up the params
 params = {'xmq':upload,
           'xmd':3.0,
-          'result_ispublic':1}
+          'visbility':'unlisted'}
 
 # this is the URL to hit
 url = '{{ server_url }}/api/xmatch'
@@ -205,7 +196,8 @@ dataset_seturl = jsonlines[-1]['result']['seturl'] if query_status == 'ok' else 
 if dataset_seturl:
 
     # can now get the dataset as JSON if needed
-    resp = requests.get(dataset_seturl,{'json':1,'strformat':1})
+    resp = requests.get(dataset_seturl,{'json':1,'strformat':1},
+                        headers={'Authorization':'Bearer %s' % apikey})
     print(resp.status_code)
 
     # this is now a Python dict
@@ -219,12 +211,9 @@ if dataset_seturl:
     # these are the columns of the dataset table
     print(dataset['columns'])
 
-    # these are the rows of the dataset table (up to 3000 - the CSV contains everything)
+    # these are the rows of the dataset table's current page
     print(dataset['rows'])
 ```
 
-[^1]: HTTPie is a friendlier alternative to the venerable `cURL`
-program. See its [docs](https://httpie.org/doc#installation) for how to install
-it.
-[^2]: The Requests package makes HTTP requests from Python code a relatively simple
+[^1]: The Requests package makes HTTP requests from Python code a relatively simple
 task. To install it, use `pip` or `conda`.

@@ -143,31 +143,32 @@ Parameter          | Required | Default | Description
 `columns[]`          | **no**   |         | Columns to retrieve. The database object names, right ascensions, and declinations are returned automatically. Columns used for filtering and sorting are **NOT** returned automatically (this is a convenience for the browser UI only). Specify them here if you want to see them in the output.
 
 
-### Examples
-
-Run the query from Example 1 above, using [HTTPie](https://httpie.org)[^1]:
-
-```
-$ http --stream GET {{ server_url }}/api/ftsquery ftstext=='ASAS' result_ispublic=='1'
-```
+### API usage example
 
 Run the query from Example 2 above, using the Python
-[Requests](http://docs.python-requests.org/en/master/)[^2] package:
+[Requests](http://docs.python-requests.org/en/master/)[^1] package:
 
 ```python
 import requests, json
+
+# get an API key
+apikey_info = requests.get('{{ server_url }}/api/key')
+apikey = apikey_info.json()['result']['apikey']
 
 # build up the params
 params = {'ftstext':'ASAS',
           'columns[]':['ndet','sdssr','propermotion'],
           'filters':"(ndet gt 10000) and (simbad_best_objtype ct 'RR')",
-          'result_ispublic':1}
+          'visibility':'unlisted'}
 
 # this is the URL to hit
 url = '{{ server_url }}/api/ftsquery'
 
 # fire the request
-resp = requests.get(url, params)
+# this will block until the server either finishes or sends work to background
+resp = requests.post(url,
+                     data=params,
+                     headers={'Authorization':'Bearer %s' % apikey})
 print(resp.status_code)
 
 # parse the line-delimited JSON
@@ -182,7 +183,8 @@ dataset_seturl = jsonlines[-1]['result']['seturl'] if query_status == 'ok' else 
 if dataset_seturl:
 
     # can now get the dataset as JSON if needed
-    resp = requests.get(dataset_seturl,{'json':1,'strformat':1})
+    resp = requests.get(dataset_seturl,{'json':1,'strformat':1},
+                        headers={'Authorization':'Bearer %s' % apikey})
     print(resp.status_code)
 
     # this is now a Python dict
@@ -196,12 +198,9 @@ if dataset_seturl:
     # these are the columns of the dataset table
     print(dataset['columns'])
 
-    # these are the rows of the dataset table (up to 3000 - the CSV contains everything)
+    # these are the rows of the dataset table's current page
     print(dataset['rows'])
 ```
 
-[^1]: HTTPie is a friendlier alternative to the venerable `cURL`
-program. See its [docs](https://httpie.org/doc#installation) for how to install
-it.
-[^2]: The Requests package makes HTTP requests from Python code a relatively simple
+[^1]: The Requests package makes HTTP requests from Python code a relatively simple
 task. To install it, use `pip` or `conda`.
