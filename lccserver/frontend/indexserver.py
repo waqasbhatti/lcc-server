@@ -278,10 +278,20 @@ def main():
 
 
     # get the user login settings
-    if 'logins_allowed' in SITEINFO and SITEINFO['logins_allowed']:
+    if SITEINFO['email_server'] is None:
+        LOGGER.warning('Site info: '
+                       'no email server set up, '
+                       'user logins cannot be enabled.')
+        SITEINFO['logins_allowed'] = False
+
+    elif ('logins_allowed' in SITEINFO and
+          SITEINFO['logins_allowed'] and
+          SITEINFO['email_server'] is not None):
         LOGGER.info('Site info: user logins are allowed.')
-    elif 'logins_allowed' in SITEINFO and not SITEINFO['logins_allowed']:
+
+    elif ('logins_allowed' in SITEINFO and (not SITEINFO['logins_allowed'])):
         LOGGER.warning('Site info: user logins are disabled.')
+
     else:
         SITEINFO['logins_allowed'] = False
         LOGGER.warning('Site info: '
@@ -289,14 +299,20 @@ def main():
                        'disabling user logins.')
 
     # get the user signup and signin settings
-    if 'signups_allowed' in SITEINFO and SITEINFO['signups_allowed']:
-        LOGGER.info('Site info: user signups are allowed.')
-    elif 'signups_allowed' in SITEINFO and not SITEINFO['signups_allowed']:
-        LOGGER.warning('Site info: user signups are disabled.')
-    elif SITEINFO['email_server'] is None:
+    if SITEINFO['email_server'] is None:
         LOGGER.warning('Site info: '
                        'no email server set up, '
                        'user signups cannot be enabled.')
+        SITEINFO['signups_allowed'] = False
+
+    elif ('signups_allowed' in SITEINFO and
+          SITEINFO['signups_allowed'] and
+          SITEINFO['email_server'] is not None):
+        LOGGER.info('Site info: user signups are allowed.')
+
+    elif 'signups_allowed' in SITEINFO and not SITEINFO['signups_allowed']:
+        LOGGER.warning('Site info: user signups are disabled.')
+
     else:
         SITEINFO['signups_allowed'] = False
         LOGGER.warning('Site info: '
