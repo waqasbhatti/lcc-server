@@ -13,8 +13,8 @@ available as a single-file Python module:
 doesn't depend on anything other than the Python standard library, so can be
 dropped in anywhere it's needed.
 
-This implements the search service and information service APIs of the
-LCC-Server and automatically handles API key acquisition:
+This implements clients for the search service and information service APIs of
+the LCC-Server and automatically handles API key acquisition:
 
 ```python
 import lccs
@@ -24,9 +24,9 @@ import lccs
 lcc_server_url = '{{ server_url }}'
 
 # search services -- use help(<function name>) to see the docstrings
-lccs.cone_search(lcc_server_url, center_ra, center_decl, ...)
-lccs.fulltext_search(lcc_server_url, searchterm, sesame=False, ...)
-lccs.column_search(lcc_server_url, filters, ...)
+lccs.cone_search(lcc_server_url, center_ra, center_decl, radius_arcmin=5.0, ...)
+lccs.fulltext_search(lcc_server_url, searchterm_text, sesame=False, ...)
+lccs.column_search(lcc_server_url, column_filters, ...)
 lccs.xmatch_search(lcc_server_url, file_to_upload, ...)
 
 # information services -- use help(<function name>) to see the docstrings
