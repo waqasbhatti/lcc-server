@@ -35,8 +35,18 @@ def get_lightcurves(outdir):
             outdir, 'lcc-server-demo','object-db.csv'
         )
     )
+    check_lcformat = os.path.exists(
+        os.path.join(
+            outdir, 'lcc-server-demo','lcformat-description.json'
+        )
+    )
+    check_lcreadermodule = os.path.exists(
+        os.path.join(
+            outdir, 'lcc-server-demo','lcreadermodule.py'
+        )
+    )
 
-    if check_lcs and check_catalog:
+    if check_lcs and check_catalog and check_lcformat and check_lcreadermodule:
         print('catalog and light curves already downloaded')
         return (os.path.join(outdir, 'lcc-server-demo','lightcurves'),
                 os.path.join(outdir, 'lcc-server-demo', 'object-db.csv'))
