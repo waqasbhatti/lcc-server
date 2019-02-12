@@ -15,7 +15,7 @@ import secrets
 import numpy as np
 from numpy.testing import assert_allclose
 
-
+from pytest import mark
 
 def get_test_authdb():
     '''This just makes a new test auth DB for each test function.
@@ -26,10 +26,12 @@ def get_test_authdb():
     authdb.initial_authdb_inserts('sqlite:///test-timing.authdb.sqlite')
 
 
-
+@mark.xfail
 def test_login_timing():
     '''This tests obfuscating the presence/absence of users based on password
     checks.
+
+    This may fail randomly if the testing service is under load.
 
     '''
 
