@@ -1766,14 +1766,19 @@ def main():
         #
         print('Generating a light curve list using magcol: %s...' %
               magcol)
-        lcproc.register_custom_lcformat(
-            lcform['formatkey'],
-            lcform['fileglob'],
-            lcform['readerfunc'],
+        lcproc.register_lcformat(
+            lcform['parsed_formatinfo']['formatkey'],
+            lcform['parsed_formatinfo']['fileglob'],
             [timecol],
             [magcol],
             [errcol],
-            magsarefluxes=lcform['magsarefluxes']
+            lcform['parsed_formatinfo']['readermodule'],
+            lcform['parsed_formatinfo']['readerfunc'],
+            readerfunc_kwargs=lcform['parsed_formatinfo']['readerfunc_kwargs'],
+            normfunc_module=lcform['parsed_formatinfo']['normmodule'],
+            normfunc=lcform['parsed_formatinfo']['normfunc'],
+            normfunc_kwargs=lcform['parsed_formatinfo']['normfunc_kwargs'],
+            magsarefluxes=lcform['magsarefluxes'],
         )
 
         lclpkl = make_lclist(
