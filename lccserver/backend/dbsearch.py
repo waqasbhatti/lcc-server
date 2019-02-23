@@ -75,9 +75,14 @@ from astrobase.coordutils import (
 )
 
 # for updating checkplots with SIMBAD and SESAME lookup results
-from astrobase.checkplot import (
-    _read_checkplot_picklefile, _write_checkplot_picklefile
-)
+try:
+    from astrobase.checkplot.pkl_io import (
+        _read_checkplot_picklefile, _write_checkplot_picklefile
+    )
+except Exception as e:
+    from astrobase.checkplot import (
+        _read_checkplot_picklefile, _write_checkplot_picklefile
+    )
 
 from ..authnzerver.authdb import check_user_access
 
