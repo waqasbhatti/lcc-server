@@ -111,6 +111,9 @@ to the API key-secured API endpoints.
 
 ## Search query service APIs
 
+The LCC-Server supports searching its collections by various methods. Follow the
+links in the table below to see details on each search query service API.
+
 Service | Method and URL | Parameters | API key | Response
 ------- | --- | ---------- | ---------------- | ----------
 `conesearch` | `POST {{ server_url }}/api/conesearch` | [docs](/docs/conesearch#the-api) | **[required](#api-keys)** | streaming<br>ND-JSON
@@ -132,10 +135,10 @@ want to react to the query stages in real-time: the LCC server itself uses
 frontend; see also [ijson](https://github.com/isagalaev/ijson) for a Python
 package. Most command-line applications like HTTPie (with the `--stream` flag)
 and cURL (with the `-N` flag) can handle this as well. You can also simply wait
-for up to 30 seconds to get the whole stream at once, and parse it later as
+for up to 60 seconds to get the whole stream at once, and parse it later as
 needed.
 
-An example of results from a query that finishes within 30 seconds:
+An example of results from a query that finishes within 60 seconds:
 
 ```json
 {"message": "query in run-queue. executing with set ID: N1tZWPOZyxk...", "status": "queued", "result": {"setid": "N1tZWPOZyxk", "api_service": "conesearch", "api_args": {"coords": "290.0 45.0 60.0", "conditions": "(sdssr < 13.0) and (propermotion > 50.0)", "result_ispublic": true, "collections": ["hatnet_keplerfield"], "getcolumns": ["propermotion", "sdssr", "sdssg", "sdssi"]}}, "time": "2018-08-09T01:04:00.878206Z"}
@@ -145,13 +148,13 @@ An example of results from a query that finishes within 30 seconds:
 {"message": "dataset now ready: {{ server_url }}/set/N1tZWPOZyxk", "status": "ok", "result": {"setid": "N1tZWPOZyxk", "seturl": "{{ server_url }}/set/N1tZWPOZyxk", "created": "2018-08-09T01:04:00.874976", "updated": "2018-08-09T01:04:01.211014", "backend_function": "sqlite_kdtree_conesearch", "backend_parsedargs": {"center_ra": 290.0, "center_decl": 45.0, "radius_arcmin": 60.0, "getcolumns": ["propermotion", "sdssr", "sdssg", "sdssi", "db_oid", "kdtree_oid", "db_ra", "db_decl", "kdtree_ra", "kdtree_decl", "db_lcfname", "dist_arcsec"], "conditions": "(sdssr < 13.0) and (propermotion > 50.0)", "lcclist": ["hatnet_keplerfield"]}, "nobjects": 11}, "time": "2018-08-09T01:04:01.219230Z"}
 ```
 
-An example for a longer running query that takes more than 30 seconds:
+An example for a longer running query that takes more than 60 seconds:
 
 ```json
 {"message": "query in run-queue. executing with set ID: iRM6Vy7hP08...", "status": "queued", "result": {"setid": "iRM6Vy7hP08", "api_service": "conesearch", "api_args": {"coords": "295.35 -25.38 60.0", "conditions": "", "result_ispublic": true, "collections": null, "getcolumns": []}}, "time": "2018-08-09T01:21:28.595478Z"}
 {"message": "query finished OK. objects matched: 7960, building dataset...", "status": "running", "result": {"setid": "iRM6Vy7hP08", "nobjects": 7960}, "time": "2018-08-09T01:21:29.449012Z"}
 {"message": "dataset pickle generation complete. collecting light curves into ZIP file...", "status": "running", "result": {"setid": "iRM6Vy7hP08"}, "time": "2018-08-09T01:21:29.879868Z"}
-{"message": "query sent to background after 30 seconds. query is complete, but light curves of matching objects are still being zipped. check {{ server_url }}/set/iRM6Vy7hP08 for results later", "status": "background", "result": {"setid": "iRM6Vy7hP08", "seturl": "{{ server_url }}/set/iRM6Vy7hP08"}, "time": "2018-08-09T01:21:44.893590Z"}
+{"message": "query sent to background after 60 seconds. query is complete, but light curves of matching objects are still being zipped. check {{ server_url }}/set/iRM6Vy7hP08 for results later", "status": "background", "result": {"setid": "iRM6Vy7hP08", "seturl": "{{ server_url }}/set/iRM6Vy7hP08"}, "time": "2018-08-09T01:21:44.893590Z"}
 ```
 
 An example of a query that could not be parsed:

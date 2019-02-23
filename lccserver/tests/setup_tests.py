@@ -103,7 +103,7 @@ def get_test_bundle(outdir):
     - lcformat-description.json
     - lcreadermodule.py to read the light curves
 
-    - lclist.pkl from lcproc.make_lclist
+    - lclist.pkl from lcproc.catalogs.make_lclist
     - lclist-catalog.pkl from abcat.add_cpinfo_to_lclist
     - catalog-kdtree.pkl from abcat.kdtree_from_lclist
     - catalog-objectinfo.sqlite from abcat.objectinfo_to_sqlite

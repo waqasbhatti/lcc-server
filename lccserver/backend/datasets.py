@@ -1057,7 +1057,15 @@ def sqlite_make_dataset_lczip(basedir,
 
                 orig, oid, lcformatdesc, coll, outcsvlc = item
                 if not os.path.exists(outcsvlc):
-                    os.symlink(os.path.abspath(res), outcsvlc)
+                    try:
+                        os.symlink(os.path.abspath(res), outcsvlc)
+                    except Exception as e:
+                        LOGEXCEPTION(
+                            'could not symlink %s -> %s' % (
+                                os.path.abspath(res),
+                                outcsvlc
+                            )
+                        )
 
             #
             # FINALLY, CARRY OUT THE ZIP OPERATION (IF NEEDED)

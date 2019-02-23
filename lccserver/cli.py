@@ -893,7 +893,7 @@ def generate_augmented_lclist_catalog(
 
     '''
 
-    from astrobase import lcproc
+    from astrobase.lcproc.catalogs import add_cpinfo_to_lclist
 
     # get the basedir/collection_id/checkplots directory
     cpdir = os.path.join(basedir, collection_id, 'checkplots')
@@ -903,7 +903,7 @@ def generate_augmented_lclist_catalog(
 
     # use lcproc.add_cpinfo_to_lclist with LC format info to update the catalog
     # write to basedir/collection_id/lclist-catalog.pkl
-    augcat = lcproc.add_cpinfo_to_lclist(
+    augcat = add_cpinfo_to_lclist(
         cplist,
         lclist_pkl,
         magcol,
@@ -1660,6 +1660,7 @@ def main():
         # next, we'll set up the lclist.pkl file
         #
         from astrobase import lcproc
+        from astrobase.lcproc.catalogs import make_lclist
 
         try:
 
@@ -1765,17 +1766,22 @@ def main():
         #
         print('Generating a light curve list using magcol: %s...' %
               magcol)
-        lcproc.register_custom_lcformat(
-            lcform['formatkey'],
-            lcform['fileglob'],
-            lcform['readerfunc'],
+        lcproc.register_lcformat(
+            lcform['parsed_formatinfo']['formatkey'],
+            lcform['parsed_formatinfo']['fileglob'],
             [timecol],
             [magcol],
             [errcol],
-            magsarefluxes=lcform['magsarefluxes']
+            lcform['parsed_formatinfo']['readermodule'],
+            lcform['parsed_formatinfo']['readerfunc'],
+            readerfunc_kwargs=lcform['parsed_formatinfo']['readerfunc_kwargs'],
+            normfunc_module=lcform['parsed_formatinfo']['normmodule'],
+            normfunc=lcform['parsed_formatinfo']['normfunc'],
+            normfunc_kwargs=lcform['parsed_formatinfo']['normfunc_kwargs'],
+            magsarefluxes=lcform['magsarefluxes'],
         )
 
-        lclpkl = lcproc.make_lclist(
+        lclpkl = make_lclist(
             os.path.join(collection_dir,
                          'lightcurves'),
             os.path.join(collection_dir,'lclist.pkl'),
@@ -1829,7 +1835,9 @@ def main():
                 "This will take a while..."
             )
 
-            periodfinding_pickles = lcproc.parallel_pf(
+            from astrobase.lcproc.periodsearch import parallel_pf
+
+            periodfinding_pickles = parallel_pf(
                 collection_lclist,
                 os.path.join(collection_dir,
                              'periodfinding'),
@@ -1880,7 +1888,9 @@ def main():
                     import requests
                     requests.get('http://captive.apple.com/hotspot-detect.html')
 
-                lcproc.parallel_cp(
+                from astrobase.lcproc.checkplotgen import parallel_cp
+
+                parallel_cp(
                     periodfinding_pickles,
                     cpdir,
                     os.path.join(collection_dir, 'lightcurves'),

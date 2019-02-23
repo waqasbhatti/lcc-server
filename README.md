@@ -1,5 +1,7 @@
 # LCC-Server: A light curve collection server framework
 
+[![Build Status](https://ci.wbhatti.org/buildStatus/icon?job=lcc-server)](https://ci.wbhatti.org/job/lcc-server)
+
 This is a Python framework to serve collections of light curves. The code here
 forms the basis for the [HAT data server](https://data.hatsurveys.org).
 

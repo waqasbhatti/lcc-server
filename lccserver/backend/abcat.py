@@ -1170,7 +1170,18 @@ def get_lcformat_description(descpath):
         'columns':column_info,
         'colkeys':column_keys,
         'metadata':metadata_info,
-        'magsarefluxes':magsarefluxes
+        'magsarefluxes':magsarefluxes,
+        'parsed_formatinfo':{
+            'formatkey':formatkey,
+            'fileglob':formatdesc['lc_fileglob'],
+            'readermodule':reader_module_name,
+            'readerfunc':reader_func_name,
+            'readerfunc_kwargs':reader_func_kwargs,
+            'normmodule':norm_module_name,
+            'normfunc':norm_func_name,
+            'normfunc_kwargs':norm_func_kwargs,
+            'magsarefluxes':magsarefluxes,
+        }
     }
 
     return returndict
