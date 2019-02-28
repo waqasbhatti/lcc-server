@@ -841,7 +841,7 @@ def generate_augmented_lclist_catalog(
     collection_id is the directory name of the collection you want to process
 
     lclist_pkl is the path to the original list catalog pickle created for the
-    light curves in the collection using astrobase.lcproc.make_lclist
+    light curves in the collection using astrobase.lcproc.catalogs.make_lclist.
 
     magcol is the LC magnitude column being used in the checkplots' feature
     keys. This will be added as a prefix to the infokeys.
@@ -852,7 +852,7 @@ def generate_augmented_lclist_catalog(
     infokeys is a list of key specs to extract from each checkplot. the provided
     list is a good default and should contain the most useful keys from
     checkplots generated using astrobase.checkplot.checkplot_pickle or
-    astrobase.lcproc.runcp.
+    astrobase.lcproc.checkplotgen.runcp.
 
     key specs are tuples of the form:
 
