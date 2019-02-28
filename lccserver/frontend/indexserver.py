@@ -24,11 +24,9 @@ import sys
 import socket
 import json
 
-# this handles async background stuff
-from concurrent.futures import ProcessPoolExecutor
 
 # setup signal trapping on SIGINT
-def recv_sigint(signum, stack):
+def _recv_sigint(signum, stack):
     '''
     handler function to receive and process a SIGINT
 
@@ -142,6 +140,21 @@ define('sessionexpiry',
        help=('This tells the lcc-server the session-expiry time in days.'),
        type=int)
 
+
+#
+# worker set up for the pool
+#
+def setup_worker():
+    '''This sets up the processpoolexecutor worker to ignore SIGINT.
+
+    Makes for a cleaner shutdown.
+
+    '''
+    # unregister interrupt signals so they don't get to the worker
+    # and the executor can kill them cleanly (hopefully)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 ############
 ### MAIN ###
 ############
@@ -171,6 +184,8 @@ def main():
     from . import auth_handlers as ah
     from .basehandler import AuthEnabledStaticHandler
     from ..authnzerver import authdb
+
+    from ..utils import ProcExecutor
 
 
     ####################################
@@ -366,7 +381,9 @@ def main():
     ## PERSISTENT BACKGROUND EXECUTOR ##
     ####################################
 
-    EXECUTOR = ProcessPoolExecutor(MAXWORKERS)
+    EXECUTOR = ProcExecutor(max_workers=MAXWORKERS,
+                            initializer=setup_worker,
+                            initargs=())
 
 
     ##################
@@ -868,8 +885,8 @@ def main():
     LOGGER.info('The current base directory is: %s' % os.path.abspath(BASEDIR))
 
     # register the signal callbacks
-    signal.signal(signal.SIGINT,recv_sigint)
-    signal.signal(signal.SIGTERM,recv_sigint)
+    signal.signal(signal.SIGINT,_recv_sigint)
+    signal.signal(signal.SIGTERM,_recv_sigint)
 
     # start the IOLoop and begin serving requests
     try:
