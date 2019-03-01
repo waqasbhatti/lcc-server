@@ -182,6 +182,7 @@ def main():
     from . import dataserver_handlers as dh
     from . import objectserver_handlers as oh
     from . import auth_handlers as ah
+    from . import admin_handlers as admin
     from .basehandler import AuthEnabledStaticHandler
     from ..authnzerver import authdb
 
@@ -411,6 +412,48 @@ def main():
           'ratelimit':RATELIMIT,
           'cachedir':CACHEDIR,
           'footprint_svg':footprint_svg}),
+
+        #########################
+        ## ADMIN RELATED PAGES ##
+        #########################
+
+        # this is the main admin page
+        (r'/admin',
+         admin.AdminIndexHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
+
+        # this is the main admin page
+        (r'/admin/site',
+         admin.SiteSettingsHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'basedir':BASEDIR,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR,
+          'sitestatic':SITE_STATIC}),
+
+        # this is the main admin page
+        (r'/admin/email',
+         admin.EmailSettingsHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'basedir':BASEDIR,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
+
 
         ########################
         ## AUTH RELATED PAGES ##
