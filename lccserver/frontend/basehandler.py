@@ -350,7 +350,8 @@ class BaseHandler(tornado.web.RequestHandler):
             ),
             page_title="403 - You cannot access this page.",
             siteinfo=self.siteinfo,
-            lccserver_version=__version__
+            lccserver_version=__version__,
+            user_account_box=self.render_user_account_box(),
         )
 
 

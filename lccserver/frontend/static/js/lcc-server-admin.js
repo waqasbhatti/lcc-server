@@ -10,10 +10,10 @@
 
 var lcc_admin = {
 
-    // this is like the usual datasets.render_dataset_list function, but adds in
+    // this is like the usual lcc_ui.get_recent_datasets function, but adds in
     // controls for deleting/changing visibility/changing owners of the
     // datasets.
-    render_dataset_list: function () {
+    get_recent_datasets: function () {
 
 
     },
