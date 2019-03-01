@@ -12,6 +12,8 @@ This contains handlers for the admin interface.
 ####################
 
 import os.path
+import stat
+import os
 
 import logging
 import secrets
@@ -286,14 +288,14 @@ class SiteSettingsHandler(BaseHandler):
                 with open(siteinfojson,'r') as infd:
                     siteinfo_disk = json.load(infd)
 
-                siteinfo_disk.update(self.siteinfo)
+                siteinfo_disk.update(updatedict)
 
                 LOGGER.warning(
                     'updating site-info.json from admin-site-update-form'
                 )
 
                 with open(siteinfojson,'w') as outfd:
-                    json.dump(siteinfo_disk, outfd)
+                    json.dump(siteinfo_disk, outfd, indent=4)
 
                 returndict = {
                     'status':'ok',
@@ -340,6 +342,42 @@ class EmailSettingsHandler(BaseHandler):
 
     '''
 
+    def initialize(self,
+                   fernetkey,
+                   executor,
+                   authnzerver,
+                   basedir,
+                   session_expiry,
+                   siteinfo,
+                   ratelimit,
+                   cachedir,
+                   sitestatic):
+        '''
+        This just sets up some stuff.
+
+        '''
+
+        self.authnzerver = authnzerver
+        self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
+        self.executor = executor
+        self.session_expiry = session_expiry
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.siteinfo = siteinfo
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
+        self.basedir = basedir
+        self.sitestatic = sitestatic
+
+        # initialize this to None
+        # we'll set this later in self.prepare()
+        self.current_user = None
+
+        # apikey verification info
+        self.apikey_verified = False
+        self.apikey_info = None
+
+
     @gen.coroutine
     def post(self):
         '''This handles the POST to /admin/email and
@@ -368,9 +406,159 @@ class EmailSettingsHandler(BaseHandler):
         # only allow in superuser roles
         if current_user and current_user['user_role'] == 'superuser':
 
-            # handle the POST
-            # replace below as appropriate
-            pass
+            try:
+
+                # get the form inputs
+                loginval = xhtml_escape(
+                    self.get_argument('loginradio')
+                ).strip().lower()
+                signupval = xhtml_escape(
+                    self.get_argument('signupradio')
+                ).strip().lower()
+                emailsender = xhtml_escape(
+                    self.get_argument('emailsender')
+                ).strip()
+                emailserver = xhtml_escape(
+                    self.get_argument('emailserver')
+                ).strip().lower()
+                emailport = abs(int(
+                    xhtml_escape(
+                        self.get_argument('emailport')
+                    ).strip()
+                ))
+                emailuser = xhtml_escape(
+                    self.get_argument('emailuser')
+                ).strip()
+                emailpass = self.get_argument('emailpass').strip()
+
+
+                if loginval == 'login-allowed':
+                    loginval = True
+                elif loginval == 'login-disallowed':
+                    loginval = False
+                else:
+                    loginval = False
+
+                if signupval == 'signup-allowed':
+                    signupval = True
+                elif signupval == 'signup-disallowed':
+                    signupval = False
+                else:
+                    signupval = False
+
+                # make sure to check if the email settings are valid if signups
+                # are enabled
+                if signupval and (len(emailsender) == 0 or
+                                  len(emailserver) == 0 or
+                                  emailserver == 'smtp.emailserver.org' or
+                                  emailport == 0 or
+                                  len(emailuser) == 0 or
+                                  len(emailpass) == 0):
+
+                    LOGGER.error('invalid items in the '
+                                 'admin-email-update-form')
+
+                    self.set_status(400)
+                    retdict = {
+                        'status':'failed',
+                        'result':None,
+                        'message':("Invalid input in the "
+                                   "email settings form. "
+                                   "All fields are required "
+                                   "if new user sign-ups are "
+                                   "to be enabled.")
+                    }
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+
+                updatedict = {
+                    "logins_allowed": loginval,
+                    "signups_allowed": signupval,
+                }
+
+                emailupdatedict = {
+                    "email_sender": emailsender,
+                    "email_server": emailserver,
+                    "email_port": emailport,
+                    "email_user": emailuser,
+                    "email_pass": emailpass,
+                }
+
+                # update the siteinfo dict
+                self.siteinfo.update(updatedict)
+
+                # update the site-info.json file on disk
+                siteinfojson = os.path.join(
+                    self.basedir,
+                    'site-info.json'
+                )
+                with open(siteinfojson,'r') as infd:
+                    siteinfo_disk = json.load(infd)
+
+                # update site-info.json only with values of logins-allowed,
+                # signups-allowed
+                siteinfo_disk.update(updatedict)
+
+                LOGGER.warning(
+                    'updating site-info.json from admin-email-update-form'
+                )
+
+                with open(siteinfojson,'w') as outfd:
+                    json.dump(siteinfo_disk, outfd, indent=4)
+
+                # update the email-settings in the siteinfo dict and the
+                # email-settings file next
+                self.siteinfo.update(emailupdatedict)
+
+                email_settings_file = os.path.join(
+                    self.basedir,
+                    self.siteinfo['email_settings_file']
+                )
+
+                # make sure we can write to the email settings file
+                os.chmod(email_settings_file, 0o100600)
+
+                with open(email_settings_file,'r') as infd:
+                    emailsettings_disk = json.load(infd)
+
+                emailsettings_disk.update(emailupdatedict)
+
+                LOGGER.warning(
+                    'updating email settings file from admin-email-update-form'
+                )
+
+                with open(email_settings_file,'w') as outfd:
+                    json.dump(emailsettings_disk, outfd, indent=4)
+
+                # set permissions back to readonly
+                os.chmod(email_settings_file, 0o100400)
+
+                updatedict.update(emailupdatedict)
+
+                returndict = {
+                    'status':'ok',
+                    'message':('Email and user sign-up/sign-in '
+                               'settings successfully updated.'),
+                    'result':updatedict
+                }
+
+                self.write(returndict)
+                self.finish()
+
+            except Exception as e:
+
+                LOGGER.exception('failed to update site-info.json')
+
+                self.set_status(400)
+                retdict = {
+                    'status':'failed',
+                    'result':None,
+                    'message':("Invalid input provided for "
+                               "email-settings form.")
+                }
+                self.write(retdict)
+                raise tornado.web.Finish()
 
         # anything else is probably the locked user, turn them away
         else:

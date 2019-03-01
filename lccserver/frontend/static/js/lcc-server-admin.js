@@ -125,21 +125,56 @@ var lcc_admin = {
 
                 // if the update succeeded, inform the user and update the
                 // controls to reflect the new state
+                else if (status == 'ok') {
+
+                    if (result.logins_allowed === true) {
+
+                        $('#loginradio-yes').prop('checked',true);
+
+                    }
+                    else {
+
+                        $('#loginradio-no').prop('checked',true);
+
+                    }
+
+                    if (result.signups_allowed === true) {
+
+                        $('#signupradio-yes').prop('checked',true);
+
+                    }
+                    else {
+
+                        $('#signupradio-no').prop('checked',true);
+
+                    }
+
+                    // update the rest of the controls
+                    $('#emailsender').val(result.email_sender);
+                    $('#emailserver').val(result.email_server);
+                    $('#emailport').val(result.email_port);
+                    $('#emailuser').val(result.email_user);
+                    $('#emailpass').val(result.email_pass);
+
+                    lcc_ui.alert_box(message, 'info');
+
+                }
 
 
           }, 'json').fail(function (xhr) {
 
-                var message = 'Could not update site settings, ' +
-                    'something went wrong with the LCC server backend.';
+              var message =
+                  'Could not update email or sign-up/in settings, ' +
+                  'something went wrong with the LCC server backend.';
 
-                if (xhr.status == 500) {
-                    message = 'Something went wrong with the LCC-Server backend ' +
-                        ' while trying to update site settings.';
-                }
+              if (xhr.status == 500) {
+                  message = 'Something went wrong with the LCC-Server backend ' +
+                      ' while trying to update email/sign-up/in settings.';
+              }
 
-                lcc_ui.alert_box(message, 'danger');
+              lcc_ui.alert_box(message, 'danger');
 
-            });
+          });
 
         });
 

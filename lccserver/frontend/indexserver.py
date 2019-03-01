@@ -452,7 +452,8 @@ def main():
           'session_expiry':SESSION_EXPIRY,
           'siteinfo':SITEINFO,
           'ratelimit':RATELIMIT,
-          'cachedir':CACHEDIR}),
+          'cachedir':CACHEDIR,
+          'sitestatic':SITE_STATIC}),
 
 
         ########################

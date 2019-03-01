@@ -58,7 +58,7 @@
           <label for="institutionlogo" >Institution logo file in <code>site-static</code> folder</label>
           <input type="text" class="form-control"
                  name="institutionlogo" id="institutionlogo"
-                 placeholder="Path to the institution logo in server's site-static directory"
+                 placeholder="Path to the logo file in the server's site-static folder"
                  minlength="5" maxlength="1024"
                  value="{{ siteinfo['institution_logo'] }}">
         </div>
@@ -90,18 +90,58 @@
     </div>
 
     <div class="col-sm-12 col-md-4" >
-      <h3>LCC-Server user accounts</h3>
-      <form action="/admin/users" method="post" id="admin-users-update-form">
-        <!-- contains a table of users, when they signed up, how many datasets they have
-             and controls to remove or lock their user accounts
-        -->
-      </form>
-    </div>
-
-    <div class="col-sm-12 col-md-4" >
       <h3>Users and email server settings</h3>
       <form action="/admin/email" method="post" id="admin-email-update-form">
         {% module xsrf_form_html() %}
+
+        <fieldset>
+
+          <div class="form-group" >
+            <label for="emailsender" >Email sender address</label>
+            <input type="email" class="form-control"
+                   name="emailsender" id="emailsender" required
+                   placeholder="The email address used in outgoing emails"
+                   minlength="5" maxlength="1024"
+                   value="{{ siteinfo['email_sender'] }}">
+          </div>
+
+          <div class="form-group" >
+            <label for="emailserver" >Email server</label>
+            <input type="text" class="form-control"
+                   name="emailserver" id="emailserver" required
+                   placeholder="The email server to use for email sending"
+                   minlength="5" maxlength="1024"
+                   value="{{ siteinfo['email_server'] }}">
+          </div>
+
+          <div class="form-group" >
+            <label for="emailport" >SMTP port for email server</label>
+            <input type="text" class="form-control"
+                   name="emailport" id="emailport" required
+                   placeholder="The email port to use for email sending"
+                   minlength="5" maxlength="1024"
+                   value="{{ siteinfo['email_port'] }}">
+          </div>
+
+          <div class="form-group" >
+            <label for="emailuser" >User name for email server</label>
+            <input type="text" class="form-control"
+                   name="emailuser" id="emailuser" required
+                   placeholder="The user name for the email server"
+                   minlength="5" maxlength="1024"
+                   value="{{ siteinfo['email_user'] }}">
+          </div>
+
+          <div class="form-group" >
+            <label for="emailpass" >Password for email server</label>
+            <input type="password" class="form-control"
+                   name="emailpass" id="emailpass" required
+                   placeholder="The password for the email server"
+                   minlength="5" maxlength="1024"
+                   value="{{ siteinfo['email_pass'] }}">
+          </div>
+
+        </fieldset>
 
         <fieldset>
           <legend>Are <strong>existing users</strong> allowed to sign in?</legend>
@@ -161,60 +201,19 @@
 
         </fieldset>
 
-        <fieldset>
-          <legend>Email server settings</legend>
-
-          <div class="form-group" >
-            <label for="emailsender" >Email sender address</label>
-            <input type="email" class="form-control"
-                   name="emailsender" id="emailsender" required
-                   placeholder="The email address used in outgoing emails"
-                   minlength="5" maxlength="1024"
-                   value="{{ siteinfo['email_sender'] }}">
-          </div>
-
-          <div class="form-group" >
-            <label for="emailserver" >Email server</label>
-            <input type="text" class="form-control"
-                   name="emailserver" id="emailserver" required
-                   placeholder="The email server to use for email sending"
-                   minlength="5" maxlength="1024"
-                   value="{{ siteinfo['email_server'] }}">
-          </div>
-
-          <div class="form-group" >
-            <label for="emailport" >SMTP port for email server</label>
-            <input type="text" class="form-control"
-                   name="emailport" id="emailport" required
-                   placeholder="The email port to use for email sending"
-                   minlength="5" maxlength="1024"
-                   value="{{ siteinfo['email_port'] }}">
-          </div>
-
-          <div class="form-group" >
-            <label for="emailuser" >User name for email server</label>
-            <input type="text" class="form-control"
-                   name="emailuser" id="emailuser" required
-                   placeholder="The user name for the email server"
-                   minlength="5" maxlength="1024"
-                   value="{{ siteinfo['email_user'] }}">
-          </div>
-
-          <div class="form-group" >
-            <label for="emailpass" >Password for email server</label>
-            <input type="password" class="form-control"
-                   name="emailpass" id="emailpass" required
-                   placeholder="The password for the email server"
-                   minlength="5" maxlength="1024"
-                   value="{{ siteinfo['email_pass'] }}">
-          </div>
-
-        </fieldset>
-
-        <button type="submit" class="btn btn-primary" id="admin-email-update" >
+        <button type="submit" class="btn btn-primary mt-4" id="admin-email-update" >
           Update users and email server settings
         </button>
 
+      </form>
+    </div>
+
+    <div class="col-sm-12 col-md-4" >
+      <h3>LCC-Server user accounts</h3>
+      <form action="/admin/users" method="post" id="admin-users-update-form">
+        <!-- contains a table of users, when they signed up, how many datasets they have
+             and controls to remove or lock their user accounts
+        -->
       </form>
     </div>
 
