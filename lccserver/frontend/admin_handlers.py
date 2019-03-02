@@ -285,10 +285,31 @@ class SiteSettingsHandler(BaseHandler):
                     self.basedir,
                     'site-info.json'
                 )
-                with open(siteinfojson,'r') as infd:
-                    siteinfo_disk = json.load(infd)
 
-                siteinfo_disk.update(updatedict)
+                try:
+
+                    with open(siteinfojson,'r') as infd:
+                        siteinfo_disk = json.load(infd)
+
+                    siteinfo_disk.update(updatedict)
+
+                except Exception as e:
+                    LOGGER.error(
+                        'site-info.json file does not '
+                        'exist or has disappeared! A new site-info.json '
+                        'will be written to the basedir.'
+                    )
+                    siteinfo_disk = updatedict
+                    siteinfo_disk['email_setting_file'] = (
+                        '.lccserver.secret-email'
+                    )
+                    siteinfo_disk['signups_allowed'] = False
+                    siteinfo_disk['logins_allowed'] = True
+                    siteinfo_disk['rate_limit_active'] = True
+                    siteinfo_disk['cache_location'] = (
+                        '/tmp/lccserver_cache'
+                    )
+
 
                 LOGGER.warning(
                     'updating site-info.json from admin-site-update-form'
@@ -516,22 +537,35 @@ class EmailSettingsHandler(BaseHandler):
                     self.siteinfo['email_settings_file']
                 )
 
-                # make sure we can write to the email settings file
-                os.chmod(email_settings_file, 0o100600)
+                if not os.path.exists(email_settings_file):
 
-                with open(email_settings_file,'r') as infd:
-                    emailsettings_disk = json.load(infd)
+                    LOGGER.error('no email settings file found '
+                                 'at expected path indicated '
+                                 'in site-info.json. Making a new one...')
 
-                emailsettings_disk.update(emailupdatedict)
+                    with open(email_settings_file,'w') as outfd:
+                        json.dump(emailupdatedict, outfd, indent=4)
 
-                LOGGER.warning(
-                    'updating email settings file from admin-email-update-form'
-                )
+                else:
 
-                with open(email_settings_file,'w') as outfd:
-                    json.dump(emailsettings_disk, outfd, indent=4)
+                    # make sure we can write to the email settings file
+                    os.chmod(email_settings_file, 0o100600)
 
-                # set permissions back to readonly
+                    with open(email_settings_file,'r') as infd:
+                        emailsettings_disk = json.load(infd)
+
+                    emailsettings_disk.update(emailupdatedict)
+
+                    LOGGER.warning(
+                        'updating email settings file '
+                        'from admin-email-update-form'
+                    )
+
+                    with open(email_settings_file,'w') as outfd:
+                        json.dump(emailsettings_disk, outfd, indent=4)
+
+
+                # set email settings file permissions back to readonly
                 os.chmod(email_settings_file, 0o100400)
 
                 updatedict.update(emailupdatedict)

@@ -288,9 +288,17 @@ def main():
         else:
             LOGGER.warning('Site info: no email server is set up.')
             SITEINFO['email_server'] = None
+            SITEINFO['email_sender'] = None
+            SITEINFO['email_port'] = 25
+            SITEINFO['email_user'] = None
+            SITEINFO['email_pass'] = None
     else:
         LOGGER.warning('Site info: no email server is set up.')
         SITEINFO['email_server'] = None
+        SITEINFO['email_sender'] = None
+        SITEINFO['email_port'] = 25
+        SITEINFO['email_user'] = None
+        SITEINFO['email_pass'] = None
 
 
     # get the user login settings
