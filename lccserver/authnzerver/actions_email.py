@@ -407,7 +407,8 @@ def send_signup_verification_email(payload,
         ip_address=ip_addr,
         user_email=payload['email_address'],
     )
-    sender = '{server_name} admin <%s>' % payload['smtp_sender']
+    sender = '%s admin <%s>' % (payload['server_name'],
+                                payload['smtp_sender'])
     recipients = [user_info['email']]
 
     # send the email
@@ -728,7 +729,8 @@ def send_forgotpass_verification_email(payload,
         ip_address=ip_addr,
         user_email=payload['email_address'],
     )
-    sender = '{server_name} admin <%s>' % payload['smtp_sender']
+    sender = '%s admin <%s>' % (payload['server_name'],
+                                payload['smtp_sender'])
     recipients = [user_info['email']]
 
     # send the email
