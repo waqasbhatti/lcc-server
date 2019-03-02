@@ -160,20 +160,24 @@ def auth_echo(payload):
 # this maps request types -> request functions to execute
 #
 request_functions = {
+    # session actions
     'session-new':actions.auth_session_new,
     'session-exists':actions.auth_session_exists,
     'session-delete':actions.auth_session_delete,
     'user-login':actions.auth_user_login,
     'user-logout':actions.auth_user_logout,
+    # user actions
     'user-new':actions.create_new_user,
     'user-changepass':actions.change_user_password,
     'user-delete':actions.delete_user,
+    'user-list':actions.list_users,
+    'user-edit':actions.edit_user,
+    'user-resetpass':actions.verify_password_reset,
+    # email actions
     'user-signup-email':actions.send_signup_verification_email,
     'user-verify-email':actions.verify_user_email_address,
     'user-forgotpass-email':actions.send_forgotpass_verification_email,
-    'user-resetpass':actions.verify_password_reset,
-    'user-list':actions.list_users,
-    'user-edit':actions.edit_user,
+    # apikey actions
     'apikey-new':actions.issue_new_apikey,
     'apikey-verify':actions.verify_apikey,
 }
