@@ -348,7 +348,7 @@ class BaseHandler(tornado.web.RequestHandler):
                 "If you believe this is in error, please contact "
                 "the admins of this LCC-Server instance."
             ),
-            page_title="403 - You cannot access this page.",
+            page_title="403 - You cannot access this page",
             siteinfo=self.siteinfo,
             lccserver_version=__version__,
             user_account_box=self.render_user_account_box(),
