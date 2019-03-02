@@ -65,12 +65,12 @@ from .actions_session import auth_session_exists
 ####################
 
 SIGNUP_VERIFICATION_EMAIL_SUBJECT = (
-    '[LCC-Server] Please verify your account sign up request'
+    '[{server_name}] Please verify your account sign up request'
 )
 SIGNUP_VERIFICATION_EMAIL_TEMPLATE = '''\
 Hello,
 
-This is an automated message from the LCC-Server at: {lccserver_baseurl}.
+This is an automated message from the {server_name} at: {server_baseurl}.
 
 We received an account sign up request for: {user_email}. This request
 was initiated using the browser:
@@ -83,7 +83,7 @@ Please enter this code:
 
 {verification_code}
 
-into the verification form at: {lccserver_baseurl}/users/verify
+into the verification form at: {server_baseurl}/users/verify
 
 to verify that you initiated this request. This code will expire in 15
 minutes. You will also need to enter your email address and password
@@ -94,18 +94,18 @@ initiate this request, someone else may have used your email address
 in error. Feel free to ignore this email.
 
 Thanks,
-LCC-Server admins
-{lccserver_baseurl}
+{server_name} admins
+{server_baseurl}
 '''
 
 
 FORGOTPASS_VERIFICATION_EMAIL_SUBJECT = (
-    '[LCC-Server] Please verify your password reset request'
+    '[{server_name}] Please verify your password reset request'
 )
 FORGOTPASS_VERIFICATION_EMAIL_TEMPLATE = '''\
 Hello,
 
-This is an automated message from the LCC-Server at: {lccserver_baseurl}.
+This is an automated message from the {server_name} at: {server_baseurl}.
 
 We received a password reset request for: {user_email}. This request
 was initiated using the browser:
@@ -118,7 +118,7 @@ Please enter this code:
 
 {verification_code}
 
-into the verification form at: {lccserver_baseurl}/users/forgot-password-step2
+into the verification form at: {server_baseurl}/users/forgot-password-step2
 
 to verify that you initiated this request. This code will expire in 15
 minutes.
@@ -128,18 +128,18 @@ initiate this request, someone else may have used your email address
 in error. Feel free to ignore this email.
 
 Thanks,
-LCC-Server admins
-{lccserver_baseurl}
+{server_name} admins
+{server_baseurl}
 '''
 
 
 CHANGEPASS_VERIFICATION_EMAIL_SUBJECT = (
-    '[LCC-Server] Please verify your password change request'
+    '[{server_name}] Please verify your password change request'
 )
 CHANGEPASS_VERIFICATION_EMAIL_TEMPLATE = '''\
 Hello,
 
-This is an automated message from the LCC-Server at: {lccserver_baseurl}.
+This is an automated message from the {server_name} at: {server_baseurl}.
 
 We received a password change request for: {user_email}. This request
 was initiated using the browser:
@@ -152,7 +152,7 @@ Please enter this code:
 
 {verification_code}
 
-into the verification form at: {lccserver_baseurl}/users/password-change
+into the verification form at: {server_baseurl}/users/password-change
 
 to verify that you initiated this request. This code will expire in 15
 minutes.
@@ -162,8 +162,8 @@ initiate this request, someone else may have used your email address
 in error. Feel free to ignore this email.
 
 Thanks,
-LCC-Server admins
-{lccserver_baseurl}
+{server_name} admins
+{server_baseurl}
 '''
 
 
@@ -265,7 +265,8 @@ def send_signup_verification_email(payload,
     '''
 
     for key in ('email_address',
-                'lccserver_baseurl',
+                'server_baseurl',
+                'server_name',
                 'session_token',
                 'fernet_verification_token',
                 'smtp_sender',
@@ -399,19 +400,22 @@ def send_signup_verification_email(payload,
 
     # generate the email message
     msgtext = SIGNUP_VERIFICATION_EMAIL_TEMPLATE.format(
-        lccserver_baseurl=payload['lccserver_baseurl'],
+        server_baseurl=payload['server_baseurl'],
+        server_name=payload['server_name'],
         verification_code=payload['fernet_verification_token'],
         browser_identifier=browser.replace('_','.'),
         ip_address=ip_addr,
         user_email=payload['email_address'],
     )
-    sender = 'LCC-Server admin <%s>' % payload['smtp_sender']
+    sender = '{server_name} admin <%s>' % payload['smtp_sender']
     recipients = [user_info['email']]
 
     # send the email
     email_sent = authnzerver_send_email(
         sender,
-        SIGNUP_VERIFICATION_EMAIL_SUBJECT,
+        SIGNUP_VERIFICATION_EMAIL_SUBJECT.format(
+            server_name=payload['server_name']
+        ),
         msgtext,
         recipients,
         payload['smtp_server'],
@@ -575,7 +579,8 @@ def send_forgotpass_verification_email(payload,
 
     for key in ('email_address',
                 'fernet_verification_token',
-                'lccserver_baseurl',
+                'server_baseurl',
+                'server_name',
                 'session_token',
                 'smtp_sender',
                 'smtp_user',
@@ -716,19 +721,22 @@ def send_forgotpass_verification_email(payload,
 
     # generate the email message
     msgtext = FORGOTPASS_VERIFICATION_EMAIL_TEMPLATE.format(
-        lccserver_baseurl=payload['lccserver_baseurl'],
+        server_baseurl=payload['server_baseurl'],
+        server_name=payload['server_name'],
         verification_code=payload['fernet_verification_token'],
         browser_identifier=browser.replace('_','.'),
         ip_address=ip_addr,
         user_email=payload['email_address'],
     )
-    sender = 'LCC-Server admin <%s>' % payload['smtp_sender']
+    sender = '{server_name} admin <%s>' % payload['smtp_sender']
     recipients = [user_info['email']]
 
     # send the email
     email_sent = authnzerver_send_email(
         sender,
-        FORGOTPASS_VERIFICATION_EMAIL_SUBJECT,
+        FORGOTPASS_VERIFICATION_EMAIL_SUBJECT.format(
+            server_name=payload['server_name']
+        ),
         msgtext,
         recipients,
         payload['smtp_server'],

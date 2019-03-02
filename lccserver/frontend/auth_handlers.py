@@ -398,13 +398,14 @@ class NewUserHandler(BaseHandler):
             )
 
             # get this LCC-Server's base URL
-            lccserver_baseurl = '%s://%s' % (self.request.protocol,
-                                             self.request.host)
+            server_baseurl = '%s://%s' % (self.request.protocol,
+                                          self.request.host)
 
             ok, resp, msgs = yield self.authnzerver_request(
                 'user-signup-email',
                 {'email_address':email,
-                 'lccserver_baseurl':lccserver_baseurl,
+                 'server_baseurl':server_baseurl,
+                 'server_name':'LCC-Server',
                  'session_token':current_user['session_token'],
                  'smtp_server':smtp_server,
                  'smtp_sender':smtp_sender,
@@ -741,14 +742,15 @@ class ForgotPassStep1Handler(BaseHandler):
                     )
 
                     # get this LCC-Server's base URL
-                    lccserver_baseurl = '%s://%s' % (self.request.protocol,
-                                                     self.request.host)
+                    server_baseurl = '%s://%s' % (self.request.protocol,
+                                                  self.request.host)
 
                     ok, resp, msgs = yield self.authnzerver_request(
                         'user-forgotpass-email',
                         {'email_address':email_address,
                          'fernet_verification_token':fernet_verification_token,
-                         'lccserver_baseurl':lccserver_baseurl,
+                         'server_baseurl':server_baseurl,
+                         'server_name':'LCC-Server',
                          'session_token':current_user['session_token'],
                          'smtp_server':smtp_server,
                          'smtp_sender':smtp_sender,
