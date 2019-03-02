@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''email_actions.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
+'''actions_email.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
 License: MIT - see the LICENSE file for the full text.
 
 This contains functions to drive email-related auth actions.
@@ -55,8 +55,8 @@ import time
 
 from sqlalchemy import select
 
-from . import authdb
-from .actions_session import auth_session_exists
+from .. import authdb
+from .session import auth_session_exists
 
 
 

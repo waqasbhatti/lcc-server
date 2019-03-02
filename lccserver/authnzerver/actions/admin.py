@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''admin_actions.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
+'''actions_admin.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
 License: MIT - see the LICENSE file for the full text.
 
 This contains functions to drive admin related actions (listing users, editing
@@ -52,8 +52,8 @@ import multiprocessing as mp
 
 from sqlalchemy import select, desc
 
-from . import authdb
-from .actions_session import auth_session_exists
+from .. import authdb
+from .session import auth_session_exists
 
 
 ##################

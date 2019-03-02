@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''user_actions.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
+'''actions_user.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
 License: MIT - see the LICENSE file for the full text.
 
 This contains functions to drive user account related auth actions.
@@ -54,9 +54,8 @@ from tornado.escape import squeeze
 from sqlalchemy import select, desc
 from fuzzywuzzy.fuzz import UQRatio
 
-from . import authdb
-
-from .actions_session import auth_session_exists
+from .. import authdb
+from .session import auth_session_exists
 
 
 ###################

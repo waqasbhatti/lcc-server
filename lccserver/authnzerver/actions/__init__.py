@@ -22,24 +22,24 @@ LOGGER = logging.getLogger(__name__)
 ## IMPORTS ##
 #############
 
-from .actions_apikey import (
+from .apikey import (
     issue_new_apikey,
     verify_apikey
 )
 
-from .actions_admin import (
+from .admin import (
     list_users,
     edit_user,
 )
 
-from .actions_email import (
+from .email import (
     send_signup_verification_email,
     verify_user_email_address,
     send_forgotpass_verification_email,
     authnzerver_send_email,
 )
 
-from .actions_session import (
+from .session import (
     auth_session_new,
     auth_session_exists,
     auth_session_delete,
@@ -48,7 +48,7 @@ from .actions_session import (
     auth_kill_old_sessions,
 )
 
-from .actions_user import (
+from .user import (
     create_new_user,
     change_user_password,
     delete_user,
