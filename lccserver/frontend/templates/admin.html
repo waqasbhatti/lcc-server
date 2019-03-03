@@ -60,7 +60,7 @@
                  name="institutionlogo" id="institutionlogo"
                  placeholder="Path to the logo file in the server's site-static folder"
                  minlength="5" maxlength="1024"
-                 value="{{ siteinfo['institution_logo'] }}">
+                 value="{{ siteinfo['institution_logo'] or '' }}">
         </div>
 
         <div class="form-group" >
@@ -211,107 +211,111 @@
     <div class="col-sm-12 col-md-4 user-list" >
       <h3>User accounts</h3>
 
-      {% for item in userlist %}
-      <div class="row" >
-        <div class="col-12" >
-          <h5>User ID: {{ item['user_id'] }}</h5>
+      <form id="admin-users-update-form">
+        {% module xsrf_form_html() %}
 
-          <table class="table table-hover table-sm">
+        {% for item in userlist %}
+        <div class="row" >
+          <div class="col-12" >
+            <h5>User ID: {{ item['user_id'] }}</h5>
 
-            <tr>
-              <th scope="row">User is active</th>
-              <td>{{ item['is_active'] }}</td>
-            </tr>
+            <table class="table table-hover table-sm">
 
-            <tr>
-              <th scope="row">Created</th>
-              <td class="moment-format">{{ item['created_on'] }}Z</td>
-            </tr>
+              <tr>
+                <th scope="row">User is active</th>
+                <td>{{ item['is_active'] }}</td>
+              </tr>
 
-          </table>
+              <tr>
+                <th scope="row">Created</th>
+                <td class="moment-format">{{ item['created_on'] }}Z</td>
+              </tr>
 
-        </div>
-      </div>
+            </table>
 
-      <div class="row" >
-        <div class="col-12" >
-
-          {% if item['user_id'] not in (2,3) %}
-
-          <div class="form-group" >
-            <label for="userlist-email-id{{ item['user_id'] }}"">Email address</label>
-            <input type="email" class="form-control userlist-emailaddress"
-                   id="userlist-email-id{{ item['user_id'] }}"
-                   data-userid="{{ item['user_id'] }}"
-                   placeholder="User's email address"
-                   minlength="5" maxlength="1024"
-                   value="{{ item['email'] }}" required>
           </div>
-
-          <div class="form-group" >
-            <label for="userlist-fullname-id{{ item['user_id'] }}">Full name</label>
-            <input type="text" class="form-control userlist-fullname"
-                   id="userlist-fullname-id{{ item['user_id'] }}"
-                   data-userid="{{ item['user_id'] }}"
-                   placeholder="User's full name"
-                   minlength="5" maxlength="1024"
-                   value="{{ item['full_name'] }}" required>
-          </div>
-
-          <div class="form-group" >
-            <label for="userlist-role-id{{ item['user_id'] }}">User role</label>
-            <input type="text" class="form-control userlist-role"
-                   id="userlist-role-id{{ item['user_id'] }}"
-                   data-userid="{{ item['user_id'] }}"
-                   pattern="superuser|staff|authenticated|locked"
-                   placeholder="User's role"
-                   minlength="5" maxlength="1024"
-                   value="{{ item['user_role'] }}" required>
-            <small class="form-text text-muted" >
-              Must be one of <code>superuser</code>,  <code>staff</code>,
-              <code>authenticated</code>,  <code>locked</code>.
-            </small>
-          </div>
-
-          {% else %}
-
-          <table class="table table-hover table-sm">
-
-            <tr>
-              <th scope="row">Email address</th>
-              <td>{{ item['email'] }}</td>
-            </tr>
-
-            <tr>
-              <th scope="row">User role</th>
-              <td>{{ item['user_role'] }}</td>
-            </tr>
-
-          </table>
-
-          {% end %}
-
         </div>
-      </div>
 
-      <div class="row mb-4" >
-        <div class="col-12 d-flex justify-content-center align-items-center" >
+        <div class="row" >
+          <div class="col-12" >
 
-          {% if item['user_id'] not in (2,3) %}
+            {% if item['user_id'] not in (2,3) %}
 
-          <button type="button"
-                  class="btn btn-outline-danger btn-sm"
-                  id="admin-user-update"
-                  data-userid="{{ item['user_id'] }}">
-            Update this user
-          </button>
+            <div class="form-group" >
+              <label for="userlist-email-id{{ item['user_id'] }}"">Email address</label>
+              <input type="email" class="form-control userlist-emailaddress"
+                     id="userlist-email-id{{ item['user_id'] }}"
+                     data-userid="{{ item['user_id'] }}"
+                     placeholder="User's email address"
+                     minlength="5" maxlength="1024"
+                     value="{{ item['email'] }}" required>
+            </div>
 
-          {% end %}
+            <div class="form-group" >
+              <label for="userlist-fullname-id{{ item['user_id'] }}">Full name</label>
+              <input type="text" class="form-control userlist-fullname"
+                     id="userlist-fullname-id{{ item['user_id'] }}"
+                     data-userid="{{ item['user_id'] }}"
+                     placeholder="User's full name"
+                     minlength="5" maxlength="1024"
+                     value="{{ item['full_name'] or '' }}" required>
+            </div>
 
+            <div class="form-group" >
+              <label for="userlist-role-id{{ item['user_id'] }}">User role</label>
+              <input type="text" class="form-control userlist-role"
+                     id="userlist-role-id{{ item['user_id'] }}"
+                     data-userid="{{ item['user_id'] }}"
+                     pattern="superuser|staff|authenticated|locked"
+                     placeholder="User's role"
+                     minlength="5" maxlength="1024"
+                     value="{{ item['user_role'] }}" required>
+              <small class="form-text text-muted" >
+                Must be one of <code>superuser</code>,  <code>staff</code>,
+                <code>authenticated</code>,  <code>locked</code>.
+              </small>
+            </div>
+
+            {% else %}
+
+            <table class="table table-hover table-sm">
+
+              <tr>
+                <th scope="row">Email address</th>
+                <td>{{ item['email'] }}</td>
+              </tr>
+
+              <tr>
+                <th scope="row">User role</th>
+                <td>{{ item['user_role'] }}</td>
+              </tr>
+
+            </table>
+
+            {% end %}
+
+          </div>
         </div>
-      </div>
 
-      {% end %}
+        <div class="row mb-4" >
+          <div class="col-12 d-flex justify-content-center align-items-center" >
+
+            {% if item['user_id'] not in (2,3) %}
+
+            <button type="button"
+                    class="btn btn-outline-danger btn-sm admin-user-update-btn"
+                    data-userid="{{ item['user_id'] }}">
+              Update this user
+            </button>
+
+            {% end %}
+
+          </div>
+        </div>
+
+        {% end %}
+
+      </form>
 
     </div>
   </div>

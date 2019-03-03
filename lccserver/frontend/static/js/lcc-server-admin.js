@@ -18,12 +18,6 @@ var lcc_admin = {
 
     },
 
-    // this renders a user list table and controls
-    render_users_list: function () {
-
-
-    },
-
     // this sets up the admin form actions
     action_setup: function () {
 
@@ -93,6 +87,7 @@ var lcc_admin = {
             });
 
         });
+
 
         // handle the email and signups form update
         $('#admin-email-update-form').on('submit', function (evt) {
@@ -177,6 +172,88 @@ var lcc_admin = {
           });
 
         });
+
+
+        // handle the site settings update form
+        $('.admin-user-update-btn').on('click', function (evt) {
+
+            evt.preventDefault();
+
+            // find the updated values
+            let this_userid = $(this).attr('data-userid');
+
+            let updated_emailaddr =
+                $('#userlist-email-id' + this_userid).val();
+            let updated_fullname =
+                $('#userlist-fullname-id' + this_userid).val();
+
+            if (updated_fullname.trim().length == 0) {
+                updated_fullname = null;
+            }
+
+            let updated_role =
+                $('#userlist-role-id' + this_userid).val();
+
+            var posturl = '/admin/users';
+            var _xsrf = $('#admin-users-update-form > input[type="hidden"]').val();
+            var postparams = {
+                _xsrf:_xsrf,
+                updated_email: updated_emailaddr,
+                updated_fullname: updated_fullname,
+                updated_role: updated_role,
+                target_userid: parseInt(this_userid)
+            };
+
+            $.post(posturl, postparams, function (data) {
+
+                var status = data.status;
+                var result = data.result;
+                var message = data.message;
+
+                // if something broke, alert the user
+                if (status != 'ok' || result === null || result.length == 0) {
+                    lcc_ui.alert_box(message, 'danger');
+                }
+
+                // if the update succeeded, inform the user and update the
+                // controls to reflect the new state
+                else if (status == 'ok') {
+
+                    // update the controls
+                    $('#userlist-email-id' + this_userid).val(
+                        result.email
+                    );
+                    $('#userlist-fullname-id' + this_userid).val(
+                        result.full_name
+                    );
+                    $('#userlist-role-id' + this_userid).val(
+                        result.user_role
+                    );
+
+                    lcc_ui.alert_box(message, 'info');
+
+                }
+
+          }, 'json').fail(function (xhr) {
+
+                var message = 'Could not update user information, ' +
+                    'something went wrong with the LCC server backend.';
+
+                if (xhr.status == 500) {
+                    message = 'Something went wrong with the LCC-Server backend ' +
+                        ' while trying to update user information.';
+                }
+                else if (xhr.status == 400) {
+                    message = 'Invalid input provided in the user ' +
+                        ' update form. Please check and try again.';
+                }
+
+                lcc_ui.alert_box(message, 'danger');
+
+            });
+
+        });
+
 
     }
 

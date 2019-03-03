@@ -270,7 +270,7 @@ def edit_user(payload,
             )
 
         # the case where the user updates their own info
-        if target_userid == user_id:
+        if target_userid == user_id and user_role in ('authenticated','staff'):
 
             # check if the user_id == target_userid
             # if so, check if session_token is valid and belongs to user_id
@@ -280,21 +280,13 @@ def edit_user(payload,
                 override_authdb_path=override_authdb_path
             )
 
-            if not (session_info or
-                    (session_info and not session_info['success']) or
-                    (session_info and session_info['success'] and
-                     session_info['result']['user_id'] != user_id)):
-
-                LOGGER.warning('no existing user matching session '
-                               'for user edit attempt')
-                return {
-                    'success':False,
-                    'user_info':None,
-                    'messages':["User session info not available "
-                                "for this user edit attempt."],
-                }
-
-            else:
+            # check if the session info user_id matches the provided user_id and
+            # role
+            if (session_info and
+                session_info['success'] and
+                session_info['session_info']['is_active'] is True and
+                session_info['session_info']['user_id'] == user_id and
+                session_info['session_info']['user_role'] == user_role):
 
                 editeable_elements = {'full_name','email'}
                 update_check = set(update_dict.keys()) - editeable_elements
@@ -310,8 +302,19 @@ def edit_user(payload,
                                     "update_dict not allowed"],
                     }
 
-        # the case where the superuser updates a user's info
-        elif target_userid != user_id and user_role == 'superuser':
+            else:
+
+                LOGGER.warning('no existing user matching session '
+                               'for user edit attempt')
+                return {
+                    'success':False,
+                    'user_info':None,
+                    'messages':["User session info not available "
+                                "for this user edit attempt."],
+                }
+
+        # the case where the superuser updates a user's info (or their own info)
+        elif user_role == 'superuser':
 
             # check if the user_id == target_userid
             # if so, check if session_token is valid and belongs to user_id
@@ -321,22 +324,13 @@ def edit_user(payload,
                 override_authdb_path=override_authdb_path
             )
 
-            if not (session_info or
-                    (session_info and not session_info['success']) or
-                    (session_info and session_info['success'] and
-                     session_info['result']['user_id'] == user_id) and
-                    (session_info['result']['user_role'] == 'superuser')):
-
-                LOGGER.warning('no existing superuser matching session '
-                               'for user edit attempt')
-                return {
-                    'success':False,
-                    'user_info':None,
-                    'messages':["Superuser session info not available "
-                                "for this user edit attempt."],
-                }
-
-            else:
+            # check if the session info user_id matches the provided user_id and
+            # role
+            if (session_info and
+                session_info['success'] and
+                session_info['session_info']['is_active'] is True and
+                session_info['session_info']['user_id'] == user_id and
+                session_info['session_info']['user_role'] == user_role):
 
                 editeable_elements = {'full_name','email',
                                       'is_active','user_role'}
@@ -364,6 +358,17 @@ def edit_user(payload,
                         'messages':["unknown role change "
                                     "request in update_dict"],
                     }
+
+            else:
+
+                LOGGER.warning('no existing superuser matching session '
+                               'for user edit attempt')
+                return {
+                    'success':False,
+                    'user_info':None,
+                    'messages':["Superuser session info not available "
+                                "for this user edit attempt."],
+                }
 
 
         # any other case is a failure
@@ -431,8 +436,8 @@ def edit_user(payload,
         if raiseonfail:
             raise
 
-        LOGGER.warning('user update not found or '
-                       'could not check if it exists')
+        LOGGER.error('user update not found or '
+                     'could not check if it exists')
 
         return {
             'success':False,

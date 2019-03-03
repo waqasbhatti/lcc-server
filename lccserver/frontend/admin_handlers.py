@@ -709,11 +709,15 @@ class UserAdminHandler(BaseHandler):
 
             try:
 
-                updatedict = json.loads(
-                    xhtml_escape(
-                        self.get_argument('update')
-                    )
-                )
+                updated_email = self.get_argument('updated_email')
+                updated_fullname = self.get_argument('updated_fullname')
+                updated_role = self.get_argument('updated_role')
+
+                updatedict = {
+                    'email':updated_email,
+                    'full_name':updated_fullname,
+                    'user_role':updated_role
+                }
 
                 reqtype = 'user-edit'
 
@@ -783,7 +787,7 @@ class UserAdminHandler(BaseHandler):
                         'message':("Edit to user information successful.")
                     }
                     self.write(retdict)
-                    raise tornado.web.Finish()
+                    self.finish()
 
             except Exception as e:
 

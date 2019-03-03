@@ -437,7 +437,7 @@ def main():
           'ratelimit':RATELIMIT,
           'cachedir':CACHEDIR}),
 
-        # this is the main admin page
+        # this is the site settings update handler
         (r'/admin/site',
          admin.SiteSettingsHandler,
          {'fernetkey':FERNETSECRET,
@@ -450,7 +450,7 @@ def main():
           'cachedir':CACHEDIR,
           'sitestatic':SITE_STATIC}),
 
-        # this is the main admin page
+        # this is the email settings update handler
         (r'/admin/email',
          admin.EmailSettingsHandler,
          {'fernetkey':FERNETSECRET,
@@ -463,6 +463,18 @@ def main():
           'cachedir':CACHEDIR,
           'sitestatic':SITE_STATIC}),
 
+        # this is the user info update handler
+        (r'/admin/users',
+         admin.UserAdminHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'basedir':BASEDIR,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR,
+          'sitestatic':SITE_STATIC}),
 
         ########################
         ## AUTH RELATED PAGES ##
