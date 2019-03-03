@@ -201,7 +201,7 @@ def edit_user(payload,
               raiseonfail=False,
               override_authdb_path=None):
     '''
-    This edit users.
+    This edits users.
 
     Parameters
     ----------
@@ -214,6 +214,12 @@ def edit_user(payload,
         - session_token: str, session token of admin or target_userid token
         - target_userid: int, the user to edit
         - update_dict: dict, the update dict
+
+        Only these items can be edited::
+
+            {'full_name', 'email',     <- by user and superuser
+             'is_active','user_role'}  <- by superuser only
+
 
     raiseonfail : bool
         If True, will raise an Exception if something goes wrong.
@@ -231,23 +237,20 @@ def edit_user(payload,
              'user_info': dict, with new user info,
              'messages': list of str messages if any}
 
-        Only these items can be edited::
-
-            {'full_name', 'email', <- by user and superuser
-             'is_active','user_role', <- by superuser only}
 
     '''
 
-    for key in ('user_id','user_role','session_token','target_userid',
+    for key in ('user_id','user_role',
+                'session_token','target_userid',
                 'update_dict'):
 
         if key not in payload:
 
-            LOGGER.error('no %s provided' % key)
+            LOGGER.error('no %s provided for edit_user' % key)
             return {
                 'success':False,
                 'user_info':None,
-                'messages':["No user_id provided."],
+                'messages':["No %s provided." % key],
             }
 
     user_id = payload['user_id']
@@ -255,6 +258,14 @@ def edit_user(payload,
     session_token = payload['session_token']
     target_userid = payload['target_userid']
     update_dict = payload['update_dict']
+
+    if not isinstance(update_dict, dict):
+        LOGGER.error('no update_dict provided for edit_user' % key)
+        return {
+            'success':False,
+            'user_info':None,
+            'messages':["No update_dict provided."],
+        }
 
     try:
 
@@ -273,54 +284,135 @@ def edit_user(payload,
                 )
             )
 
+        # the case where the user updates their own info
+        if target_userid == user_id:
 
-        # check if the user_id == target_userid
-        # if so, check if session_token is valid and belongs to user_id
+            # check if the user_id == target_userid
+            # if so, check if session_token is valid and belongs to user_id
+            session_info = auth_session_exists(
+                {'session_token':session_token},
+                raiseonfail=raiseonfail,
+                override_authdb_path=override_authdb_path
+            )
 
+            if not (session_info or
+                    (session_info and not session_info['success']) or
+                    (session_info and session_info['success'] and
+                     session_info['result']['user_id'] != user_id)):
 
+                LOGGER.warning('no existing user matching session '
+                               'for user edit attempt')
+                return {
+                    'success':False,
+                    'user_info':None,
+                    'messages':["User session info not available "
+                                "for this user edit attempt."],
+                }
+
+            else:
+
+                editeable_elements = {'full_name','email'}
+                update_check = set(update_dict.keys()) - editeable_elements
+
+                if len(update_check) > 0:
+
+                    LOGGER.warning('extra elements in update_dict not allowed')
+                    return {
+                        'success':False,
+                        'user_info':None,
+                        'messages':["extra elements in "
+                                    "update_dict not allowed"],
+                    }
+
+        # the case where the superuser updates a user's info
+        elif target_userid != user_id and user_role == 'superuser':
+
+            # check if the user_id == target_userid
+            # if so, check if session_token is valid and belongs to user_id
+            session_info = auth_session_exists(
+                {'session_token':session_token},
+                raiseonfail=raiseonfail,
+                override_authdb_path=override_authdb_path
+            )
+
+            if not (session_info or
+                    (session_info and not session_info['success']) or
+                    (session_info and session_info['success'] and
+                     session_info['result']['user_id'] == user_id) and
+                    (session_info['result']['user_role'] == 'superuser')):
+
+                LOGGER.warning('no existing superuser matching session '
+                               'for user edit attempt')
+                return {
+                    'success':False,
+                    'user_info':None,
+                    'messages':["Superuser session info not available "
+                                "for this user edit attempt."],
+                }
+
+            else:
+
+                editeable_elements = {'full_name','email',
+                                      'is_active','user_role'}
+                update_check = set(update_dict.keys()) - editeable_elements
+
+                if len(update_check) > 0:
+
+                    LOGGER.warning('extra elements in update_dict not allowed')
+                    return {
+                        'success':False,
+                        'user_info':None,
+                        'messages':["extra elements in "
+                                    "update_dict not allowed"],
+                    }
+
+        # any other case is a failure
+        else:
+
+            LOGGER.warning('no existing matching session or user_id'
+                           'for user edit attempt')
+            return {
+                'success':False,
+                'user_info':None,
+                'messages':["user_id or session info not available "
+                            "for this user edit attempt."],
+            }
+
+        #
+        # all update checks, passed, do the update
+        #
 
         users = currproc.table_meta.tables['users']
 
-        if user_id is None:
+        # execute the update
+        upd = users.update(
+        ).where(
+            users.c.user_id == target_userid
+        ).values(update_dict)
+        result = currproc.connection.execute(upd)
 
-            s = select([
-                users.c.user_id,
-                users.c.full_name,
-                users.c.email,
-                users.c.is_active,
-                users.c.last_login_try,
-                users.c.last_login_success,
-                users.c.created_on,
-                users.c.user_role,
-            ]).order_by(desc(users.c.created_on)).select_from(users)
-
-        else:
-
-            s = select([
-                users.c.user_id,
-                users.c.full_name,
-                users.c.email,
-                users.c.is_active,
-                users.c.last_login_try,
-                users.c.last_login_success,
-                users.c.created_on,
-                users.c.user_role,
-            ]).order_by(desc(users.c.created_on)).select_from(users).where(
-                users.c.user_id == user_id
-            )
-
-        result = currproc.connection.execute(s)
-        rows = result.fetchall()
+        # check the update and return new values
+        sel = select([
+            users.c.user_id,
+            users.c.user_role,
+            users.c.full_name,
+            users.c.email,
+            users.c.is_active
+        ]).select_from(users).where(
+            users.c.user_id == target_userid
+        )
+        result = currproc.connection.execute(sel)
+        rows = result.fetchone()
         result.close()
 
         try:
 
-            serialized_result = [dict(x) for x in rows]
+            serialized_result = dict(rows)
 
             return {
                 'success':True,
                 'user_info':serialized_result,
-                'messages':["User look up successful."],
+                'messages':["User update successful."],
             }
 
         except Exception as e:
@@ -331,7 +423,7 @@ def edit_user(payload,
             return {
                 'success':False,
                 'user_info':None,
-                'messages':["User look up failed."],
+                'messages':["User update failed."],
             }
 
     except Exception as e:
@@ -339,11 +431,11 @@ def edit_user(payload,
         if raiseonfail:
             raise
 
-        LOGGER.warning('user info not found or '
+        LOGGER.warning('user update not found or '
                        'could not check if it exists')
 
         return {
             'success':False,
             'user_info':None,
-            'messages':["User look up failed."],
+            'messages':["User update failed."],
         }
