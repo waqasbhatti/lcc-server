@@ -24,33 +24,9 @@ LOGGER = logging.getLogger(__name__)
 ## IMPORTS ##
 #############
 
-try:
-
-    from datetime import datetime, timezone, timedelta
-    utc = timezone.utc
-
-except Exception as e:
-
-    from datetime import datetime, timedelta, tzinfo
-    ZERO = timedelta(0)
-
-    class UTC(tzinfo):
-        """UTC"""
-
-        def utcoffset(self, dt):
-            return ZERO
-
-        def tzname(self, dt):
-            return "UTC"
-
-        def dst(self, dt):
-            return ZERO
-
-    utc = UTC()
-
 import multiprocessing as mp
 
-from sqlalchemy import select, desc
+from sqlalchemy import select, asc
 
 from .. import authdb
 from .session import auth_session_exists
@@ -139,7 +115,7 @@ def list_users(payload,
                 users.c.last_login_success,
                 users.c.created_on,
                 users.c.user_role,
-            ]).order_by(desc(users.c.created_on)).select_from(users)
+            ]).order_by(asc(users.c.user_id)).select_from(users)
 
         else:
 
@@ -152,7 +128,7 @@ def list_users(payload,
                 users.c.last_login_success,
                 users.c.created_on,
                 users.c.user_role,
-            ]).order_by(desc(users.c.created_on)).select_from(users).where(
+            ]).order_by(asc(users.c.user_id)).select_from(users).where(
                 users.c.user_id == user_id
             )
 
@@ -200,8 +176,7 @@ def list_users(payload,
 def edit_user(payload,
               raiseonfail=False,
               override_authdb_path=None):
-    '''
-    This edits users.
+    '''This edits users.
 
     Parameters
     ----------
@@ -220,6 +195,8 @@ def edit_user(payload,
             {'full_name', 'email',     <- by user and superuser
              'is_active','user_role'}  <- by superuser only
 
+        User IDs 2 and 3 are reserved for the system-wide anonymous and locked
+        users respectively, and can't be edited.
 
     raiseonfail : bool
         If True, will raise an Exception if something goes wrong.
@@ -236,7 +213,6 @@ def edit_user(payload,
             {'success': True or False,
              'user_info': dict, with new user info,
              'messages': list of str messages if any}
-
 
     '''
 
@@ -265,6 +241,15 @@ def edit_user(payload,
             'success':False,
             'user_info':None,
             'messages':["No update_dict provided."],
+        }
+
+    if target_userid in (2,3):
+
+        LOGGER.error('Editing anonymous/locked user accounts not allowed')
+        return {
+            'success':False,
+            'user_info':None,
+            'messages':["Editing anonymous/locked user accounts not allowed."],
         }
 
     try:
@@ -314,6 +299,7 @@ def edit_user(payload,
                 editeable_elements = {'full_name','email'}
                 update_check = set(update_dict.keys()) - editeable_elements
 
+                # check if the update keys are valid
                 if len(update_check) > 0:
 
                     LOGGER.warning('extra elements in update_dict not allowed')
@@ -356,8 +342,8 @@ def edit_user(payload,
                                       'is_active','user_role'}
                 update_check = set(update_dict.keys()) - editeable_elements
 
+                # check if the update keys are valid
                 if len(update_check) > 0:
-
                     LOGGER.warning('extra elements in update_dict not allowed')
                     return {
                         'success':False,
@@ -365,6 +351,20 @@ def edit_user(payload,
                         'messages':["extra elements in "
                                     "update_dict not allowed"],
                     }
+
+                # check if the roles provided are valid
+                if ('user_role' in update_dict and
+                    (update_dict['user_role'] not in
+                     ('superuser','staff','authenticated','locked'))):
+
+                    LOGGER.warning('unknown role change request in update_dict')
+                    return {
+                        'success':False,
+                        'user_info':None,
+                        'messages':["unknown role change "
+                                    "request in update_dict"],
+                    }
+
 
         # any other case is a failure
         else:

@@ -14,7 +14,7 @@
   <div class="row mt-2" >
 
     <div class="col-sm-12 col-md-4" >
-      <h3>LCC-Server site settings</h3>
+      <h3>Site settings</h3>
       <form action="/admin/site" method="post" id="admin-site-update-form">
         {% module xsrf_form_html() %}
 
@@ -82,7 +82,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary" id="admin-site-update" >
-          Update LCC-Server site settings
+          Update site settings
         </button>
 
 
@@ -90,7 +90,7 @@
     </div>
 
     <div class="col-sm-12 col-md-4" >
-      <h3>Users and email server settings</h3>
+      <h3>Email server and sign-ins</h3>
       <form action="/admin/email" method="post" id="admin-email-update-form">
         {% module xsrf_form_html() %}
 
@@ -202,24 +202,121 @@
         </fieldset>
 
         <button type="submit" class="btn btn-primary mt-4" id="admin-email-update" >
-          Update users and email server settings
+          Update email server and sign-ins
         </button>
 
       </form>
     </div>
 
-    <div class="col-sm-12 col-md-4" >
-      <h3>LCC-Server user accounts</h3>
-      <form action="/admin/users" method="post" id="admin-users-update-form">
-        <!-- contains a table of users, when they signed up, how many datasets they have
-             and controls to remove or lock their user accounts, also allow adding new users.
-        -->
-      </form>
+    <div class="col-sm-12 col-md-4 user-list" >
+      <h3>User accounts</h3>
+
+      {% for item in userlist %}
+      <div class="row" >
+        <div class="col-12" >
+          <h5>User ID: {{ item['user_id'] }}</h5>
+
+          <table class="table table-hover table-sm">
+
+            <tr>
+              <th scope="row">User is active</th>
+              <td>{{ item['is_active'] }}</td>
+            </tr>
+
+            <tr>
+              <th scope="row">Created</th>
+              <td class="moment-format">{{ item['created_on'] }}Z</td>
+            </tr>
+
+          </table>
+
+        </div>
+      </div>
+
+      <div class="row" >
+        <div class="col-12" >
+
+          {% if item['user_id'] not in (2,3) %}
+
+          <div class="form-group" >
+            <label for="userlist-email-id{{ item['user_id'] }}"">Email address</label>
+            <input type="email" class="form-control userlist-emailaddress"
+                   id="userlist-email-id{{ item['user_id'] }}"
+                   data-userid="{{ item['user_id'] }}"
+                   placeholder="User's email address"
+                   minlength="5" maxlength="1024"
+                   value="{{ item['email'] }}" required>
+          </div>
+
+          <div class="form-group" >
+            <label for="userlist-fullname-id{{ item['user_id'] }}">Full name</label>
+            <input type="text" class="form-control userlist-fullname"
+                   id="userlist-fullname-id{{ item['user_id'] }}"
+                   data-userid="{{ item['user_id'] }}"
+                   placeholder="User's full name"
+                   minlength="5" maxlength="1024"
+                   value="{{ item['full_name'] }}" required>
+          </div>
+
+          <div class="form-group" >
+            <label for="userlist-role-id{{ item['user_id'] }}">User role</label>
+            <input type="text" class="form-control userlist-role"
+                   id="userlist-role-id{{ item['user_id'] }}"
+                   data-userid="{{ item['user_id'] }}"
+                   pattern="superuser|staff|authenticated|locked"
+                   placeholder="User's role"
+                   minlength="5" maxlength="1024"
+                   value="{{ item['user_role'] }}" required>
+            <small class="form-text text-muted" >
+              Must be one of <code>superuser</code>,  <code>staff</code>,
+              <code>authenticated</code>,  <code>locked</code>.
+            </small>
+          </div>
+
+          {% else %}
+
+          <table class="table table-hover table-sm">
+
+            <tr>
+              <th scope="row">Email address</th>
+              <td>{{ item['email'] }}</td>
+            </tr>
+
+            <tr>
+              <th scope="row">User role</th>
+              <td>{{ item['user_role'] }}</td>
+            </tr>
+
+          </table>
+
+          {% end %}
+
+        </div>
+      </div>
+
+      <div class="row mb-4" >
+        <div class="col-12 d-flex justify-content-center align-items-center" >
+
+          {% if item['user_id'] not in (2,3) %}
+
+          <button type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  id="admin-user-update"
+                  data-userid="{{ item['user_id'] }}">
+            Update this user
+          </button>
+
+          {% end %}
+
+        </div>
+      </div>
+
+      {% end %}
+
     </div>
-
   </div>
-  {% end %}
 
+  {% end %}
 
   <div class="row mt-4" >
     <div class="col-12">
@@ -261,6 +358,15 @@
 {% block pagejs %}
 
 $(document).ready(function() {
+
+// format all the moments
+$('.moment-format').each(function (index, elem) {
+
+// get the text we need
+var mt = moment($(this).text()).fromNow();
+$(this).html($(this).text() + ' <strong>(' + mt + ')</strong>');
+
+});
 
 // get the most recent 1000 datasets on the server
 lcc_ui.get_recent_datasets(1000, null, false);

@@ -91,6 +91,11 @@ thead.center-head {
   overflow-y: auto;
 }
 
+.user-list {
+  max-height: 640px;
+  overflow-y: auto;
+}
+
 .search-controls {
   min-height: 480px;
 }

@@ -143,12 +143,29 @@ class AdminIndexHandler(BaseHandler):
         # only allow in staff and superuser roles
         if current_user and current_user['user_role'] in ('staff', 'superuser'):
 
+            # ask the authnzerver for a user list
+            reqtype = 'user-list'
+            reqbody = {'user_id': None}
+
+            ok, resp, msgs = yield self.authnzerver_request(
+                reqtype, reqbody
+            )
+
+            if not ok:
+
+                LOGGER.error('no user list returned from authnzerver')
+                user_list = []
+
+            else:
+                user_list = resp['user_info']
+
             self.render('admin.html',
                         flash_messages=self.render_flash_messages(),
                         user_account_box=self.render_user_account_box(),
                         page_title="LCC-Server admin",
                         lccserver_version=__version__,
-                        siteinfo=self.siteinfo)
+                        siteinfo=self.siteinfo,
+                        userlist=user_list)
 
 
         # anything else is probably the locked user, turn them away
