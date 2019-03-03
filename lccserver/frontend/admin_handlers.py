@@ -612,12 +612,55 @@ class UserAdminHandler(BaseHandler):
     '''
     This handles /admin/users.
 
+    This can be called from /users/home by the user themselves to update:
+
+    email, full_name
+
+    Or can be called from /admin/users by superusers only to update:
+
+    email, full_name, is_active, user_role
+
     '''
+
+    def initialize(self,
+                   fernetkey,
+                   executor,
+                   authnzerver,
+                   basedir,
+                   session_expiry,
+                   siteinfo,
+                   ratelimit,
+                   cachedir,
+                   sitestatic):
+        '''
+        This just sets up some stuff.
+
+        '''
+
+        self.authnzerver = authnzerver
+        self.fernetkey = fernetkey
+        self.ferneter = Fernet(fernetkey)
+        self.executor = executor
+        self.session_expiry = session_expiry
+        self.httpclient = AsyncHTTPClient(force_instance=True)
+        self.siteinfo = siteinfo
+        self.ratelimit = ratelimit
+        self.cachedir = cachedir
+        self.basedir = basedir
+        self.sitestatic = sitestatic
+
+        # initialize this to None
+        # we'll set this later in self.prepare()
+        self.current_user = None
+
+        # apikey verification info
+        self.apikey_verified = False
+        self.apikey_info = None
+
 
     @gen.coroutine
     def post(self):
-        '''This handles the POST to /admin/users and
-        updates the authdb by talking to the authnzerver.
+        '''This handles the POST to /admin/users.
 
         '''
         if not self.current_user:
@@ -639,12 +682,105 @@ class UserAdminHandler(BaseHandler):
         # get the current user
         current_user = self.current_user
 
-        # only allow in superuser roles
-        if current_user and current_user['user_role'] == 'superuser':
+        if current_user and current_user['user_role'] in ('authenticated',
+                                                          'staff',
+                                                          'superuser'):
 
-            # handle the POST
-            # replace below as appropriate
-            pass
+            current_user_id = current_user['user_id']
+            current_user_role = current_user['user_role']
+            current_sessiontoken = current_user['session_token']
+
+            try:
+
+                updatedict = json.loads(
+                    xhtml_escape(
+                        self.get_argument('update')
+                    )
+                )
+
+                reqtype = 'user-edit'
+
+                if current_user_role == 'superuser':
+
+                    target_userid = int(
+                        xhtml_escape(
+                            self.get_argument('target_userid')
+                        )
+                    )
+
+                    reqbody = {
+                        'session_token': current_sessiontoken,
+                        'user_id':current_user_id,
+                        'user_role':current_user_role,
+                        'target_userid':target_userid,
+                        'update_dict':updatedict,
+                    }
+
+                else:
+
+                    target_userid = current_user_id
+
+                    reqbody = {
+                        'session_token': current_sessiontoken,
+                        'user_id':current_user_id,
+                        'user_role':current_user_role,
+                        'target_userid':target_userid,
+                        'update_dict':updatedict
+                    }
+
+                ok, resp, msgs = yield self.authnzerver_request(
+                    reqtype, reqbody
+                )
+
+                # if edit did not succeed, complain
+                if not ok:
+
+                    LOGGER.warning('edit_user: %r initiated by '
+                                   'user_id: %s failed for '
+                                   'user_id: %s' % (list(updatedict.keys()),
+                                                    current_user_id,
+                                                    target_userid))
+                    LOGGER.error(' '.join(msgs))
+
+                    self.set_status(400)
+                    retdict = {
+                        'status':'failed',
+                        'result':None,
+                        'message':("Sorry, editing user information failed.")
+                    }
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+                # if login did succeed, return the updated info
+                else:
+
+                    LOGGER.warning('edit_user: %r initiated by '
+                                   'user_id: %s successful for '
+                                   'user_id: %s' % (list(updatedict.keys()),
+                                                    current_user_id,
+                                                    target_userid))
+
+                    retdict = {
+                        'status':'ok',
+                        'result':resp['user_info'],
+                        'message':("Edit to user information successful.")
+                    }
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+            except Exception as e:
+
+                LOGGER.exception('failed to update user information.')
+
+                self.set_status(400)
+                retdict = {
+                    'status':'failed',
+                    'result':None,
+                    'message':("Invalid input provided for "
+                               "user edit.")
+                }
+                self.write(retdict)
+                raise tornado.web.Finish()
 
         # anything else is probably the locked user, turn them away
         else:
