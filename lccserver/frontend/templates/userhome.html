@@ -15,15 +15,32 @@
     <div class="col-sm-12 col-md-3">
       <h3>User account</h3>
 
-      <ul class="list-unstyled">
+      <form id="userhome-update-details-form" action="/users/home" method="POST">
+
+        <div class="form-group" >
+          <label for="userhome-fullname">Your name</label>
+          <input type="email" class="form-control"
+                 id="userhome-fullname"
+                 placeholder="Type in your full name"
+                 minlength="1" maxlength="1024"
+                 value="{{ current_user['full_name'] }}" required>
+        </div>
+
+        <button type="submit"
+                class="btn btn-outline-secondary btn-sm user-update-submit">
+          Update
+        </button>
+
+      </form>
+
+      <ul class="list-unstyled mt-4">
+        <li><a href="/users/email-change">Change your email address</a></li>
         <li><a href="/users/password-change">Change your password</a></li>
         <li><a href="/users/delete"><span class="text-danger">Delete your account</span></a></li>
       </ul>
 
       <!-- to add later:
-         - update user's full name
          - update user's LCC-Server username (for other people to use with @ to refer to the user when sharing datasets)
-         - update user's email (this will be tricky)
          - update user's visibility to other authenticated users, groups, and the public
       -->
 
