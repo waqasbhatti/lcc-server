@@ -727,6 +727,69 @@ var lcc_ui = {
             lcc_ui.generate_new_apikey('#api-key','#apikey-expiry');
         });
 
+       // handle the site settings update form
+        $('#prefs-update-details-form').on('submit', function (evt) {
+
+            evt.preventDefault();
+
+            // find the updated values
+            let updated_fullname =
+                $('#userhome-fullname').val();
+
+            if (updated_fullname.trim().length == 0) {
+                updated_fullname = null;
+            }
+
+            var posturl = '/users/home';
+            var _xsrf = $('#prefs-update-details-form > input[type="hidden"]').val();
+            var postparams = {
+                _xsrf:_xsrf,
+                updated_fullname: updated_fullname,
+            };
+
+            $.post(posturl, postparams, function (data) {
+
+                var status = data.status;
+                var result = data.result;
+                var message = data.message;
+
+                // if something broke, alert the user
+                if (status != 'ok' || result === null || result.length == 0) {
+                    lcc_ui.alert_box(message, 'danger');
+                }
+
+                // if the update succeeded, inform the user and update the
+                // controls to reflect the new state
+                else if (status == 'ok') {
+
+                    // update the controls
+                    $('#userhome-fullname').val(
+                        result.full_name
+                    );
+                    lcc_ui.alert_box(message, 'info');
+
+                }
+
+          }, 'json').fail(function (xhr) {
+
+                var message = 'Could not update user information, ' +
+                    'something went wrong with the LCC-Server backend.';
+
+                if (xhr.status == 500) {
+                    message = 'Something went wrong with the LCC-Server backend ' +
+                        ' while trying to update user information.';
+                }
+                else if (xhr.status == 400) {
+                    message = 'Invalid input provided in the user ' +
+                        ' update form. Please check and try again.';
+                }
+
+                lcc_ui.alert_box(message, 'danger');
+
+            });
+
+        });
+
 
         /////////////////////////////////
         // SEARCH FORM SUBMIT BINDINGS //

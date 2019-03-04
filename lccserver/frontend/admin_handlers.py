@@ -12,14 +12,12 @@ This contains handlers for the admin interface.
 ####################
 
 import os.path
-import stat
 import os
 
 import logging
-import secrets
 from datetime import datetime
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet
 
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
@@ -629,11 +627,7 @@ class UserAdminHandler(BaseHandler):
     '''
     This handles /admin/users.
 
-    This can be called from /users/home by the user themselves to update:
-
-    email, full_name
-
-    Or can be called from /admin/users by superusers only to update:
+    Called from /admin/users by superusers only to update:
 
     email, full_name, is_active, user_role
 

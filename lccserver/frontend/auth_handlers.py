@@ -1563,6 +1563,125 @@ class UserHomeHandler(BaseHandler):
             self.redirect('/users/login')
 
 
+    @gen.coroutine
+    def post(self):
+        '''This handles submission of the edit user form on the userhome page.
+
+        '''
+        if ((not self.keycheck['status'] == 'ok') or
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+        if ((self.current_user) and
+            (self.current_user['is_active']) and
+            (self.current_user['user_role'] in ('authenticated',
+                                                'superuser',
+                                                'staff')) and
+            (self.current_user['email_verified'])):
+
+            current_user_id = self.current_user['user_id']
+            current_user_role = self.current_user['user_role']
+            current_sessiontoken = self.current_user['session_token']
+
+            try:
+
+                # TODO: add other editeable things here as we make them
+                # available
+                updated_fullname = xhtml_escape(
+                    self.get_argument('updated_fullname')
+                )
+
+                updatedict = {
+                    'full_name':updated_fullname,
+                }
+
+                reqtype = 'user-edit'
+                target_userid = current_user_id
+                reqbody = {
+                    'session_token': current_sessiontoken,
+                    'user_id':current_user_id,
+                    'user_role':current_user_role,
+                    'target_userid':target_userid,
+                    'update_dict':updatedict
+                }
+
+                ok, resp, msgs = yield self.authnzerver_request(
+                    reqtype, reqbody
+                )
+
+                # if edit did not succeed, complain
+                if not ok:
+
+                    LOGGER.warning('edit_user: %r initiated by '
+                                   'user_id: %s failed for '
+                                   'user_id: %s' % (list(updatedict.keys()),
+                                                    current_user_id,
+                                                    target_userid))
+                    LOGGER.error(' '.join(msgs))
+
+                    self.set_status(400)
+                    retdict = {
+                        'status':'failed',
+                        'result':None,
+                        'message':("Sorry, editing user information failed.")
+                    }
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+                # if login did succeed, return the updated info
+                else:
+
+                    LOGGER.warning('edit_user: %r initiated by '
+                                   'user_id: %s successful for '
+                                   'user_id: %s' % (list(updatedict.keys()),
+                                                    current_user_id,
+                                                    target_userid))
+
+                    retdict = {
+                        'status':'ok',
+                        'result':resp['user_info'],
+                        'message':("Edit to user information successful.")
+                    }
+                    self.write(retdict)
+                    self.finish()
+
+            except Exception as e:
+
+                LOGGER.exception('failed to update user information.')
+
+                self.set_status(400)
+                retdict = {
+                    'status':'failed',
+                    'result':None,
+                    'message':("Invalid input provided for "
+                               "user edit.")
+                }
+                self.write(retdict)
+                raise tornado.web.Finish()
+
+        # anything else is probably the locked user, turn them away
+        else:
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
+
 
 ######################
 ## API KEY HANDLING ##

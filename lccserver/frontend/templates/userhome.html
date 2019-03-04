@@ -15,34 +15,44 @@
     <div class="col-sm-12 col-md-3">
       <h3>User account</h3>
 
-      <form id="userhome-update-details-form" action="/users/home" method="POST">
+      <form id="prefs-update-details-form" action="/users/home" method="POST">
+
+        {% module xsrf_form_html() %}
+
+        <!-- to add later:
+           - update user's LCC-Server username (for other people to use with @
+             to refer to the user when sharing datasets)
+           - update user's visibility to other authenticated users,
+             groups, and the public
+        -->
 
         <div class="form-group" >
           <label for="userhome-fullname">Your name</label>
-          <input type="email" class="form-control"
+          <input type="text" class="form-control"
                  id="userhome-fullname"
+                 name="fullname"
                  placeholder="Type in your full name"
                  minlength="1" maxlength="1024"
-                 value="{{ current_user['full_name'] }}" required>
+                 value="{{ current_user['full_name'] }}">
         </div>
 
         <button type="submit"
-                class="btn btn-outline-secondary user-update-submit">
-          Update
+                class="btn btn-outline-secondary" id="user-update-submit">
+          Update your details
         </button>
 
       </form>
 
       <ul class="list-unstyled mt-4">
-        <li><a href="/users/email-change">Change your email address</a></li>
+        <!-- <li><a href="/users/email-change">Change your email address</a></li> -->
         <li><a href="/users/password-change">Change your password</a></li>
-        <li><a href="/users/delete"><span class="text-danger">Delete your account</span></a></li>
+        <li>
+          <a href="/users/delete">
+            <span class="text-danger">Delete your account</span>
+          </a>
+        </li>
       </ul>
 
-      <!-- to add later:
-         - update user's LCC-Server username (for other people to use with @ to refer to the user when sharing datasets)
-         - update user's visibility to other authenticated users, groups, and the public
-      -->
 
     </div>
 
@@ -87,7 +97,9 @@
               </div>
             </fieldset>
 
-            <button type="button" class="mt-2 btn btn-outline-secondary" id="prefs-save">Update preferences</button>
+            <button type="button"
+                    class="mt-2 btn btn-outline-secondary"
+                    id="prefs-save">Update search preferences</button>
 
           </div>
         </div>
@@ -110,9 +122,8 @@
                       rows="9" readonly>
             </textarea>
             <small id="apikey-help-block" class="form-text text-muted">
-              Use the <a href="https://github.com/waqasbhatti/astrobase/blob/2ed4f2faab43f295f82b3b8afbafa7762cfe2f4b/astrobase/services/lccs.py#L303"><code>import_apikey</code></a>
-              function to make this API key available for the search functions in the
-              <a href="https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py"><code>astrobase.services.lccs</code></a> LCC-Server API client Python module. Also see: <a href="/docs/api#api-keys">How to use API keys</a>.
+              See: <a href="/docs/api#api-keys">how to use API keys</a>. If you're using the <a href="https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py"><code>astrobase.services.lccs</code></a> LCC-Server API client Python module, the <a href="https://github.com/waqasbhatti/astrobase/blob/2ed4f2faab43f295f82b3b8afbafa7762cfe2f4b/astrobase/services/lccs.py#L303"><code>import_apikey</code></a>
+              function will make this API key available for all search functions in that module.
             </small>
 
           </div>
@@ -120,7 +131,7 @@
 
         <div class="row mt-2">
           <div class="col-12" >
-            <button type="button" class="btn btn-outline-secondary" id="prefs-generate-apikey">Get new key</button>
+            <button type="button" class="btn btn-outline-secondary" id="prefs-generate-apikey">Get new API key</button>
           </div>
         </div>
 
