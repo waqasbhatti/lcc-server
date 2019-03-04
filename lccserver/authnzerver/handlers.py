@@ -164,8 +164,10 @@ request_functions = {
     'session-new':actions.auth_session_new,
     'session-exists':actions.auth_session_exists,
     'session-delete':actions.auth_session_delete,
+    'session-setinfo':actions.auth_session_set_extrainfo,
     'user-login':actions.auth_user_login,
     'user-logout':actions.auth_user_logout,
+    'user-passcheck': actions.auth_password_check,
     # user actions
     'user-new':actions.create_new_user,
     'user-changepass':actions.change_user_password,

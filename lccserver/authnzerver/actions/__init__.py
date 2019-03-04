@@ -42,6 +42,7 @@ from .email import (
 from .session import (
     auth_session_new,
     auth_session_exists,
+    auth_session_set_extrainfo,
     auth_session_delete,
     auth_user_login,
     auth_user_logout,
