@@ -17,8 +17,8 @@ def get_test_authdb():
 
     '''
 
-    authdb.create_sqlite_auth_db('test-login.authdb.sqlite')
-    authdb.initial_authdb_inserts('sqlite:///test-login.authdb.sqlite')
+    authdb.create_sqlite_auth_db('test-passcheck.authdb.sqlite')
+    authdb.initial_authdb_inserts('sqlite:///test-passcheck.authdb.sqlite')
 
 
 
@@ -29,29 +29,29 @@ def test_passcheck():
     '''
 
     try:
-        os.remove('test-login.authdb.sqlite')
+        os.remove('test-passcheck.authdb.sqlite')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-shm')
+        os.remove('test-passcheck.authdb.sqlite-shm')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-wal')
+        os.remove('test-passcheck.authdb.sqlite-wal')
     except Exception as e:
         pass
 
     get_test_authdb()
 
     # create the user
-    user_payload = {'email':'testuser2@test.org',
+    user_payload = {'email':'testuser-passcheck@test.org',
                     'password':'aROwQin9L8nNtPTEMLXd'}
     user_created = actions.create_new_user(
         user_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-passcheck.authdb.sqlite'
     )
     assert user_created['success'] is True
-    assert user_created['user_email'] == 'testuser2@test.org'
+    assert user_created['user_email'] == 'testuser-passcheck@test.org'
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
 
@@ -67,7 +67,7 @@ def test_passcheck():
     # check creation of session
     session_token1 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-passcheck.authdb.sqlite'
     )
     assert session_token1['success'] is True
     assert session_token1['session_token'] is not None
@@ -77,7 +77,7 @@ def test_passcheck():
         actions.verify_user_email_address(
             {'email':user_payload['email'],
              'user_id': user_created['user_id']},
-            override_authdb_path='sqlite:///test-login.authdb.sqlite'
+            override_authdb_path='sqlite:///test-passcheck.authdb.sqlite'
         )
     )
 
@@ -98,7 +98,7 @@ def test_passcheck():
     # check creation of session
     session_token2 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-passcheck.authdb.sqlite'
     )
     assert session_token2['success'] is True
     assert session_token2['session_token'] is not None
@@ -111,7 +111,7 @@ def test_passcheck():
     pass_check = actions.auth_password_check(
         {'session_token':session_token2['session_token'],
          'password':user_payload['password']},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite',
+        override_authdb_path='sqlite:///test-passcheck.authdb.sqlite',
         raiseonfail=True
     )
     assert pass_check['success'] is True
@@ -121,7 +121,7 @@ def test_passcheck():
     pass_check = actions.auth_password_check(
         {'session_token':session_token2['session_token'],
          'password':'incorrectponylithiumfastener'},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite',
+        override_authdb_path='sqlite:///test-passcheck.authdb.sqlite',
         raiseonfail=True
     )
     assert pass_check['success'] is False
@@ -129,14 +129,14 @@ def test_passcheck():
 
 
     try:
-        os.remove('test-login.authdb.sqlite')
+        os.remove('test-passcheck.authdb.sqlite')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-shm')
+        os.remove('test-passcheck.authdb.sqlite-shm')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-wal')
+        os.remove('test-passcheck.authdb.sqlite-wal')
     except Exception as e:
         pass

@@ -17,8 +17,8 @@ def get_test_authdb():
 
     '''
 
-    authdb.create_sqlite_auth_db('test-login.authdb.sqlite')
-    authdb.initial_authdb_inserts('sqlite:///test-login.authdb.sqlite')
+    authdb.create_sqlite_auth_db('test-sessioninfo.authdb.sqlite')
+    authdb.initial_authdb_inserts('sqlite:///test-sessioninfo.authdb.sqlite')
 
 
 
@@ -29,29 +29,29 @@ def test_sessioninfo():
     '''
 
     try:
-        os.remove('test-login.authdb.sqlite')
+        os.remove('test-sessioninfo.authdb.sqlite')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-shm')
+        os.remove('test-sessioninfo.authdb.sqlite-shm')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-wal')
+        os.remove('test-sessioninfo.authdb.sqlite-wal')
     except Exception as e:
         pass
 
     get_test_authdb()
 
     # create the user
-    user_payload = {'email':'testuser2@test.org',
+    user_payload = {'email':'testuser-sessioninfo@test.org',
                     'password':'aROwQin9L8nNtPTEMLXd'}
     user_created = actions.create_new_user(
         user_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
     assert user_created['success'] is True
-    assert user_created['user_email'] == 'testuser2@test.org'
+    assert user_created['user_email'] == 'testuser-sessioninfo@test.org'
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
 
@@ -67,7 +67,7 @@ def test_sessioninfo():
     # check creation of session
     session_token1 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
     assert session_token1['success'] is True
     assert session_token1['session_token'] is not None
@@ -77,7 +77,7 @@ def test_sessioninfo():
         actions.verify_user_email_address(
             {'email':user_payload['email'],
              'user_id': user_created['user_id']},
-            override_authdb_path='sqlite:///test-login.authdb.sqlite'
+            override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
         )
     )
 
@@ -98,7 +98,7 @@ def test_sessioninfo():
     # check creation of session
     session_token2 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
     assert session_token2['success'] is True
     assert session_token2['session_token'] is not None
@@ -110,7 +110,7 @@ def test_sessioninfo():
     session_info_added = actions.auth_session_set_extrainfo(
         {'session_token':session_token2['session_token'],
          'extra_info':{'this':'is','a':'test'}},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite',
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite',
         raiseonfail=True
     )
 
@@ -125,7 +125,7 @@ def test_sessioninfo():
     # get back the new session info
     info_check = actions.auth_session_exists(
         {'session_token':session_token2['session_token']},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
 
     assert info_check['success'] is True
@@ -137,14 +137,14 @@ def test_sessioninfo():
     assert info_check['session_info']['extra_info_json']['a'] == 'test'
 
     try:
-        os.remove('test-login.authdb.sqlite')
+        os.remove('test-sessioninfo.authdb.sqlite')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-shm')
+        os.remove('test-sessioninfo.authdb.sqlite-shm')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-wal')
+        os.remove('test-sessioninfo.authdb.sqlite-wal')
     except Exception as e:
         pass
