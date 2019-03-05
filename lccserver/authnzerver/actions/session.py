@@ -694,7 +694,7 @@ def auth_password_check(payload,
                 users.c.user_role,
             ]).select_from(
                 users
-            ).where(users.c.user_id == session_info['user_id'])
+            ).where(users.c.user_id == session_info['session_info']['user_id'])
             user_results = currproc.connection.execute(user_sel)
             user_info = user_results.fetchone()
             user_results.close()
