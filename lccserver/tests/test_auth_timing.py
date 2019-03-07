@@ -15,6 +15,8 @@ import secrets
 import numpy as np
 from numpy.testing import assert_allclose
 
+import multiprocessing as mp
+
 from pytest import mark
 
 def get_test_authdb():
