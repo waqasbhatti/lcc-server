@@ -9,7 +9,7 @@ from lccserver.authnzerver import authdb, actions
 import os.path
 import os
 from datetime import datetime, timedelta
-
+import multiprocessing as mp
 
 
 def get_test_authdb():
@@ -142,6 +142,18 @@ def test_login():
         override_authdb_path='sqlite:///test-login.authdb.sqlite'
     )
     assert login['success'] is False
+
+    currproc = mp.current_process()
+    if getattr(currproc, 'table_meta', None):
+        del currproc.table_meta
+
+    if getattr(currproc, 'connection', None):
+        currproc.connection.close()
+        del currproc.connection
+
+    if getattr(currproc, 'engine', None):
+        currproc.engine.dispose()
+        del currproc.engine
 
     try:
         os.remove('test-login.authdb.sqlite')
