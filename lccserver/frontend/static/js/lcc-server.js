@@ -3882,10 +3882,10 @@ var lcc_datasets = {
                 next_lcfname = data.rows[rowind+1][colind_lcfname];
             }
 
-            // FIXME: FIXME: FIXME: use this to implement the next/prev object links
-            // FIXME: FIXME: FIXME: add a back to original object button to modal bottom
-            // FIXME: FIXME: FIXME: disable next/prev links after clicking on neighbors
-            // FIXME: FIXME: FIXME: implement a full neighbors tab
+            // FIXME: use this to implement the next/prev object links
+            // FIXME: add a back to original object button to modal bottom
+            // FIXME: disable next/prev links after clicking on neighbors
+            // FIXME: implement a full neighbors tab
 
             // store these values in the lcc_datasets object
             lcc_datasets.objectid_map[thisrow[colind_objectid]] = {
@@ -4061,7 +4061,8 @@ var lcc_datasets = {
                 );
 
                 // parse and display the dataset owner
-                if (data.owned) {
+                if (data.owned ||
+                    (data.editable !== undefined && data.editable === true)) {
 
                     let visibility_controls = `
 <details>
@@ -4115,11 +4116,28 @@ var lcc_datasets = {
 </div>
 </details>
 `;
-                    $('#owner-label').html(
-                        '<span class="text-success">' +
-                            'You own this dataset. You can ' +
-                            'edit its metadata and set its visibility.</span>'
-                    );
+                    if (data.owned) {
+
+                        $('#owner-label').html(
+                            '<span class="text-success">' +
+                                'You own this dataset. You can ' +
+                                'edit its metadata and set its visibility.</span>'
+                        );
+
+                    }
+                    else if (data.editable !== undefined &&
+                             data.editable === true) {
+
+                        $('#owner-label').html(
+                            data.owner + ' ' +
+                            '<span class="text-success">(' +
+                                'As superuser or staff, you can ' +
+                                'edit this dataset\'s metadata and ' +
+                                'set its visibility.)</span>'
+                        );
+
+                    }
+
                     $('#visibility-label').html(visibility_controls);
                     $('#dataset-visibility-select').val(data.visibility);
                     $('#dataset-name').html(name_controls);
