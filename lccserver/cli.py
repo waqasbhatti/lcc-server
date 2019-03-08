@@ -243,18 +243,18 @@ def prepare_basedir(basedir,
         # write the email secrets file to the basedir
         with open(os.path.join(basedir,'.lccserver.secret-email'),
                   'w') as outfd:
-            json.dump(emailsettings, outfd, indent=2)
+            json.dump(emailsettings, outfd, indent=4)
         # chmod this file to 600
-        os.chmod(os.path.join(basedir,'.lccserver.secret-email'), 0o100600)
+        os.chmod(os.path.join(basedir,'.lccserver.secret-email'), 0o100400)
 
         # update the site-info.json with the location of the email secrets file
         siteinfo["email_settings_file"] = (
-            os.path.abspath(os.path.join(basedir,'.lccserver-secret-email'))
+            os.path.abspath(os.path.join(basedir,'.lccserver.secret-email'))
         )
 
         # write site-info.json to the basedir
         with open(os.path.join(basedir,'site-info.json'),'w') as outfd:
-            json.dump(siteinfo, outfd, indent=2)
+            json.dump(siteinfo, outfd, indent=4)
 
         # chmod this file to 600
         os.chmod(os.path.join(basedir,'site-info.json'), 0o100600)
@@ -280,7 +280,7 @@ def prepare_basedir(basedir,
                     "lcformat": "Light curve columns and metadata description"}
 
         with open(os.path.join(basedir,'docs','doc-index.json'),'w') as outfd:
-            json.dump(docindex, outfd, indent=2)
+            json.dump(docindex, outfd, indent=4)
 
         with open(os.path.join(basedir,'docs','citation.md'),'w') as outfd:
             outfd.write(
@@ -355,7 +355,7 @@ def prepare_basedir(basedir,
         else:
 
             creds = os.path.join(basedir,
-                                 '.lccserver-admin-credentials')
+                                 '.lccserver.admin-credentials')
             with open(creds,'w') as outfd:
                 outfd.write('%s %s\n' % (u,p))
                 os.chmod(creds, 0o100400)
@@ -531,7 +531,8 @@ def convert_original_lightcurves(basedir,
                                  csvlc_version=1,
                                  comment_char='#',
                                  column_separator=',',
-                                 skip_converted=True):
+                                 skip_converted=True,
+                                 max_lcs=None):
     '''This converts original format light curves to the common LCC CSV format.
 
     This is optional since the LCC-Server can do this conversion on-the-fly if
@@ -597,9 +598,14 @@ def convert_original_lightcurves(basedir,
             input_lcdir = os.path.join(basedir, collection_id, 'lightcurves')
 
         # list the light curves using the fileglob for this LC format
-        input_lclist = glob.glob(
-            os.path.join(input_lcdir, lcformatdict['fileglob'])
+        input_lclist = sorted(
+            glob.glob(
+                os.path.join(input_lcdir, lcformatdict['fileglob'])
+            )
         )
+
+        if max_lcs is not None:
+            input_lclist = input_lclist[:max_lcs]
 
         if len(input_lclist) == 0:
 
