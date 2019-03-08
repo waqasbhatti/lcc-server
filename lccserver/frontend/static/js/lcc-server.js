@@ -1657,6 +1657,16 @@ var lcc_ui = {
 
         });
 
+        // this handles changing dataset owners
+        $('.accordion').on('click', '#owner-label-submit', function (evt) {
+
+            lcc_datasets.change_dataset_owner(
+                lcc_datasets.setid,
+                $('#owner-label-inputbox').val()
+            );
+
+        });
+
 
         ////////////////////////////////////////
         // OBJECTINFO POPUP AND PAGE BINDINGS //
@@ -4116,7 +4126,32 @@ var lcc_datasets = {
 </div>
 </details>
 `;
-                    if (data.owned) {
+
+                    // if we can edit this DS, we can set its owner.
+                    if (data.editable !== undefined && data.editable === true) {
+
+                        let owner_controls = `
+<details>
+<summary>Dataset is currently owned by user ID: ${data.owner}</summary>
+<div class="form-inline">
+  <input type="text" class="form-control" id="owner-label-inputbox"
+         value="${data.owner}"
+         placeholder="Type in user ID of new owner."
+         maxlength="10" minlength="1" required>
+  <button class="ml-2 btn btn-outline-success"
+          type="button" id="owner-label-submit">Update owner</button>
+</div>
+</details>
+`;
+
+                        $('#owner-label').html(
+                            owner_controls
+                        );
+
+                    }
+
+                    // otherwise, if we own this dataset, show that we do.
+                    else if (data.owned) {
 
                         $('#owner-label').html(
                             '<span class="text-success">' +
@@ -4125,18 +4160,7 @@ var lcc_datasets = {
                         );
 
                     }
-                    else if (data.editable !== undefined &&
-                             data.editable === true) {
 
-                        $('#owner-label').html(
-                            data.owner + ' ' +
-                            '<span class="text-success">(' +
-                                'As superuser or staff, you can ' +
-                                'edit this dataset\'s metadata and ' +
-                                'set its visibility.)</span>'
-                        );
-
-                    }
 
                     $('#visibility-label').html(visibility_controls);
                     $('#dataset-visibility-select').val(data.visibility);
@@ -4398,6 +4422,68 @@ var lcc_datasets = {
     },
 
 
+    // this changes a dataset's owner
+    change_dataset_owner: function (setid, new_owner) {
+
+        var posturl = '/set/' + setid;
+        var _xsrf = $('#dataset-edit-form > input[type="hidden"]').val();
+        var postparams = {
+            _xsrf: _xsrf,
+            action: 'change_owner',
+            update: JSON.stringify({new_owner_userid: parseInt(new_owner)})
+        };
+
+        $.post(posturl, postparams, function (data) {
+
+            var result = data.result;
+            var message = data.message;
+            var status = data.status;
+
+            if (status == 'ok') {
+
+                // update the dataset's name
+                $('#owner-label > details > summary').html(
+                    'Dataset is currently owned by user ID: ' + result
+                );
+                $('#owner-label-inputbox').val(result);
+
+                var last_updated = data.date;
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
+            }
+
+            else {
+
+                lcc_ui.alert_box(message, 'danger');
+
+                // clear out the loading indicators at the end
+                $('#setload-icon').empty();
+                $('#setload-indicator').empty();
+
+            }
+
+        },'json').fail(function (xhr) {
+
+            var message = 'Could not edit this dataset.';
+
+            if (xhr.status == 500) {
+                message = 'Something went wrong with the LCC-Server backend ' +
+                    'while trying to fetch this dataset.';
+            }
+
+            lcc_ui.alert_box(message, 'danger');
+
+            // clear out the loading indicators at the end
+            $('#setload-icon').empty();
+            $('#setload-indicator').empty();
+
+        });
+
+    },
+
+
     // this edits a dataset's name
     edit_dataset_name: function (setid, new_name) {
 
@@ -4468,7 +4554,7 @@ var lcc_datasets = {
 
     },
 
-    // this edits a dataset's name
+    // this edits a dataset's description
     edit_dataset_description: function (setid, new_description) {
 
         var posturl = '/set/' + setid;
@@ -4529,7 +4615,7 @@ var lcc_datasets = {
 
     },
 
-    // this edits a dataset's name
+    // this edits a dataset's citation
     edit_dataset_citation: function (setid, new_citation) {
 
         var posturl = '/set/' + setid;

@@ -369,6 +369,9 @@ class DatasetHandler(BaseHandler):
                 ds['owned'] = True
                 access_ok = True
 
+                if self.current_user['user_role'] in ('staff','superuser'):
+                    ds['editable'] = True
+
             # otherwise, if the current user's session_token matches the
             # session_token used to create the dataset, they're the
             # owner.
@@ -685,6 +688,9 @@ class DatasetHandler(BaseHandler):
 
                 ds['owned'] = True
                 access_ok = True
+
+                if self.current_user['user_role'] in ('staff','superuser'):
+                    ds['editable'] = True
 
             # otherwise, if the current user's session_token matches the
             # session_token used to create the dataset, they're the
