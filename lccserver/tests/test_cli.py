@@ -495,8 +495,16 @@ def test_augcat_kdtree_databases():
     - adds checkplot info to LC catalog -> augmented LC catalog
     - generates KD-Tree
     - generates objectinfo SQLite DB.
-
     - generates the LCC-Server databases and adds collection to them
+
+    NOTE: it appears this crashes on MacOS 10.13+ when run as part of the full
+    pytest suite. Doesn't crash when:
+    `pytest test_cli.py::test_augcat_kdtree_databases` is called in isolation.
+    Works fine both ways on Linux. Another WTF courtesy of Apple.
+
+    Possibly related:
+
+    - http://sealiesoftware.com/blog/archive/2017/6/5/Objective-C_and_fork_in_macOS_1013.html
 
     '''
 
@@ -624,6 +632,12 @@ def test_augcat_kdtree_databases():
 
     # make checkplots now
     from astrobase.lcproc.checkplotgen import parallel_cp
+
+    import sys
+    if sys.platform == 'darwin':
+        import requests
+        requests.get('http://captive.apple.com/hotspot-detect.html')
+
     parallel_cp(
         pfpickles,
         os.path.join(collection_subdir,'checkplots'),
