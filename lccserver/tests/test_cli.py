@@ -697,7 +697,7 @@ def test_augcat_kdtree_databases():
 
 
 
-def test_lccserver_works():
+def test_lccserver_runs():
     '''This tests if the LCC-Server starts and listens on the expected ports.
 
     - runs all steps in test_lcc_server_databases
