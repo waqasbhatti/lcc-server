@@ -26,6 +26,7 @@ import stat
 import os
 import mimetypes
 import re
+from hmac import compare_digest
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -82,7 +83,7 @@ LOGGER = logging.getLogger(__name__)
 import tornado.web
 from tornado.escape import utf8, native_str
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
-from tornado.web import _time_independent_equals, HTTPError
+from tornado.web import HTTPError
 from tornado import gen
 from tornado import httputil, iostream
 from tornado.log import gen_log
@@ -782,8 +783,7 @@ class BaseHandler(tornado.web.RequestHandler):
             return retdict
 
 
-        if not _time_independent_equals(utf8(token),
-                                        utf8(expected_token)):
+        if not compare_digest(utf8(token), utf8(expected_token)):
 
             retdict = {
                 'status':'failed',
