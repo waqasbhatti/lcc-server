@@ -1851,7 +1851,7 @@ def main():
                 lcformat=lcform['formatkey'],
                 pfmethods=('gls','bls','pdm'),
                 pfkwargs=({},{'startp':1.0,'endp':100.0},{}),
-                getblssnr=True
+                getblssnr=False
             )
             print('Done.\n')
 
