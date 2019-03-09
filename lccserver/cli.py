@@ -1785,6 +1785,7 @@ def main():
             normfunc=lcform['parsed_formatinfo']['normfunc'],
             normfunc_kwargs=lcform['parsed_formatinfo']['normfunc_kwargs'],
             magsarefluxes=lcform['magsarefluxes'],
+            overwrite_existing=True
         )
 
         lclpkl = make_lclist(
