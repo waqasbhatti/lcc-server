@@ -7,6 +7,16 @@ forms the basis for the [HAT data server](https://data.hatsurveys.org). See the
 [installation notes](#installation) notes below for how to install and configure
 the server.
 
+- [Features](#features)
+- [Installation](#installation)
+- [Using the server](#using-the-server)
+- [Documentation](#documentation)
+- [Screenshots](#screenshots)
+- [License](#license)
+
+
+## Features
+
 LCC-Server includes the following functionality:
 
 - collection of light curves from various projects into a single output format
@@ -21,9 +31,10 @@ LCC-Server includes the following functionality:
     e.g. `objectid`, magnitudes, colors, proper motions, variability and object
     type tags, variability indices, etc.
   - cross-matching to uploaded object lists with object IDs and coordinates
-- HTTP API for generating datasets from search results asychronously, caching
-  results from searches, and generating output zip bundles containing search
-  results and all matching light curves
+- HTTP API for generating datasets from search results asychronously and
+  interactive frontend for browsing these, caching results from searches, and
+  generating output zip bundles containing search results and all matching light
+  curves
 - HTTP API for detailed information per object, including light curve plots,
   external catalog info, and period-finding results plus phased LCs if available
 - Access controls for all generated datasets, and support for user sign-ins and
@@ -71,12 +82,14 @@ particular, you will need to set up a base directory where LCC-Server can work
 from and various sub-directories.
 
 To make this process easier, there's an interactive CLI available when you
-install LCC-Server. This will be in your `$PATH` as [`lcc-server`](https://github.com/waqasbhatti/lcc-server/blob/master/lccserver/cli.py).
+install LCC-Server. This will be in your `$PATH` as
+[`lcc-server`](https://github.com/waqasbhatti/lcc-server/blob/master/lccserver/cli.py).
 
 A Jupyter notebook walkthough using this CLI to stand up an LCC-Server instance,
 with example light curves, can be found in the **astrobase-notebooks** repo:
 [lcc-server-setup.ipynb](https://github.com/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)
-([Jupyter nbviewer](https://nbviewer.jupyter.org/github/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)).
+([Jupyter
+nbviewer](https://nbviewer.jupyter.org/github/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)).
 
 
 ## Documentation
