@@ -24,11 +24,9 @@ import sys
 import socket
 import json
 
-# this handles async background stuff
-from concurrent.futures import ProcessPoolExecutor
 
 # setup signal trapping on SIGINT
-def recv_sigint(signum, stack):
+def _recv_sigint(signum, stack):
     '''
     handler function to receive and process a SIGINT
 
@@ -142,6 +140,21 @@ define('sessionexpiry',
        help=('This tells the lcc-server the session-expiry time in days.'),
        type=int)
 
+
+#
+# worker set up for the pool
+#
+def setup_worker():
+    '''This sets up the processpoolexecutor worker to ignore SIGINT.
+
+    Makes for a cleaner shutdown.
+
+    '''
+    # unregister interrupt signals so they don't get to the worker
+    # and the executor can kill them cleanly (hopefully)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 ############
 ### MAIN ###
 ############
@@ -169,8 +182,11 @@ def main():
     from . import dataserver_handlers as dh
     from . import objectserver_handlers as oh
     from . import auth_handlers as ah
+    from . import admin_handlers as admin
     from .basehandler import AuthEnabledStaticHandler
     from ..authnzerver import authdb
+
+    from ..utils import ProcExecutor
 
 
     ####################################
@@ -272,9 +288,17 @@ def main():
         else:
             LOGGER.warning('Site info: no email server is set up.')
             SITEINFO['email_server'] = None
+            SITEINFO['email_sender'] = None
+            SITEINFO['email_port'] = 25
+            SITEINFO['email_user'] = None
+            SITEINFO['email_pass'] = None
     else:
         LOGGER.warning('Site info: no email server is set up.')
         SITEINFO['email_server'] = None
+        SITEINFO['email_sender'] = None
+        SITEINFO['email_port'] = 25
+        SITEINFO['email_user'] = None
+        SITEINFO['email_pass'] = None
 
 
     # get the user login settings
@@ -366,7 +390,9 @@ def main():
     ## PERSISTENT BACKGROUND EXECUTOR ##
     ####################################
 
-    EXECUTOR = ProcessPoolExecutor(MAXWORKERS)
+    EXECUTOR = ProcExecutor(max_workers=MAXWORKERS,
+                            initializer=setup_worker,
+                            initargs=())
 
 
     ##################
@@ -394,6 +420,61 @@ def main():
           'ratelimit':RATELIMIT,
           'cachedir':CACHEDIR,
           'footprint_svg':footprint_svg}),
+
+        #########################
+        ## ADMIN RELATED PAGES ##
+        #########################
+
+        # this is the main admin page
+        (r'/admin',
+         admin.AdminIndexHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'basedir':BASEDIR,
+          'authnzerver':AUTHNZERVER,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR}),
+
+        # this is the site settings update handler
+        (r'/admin/site',
+         admin.SiteSettingsHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'basedir':BASEDIR,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR,
+          'sitestatic':SITE_STATIC}),
+
+        # this is the email settings update handler
+        (r'/admin/email',
+         admin.EmailSettingsHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'basedir':BASEDIR,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR,
+          'sitestatic':SITE_STATIC}),
+
+        # this is the user info update handler
+        (r'/admin/users',
+         admin.UserAdminHandler,
+         {'fernetkey':FERNETSECRET,
+          'executor':EXECUTOR,
+          'authnzerver':AUTHNZERVER,
+          'basedir':BASEDIR,
+          'session_expiry':SESSION_EXPIRY,
+          'siteinfo':SITEINFO,
+          'ratelimit':RATELIMIT,
+          'cachedir':CACHEDIR,
+          'sitestatic':SITE_STATIC}),
 
         ########################
         ## AUTH RELATED PAGES ##
@@ -868,8 +949,8 @@ def main():
     LOGGER.info('The current base directory is: %s' % os.path.abspath(BASEDIR))
 
     # register the signal callbacks
-    signal.signal(signal.SIGINT,recv_sigint)
-    signal.signal(signal.SIGTERM,recv_sigint)
+    signal.signal(signal.SIGINT,_recv_sigint)
+    signal.signal(signal.SIGTERM,_recv_sigint)
 
     # start the IOLoop and begin serving requests
     try:

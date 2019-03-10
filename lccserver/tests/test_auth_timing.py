@@ -15,6 +15,8 @@ import secrets
 import numpy as np
 from numpy.testing import assert_allclose
 
+import multiprocessing as mp
+
 from pytest import mark
 
 def get_test_authdb():
@@ -268,6 +270,18 @@ def test_login_timing():
     assert_allclose(correct_median, incorrect_median, atol=7.0e-3)
     assert_allclose(correct_median, broken_median, atol=7.0e-3)
     assert_allclose(correct_median, wronguser_median, atol=7.0e-3)
+
+    currproc = mp.current_process()
+    if getattr(currproc, 'table_meta', None):
+        del currproc.table_meta
+
+    if getattr(currproc, 'connection', None):
+        currproc.connection.close()
+        del currproc.connection
+
+    if getattr(currproc, 'engine', None):
+        currproc.engine.dispose()
+        del currproc.engine
 
     try:
         os.remove('test-timing.authdb.sqlite')

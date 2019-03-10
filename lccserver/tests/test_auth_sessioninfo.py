@@ -17,41 +17,41 @@ def get_test_authdb():
 
     '''
 
-    authdb.create_sqlite_auth_db('test-login.authdb.sqlite')
-    authdb.initial_authdb_inserts('sqlite:///test-login.authdb.sqlite')
+    authdb.create_sqlite_auth_db('test-sessioninfo.authdb.sqlite')
+    authdb.initial_authdb_inserts('sqlite:///test-sessioninfo.authdb.sqlite')
 
 
 
-def test_login():
+def test_sessioninfo():
     '''
-    This tests if we can log in successfully or fail correctly.
+    This tests if we can add session info to a session dict.
 
     '''
 
     try:
-        os.remove('test-login.authdb.sqlite')
+        os.remove('test-sessioninfo.authdb.sqlite')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-shm')
+        os.remove('test-sessioninfo.authdb.sqlite-shm')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-wal')
+        os.remove('test-sessioninfo.authdb.sqlite-wal')
     except Exception as e:
         pass
 
     get_test_authdb()
 
     # create the user
-    user_payload = {'email':'testuser2@test.org',
+    user_payload = {'email':'testuser-sessioninfo@test.org',
                     'password':'aROwQin9L8nNtPTEMLXd'}
     user_created = actions.create_new_user(
         user_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
     assert user_created['success'] is True
-    assert user_created['user_email'] == 'testuser2@test.org'
+    assert user_created['user_email'] == 'testuser-sessioninfo@test.org'
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
 
@@ -67,28 +67,17 @@ def test_login():
     # check creation of session
     session_token1 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
     assert session_token1['success'] is True
     assert session_token1['session_token'] is not None
-
-    # try logging in now with correct password
-    login = actions.auth_user_login(
-        {'session_token':session_token1['session_token'],
-         'email': user_payload['email'],
-         'password':user_payload['password']},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
-    )
-
-    # this should fail because we haven't verified our email yet
-    assert login['success'] is False
 
     # verify our email
     emailverify = (
         actions.verify_user_email_address(
             {'email':user_payload['email'],
              'user_id': user_created['user_id']},
-            override_authdb_path='sqlite:///test-login.authdb.sqlite'
+            override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
         )
     )
 
@@ -109,39 +98,43 @@ def test_login():
     # check creation of session
     session_token2 = actions.auth_session_new(
         session_payload,
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
     assert session_token2['success'] is True
     assert session_token2['session_token'] is not None
 
-    # and now try to log in again
-    login = actions.auth_user_login(
+    #
+    # now try to add info to the session
+    #
+
+    session_info_added = actions.auth_session_set_extrainfo(
         {'session_token':session_token2['session_token'],
-         'email': user_payload['email'],
-         'password':user_payload['password']},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+         'extra_info':{'this':'is','a':'test'}},
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite',
+        raiseonfail=True
     )
 
-    assert login['success'] is True
-
-    # try logging in now with the wrong password
-    login = actions.auth_user_login(
-        {'session_token':session_token2['session_token'],
-         'email': user_payload['email'],
-         'password':'helloworld'},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+    assert session_info_added['success'] is True
+    assert isinstance(
+        session_info_added['session_info']['extra_info_json'],
+        dict
     )
-    assert login['success'] is False
+    assert session_info_added['session_info']['extra_info_json']['this'] == 'is'
+    assert session_info_added['session_info']['extra_info_json']['a'] == 'test'
 
-
-    # tests for no session token provided
-    login = actions.auth_user_login(
-        {'session_token':'correcthorsebatterystaple',
-         'email': user_payload['email'],
-         'password':user_payload['password']},
-        override_authdb_path='sqlite:///test-login.authdb.sqlite'
+    # get back the new session info
+    info_check = actions.auth_session_exists(
+        {'session_token':session_token2['session_token']},
+        override_authdb_path='sqlite:///test-sessioninfo.authdb.sqlite'
     )
-    assert login['success'] is False
+
+    assert info_check['success'] is True
+    assert isinstance(
+        info_check['session_info']['extra_info_json'],
+        dict
+    )
+    assert info_check['session_info']['extra_info_json']['this'] == 'is'
+    assert info_check['session_info']['extra_info_json']['a'] == 'test'
 
     currproc = mp.current_process()
     if getattr(currproc, 'table_meta', None):
@@ -156,14 +149,14 @@ def test_login():
         del currproc.engine
 
     try:
-        os.remove('test-login.authdb.sqlite')
+        os.remove('test-sessioninfo.authdb.sqlite')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-shm')
+        os.remove('test-sessioninfo.authdb.sqlite-shm')
     except Exception as e:
         pass
     try:
-        os.remove('test-login.authdb.sqlite-wal')
+        os.remove('test-sessioninfo.authdb.sqlite-wal')
     except Exception as e:
         pass

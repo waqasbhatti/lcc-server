@@ -243,18 +243,18 @@ def prepare_basedir(basedir,
         # write the email secrets file to the basedir
         with open(os.path.join(basedir,'.lccserver.secret-email'),
                   'w') as outfd:
-            json.dump(emailsettings, outfd, indent=2)
+            json.dump(emailsettings, outfd, indent=4)
         # chmod this file to 600
-        os.chmod(os.path.join(basedir,'.lccserver.secret-email'), 0o100600)
+        os.chmod(os.path.join(basedir,'.lccserver.secret-email'), 0o100400)
 
         # update the site-info.json with the location of the email secrets file
         siteinfo["email_settings_file"] = (
-            os.path.abspath(os.path.join(basedir,'.lccserver-secret-email'))
+            os.path.abspath(os.path.join(basedir,'.lccserver.secret-email'))
         )
 
         # write site-info.json to the basedir
         with open(os.path.join(basedir,'site-info.json'),'w') as outfd:
-            json.dump(siteinfo, outfd, indent=2)
+            json.dump(siteinfo, outfd, indent=4)
 
         # chmod this file to 600
         os.chmod(os.path.join(basedir,'site-info.json'), 0o100600)
@@ -280,7 +280,7 @@ def prepare_basedir(basedir,
                     "lcformat": "Light curve columns and metadata description"}
 
         with open(os.path.join(basedir,'docs','doc-index.json'),'w') as outfd:
-            json.dump(docindex, outfd, indent=2)
+            json.dump(docindex, outfd, indent=4)
 
         with open(os.path.join(basedir,'docs','citation.md'),'w') as outfd:
             outfd.write(
@@ -355,7 +355,7 @@ def prepare_basedir(basedir,
         else:
 
             creds = os.path.join(basedir,
-                                 '.lccserver-admin-credentials')
+                                 '.lccserver.admin-credentials')
             with open(creds,'w') as outfd:
                 outfd.write('%s %s\n' % (u,p))
                 os.chmod(creds, 0o100400)
@@ -531,7 +531,8 @@ def convert_original_lightcurves(basedir,
                                  csvlc_version=1,
                                  comment_char='#',
                                  column_separator=',',
-                                 skip_converted=True):
+                                 skip_converted=True,
+                                 max_lcs=None):
     '''This converts original format light curves to the common LCC CSV format.
 
     This is optional since the LCC-Server can do this conversion on-the-fly if
@@ -597,9 +598,14 @@ def convert_original_lightcurves(basedir,
             input_lcdir = os.path.join(basedir, collection_id, 'lightcurves')
 
         # list the light curves using the fileglob for this LC format
-        input_lclist = glob.glob(
-            os.path.join(input_lcdir, lcformatdict['fileglob'])
+        input_lclist = sorted(
+            glob.glob(
+                os.path.join(input_lcdir, lcformatdict['fileglob'])
+            )
         )
+
+        if max_lcs is not None:
+            input_lclist = input_lclist[:max_lcs]
 
         if len(input_lclist) == 0:
 
@@ -841,7 +847,7 @@ def generate_augmented_lclist_catalog(
     collection_id is the directory name of the collection you want to process
 
     lclist_pkl is the path to the original list catalog pickle created for the
-    light curves in the collection using astrobase.lcproc.make_lclist
+    light curves in the collection using astrobase.lcproc.catalogs.make_lclist.
 
     magcol is the LC magnitude column being used in the checkplots' feature
     keys. This will be added as a prefix to the infokeys.
@@ -852,7 +858,7 @@ def generate_augmented_lclist_catalog(
     infokeys is a list of key specs to extract from each checkplot. the provided
     list is a good default and should contain the most useful keys from
     checkplots generated using astrobase.checkplot.checkplot_pickle or
-    astrobase.lcproc.runcp.
+    astrobase.lcproc.checkplotgen.runcp.
 
     key specs are tuples of the form:
 
@@ -1779,6 +1785,7 @@ def main():
             normfunc=lcform['parsed_formatinfo']['normfunc'],
             normfunc_kwargs=lcform['parsed_formatinfo']['normfunc_kwargs'],
             magsarefluxes=lcform['magsarefluxes'],
+            overwrite_existing=True
         )
 
         lclpkl = make_lclist(
@@ -1844,7 +1851,7 @@ def main():
                 lcformat=lcform['formatkey'],
                 pfmethods=('gls','bls','pdm'),
                 pfkwargs=({},{'startp':1.0,'endp':100.0},{}),
-                getblssnr=True
+                getblssnr=False
             )
             print('Done.\n')
 

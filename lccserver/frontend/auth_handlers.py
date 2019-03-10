@@ -398,13 +398,14 @@ class NewUserHandler(BaseHandler):
             )
 
             # get this LCC-Server's base URL
-            lccserver_baseurl = '%s://%s' % (self.request.protocol,
-                                             self.request.host)
+            server_baseurl = '%s://%s' % (self.request.protocol,
+                                          self.request.host)
 
             ok, resp, msgs = yield self.authnzerver_request(
                 'user-signup-email',
                 {'email_address':email,
-                 'lccserver_baseurl':lccserver_baseurl,
+                 'server_baseurl':server_baseurl,
+                 'server_name':'LCC-Server',
                  'session_token':current_user['session_token'],
                  'smtp_server':smtp_server,
                  'smtp_sender':smtp_sender,
@@ -741,14 +742,15 @@ class ForgotPassStep1Handler(BaseHandler):
                     )
 
                     # get this LCC-Server's base URL
-                    lccserver_baseurl = '%s://%s' % (self.request.protocol,
-                                                     self.request.host)
+                    server_baseurl = '%s://%s' % (self.request.protocol,
+                                                  self.request.host)
 
                     ok, resp, msgs = yield self.authnzerver_request(
                         'user-forgotpass-email',
                         {'email_address':email_address,
                          'fernet_verification_token':fernet_verification_token,
-                         'lccserver_baseurl':lccserver_baseurl,
+                         'server_baseurl':server_baseurl,
+                         'server_name':'LCC-Server',
                          'session_token':current_user['session_token'],
                          'smtp_server':smtp_server,
                          'smtp_sender':smtp_sender,
@@ -1064,6 +1066,294 @@ class ChangePassHandler(BaseHandler):
 
 
 
+class ChangeEmailStep1Handler(BaseHandler):
+    '''This handles /users/email-change-step1.
+
+    The first step asks the user to type in their current email address, their
+    password, and their new email address. We will then send emails to both
+    their old and new addresses with different verification tokens if the
+    current email and password match to what's on file. If the old email and
+    password don't match what's on file, we'll show an error.
+
+    The second step asks for both of these verification tokens. If they match
+    the ones we sent out, we'll change the user's email address and redirect
+    them to /users/home.
+
+    FIXME: this will involve storing new and old emails and the verification
+    tokens sent to either of them in the session extra_info_json column. Need to
+    write an authnzerver function for that and use it here. Step 2 can then look
+    up the session's info, grab the verification tokens from there, then wipe
+    them. Will write a function that does `update_session_extra_info()` or
+    some-such and attach it to the `session-edit` authnzerver request.
+
+    '''
+
+    @gen.coroutine
+    def get(self):
+        '''This handles an email address change request
+        from a logged-in only user.
+
+        '''
+
+        current_user = self.current_user
+
+        # only proceed to password change if the user is active and logged in
+        if (current_user and
+            (current_user['user_role'] in
+             ('authenticated','staff','superuser')) and
+            current_user['is_active'] and
+            current_user['email_verified']):
+
+            # then, we'll render the verification form.
+            self.render('emailchange-step1.html',
+                        user_account_box=self.render_user_account_box(),
+                        flash_messages=self.render_flash_messages(),
+                        page_title="Change your password",
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo)
+
+        # otherwise, tell the user that their password forgotten request is
+        # invalid and redirect them to the login page
+        else:
+
+            self.save_flash_messages(
+                "Sign in with your existing account credentials. "
+                "If you do not have a user account, "
+                "please <a href=\"/users/new\">sign up</a>.",
+                "primary"
+            )
+            self.redirect('/users/login')
+
+
+
+    @gen.coroutine
+    def post(self):
+        '''This handles submission of the email change step-1 form.
+
+        '''
+
+        if not self.current_user:
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') or
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
+        if ((self.current_user) and
+            (self.current_user['is_active']) and
+            (self.current_user['user_role'] in ('authenticated',
+                                                'superuser',
+                                                'staff')) and
+            (self.current_user['email_verified'])):
+
+            try:
+
+                curr_email = xhtml_escape(self.get_argument('curremail'))
+                password = self.get_argument('password')
+                new_email = self.get_argument('newemail')
+
+                verify_ok, resp, msgs = yield self.authnzerver_request(
+                    'user-changeemail',
+                    {'user_id':self.current_user['user_id'],
+                     'current_email': curr_email,
+                     'password':password,
+                     'new_email':new_email}
+                )
+
+                if verify_ok:
+
+                    self.save_flash_messages(
+                        "We have sent emails to your current AND "
+                        "new email addresses containing verification tokens. "
+                        "Please enter these below to verify your email "
+                        "address change.",
+                        'primary',
+                    )
+                    self.redirect('/users/email-change-step2')
+
+                else:
+
+                    self.save_flash_messages(
+                        msgs,
+                        'warning',
+                    )
+                    self.redirect('/users/email-change-step1')
+
+
+            except Exception as e:
+
+                self.save_flash_messages(
+                    "We could not validate the email change request form. "
+                    "All fields are required.",
+                    "warning"
+                )
+                self.redirect('/users/email-change-step1')
+
+        # unknown users get sent back to /
+        else:
+
+            self.save_flash_messages(
+                "Sign in with your existing account credentials. "
+                "If you do not have a user account, "
+                "please <a href=\"/users/new\">sign up</a>.",
+                "primary"
+            )
+            self.redirect('/users/login')
+
+
+
+class ChangeEmailStep2Handler(BaseHandler):
+    '''
+    This handles /users/email-change-step2.
+
+    '''
+
+    @gen.coroutine
+    def get(self):
+        '''This handles an email address change request
+        from a logged-in only user.
+
+        '''
+
+        current_user = self.current_user
+
+        # only proceed to password change if the user is active and logged in
+        if (current_user and
+            (current_user['user_role'] in
+             ('authenticated','staff','superuser')) and
+            current_user['is_active'] and
+            current_user['email_verified']):
+
+
+            # FIXME: get the user's new and old emails from the session
+            # extra_info_json column and render them to the form.
+            old_email_address = 'blah'
+            new_email_address = 'blah'
+
+            # then, we'll render the verification form.
+            self.render('emailchange-step2.html',
+                        old_email_address=old_email_address,
+                        new_email_address=new_email_address,
+                        user_account_box=self.render_user_account_box(),
+                        flash_messages=self.render_flash_messages(),
+                        page_title="Change your password",
+                        lccserver_version=__version__,
+                        siteinfo=self.siteinfo)
+
+        # otherwise, tell the user that their password forgotten request is
+        # invalid and redirect them to the login page
+        else:
+
+            self.save_flash_messages(
+                "Sign in with your existing account credentials. "
+                "If you do not have a user account, "
+                "please <a href=\"/users/new\">sign up</a>.",
+                "primary"
+            )
+            self.redirect('/users/login')
+
+
+
+    @gen.coroutine
+    def post(self):
+        '''This handles submission of the email change step-2 form.
+
+
+        '''
+
+        if not self.current_user:
+            self.redirect('/')
+
+        if ((not self.keycheck['status'] == 'ok') or
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+
+        if ((self.current_user) and
+            (self.current_user['is_active']) and
+            (self.current_user['user_role'] in ('authenticated',
+                                                'superuser',
+                                                'staff')) and
+            (self.current_user['email_verified'])):
+
+            try:
+
+                old_email_token = xhtml_escape(
+                    self.get_argument('oldemailtoken')
+                )
+                new_email_token = xhtml_escape(
+                    self.get_argument('newemailtoken')
+                )
+
+                # ask authnzerver to check the verification tokens associated
+                # with this session and the two emails. this will wipe the
+                # tokens if it succeeds. if it doesn't succeed, the tokens
+                # expire in 15 minutes anyway.
+                change_ok, resp, msgs = yield self.authnzerver_request(
+                    'user-verifyemailchange',
+                    {'user_id':self.current_user['user_id'],
+                     'old_email_token': old_email_token,
+                     'new_email_token': new_email_token,
+                     'session_token':self.current_user['session_token']}
+                )
+
+                if change_ok:
+
+                    self.save_flash_messages(
+                        "Your email address has been changed successfully.",
+                        'primary',
+                    )
+                    self.redirect('/users/home')
+
+                else:
+
+                    self.save_flash_messages(
+                        msgs,
+                        'warning',
+                    )
+                    self.redirect('/users/email-change-step2')
+
+
+            except Exception as e:
+
+                self.save_flash_messages(
+                    "We could not validate the email change form. "
+                    "All fields are required.",
+                    "warning"
+                )
+                self.redirect('/users/email-change-step1')
+
+        # unknown users get sent back to /
+        else:
+
+            self.save_flash_messages(
+                "Sign in with your existing account credentials. "
+                "If you do not have a user account, "
+                "please <a href=\"/users/new\">sign up</a>.",
+                "primary"
+            )
+            self.redirect('/users/login')
+
+
 
 class DeleteUserHandler(BaseHandler):
     '''
@@ -1261,7 +1551,7 @@ class UserHomeHandler(BaseHandler):
                 lccserver_version=__version__,
                 siteinfo=self.siteinfo,
                 cookie_expires_days=self.session_expiry,
-                cookie_secure='true' if self.csecure else 'false'
+                cookie_secure='true' if self.csecure else 'false',
             )
 
         else:
@@ -1271,6 +1561,125 @@ class UserHomeHandler(BaseHandler):
                 "warning"
             )
             self.redirect('/users/login')
+
+
+    @gen.coroutine
+    def post(self):
+        '''This handles submission of the edit user form on the userhome page.
+
+        '''
+        if ((not self.keycheck['status'] == 'ok') or
+            (not self.xsrf_type == 'session')):
+
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
+        if ((self.current_user) and
+            (self.current_user['is_active']) and
+            (self.current_user['user_role'] in ('authenticated',
+                                                'superuser',
+                                                'staff')) and
+            (self.current_user['email_verified'])):
+
+            current_user_id = self.current_user['user_id']
+            current_user_role = self.current_user['user_role']
+            current_sessiontoken = self.current_user['session_token']
+
+            try:
+
+                # TODO: add other editeable things here as we make them
+                # available
+                updated_fullname = xhtml_escape(
+                    self.get_argument('updated_fullname')
+                )
+
+                updatedict = {
+                    'full_name':updated_fullname,
+                }
+
+                reqtype = 'user-edit'
+                target_userid = current_user_id
+                reqbody = {
+                    'session_token': current_sessiontoken,
+                    'user_id':current_user_id,
+                    'user_role':current_user_role,
+                    'target_userid':target_userid,
+                    'update_dict':updatedict
+                }
+
+                ok, resp, msgs = yield self.authnzerver_request(
+                    reqtype, reqbody
+                )
+
+                # if edit did not succeed, complain
+                if not ok:
+
+                    LOGGER.warning('edit_user: %r initiated by '
+                                   'user_id: %s failed for '
+                                   'user_id: %s' % (list(updatedict.keys()),
+                                                    current_user_id,
+                                                    target_userid))
+                    LOGGER.error(' '.join(msgs))
+
+                    self.set_status(400)
+                    retdict = {
+                        'status':'failed',
+                        'result':None,
+                        'message':("Sorry, editing user information failed.")
+                    }
+                    self.write(retdict)
+                    raise tornado.web.Finish()
+
+                # if login did succeed, return the updated info
+                else:
+
+                    LOGGER.warning('edit_user: %r initiated by '
+                                   'user_id: %s successful for '
+                                   'user_id: %s' % (list(updatedict.keys()),
+                                                    current_user_id,
+                                                    target_userid))
+
+                    retdict = {
+                        'status':'ok',
+                        'result':resp['user_info'],
+                        'message':("Edit to user information successful.")
+                    }
+                    self.write(retdict)
+                    self.finish()
+
+            except Exception as e:
+
+                LOGGER.exception('failed to update user information.')
+
+                self.set_status(400)
+                retdict = {
+                    'status':'failed',
+                    'result':None,
+                    'message':("Invalid input provided for "
+                               "user edit.")
+                }
+                self.write(retdict)
+                raise tornado.web.Finish()
+
+        # anything else is probably the locked user, turn them away
+        else:
+            self.set_status(403)
+            retdict = {
+                'status':'failed',
+                'result':None,
+                'message':("Sorry, you don't have access. "
+                           "API keys are not allowed for this endpoint.")
+            }
+            self.write(retdict)
+            raise tornado.web.Finish()
+
 
 
 

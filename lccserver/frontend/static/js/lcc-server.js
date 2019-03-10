@@ -727,6 +727,69 @@ var lcc_ui = {
             lcc_ui.generate_new_apikey('#api-key','#apikey-expiry');
         });
 
+       // handle the site settings update form
+        $('#prefs-update-details-form').on('submit', function (evt) {
+
+            evt.preventDefault();
+
+            // find the updated values
+            let updated_fullname =
+                $('#userhome-fullname').val();
+
+            if (updated_fullname.trim().length == 0) {
+                updated_fullname = null;
+            }
+
+            var posturl = '/users/home';
+            var _xsrf = $('#prefs-update-details-form > input[type="hidden"]').val();
+            var postparams = {
+                _xsrf:_xsrf,
+                updated_fullname: updated_fullname,
+            };
+
+            $.post(posturl, postparams, function (data) {
+
+                var status = data.status;
+                var result = data.result;
+                var message = data.message;
+
+                // if something broke, alert the user
+                if (status != 'ok' || result === null || result.length == 0) {
+                    lcc_ui.alert_box(message, 'danger');
+                }
+
+                // if the update succeeded, inform the user and update the
+                // controls to reflect the new state
+                else if (status == 'ok') {
+
+                    // update the controls
+                    $('#userhome-fullname').val(
+                        result.full_name
+                    );
+                    lcc_ui.alert_box(message, 'info');
+
+                }
+
+          }, 'json').fail(function (xhr) {
+
+                var message = 'Could not update user information, ' +
+                    'something went wrong with the LCC-Server backend.';
+
+                if (xhr.status == 500) {
+                    message = 'Something went wrong with the LCC-Server backend ' +
+                        ' while trying to update user information.';
+                }
+                else if (xhr.status == 400) {
+                    message = 'Invalid input provided in the user ' +
+                        ' update form. Please check and try again.';
+                }
+
+                lcc_ui.alert_box(message, 'danger');
+
+            });
+
+        });
+
 
         /////////////////////////////////
         // SEARCH FORM SUBMIT BINDINGS //
@@ -1590,6 +1653,16 @@ var lcc_ui = {
             lcc_datasets.change_dataset_visibility(
                 lcc_datasets.setid,
                 $('#dataset-visibility-select').val()
+            );
+
+        });
+
+        // this handles changing dataset owners
+        $('.accordion').on('click', '#owner-label-submit', function (evt) {
+
+            lcc_datasets.change_dataset_owner(
+                lcc_datasets.setid,
+                $('#owner-label-inputbox').val()
             );
 
         });
@@ -3819,10 +3892,10 @@ var lcc_datasets = {
                 next_lcfname = data.rows[rowind+1][colind_lcfname];
             }
 
-            // FIXME: FIXME: FIXME: use this to implement the next/prev object links
-            // FIXME: FIXME: FIXME: add a back to original object button to modal bottom
-            // FIXME: FIXME: FIXME: disable next/prev links after clicking on neighbors
-            // FIXME: FIXME: FIXME: implement a full neighbors tab
+            // FIXME: use this to implement the next/prev object links
+            // FIXME: add a back to original object button to modal bottom
+            // FIXME: disable next/prev links after clicking on neighbors
+            // FIXME: implement a full neighbors tab
 
             // store these values in the lcc_datasets object
             lcc_datasets.objectid_map[thisrow[colind_objectid]] = {
@@ -3998,7 +4071,8 @@ var lcc_datasets = {
                 );
 
                 // parse and display the dataset owner
-                if (data.owned) {
+                if (data.owned ||
+                    (data.editable !== undefined && data.editable === true)) {
 
                     let visibility_controls = `
 <details>
@@ -4052,11 +4126,42 @@ var lcc_datasets = {
 </div>
 </details>
 `;
-                    $('#owner-label').html(
-                        '<span class="text-success">' +
-                            'You own this dataset. You can ' +
-                            'edit its metadata and set its visibility.</span>'
-                    );
+
+                    // if we can edit this DS, we can set its owner.
+                    if (data.editable !== undefined && data.editable === true) {
+
+                        let owner_controls = `
+<details>
+<summary>Dataset is currently owned by user ID: ${data.owner}</summary>
+<div class="form-inline">
+  <input type="text" class="form-control" id="owner-label-inputbox"
+         value="${data.owner}"
+         placeholder="Type in user ID of new owner."
+         maxlength="10" minlength="1" required>
+  <button class="ml-2 btn btn-outline-success"
+          type="button" id="owner-label-submit">Update owner</button>
+</div>
+</details>
+`;
+
+                        $('#owner-label').html(
+                            owner_controls
+                        );
+
+                    }
+
+                    // otherwise, if we own this dataset, show that we do.
+                    else if (data.owned) {
+
+                        $('#owner-label').html(
+                            '<span class="text-success">' +
+                                'You own this dataset. You can ' +
+                                'edit its metadata and set its visibility.</span>'
+                        );
+
+                    }
+
+
                     $('#visibility-label').html(visibility_controls);
                     $('#dataset-visibility-select').val(data.visibility);
                     $('#dataset-name').html(name_controls);
@@ -4317,6 +4422,68 @@ var lcc_datasets = {
     },
 
 
+    // this changes a dataset's owner
+    change_dataset_owner: function (setid, new_owner) {
+
+        var posturl = '/set/' + setid;
+        var _xsrf = $('#dataset-edit-form > input[type="hidden"]').val();
+        var postparams = {
+            _xsrf: _xsrf,
+            action: 'change_owner',
+            update: JSON.stringify({new_owner_userid: parseInt(new_owner)})
+        };
+
+        $.post(posturl, postparams, function (data) {
+
+            var result = data.result;
+            var message = data.message;
+            var status = data.status;
+
+            if (status == 'ok') {
+
+                // update the dataset's name
+                $('#owner-label > details > summary').html(
+                    'Dataset is currently owned by user ID: ' + result
+                );
+                $('#owner-label-inputbox').val(result);
+
+                var last_updated = data.date;
+                last_updated = last_updated + ' UTC <strong>(' +
+                    moment(last_updated + 'Z').fromNow() + ')<strong>';
+                $('#dataset-lastupdated').html(last_updated);
+
+            }
+
+            else {
+
+                lcc_ui.alert_box(message, 'danger');
+
+                // clear out the loading indicators at the end
+                $('#setload-icon').empty();
+                $('#setload-indicator').empty();
+
+            }
+
+        },'json').fail(function (xhr) {
+
+            var message = 'Could not edit this dataset.';
+
+            if (xhr.status == 500) {
+                message = 'Something went wrong with the LCC-Server backend ' +
+                    'while trying to fetch this dataset.';
+            }
+
+            lcc_ui.alert_box(message, 'danger');
+
+            // clear out the loading indicators at the end
+            $('#setload-icon').empty();
+            $('#setload-indicator').empty();
+
+        });
+
+    },
+
+
     // this edits a dataset's name
     edit_dataset_name: function (setid, new_name) {
 
@@ -4387,7 +4554,7 @@ var lcc_datasets = {
 
     },
 
-    // this edits a dataset's name
+    // this edits a dataset's description
     edit_dataset_description: function (setid, new_description) {
 
         var posturl = '/set/' + setid;
@@ -4448,7 +4615,7 @@ var lcc_datasets = {
 
     },
 
-    // this edits a dataset's name
+    // this edits a dataset's citation
     edit_dataset_citation: function (setid, new_citation) {
 
         var posturl = '/set/' + setid;

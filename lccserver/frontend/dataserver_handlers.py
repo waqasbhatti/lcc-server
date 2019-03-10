@@ -369,6 +369,9 @@ class DatasetHandler(BaseHandler):
                 ds['owned'] = True
                 access_ok = True
 
+                if self.current_user['user_role'] in ('staff','superuser'):
+                    ds['editable'] = True
+
             # otherwise, if the current user's session_token matches the
             # session_token used to create the dataset, they're the
             # owner.
@@ -390,6 +393,17 @@ class DatasetHandler(BaseHandler):
                     access_ok = True
                 else:
                     access_ok = False
+
+            # superusers and staff can see all datasets
+            elif (self.current_user['user_role'] in ('superuser','staff')):
+
+                access_ok = True
+                ds['editable'] = True
+
+                if self.current_user['user_id'] == ds['owner']:
+                    ds['owned'] = True
+                else:
+                    ds['owned'] = False
 
             # otherwise, this is a dataset not owned by the current user
             else:
@@ -675,6 +689,9 @@ class DatasetHandler(BaseHandler):
                 ds['owned'] = True
                 access_ok = True
 
+                if self.current_user['user_role'] in ('staff','superuser'):
+                    ds['editable'] = True
+
             # otherwise, if the current user's session_token matches the
             # session_token used to create the dataset, they're the
             # owner.
@@ -696,6 +713,17 @@ class DatasetHandler(BaseHandler):
                     access_ok = True
                 else:
                     access_ok = False
+
+            # superusers and staff can see all datasets
+            elif (self.current_user['user_role'] in ('superuser','staff')):
+
+                access_ok = True
+                ds['editable'] = True
+
+                if self.current_user['user_id'] == ds['owner']:
+                    ds['owned'] = True
+                else:
+                    ds['owned'] = False
 
             # otherwise, this is a dataset not owned by the current user
             else:

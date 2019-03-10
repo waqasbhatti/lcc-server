@@ -47,7 +47,7 @@
 
                 <table class="table table-borderless table-sm">
 
-                  {% if header['owned'] %}
+                  {% if header['owned'] or (current_user['user_role'] in ('staff','superuser')) %}
 
                   <tr>
                     <th width="200">dataset owner</th>

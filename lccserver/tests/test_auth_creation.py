@@ -11,6 +11,8 @@ import os
 from datetime import datetime, timedelta
 import time
 
+import multiprocessing as mp
+
 
 
 def get_test_authdb():
@@ -125,6 +127,18 @@ def test_create_user():
     assert user_created['send_verification'] is False
     assert ('User account created. Please verify your email address to log in.'
             in user_created['messages'])
+
+    currproc = mp.current_process()
+    if getattr(currproc, 'table_meta', None):
+        del currproc.table_meta
+
+    if getattr(currproc, 'connection', None):
+        currproc.connection.close()
+        del currproc.connection
+
+    if getattr(currproc, 'engine', None):
+        currproc.engine.dispose()
+        del currproc.engine
 
     try:
         os.remove('test-creation.authdb.sqlite')
@@ -274,6 +288,18 @@ def test_sessions():
     )
 
     assert check['success'] is False
+
+    currproc = mp.current_process()
+    if getattr(currproc, 'table_meta', None):
+        del currproc.table_meta
+
+    if getattr(currproc, 'connection', None):
+        currproc.connection.close()
+        del currproc.connection
+
+    if getattr(currproc, 'engine', None):
+        currproc.engine.dispose()
+        del currproc.engine
 
     try:
         os.remove('test-creation.authdb.sqlite')
