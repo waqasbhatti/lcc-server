@@ -1,3 +1,10 @@
+# v0.2.2
+
+## Fixes
+
+- Add in missing LC format JSONs to the package manifest.
+
+
 # v0.2.1
 
 This is a major new release. The format of various databases used by LCC-Server

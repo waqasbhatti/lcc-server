@@ -3,6 +3,7 @@ recursive-include lccserver/frontend/static *.js
 recursive-include lccserver/frontend/static *.css
 recursive-include lccserver/frontend/static/images *
 recursive-include lccserver/server-docs *
+recursive-include lccserver/backend/lcformat-jsons *.json
 
 include LICENSE
 include README.md
