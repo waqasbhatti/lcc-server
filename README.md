@@ -3,31 +3,31 @@
 [![Build Status](https://ci.wbhatti.org/buildStatus/icon?job=lcc-server)](https://ci.wbhatti.org/job/lcc-server)
 
 This is a Python framework to serve collections of light curves. The code here
-forms the basis for the [HAT data server](https://data.hatsurveys.org).
+forms the basis for the [HAT data server](https://data.hatsurveys.org). See the
+[installation notes](#installation) notes below for how to install and configure
+the server.
 
-At the moment, it includes the following functionality:
+LCC-Server includes the following functionality:
 
 - collection of light curves from various projects into a single output format
-
-- HTTP API for searching over multiple light curve collections by:
-  - filtering on database columns of object properties, e.g. objectid,
-    mag, variability type, variability indices, etc.
-  - cone-search near specified coordinates
-  - cross-matching to uploaded object list with objectid, ra, decl
-  - full-text search on object names, descriptions, etc.
-
-[![LCC server search interface](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/search-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/search-montage.png)
-
+  (text CSV files)
+- HTTP API and an interactive frontend for searching over multiple light curve
+  collections by:
+  - spatial cone search near specified coordinates
+  - full-text search on object names, descriptions, tags, name resolution using
+    SIMBAD's SESAME resolver for individual objects, and for open clusters,
+    nebulae, etc.
+  - queries based on applying filters to database columns of object properties,
+    e.g. `objectid`, magnitudes, colors, proper motions, variability and object
+    type tags, variability indices, etc.
+  - cross-matching to uploaded object lists with object IDs and coordinates
 - HTTP API for generating datasets from search results asychronously, caching
   results from searches, and generating output zip bundles containing search
   results and all matching light curves
-
-[![LCC server results display](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/results-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/results-montage.png)
-
 - HTTP API for detailed information per object, including light curve plots,
   external catalog info, and period-finding results plus phased LCs if available
-
-[![LCC server object info](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/objectinfo-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/objectinfo-montage.png)
+- Access controls for all generated datasets, and support for user sign-ins and
+  sign-ups
 
 
 ## Installation
@@ -76,7 +76,10 @@ install LCC-Server. This will be in your `$PATH` as [`lcc-server`](https://githu
 A Jupyter notebook walkthough using this CLI to stand up an LCC-Server instance,
 with example light curves, can be found in the **astrobase-notebooks** repo:
 [lcc-server-setup.ipynb](https://github.com/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)
-([Jupyter nbviewer link](https://nbviewer.jupyter.org/github/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)).
+([Jupyter nbviewer](https://nbviewer.jupyter.org/github/waqasbhatti/astrobase-notebooks/blob/master/lcc-server-setup.ipynb)).
+
+
+## Documentation
 
 - Documentation for how to use the server for searching LC collections is hosted
 at the HAT data server instance: https://data.hatsurveys.org/docs.
@@ -86,6 +89,21 @@ at the HAT data server instance: https://data.hatsurveys.org/docs.
 
 These docs are automatically generated from the
 [server-docs](https://github.com/waqasbhatti/lcc-server/tree/master/lccserver/server-docs) directory in the git repository.
+
+
+## Screenshots
+
+### The search interface
+
+[![LCC server search interface](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/search-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/search-montage.png)
+
+### Datasets from search results
+
+[![LCC server results display](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/results-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/results-montage.png)
+
+### Per-object information
+
+[![LCC server object info](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/objectinfo-th.png)](https://raw.githubusercontent.com/waqasbhatti/lcc-server/master/docs/objectinfo-montage.png)
 
 
 ## License
