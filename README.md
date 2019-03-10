@@ -28,15 +28,16 @@ LCC-Server includes the following functionality:
     SIMBAD's SESAME resolver for individual objects, and for open clusters,
     nebulae, etc.
   - queries based on applying filters to database columns of object properties,
-    e.g. `objectid`, magnitudes, colors, proper motions, variability and object
-    type tags, variability indices, etc.
+    e.g. object names, magnitudes, colors, proper motions, variability and
+    object type tags, variability indices, etc.
   - cross-matching to uploaded object lists with object IDs and coordinates
 - HTTP API for generating datasets from search results asychronously and
   interactive frontend for browsing these, caching results from searches, and
   generating output zip bundles containing search results and all matching light
   curves
-- HTTP API for detailed information per object, including light curve plots,
-  external catalog info, and period-finding results plus phased LCs if available
+- HTTP API and interactive frontend for detailed information per object,
+  including light curve plots, external catalog info, and period-finding results
+  plus phased LCs if available
 - Access controls for all generated datasets, and support for user sign-ins and
   sign-ups
 
@@ -97,11 +98,13 @@ nbviewer](https://nbviewer.jupyter.org/github/waqasbhatti/astrobase-notebooks/bl
 - Documentation for how to use the server for searching LC collections is hosted
 at the HAT data server instance: https://data.hatsurveys.org/docs.
 - The HTTP API is documented at: https://data.hatsurveys.org/docs/api.
-- A standalone Python module API client is available in the astrobase
-  repository: [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py).
+- A standalone Python module that serves as an LCC-Server HTTP API client is
+  available in the astrobase repository:
+  [lccs.py](https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py) ([Docs](https://astrobase.readthedocs.io/en/latest/astrobase.services.lccs.html#module-astrobase.services.lccs)).
 
-These docs are automatically generated from the
-[server-docs](https://github.com/waqasbhatti/lcc-server/tree/master/lccserver/server-docs) directory in the git repository.
+Server docs are automatically generated from the
+[server-docs](https://github.com/waqasbhatti/lcc-server/tree/master/lccserver/server-docs)
+directory in the git repository.
 
 
 ## Screenshots
