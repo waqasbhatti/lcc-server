@@ -1,5 +1,5 @@
 This directory contains example systemd .service files for the LCC-Server main
-process and the accompanying checkplotserver process.
+process and the accompanying `checkplotserver` and `authnzerver` processes.
 
 To use these:
 
@@ -23,7 +23,8 @@ user that the LCC-Server will run under. This will make the services launch on
 system boot and persist after you've logged out.
 
 The `lcc-server@.service` file is templated so you can launch multiple instances
-of the server as needed:
+of the server as needed. Launch it after the `checkplotserver` and `authnzerver`
+services have successfully launched:
 
 ```bash
 # enable the service
@@ -47,7 +48,9 @@ systemctl --user stop lcc-server@12500.service
 # etc.
 ```
 
-This is useful for use with upstream nginx load-balancing:
+The templated service file is useful for use with upstream nginx load-balancing,
+where you can run multiple down-stream LCC-Server `indexserver` processes to
+scale with traffic:
 
 ```
 upstream tornado-lcc-server {
@@ -58,7 +61,7 @@ upstream tornado-lcc-server {
 }
 ```
 
-Then in your `location` directive, use something like:
+In your nginx `location` directive, use something like:
 
 ```
     # deny all dotfiles
