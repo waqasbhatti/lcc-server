@@ -9,12 +9,14 @@ To use these:
   `mkdir -p` if necessary.
 - Put these files in that directory.
 - Run `systemd --user daemon-reload`.
+- Enable the authnzerver service: `systemctl --user enable authnzerver`
+  and launch it using `systemctl --user start authnzerver`.
 - Enable the checkplotserver service: `systemctl --user enable checkplotserver`
   and launch it using `systemctl --user start checkplotserver`.
 
 To see the logs in the systemd journal, use: `journalctl --user-unit
-checkplotserver` or `systemctl --user status checkplotserver` and verify it
-launched properly.
+checkplotserver [or authnzerver]` or `systemctl --user status checkplotserver
+[or authnzerver]` and verify that they launched properly.
 
 You should also execute: `sudo loginctl enable-linger {{ username }}` for the
 user that the LCC-Server will run under. This will make the services launch on
