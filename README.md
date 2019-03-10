@@ -2,7 +2,7 @@
 
 LCC-Server is a Python framework to serve collections of light curves. The code
 here forms the basis for the [HAT data server](https://data.hatsurveys.org). See
-the [installation notes](#installation) notes below for how to install and
+the [installation notes](#installation) below for how to install and
 configure the server.
 
 - [Features](#features)
