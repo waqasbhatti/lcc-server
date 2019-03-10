@@ -1,16 +1,15 @@
-# LCC-Server: A light curve collection server framework
-
 [![Build Status](https://ci.wbhatti.org/buildStatus/icon?job=lcc-server)](https://ci.wbhatti.org/job/lcc-server)
 
-This is a Python framework to serve collections of light curves. The code here
-forms the basis for the [HAT data server](https://data.hatsurveys.org). See the
-[installation notes](#installation) notes below for how to install and configure
-the server.
+LCC-Server is a Python framework to serve collections of light curves. The code
+here forms the basis for the [HAT data server](https://data.hatsurveys.org). See
+the [installation notes](#installation) notes below for how to install and
+configure the server.
 
 - [Features](#features)
 - [Installation](#installation)
 - [Using the server](#using-the-server)
 - [Documentation](#documentation)
+- [Changelog](#changelog)
 - [Screenshots](#screenshots)
 - [License](#license)
 
@@ -104,7 +103,14 @@ at the HAT data server instance: https://data.hatsurveys.org/docs.
 
 Server docs are automatically generated from the
 [server-docs](https://github.com/waqasbhatti/lcc-server/tree/master/lccserver/server-docs)
-directory in the git repository.
+directory in the git repository. Sphinx-based documentation for the Python
+modules is on the TODO list and will be linked here when done.
+
+
+## Changelog
+
+Please see: https://github.com/waqasbhatti/lcc-server/blob/master/CHANGELOG.md
+for a list of changes applicable to tagged release versions.
 
 
 ## Screenshots
