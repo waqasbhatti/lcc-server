@@ -114,7 +114,7 @@ var lcc_ui = {
             m.forEach((match, groupIndex) => {
                 bibcodes.push(match);
                 biblinks.push(
-                    `<a target="_blank" rel="noopener noreferer" href="https://ui.adsabs.harvard.edu/#abs/${match}/abstract">${match}</a>`);
+                    `<a target="_blank" rel="noopener noreferrer" href="https://ui.adsabs.harvard.edu/#abs/${match}/abstract">${match}</a>`);
             });
         }
 
@@ -160,7 +160,7 @@ var lcc_ui = {
             m.forEach((match, groupIndex) => {
                 doicodes.push(match);
                 doilinks.push(
-                    `<a target="_blank" rel="noopener noreferer" href="https://dx.doi.org/${match.replace(/doi:/g,'')}">${match}</a>`);
+                    `<a target="_blank" rel="noopener noreferrer" href="https://dx.doi.org/${match.replace(/doi:/g,'')}">${match}</a>`);
             });
         }
 
@@ -1723,7 +1723,7 @@ var lcc_ui = {
             modal.find('#modal-objectid').html(objectid);
             modal.find('#modal-collectionid').html(collection);
             modal.find('#modal-permalink').html(
-                '<a rel="nofollow noopener noreferer" target="_blank" ' +
+                '<a rel="nofollow noopener noreferrer" target="_blank" ' +
                     'href="/obj/' + collection +
                     '/' + objectid + '">[object page]</a>'
             );
@@ -2829,7 +2829,7 @@ var lcc_search = {
                         + msgdata.result.actual_nrows +
                         '</strong> matched objects found. ' +
                         '<a target="_blank" ' +
-                        'rel="nofollow noreferer noopener" href="' +
+                        'rel="nofollow noreferrer noopener" href="' +
                         msgdata.result.seturl +
                         '">Result dataset is ready to view.</a>';
 
@@ -2899,7 +2899,7 @@ var lcc_search = {
                             'so no LC ZIP file was generated. ' +
                             'Try refining your query, or see ' +
                             '<a target="_blank" ' +
-                            'rel="nofollow noreferer noopener" href="' +
+                            'rel="nofollow noreferrer noopener" href="' +
                             msgdata.result.seturl +
                             '">the query result dataset page</a> for a ' +
                             'CSV that lists all objects and download links ' +
