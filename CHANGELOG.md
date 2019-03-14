@@ -1,3 +1,12 @@
+# v0.2.3
+
+## Fixes
+
+- Remove some unused functions from `authnzerver.actions.user`.
+- Frontend: typo fix: `noreferer` -> `noreferrer` for generated `_target=blank`
+  links.
+
+
 # v0.2.2
 
 ## Fixes
