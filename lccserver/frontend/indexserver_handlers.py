@@ -75,7 +75,7 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 
-from tornado.escape import xhtml_escape
+from tornado.escape import xhtml_escape, squeeze
 from tornado import gen
 from tornado.httpclient import AsyncHTTPClient
 import markdown
@@ -205,9 +205,11 @@ def doc_render_worker(docpage,
     doc_md_dir_abspath = os.path.dirname(os.path.abspath(doc_md_file))
 
     if docpage in serverindex:
-        doc_dir_abspath = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                       '..',
-                                                       'server-docs'))
+        doc_dir_abspath = os.path.abspath(
+            os.path.join(os.path.dirname(__file__),
+                         '..',
+                         'server-docs')
+        )
     elif docpage in siteindex:
         doc_dir_abspath = os.path.abspath(os.path.join(basedir,'docs'))
 
