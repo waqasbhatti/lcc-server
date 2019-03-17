@@ -173,6 +173,15 @@ def doc_render_worker(docpage,
 
     '''
 
+    # check for shady doc pages
+    if '.' in docpage:
+        return None, None
+    if '/' in docpage:
+        return None, None
+    if len(docpage) != len(squeeze(docpage).strip().replace(' ','')):
+        return None, None
+
+
     # find the doc page requested
     if docpage in serverindex:
         page_title = serverindex[docpage]
@@ -189,11 +198,29 @@ def doc_render_worker(docpage,
     else:
         return None, None
 
-    LOGGER.info('opening %s for docs page: %s...' % (doc_md_file, docpage))
+    # check for some more shenanigans
+    if not os.path.exists(doc_md_file):
+        return None, None
+
+    doc_md_dir_abspath = os.path.dirname(os.path.abspath(doc_md_file))
+
+    if docpage in serverindex:
+        doc_dir_abspath = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                       '..',
+                                                       'server-docs'))
+    elif docpage in siteindex:
+        doc_dir_abspath = os.path.abspath(os.path.join(basedir,'docs'))
+
+    if (doc_md_dir_abspath != doc_dir_abspath):
+        return None, None
+
 
     # we'll open in 'r' mode since we want unicode for markdown
     with open(doc_md_file,'r') as infd:
         doc_markdown = infd.read()
+
+    LOGGER.info('read %s for requested docs page: %s...' %
+                (doc_md_file, docpage))
 
     # render the markdown to HTML
     doc_html = markdown.markdown(
@@ -298,7 +325,7 @@ class DocsHandler(BaseHandler):
         # get a specific documentation page
         elif docpage and len(docpage) > 0:
 
-            docpage = xhtml_escape(docpage)
+            docpage = xhtml_escape(docpage).lower()
 
             try:
                 rendered, page_title = yield self.executor.submit(
