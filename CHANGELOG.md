@@ -1,3 +1,10 @@
+# v0.2.4
+
+## Fixes
+
+- Fixed a possible directory traversal when looking up docs pages.
+
+
 # v0.2.3
 
 ## Fixes
