@@ -32,7 +32,7 @@ $ /opt/python37/bin/python3 -m venv env
 
 # activate the virtualenv, launch Python, and check if we've got a newer SQLite
 $ source env/bin/activate
-(venv) $ python3
+(env) $ python3
 Python 3.7.0 (default, Jun 28 2018, 15:17:26)
 [GCC 4.8.5 20150623 (Red Hat 4.8.5-28)] on linux
 Type "help", "copyright", "credits" or "license" for more information.
