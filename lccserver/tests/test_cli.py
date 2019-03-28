@@ -937,9 +937,11 @@ def test_lccserver_api():
     subprocess.run(kill_str % 'authnzerver',shell=True,check=False)
 
     # start the authnzerver
+    cachedir = os.path.abspath(os.getcwd())
     authnzerver_cmd = (
-        "authnzerver --basedir='{basedir}'"
-    ).format(basedir=os.path.abspath(basedir))
+        "authnzerver --basedir='{basedir}' --cachedir='{cachedir}'"
+    ).format(basedir=os.path.abspath(basedir),
+             cachedir=cachedir)
     authnzerver_proc = subprocess.Popen(
         authnzerver_cmd,
         shell=True,
