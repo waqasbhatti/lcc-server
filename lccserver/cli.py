@@ -202,7 +202,7 @@ def prepare_basedir(basedir,
     else:
 
         import secrets
-        cachedir = '/tmp/%s' % secrets.token_urlsafe(8)
+        cachedir = '/tmp/lccs-%s' % secrets.token_urlsafe(8)
 
         siteinfo = {
             "project":site_project,
