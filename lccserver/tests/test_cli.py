@@ -637,7 +637,11 @@ def test_augcat_kdtree_databases():
     import sys
     if sys.platform == 'darwin':
         import requests
-        requests.get('http://captive.apple.com/hotspot-detect.html')
+        try:
+            requests.get('http://captive.apple.com/hotspot-detect.html',
+                         timeout=5.0)
+        except Exception as e:
+            pass
 
     parallel_cp(
         pfpickles,
@@ -937,7 +941,8 @@ def test_lccserver_api():
     subprocess.run(kill_str % 'authnzerver',shell=True,check=False)
 
     # start the authnzerver
-    cachedir = os.path.abspath(os.getcwd())
+    import secrets
+    cachedir = '/tmp/lccs-%s' % secrets.token_urlsafe(8)
     authnzerver_cmd = (
         "authnzerver --basedir='{basedir}' --cachedir='{cachedir}'"
     ).format(basedir=os.path.abspath(basedir),
@@ -980,7 +985,7 @@ def test_lccserver_api():
 
     # hit the collections API to make sure the server is live
     import requests
-    resp = requests.get('http://localhost:12345/api/collections')
+    resp = requests.get('http://localhost:12345/api/collections',timeout=5.0)
     respjson = resp.json()
 
     # make sure our collection is present
