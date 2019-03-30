@@ -985,7 +985,7 @@ def test_lccserver_api():
 
     # hit the collections API to make sure the server is live
     import requests
-    resp = requests.get('http://localhost:12345/api/collections',timeout=5.0)
+    resp = requests.get('http://localhost:12345/api/collections',timeout=120.0)
     respjson = resp.json()
 
     # make sure our collection is present
