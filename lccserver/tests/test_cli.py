@@ -19,7 +19,7 @@ from astrobase.hatsurveys import hatlc
 from lccserver import cli
 from lccserver.tests.setup_tests import get_lightcurves
 
-import pytest.mark
+from pytest import mark
 
 def test_prepare_basedir():
     '''
@@ -716,7 +716,7 @@ def test_augcat_kdtree_databases():
     shutil.rmtree('./test-basedir', ignore_errors=True)
 
 
-@pytest.mark.xfail(
+@mark.xfail(
     reason='Fails randomly because authnzerver mysteriously hangs sometimes'
 )
 def test_lccserver_api():
