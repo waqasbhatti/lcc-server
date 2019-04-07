@@ -603,7 +603,11 @@ class BackgroundQueryMixin(object):
                          results_sortspec=None,
                          results_limitspec=None,
                          results_samplespec=None,
-                         email_when_done=False):
+                         email_when_done=False,
+                         lczip_max_rows=500,
+                         ds_rows_per_page=500,
+                         query_timeout=30.0,
+                         lczip_timeout=30.0):
 
         '''
         This runs the background query.
@@ -662,10 +666,10 @@ class BackgroundQueryMixin(object):
 
         try:
 
-            # here, we'll yield with_timeout
-            # give 30 seconds to the query to complete
+            # here, we'll yield with_timeout. give query_timeout seconds to the
+            # query to complete
             self.query_result = yield gen.with_timeout(
-                timedelta(seconds=30.0),
+                timedelta(seconds=query_timeout),
                 self.query_result_future
             )
 
@@ -713,12 +717,13 @@ class BackgroundQueryMixin(object):
                         incoming_session_token=incoming_session_token,
                         dataset_visibility=dataset_visibility,
                         dataset_sharedwith=dataset_sharedwith,
+                        rows_per_page=ds_rows_per_page,
                     )
 
                     # only collect the LCs into a pickle if the user requested
-                    # less than 2500 light curves. generating bigger ones is
-                    # something we'll handle later
-                    if ds_nrows > 2500:
+                    # less than lczip_max_rows light curves. generating bigger
+                    # ones is something we'll handle later
+                    if ds_nrows > lczip_max_rows:
                         donewithuser = True
                     else:
                         donewithuser = False
@@ -730,7 +735,8 @@ class BackgroundQueryMixin(object):
                     )
 
                     #
-                    # we're continuing, but will only collect 2.5k LCs at most
+                    # we're continuing, but will only collect lczip_max_rows LCs
+                    # at most
                     #
 
                     #
@@ -756,20 +762,20 @@ class BackgroundQueryMixin(object):
                         self.write(retdict)
                         yield self.flush()
 
-                    # if there are more than 2.5k LCs to collect, we'll stop
-                    # here and tell the user their query has gone to the
-                    # background
+                    # if there are more than lczip_max_rows LCs to collect,
+                    # we'll stop here and tell the user their query has gone to
+                    # the background
                     else:
 
                         retdict = {
                             "message":(
                                 "Dataset pickle generation complete. "
-                                "There are more than 2,500 light curves "
+                                "There are more than %s light curves "
                                 "to collect, so we won't generate a "
                                 "a ZIP file. "
                                 "See %s for dataset object lists and a "
                                 "CSV."
-                            ) % dataset_url,
+                            ) % (lczip_max_rows, dataset_url),
                             "status":"background",
                             "result":{
                                 "setid":dspkl_setid,
@@ -793,15 +799,15 @@ class BackgroundQueryMixin(object):
                         dspkl_setid,
                         csvlcs_to_generate,
                         all_original_lcs,
-                        max_dataset_lcs=2500,
+                        max_dataset_lcs=lczip_max_rows,
                         override_lcdir=self.uselcdir
                     )
 
                     try:
 
-                        # we'll give zipping 30 seconds
+                        # we'll give zipping lczip_timeout seconds
                         lczip, lczip_generated = yield gen.with_timeout(
-                            timedelta(seconds=30.0),
+                            timedelta(seconds=lczip_timeout),
                             self.lczip_future,
                         )
 
@@ -817,8 +823,8 @@ class BackgroundQueryMixin(object):
                             else:
                                 message = (
                                     "dataset LC ZIP not generated "
-                                    "because > 2,500 LCs in dataset"
-                                )
+                                    "because > %s LCs in dataset"
+                                ) % lczip_max_rows
                                 lczip_url = None
 
                             # A4. we're done with collecting light curves
@@ -927,12 +933,13 @@ class BackgroundQueryMixin(object):
                             retdict = {
                                 "message":(
                                     "Query sent to background "
-                                    "after 60 seconds. "
+                                    "after %s seconds. "
                                     "Query is complete, "
                                     "but light curves of matching objects "
                                     "are still being zipped. "
                                     "Check %s for results later" %
-                                    dataset_url
+                                    (dataset_url,
+                                     query_timeout + lczip_timeout)
                                 ),
                                 "status":"background",
                                 "result":{
@@ -1090,9 +1097,10 @@ class BackgroundQueryMixin(object):
                 self.setid
             )
             retdict = {
-                "message":("Query sent to background after 30 seconds. "
-                           "Query is still running, "
-                           "check %s for results later" % dataset_url),
+                "message":("Query sent to background after %s seconds. "
+                           "The query is still running, "
+                           "check %s for results later." % (query_timeout,
+                                                            dataset_url)),
                 "status":"background",
                 "result":{
                     "setid":self.setid,
@@ -1137,17 +1145,18 @@ class BackgroundQueryMixin(object):
                      incoming_role=incoming_role,
                      dataset_visibility=dataset_visibility,
                      dataset_sharedwith=dataset_sharedwith,
+                     rows_per_page=ds_rows_per_page,
                 )
 
-                # only collect the LCs into a pickle if the user requested
-                # less than 2500 light curves. generating bigger ones is
+                # only collect the LCs into a pickle if the user requested less
+                # than lczip_max_rows light curves. generating bigger ones is
                 # something we'll handle later
-                if ds_nrows > 2500:
+                if ds_nrows > lczip_max_rows:
 
                     LOGGER.warning(
-                        '> 2.5k LCs requested for zipping in the '
+                        '> %s LCs requested for zipping in the '
                         'background, not making the LC ZIP for dataset: %s' %
-                        dspkl_setid
+                        (lczip_max_rows, dspkl_setid)
                     )
 
                 # Q4. collect light curve ZIP files
@@ -1158,7 +1167,7 @@ class BackgroundQueryMixin(object):
                     dspkl_setid,
                     csvlcs_to_generate,
                     all_original_lcs,
-                    max_dataset_lcs=2500,
+                    max_dataset_lcs=lczip_max_rows,
                     override_lcdir=self.uselcdir  # useful when testing LCC
                                                   # server
                 )
@@ -1467,7 +1476,11 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
             results_samplespec=results_samplespec,
-            email_when_done=email_when_done
+            email_when_done=email_when_done,
+            query_timeout=self.siteinfo['query_timeout_sec'],
+            lczip_timeout=self.siteinfo['lczip_timeout_sec'],
+            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
 
 
@@ -1758,7 +1771,11 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
             results_samplespec=results_samplespec,
-            email_when_done=email_when_done
+            email_when_done=email_when_done,
+            query_timeout=self.siteinfo['query_timeout_sec'],
+            lczip_timeout=self.siteinfo['lczip_timeout_sec'],
+            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
 
 
@@ -2058,7 +2075,11 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
             results_samplespec=results_samplespec,
-            email_when_done=email_when_done
+            email_when_done=email_when_done,
+            query_timeout=self.siteinfo['query_timeout_sec'],
+            lczip_timeout=self.siteinfo['lczip_timeout_sec'],
+            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
 
 
@@ -2329,5 +2350,9 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             results_sortspec=results_sortspec,
             results_limitspec=results_limitspec,
             results_samplespec=results_samplespec,
-            email_when_done=email_when_done
+            email_when_done=email_when_done,
+            query_timeout=self.siteinfo['query_timeout_sec'],
+            lczip_timeout=self.siteinfo['lczip_timeout_sec'],
+            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )

@@ -214,7 +214,11 @@ def prepare_basedir(basedir,
             "signups_allowed": True,
             "logins_allowed": True,
             "rate_limit_active": True,
-            "cache_location": cachedir
+            "cache_location": cachedir,
+            "query_timeout_sec": 30.0,
+            "lczip_timeout_sec": 30.0,
+            "lczip_max_nrows": 500,
+            "datset_rows_per_page": 500
         }
 
         # check if the site institution logo file is not None and exists
