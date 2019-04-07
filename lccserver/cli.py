@@ -218,7 +218,7 @@ def prepare_basedir(basedir,
             "query_timeout_sec": 30.0,
             "lczip_timeout_sec": 30.0,
             "lczip_max_nrows": 500,
-            "datset_rows_per_page": 500
+            "dataset_rows_per_page": 500
         }
 
         # check if the site institution logo file is not None and exists

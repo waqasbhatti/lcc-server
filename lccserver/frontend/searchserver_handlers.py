@@ -604,7 +604,7 @@ class BackgroundQueryMixin(object):
                          results_limitspec=None,
                          results_samplespec=None,
                          email_when_done=False,
-                         lczip_max_rows=500,
+                         lczip_max_nrows=500,
                          ds_rows_per_page=500,
                          query_timeout=30.0,
                          lczip_timeout=30.0):
@@ -721,9 +721,9 @@ class BackgroundQueryMixin(object):
                     )
 
                     # only collect the LCs into a pickle if the user requested
-                    # less than lczip_max_rows light curves. generating bigger
+                    # less than lczip_max_nrows light curves. generating bigger
                     # ones is something we'll handle later
-                    if ds_nrows > lczip_max_rows:
+                    if ds_nrows > lczip_max_nrows:
                         donewithuser = True
                     else:
                         donewithuser = False
@@ -735,8 +735,8 @@ class BackgroundQueryMixin(object):
                     )
 
                     #
-                    # we're continuing, but will only collect lczip_max_rows LCs
-                    # at most
+                    # we're continuing, but will only collect lczip_max_nrows
+                    # LCs at most
                     #
 
                     #
@@ -762,7 +762,7 @@ class BackgroundQueryMixin(object):
                         self.write(retdict)
                         yield self.flush()
 
-                    # if there are more than lczip_max_rows LCs to collect,
+                    # if there are more than lczip_max_nrows LCs to collect,
                     # we'll stop here and tell the user their query has gone to
                     # the background
                     else:
@@ -775,7 +775,7 @@ class BackgroundQueryMixin(object):
                                 "a ZIP file. "
                                 "See %s for dataset object lists and a "
                                 "CSV."
-                            ) % (lczip_max_rows, dataset_url),
+                            ) % (lczip_max_nrows, dataset_url),
                             "status":"background",
                             "result":{
                                 "setid":dspkl_setid,
@@ -799,7 +799,7 @@ class BackgroundQueryMixin(object):
                         dspkl_setid,
                         csvlcs_to_generate,
                         all_original_lcs,
-                        max_dataset_lcs=lczip_max_rows,
+                        max_dataset_lcs=lczip_max_nrows,
                         override_lcdir=self.uselcdir
                     )
 
@@ -824,7 +824,7 @@ class BackgroundQueryMixin(object):
                                 message = (
                                     "dataset LC ZIP not generated "
                                     "because > %s LCs in dataset"
-                                ) % lczip_max_rows
+                                ) % lczip_max_nrows
                                 lczip_url = None
 
                             # A4. we're done with collecting light curves
@@ -1149,14 +1149,14 @@ class BackgroundQueryMixin(object):
                 )
 
                 # only collect the LCs into a pickle if the user requested less
-                # than lczip_max_rows light curves. generating bigger ones is
+                # than lczip_max_nrows light curves. generating bigger ones is
                 # something we'll handle later
-                if ds_nrows > lczip_max_rows:
+                if ds_nrows > lczip_max_nrows:
 
                     LOGGER.warning(
                         '> %s LCs requested for zipping in the '
                         'background, not making the LC ZIP for dataset: %s' %
-                        (lczip_max_rows, dspkl_setid)
+                        (lczip_max_nrows, dspkl_setid)
                     )
 
                 # Q4. collect light curve ZIP files
@@ -1167,7 +1167,7 @@ class BackgroundQueryMixin(object):
                     dspkl_setid,
                     csvlcs_to_generate,
                     all_original_lcs,
-                    max_dataset_lcs=lczip_max_rows,
+                    max_dataset_lcs=lczip_max_nrows,
                     override_lcdir=self.uselcdir  # useful when testing LCC
                                                   # server
                 )
@@ -1479,7 +1479,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             email_when_done=email_when_done,
             query_timeout=self.siteinfo['query_timeout_sec'],
             lczip_timeout=self.siteinfo['lczip_timeout_sec'],
-            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            lczip_max_nrows=self.siteinfo['lczip_max_nrows'],
             ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
 
@@ -1774,7 +1774,7 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             email_when_done=email_when_done,
             query_timeout=self.siteinfo['query_timeout_sec'],
             lczip_timeout=self.siteinfo['lczip_timeout_sec'],
-            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            lczip_max_nrows=self.siteinfo['lczip_max_nrows'],
             ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
 
@@ -2078,7 +2078,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             email_when_done=email_when_done,
             query_timeout=self.siteinfo['query_timeout_sec'],
             lczip_timeout=self.siteinfo['lczip_timeout_sec'],
-            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            lczip_max_nrows=self.siteinfo['lczip_max_nrows'],
             ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
 
@@ -2353,6 +2353,6 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             email_when_done=email_when_done,
             query_timeout=self.siteinfo['query_timeout_sec'],
             lczip_timeout=self.siteinfo['lczip_timeout_sec'],
-            lczip_max_nrows=self.siteinfo['lczip_max_rows'],
+            lczip_max_nrows=self.siteinfo['lczip_max_nrows'],
             ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
