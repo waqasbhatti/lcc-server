@@ -2894,9 +2894,8 @@ var lcc_search = {
 
           alertmsg = 'Query <code>' +
             msgdata.result.setid +
-            '</code> is complete, but there are &gt; ' +
-            '2,500 LCs to collect, ' +
-            'so no LC ZIP file was generated. ' +
+            '</code> is complete, but there are too many ' +
+            'LCs to collect, so no LC ZIP file was generated. ' +
             'Try refining your query, or see ' +
             '<a target="_blank" ' +
             'rel="nofollow noreferrer noopener" href="' +
@@ -4219,7 +4218,7 @@ var lcc_datasets = {
                                   '</span>');
         $('#setload-indicator').html(
           '<span class="text-warning">' +
-            'still collecting light curves...' +
+            'verifying and converting LCs...' +
             '</span>'
         );
         lcc_datasets.dataset_complete = false;
