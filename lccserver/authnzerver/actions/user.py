@@ -628,11 +628,20 @@ def delete_user(payload,
             'messages':["We could not verify your email address or password."]
         }
 
-
+    # delete the user
     delete = users.delete().where(
         users.c.user_id == payload['user_id']
     ).where(
         users.c.email == payload['email']
+    ).where(
+        users.c.user_role != 'superuser'
+    )
+    result = currproc.connection.execute(delete)
+    result.close()
+
+    # delete all of their sessions too
+    delete = sessions.delete().where(
+        users.c.user_id == payload['user_id']
     ).where(
         users.c.user_role != 'superuser'
     )
