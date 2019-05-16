@@ -1,3 +1,31 @@
+# v0.2.5
+
+## New stuff
+
+- The foreground query timeout, LC zip process timeout, the maximum number of
+  dataset rows allowed to generate an LC zip for, and the number of rows per
+  page for a dataset are all now configurable via the `site-info.json`
+  file. [Here is the updated
+  base](https://github.com/waqasbhatti/lcc-server/blob/5081181d8a26ae96e3133f068b9298be158ad19f/lccserver/cli.py#L207-L221)
+  of the `site-info.json` file that is copied over when the `lcc-server` CLI is
+  used to `init` a project base directory. Add the new keys to your own
+  `site-info.json` file to activate these configurable parameters.
+
+## Changes
+
+- Authnzerver: user login now requires `email_verified` AND `is_active` status
+  as opposed to just `is_active` status previously.
+- Frontend: Some fixes to the messaging when an asychronous query is still
+  running when the timeout expires.
+
+## Fixes
+
+- Fixed several test failures.
+- Authnzerver: correctly delete all user cookies and all associated session
+  entries when a user is deleted.
+- Admin: additional guards against escalation of privilege when editing user
+  info.
+
 # v0.2.4
 
 ## Fixes
