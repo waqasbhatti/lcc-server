@@ -18,6 +18,7 @@ import logging
 import numpy as np
 from datetime import datetime, timedelta
 import re
+import copy
 
 from cryptography.fernet import Fernet
 
@@ -462,6 +463,32 @@ def parse_conditions(conditions, maxlength=1000):
 
 
 
+def query_to_cachestr(name, args):
+    '''
+    This turns the query specification into a cache string.
+
+    '''
+
+    cacheable_dict = {}
+
+    arg_keys = sorted(list(args.keys()) + ['type'])
+
+    for key in arg_keys:
+
+        if key == 'type':
+
+            cacheable_dict['type'] = name
+
+        else:
+
+            if isinstance(args[key], (list, tuple)):
+                cacheable_dict[key] = sorted(args[key])
+            else:
+                cacheable_dict[key] = args[key]
+
+    cache_str = json.dumps(cacheable_dict, sort_keys=True)
+    return cache_str
+
 
 ###################################################
 ## QUERY HANDLER MIXIN FOR RUNNING IN BACKGROUND ##
@@ -525,7 +552,7 @@ class BackgroundQueryMixin(object):
 
         if results_sortspec:
             try:
-                # sortspec is a list of tuples: (column name, asc|desc)
+                # sortspec is a list of tuples: [(column name, 'asc|desc'),...]
                 results_sortspec = json.loads(results_sortspec)
             except Exception as e:
                 LOGGER.exception('could not parse sortspec: %r' %
