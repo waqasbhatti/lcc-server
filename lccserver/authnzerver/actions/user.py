@@ -597,6 +597,7 @@ def delete_user(payload,
         users.c.user_id,
         users.c.email,
         users.c.password,
+        users.c.user_role
     ]).select_from(
         users
     ).where(
@@ -628,13 +629,31 @@ def delete_user(payload,
             'messages':["We could not verify your email address or password."]
         }
 
+    if row['user_role'] == 'superuser':
+        LOGGER.error(
+            "Can't delete superusers."
+        )
+        return {
+            'success': False,
+            'user_id':payload['user_id'],
+            'email':payload['email'],
+            'messages':["Can't delete superusers."]
+        }
 
+    # delete the user
     delete = users.delete().where(
         users.c.user_id == payload['user_id']
     ).where(
         users.c.email == payload['email']
     ).where(
         users.c.user_role != 'superuser'
+    )
+    result = currproc.connection.execute(delete)
+    result.close()
+
+    # delete the sessions as well
+    delete = sessions.delete().where(
+        sessions.c.user_id == payload['user_id']
     )
     result = currproc.connection.execute(delete)
     result.close()

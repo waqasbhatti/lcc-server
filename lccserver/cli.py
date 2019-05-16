@@ -201,6 +201,9 @@ def prepare_basedir(basedir,
 
     else:
 
+        import secrets
+        cachedir = '/tmp/lccs-%s' % secrets.token_urlsafe(8)
+
         siteinfo = {
             "project":site_project,
             "project_link":site_project_link,
@@ -211,7 +214,11 @@ def prepare_basedir(basedir,
             "signups_allowed": True,
             "logins_allowed": True,
             "rate_limit_active": True,
-            "cache_location": "/tmp/lccserver_cache"
+            "cache_location": cachedir,
+            "query_timeout_sec": 30.0,
+            "lczip_timeout_sec": 30.0,
+            "lczip_max_nrows": 500,
+            "dataset_rows_per_page": 500
         }
 
         # check if the site institution logo file is not None and exists

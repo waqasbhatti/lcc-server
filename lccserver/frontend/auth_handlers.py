@@ -1485,8 +1485,7 @@ class DeleteUserHandler(BaseHandler):
                             'danger',
                         )
 
-                        self.clear_cookie('lccserver_session')
-                        self.clear_cookie('lccserver_prefs')
+                        self.clear_all_cookies()
                         self.redirect('/')
 
                     else:

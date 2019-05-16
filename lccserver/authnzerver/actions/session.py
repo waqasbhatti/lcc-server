@@ -908,7 +908,13 @@ def auth_user_login(payload,
                 users.c.password,
                 users.c.is_active,
                 users.c.user_role,
-            ]).select_from(users).where(users.c.email == payload['email'])
+            ]).select_from(users).where(
+                users.c.email == payload['email']
+            ).where(
+                users.c.is_active == True
+            ).where(
+                users.c.email_verified == True
+            )
             user_results = currproc.connection.execute(user_sel)
             user_info = user_results.fetchone()
             user_results.close()
