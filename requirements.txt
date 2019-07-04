@@ -1,6 +1,6 @@
 ipython>=7.3
 numpy>=1.16
-scipy==1.2.1
+scipy>=1.2.1
 tornado>=5.1
 requests>=2.19.1
 tqdm==4.31.1
