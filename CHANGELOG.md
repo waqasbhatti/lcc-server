@@ -1,3 +1,10 @@
+# v0.2.6
+
+## Fixes
+
+- Now correctly handles a failed sign-up request if the entered password doesn't
+  meet the required conditions on complexity.
+
 # v0.2.5
 
 ## New stuff
