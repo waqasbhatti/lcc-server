@@ -53,14 +53,11 @@ def test_create_user():
         override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is False
-    assert user_created['user_email'] is 'testuser@test.org'
+    assert user_created['user_email'] == 'testuser@test.org'
     assert user_created['user_id'] is None
     assert user_created['send_verification'] is False
     assert ('Your password is too short. It must have at least 12 characters.'
             in user_created['messages'])
-    assert ('Your password is too similar to either '
-            'the domain name of this LCC-Server or your '
-            'own email address.' in user_created['messages'])
     assert ('Your password is not complex enough. '
             'One or more characters appear appear too frequently.'
             in user_created['messages'])
@@ -73,7 +70,7 @@ def test_create_user():
         override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is False
-    assert user_created['user_email'] is 'testuser@test.org'
+    assert user_created['user_email'] == 'testuser@test.org'
     assert user_created['user_id'] is None
     assert user_created['send_verification'] is False
     assert ('Your password cannot be all numbers.' in user_created['messages'])
@@ -86,7 +83,7 @@ def test_create_user():
         override_authdb_path='sqlite:///test-creation.authdb.sqlite'
     )
     assert user_created['success'] is False
-    assert user_created['user_email'] is 'testuser@test.org'
+    assert user_created['user_email'] == 'testuser@test.org'
     assert user_created['user_id'] is None
     assert user_created['send_verification'] is False
     assert ('Your password is not complex enough. '

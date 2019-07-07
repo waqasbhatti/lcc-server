@@ -437,19 +437,15 @@ class NewUserHandler(BaseHandler):
                 self.redirect('/users/new')
 
 
-        # if the sign up request fails, tell the user we've sent an email but do
-        # nothing
+        # if the sign up request fails, tell the user what went wrong
         else:
 
             self.save_flash_messages(
-                "Thanks for signing up! We've sent a verification "
-                "request to your email address. "
-                "Please complete user registration by "
-                "entering the code you received.",
-                "primary"
+                "Sorry, your sign-up request failed "
+                "because: %s" % " ".join(msgs),
+                "danger"
             )
-            self.redirect('/users/verify')
-
+            self.redirect('/users/new')
 
 
 class VerifyUserHandler(BaseHandler):
