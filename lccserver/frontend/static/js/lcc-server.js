@@ -2021,17 +2021,8 @@ var lcc_ui = {
       var message = data.message;
 
       // if something broke, alert the user
-      if (status != 'ok' || result === null || result.length == 0) {
-
-        // don't warn if the user hasn't created any datasets and this
-        // is a useronly query
-        if ((message.indexOf('No datasets') != -1) &&
-            (useronly === undefined || !useronly)) {
-          lcc_ui.alert_box(message, 'warning');
-        }
-        else {
-          lcc_ui.alert_box(message, 'warning');
-        }
+      if (status != 'ok') {
+        lcc_ui.alert_box(message, 'warning');
       }
 
       // otherwise, fill in the datasets table
