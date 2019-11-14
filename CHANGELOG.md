@@ -1,3 +1,10 @@
+# v0.2.7
+
+## Fixes
+
+- Unpinned required scipy version.
+- Fixed messaging for case when there aren't 100 recent datasets to show.
+
 # v0.2.6
 
 ## Fixes
