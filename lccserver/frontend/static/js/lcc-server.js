@@ -296,17 +296,17 @@ var lcc_ui = {
 
       if (status == 'ok') {
 
-        $(target_key).val(JSON.stringify(result, null, 2));
-        $(target_expiry).html(
-          (' expires at ' +
-           moment.utc(result.expires).format('Y-M-D HH:mm Z'))
-        );
+        // generate a JSON file to download for the API key
+        let expiry_dtstr = moment.utc(result.expires)
+            .format('Y-M-D HH:mm Z');
+        let expiry_datestr = moment.utc(result.expires).format('Y-M-D');
+        let now_datestr = moment().format('Y-M-D');
+        let apikey_host = document.domain;
 
-        // save the API key to browser local storage. this should be OK
-        // because the key is encrypted and signed and tied to an IP
-        // address. (famous last words)
-        localStorage.setItem('lccserver_apikey_token', result.apikey);
-        localStorage.setItem('lccserver_apikey_expiry', result.expires);
+        let apikey_fname = `apikey-${apikey_host}-generated-${now_datestr}-expires-${expiry_datestr}.json`;
+
+        let apikey_json = `data:text/json;charset=utf-8,${JSON.stringify(result, null, 2)}`;
+
 
       }
 
