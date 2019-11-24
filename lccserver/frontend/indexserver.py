@@ -34,7 +34,6 @@ def _recv_sigint(signum, stack):
     raise KeyboardInterrupt
 
 
-
 #####################
 ## TORNADO IMPORTS ##
 #####################
@@ -45,7 +44,7 @@ try:
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     IOLOOP_SPEC = 'uvloop'
-except Exception as e:
+except Exception:
     HAVE_UVLOOP = False
     IOLOOP_SPEC = 'asyncio'
 
@@ -188,13 +187,11 @@ def main():
 
     from ..utils import ProcExecutor
 
-
     ####################################
     ## SET THE GLOBAL VERSION STRINGS ##
     ####################################
 
     APIVERSION = 2
-
 
     ###################
     ## SET UP CONFIG ##
@@ -245,7 +242,6 @@ def main():
     SITE_STATIC = os.path.join(SITE_DOCSPATH,'static')
     with open(os.path.join(SITE_DOCSPATH, 'doc-index.json'),'r') as infd:
         SITE_DOCINDEX = json.load(infd)
-
 
     #
     # find the collection footprint SVG if any and read it in.
@@ -300,7 +296,6 @@ def main():
         SITEINFO['email_user'] = None
         SITEINFO['email_pass'] = None
 
-
     # get the user login settings
     if SITEINFO['email_server'] is None:
         LOGGER.warning('Site info: '
@@ -353,8 +348,6 @@ def main():
     with open(os.path.join(SERVER_DOCSPATH,'doc-index.json'),'r') as infd:
         SERVER_DOCINDEX = json.load(infd)
 
-
-
     #
     # authentication server options
     #
@@ -382,9 +375,8 @@ def main():
         import requests
         try:
             requests.get('http://captive.apple.com/hotspot-detect.html')
-        except Exception as e:
+        except Exception:
             requests.get(CPADDR)
-
 
     ####################################
     ## PERSISTENT BACKGROUND EXECUTOR ##
@@ -393,7 +385,6 @@ def main():
     EXECUTOR = ProcExecutor(max_workers=MAXWORKERS,
                             initializer=setup_worker,
                             initargs=())
-
 
     ##################
     ## URL HANDLERS ##
@@ -674,7 +665,6 @@ def main():
           'cachedir':CACHEDIR,
           'apiversion':APIVERSION,}),
 
-
         ######################
         ## FIRST LEVEL APIS ##
         ######################
@@ -734,7 +724,6 @@ def main():
           'fernetkey':FERNETSECRET,
           'ratelimit':RATELIMIT,
           'cachedir':CACHEDIR}),
-
 
         ##################################
         ## SEARCH API ENDPOINT HANDLERS ##
@@ -808,7 +797,6 @@ def main():
           'ratelimit':RATELIMIT,
           'cachedir':CACHEDIR}),
 
-
         ##############################################
         ## DATASET DISPLAY AND LIVE-UPDATE HANDLERS ##
         ##############################################
@@ -843,7 +831,6 @@ def main():
           'fernetkey':FERNETSECRET,
           'ratelimit':RATELIMIT,
           'cachedir':CACHEDIR}),
-
 
         ################################################
         ## OBJECT INFORMATION FROM CHECKPLOT HANDLERS ##
@@ -917,7 +904,6 @@ def main():
     # X-Forwarded-For support so we can see the remote IP in the logs
     http_server = tornado.httpserver.HTTPServer(app, xheaders=True)
 
-
     ######################
     ## start the server ##
     ######################
@@ -932,7 +918,7 @@ def main():
         try:
             http_server.listen(serverport, options.serve)
             portok = True
-        except socket.error as e:
+        except socket.error:
             LOGGER.warning('%s:%s is already in use, trying port %s' %
                            (options.serve, serverport, serverport + 1))
             serverport = serverport + 1
@@ -965,6 +951,7 @@ def main():
 
     EXECUTOR.shutdown()
     time.sleep(2)
+
 
 # run the server
 if __name__ == '__main__':

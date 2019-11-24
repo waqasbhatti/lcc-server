@@ -128,7 +128,6 @@ class AdminIndexHandler(BaseHandler):
         self.apikey_verified = False
         self.apikey_info = None
 
-
     @gen.coroutine
     def get(self):
         '''
@@ -168,11 +167,9 @@ class AdminIndexHandler(BaseHandler):
                         siteinfo=self.siteinfo,
                         userlist=user_list)
 
-
         # anything else is probably the locked user, turn them away
         else:
             self.render_blocked_message()
-
 
 
 class SiteSettingsHandler(BaseHandler):
@@ -214,7 +211,6 @@ class SiteSettingsHandler(BaseHandler):
         # apikey verification info
         self.apikey_verified = False
         self.apikey_info = None
-
 
     @gen.coroutine
     def post(self):
@@ -311,7 +307,6 @@ class SiteSettingsHandler(BaseHandler):
                     if not logo_file_check:
                         institutionlogo = None
 
-
                 updatedict = {
                     "project": projectname,
                     "project_link": projectlink,
@@ -342,7 +337,7 @@ class SiteSettingsHandler(BaseHandler):
 
                     siteinfo_disk.update(updatedict)
 
-                except Exception as e:
+                except Exception:
                     LOGGER.error(
                         'site-info.json file does not '
                         'exist or has disappeared! A new site-info.json '
@@ -358,7 +353,6 @@ class SiteSettingsHandler(BaseHandler):
                     siteinfo_disk['cache_location'] = (
                         '/tmp/lccserver_cache'
                     )
-
 
                 LOGGER.warning(
                     'updating site-info.json from admin-site-update-form'
@@ -378,7 +372,7 @@ class SiteSettingsHandler(BaseHandler):
                 self.write(returndict)
                 self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception('failed to update site-info.json')
 
@@ -391,7 +385,6 @@ class SiteSettingsHandler(BaseHandler):
                 self.write(retdict)
                 raise tornado.web.Finish()
 
-
         # anything else is probably the locked user, turn them away
         else:
             self.set_status(403)
@@ -403,7 +396,6 @@ class SiteSettingsHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
 
 class EmailSettingsHandler(BaseHandler):
@@ -446,7 +438,6 @@ class EmailSettingsHandler(BaseHandler):
         # apikey verification info
         self.apikey_verified = False
         self.apikey_info = None
-
 
     @gen.coroutine
     def post(self):
@@ -501,7 +492,6 @@ class EmailSettingsHandler(BaseHandler):
                 ).strip()
                 emailpass = self.get_argument('emailpass').strip()
 
-
                 if loginval == 'login-allowed':
                     loginval = True
                 elif loginval == 'login-disallowed':
@@ -540,7 +530,6 @@ class EmailSettingsHandler(BaseHandler):
                     }
                     self.write(retdict)
                     raise tornado.web.Finish()
-
 
                 updatedict = {
                     "logins_allowed": loginval,
@@ -613,7 +602,6 @@ class EmailSettingsHandler(BaseHandler):
                     with open(email_settings_file,'w') as outfd:
                         json.dump(emailsettings_disk, outfd, indent=4)
 
-
                 # set email settings file permissions back to readonly
                 os.chmod(email_settings_file, 0o100400)
 
@@ -629,7 +617,7 @@ class EmailSettingsHandler(BaseHandler):
                 self.write(returndict)
                 self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception('failed to update site-info.json')
 
@@ -654,7 +642,6 @@ class EmailSettingsHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
 
 class UserAdminHandler(BaseHandler):
@@ -701,7 +688,6 @@ class UserAdminHandler(BaseHandler):
         # apikey verification info
         self.apikey_verified = False
         self.apikey_info = None
-
 
     @gen.coroutine
     def post(self):
@@ -828,7 +814,7 @@ class UserAdminHandler(BaseHandler):
                     self.write(retdict)
                     self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception('failed to update user information.')
 

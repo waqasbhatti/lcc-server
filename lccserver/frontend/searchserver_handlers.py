@@ -31,6 +31,7 @@ from cryptography.fernet import Fernet
 # - ndarray
 import json
 
+
 class FrontendEncoder(json.JSONEncoder):
 
     def default(self, obj):
@@ -51,11 +52,11 @@ class FrontendEncoder(json.JSONEncoder):
         else:
             return json.JSONEncoder.default(self, obj)
 
+
 # this replaces the default encoder and makes it so Tornado will do the right
 # thing when it converts dicts to JSON when a
 # tornado.web.RequestHandler.write(dict) is called.
 json._default_encoder = FrontendEncoder()
-
 
 
 #############
@@ -64,7 +65,6 @@ json._default_encoder = FrontendEncoder()
 
 # get a logger
 LOGGER = logging.getLogger(__name__)
-
 
 
 #####################
@@ -78,7 +78,6 @@ import tornado.web
 from tornado.escape import xhtml_escape, squeeze
 from tornado.httpclient import AsyncHTTPClient
 from tornado import gen
-
 
 
 ###################
@@ -96,7 +95,6 @@ from astrobase.coordutils import (
 )
 
 
-
 ###########################
 ## SOME USEFUL CONSTANTS ##
 ###########################
@@ -108,8 +106,8 @@ COORD_DEGSEARCH_REGEX = re.compile(
 )
 COORD_HMSSEARCH_REGEX = re.compile(
     r'^(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) '
-    '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) ?'
-    '(\d{1,2}\.{0,1}\d*)?$'
+    r'([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*) ?'
+    r'(\d{1,2}\.{0,1}\d*)?$'
 )
 
 # multiple object search
@@ -119,7 +117,7 @@ COORD_DEGMULTI_REGEX = re.compile(
 )
 COORD_HMSMULTI_REGEX = re.compile(
     r'^([a-zA-Z0-9_+\-\[\].]+)\s(\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)\s'
-    '([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$'
+    r'([+\-]?\d{1,2}[: ]\d{2}[: ]\d{2}\.{0,1}\d*)$'
 )
 
 DATASET_READY_EMAIL_TEMPLATE = '''\
@@ -137,7 +135,6 @@ Thanks,
 LCC-Server admins
 {lccserver_baseurl}
 '''
-
 
 
 #############################
@@ -204,12 +201,11 @@ def parse_coordstring(coordstring):
                 paramsok = False
                 radeg, decldeg, radiusdeg = None, None, None
 
-        except Exception as e:
+        except Exception:
 
             LOGGER.error('could not parse search string: %s' % coordstring)
             paramsok = False
             radeg, decldeg, radiusdeg = None, None, None
-
 
     else:
 
@@ -217,7 +213,6 @@ def parse_coordstring(coordstring):
         radeg, decldeg, radiusdeg = None, None, None
 
     return paramsok, radeg, decldeg, radiusdeg
-
 
 
 def parse_objectlist_item(objectline):
@@ -275,11 +270,10 @@ def parse_objectlist_item(objectline):
                 paramsok = False
                 objid, radeg, decldeg = None, None, None
 
-        except Exception as e:
+        except Exception:
             LOGGER.error('could not parse object line: %s' % objectline)
             paramsok = False
             objid, radeg, decldeg = None, None, None
-
 
     elif degcoordtry:
 
@@ -301,7 +295,7 @@ def parse_objectlist_item(objectline):
                 paramsok = False
                 objid, radeg, decldeg = None, None, None
 
-        except Exception as e:
+        except Exception:
 
             LOGGER.error('could not parse object line: %s' % objectline)
             paramsok = False
@@ -313,7 +307,6 @@ def parse_objectlist_item(objectline):
         objid, radeg, decldeg = None, None, None
 
     return paramsok, objid, radeg, decldeg
-
 
 
 def parse_xmatch_input(inputtext, matchradtext,
@@ -334,7 +327,7 @@ def parse_xmatch_input(inputtext, matchradtext,
             xmatch_distarcsec = matchrad
         else:
             xmatch_distarcsec = 3.0
-    except Exception as e:
+    except Exception:
         xmatch_distarcsec = 3.0
 
     itextlines = itext.split('\n')
@@ -415,7 +408,6 @@ def parse_xmatch_input(inputtext, matchradtext,
         return None, None
 
 
-
 def parse_conditions(conditions, maxlength=1000):
     '''This parses conditions provided in the query args.
 
@@ -448,7 +440,7 @@ def parse_conditions(conditions, maxlength=1000):
                 farrnext = farr[i+1]
                 farrnext_left = farrnext.index("'")
                 farrnext_right = farrnext.rindex("'")
-                farrnext = [a for a in farrnext]
+                farrnext = list(farrnext)
                 farrnext.insert(farrnext_left+1,'%')
                 farrnext.insert(farrnext_right+1,'%')
                 farr[i+1] = ''.join(farrnext)
@@ -457,10 +449,9 @@ def parse_conditions(conditions, maxlength=1000):
         LOGGER.info('conditions = %s' % conditions)
         return conditions
 
-    except Exception as e:
+    except Exception:
         LOGGER.exception('could not parse the filter conditions')
         return None
-
 
 
 def query_to_cachestr(name, args):
@@ -532,7 +523,6 @@ class BackgroundQueryMixin(object):
         if dataset_visibility not in ('public','private','shared','unlisted'):
             dataset_visibility = 'unlisted'
 
-
         #
         # dataset sharedwith
         #
@@ -548,7 +538,7 @@ class BackgroundQueryMixin(object):
         # now and not expose the controls at the moment
         dataset_sharedwith = None
 
-
+        #
         # get the final dataset's limitspec, sortspec, and random samplespec
         # from the query args
 
@@ -561,7 +551,7 @@ class BackgroundQueryMixin(object):
             try:
                 # sortspec is a list of tuples: [(column name, 'asc|desc'),...]
                 results_sortspec = json.loads(results_sortspec)
-            except Exception as e:
+            except Exception:
                 LOGGER.exception('could not parse sortspec: %r' %
                                  results_sortspec)
                 results_sortspec = None
@@ -578,7 +568,7 @@ class BackgroundQueryMixin(object):
                 results_limitspec = abs(int(xhtml_escape(results_limitspec)))
                 if results_limitspec == 0:
                     results_limitspec = None
-            except Exception as e:
+            except Exception:
                 LOGGER.exception('could not parse limitspec: %r' %
                                  results_limitspec)
                 results_limitspec = None
@@ -598,14 +588,13 @@ class BackgroundQueryMixin(object):
                 results_samplespec = abs(int(xhtml_escape(results_samplespec)))
                 if results_samplespec == 0:
                     results_samplespec = None
-            except Exception as e:
+            except Exception:
                 LOGGER.exception('could not parse samplespec: %r' %
                                  results_samplespec)
                 results_samplespec = None
 
         else:
             results_samplespec = None
-
 
         LOGGER.info('visibility = %s, sharedwith = %r' % (dataset_visibility,
                                                           dataset_sharedwith))
@@ -616,12 +605,9 @@ class BackgroundQueryMixin(object):
         LOGGER.info('limitspec = %r, type = %s' %
                     (results_limitspec, type(results_limitspec)))
 
-
         return (incoming_userid, incoming_role,
                 dataset_visibility, dataset_sharedwith,
                 results_sortspec, results_limitspec, results_samplespec)
-
-
 
     @gen.coroutine
     def background_query(self,
@@ -881,7 +867,6 @@ class BackgroundQueryMixin(object):
                             self.write(retdict)
                             yield self.flush()
 
-
                         # Q5. load the dataset to make sure it loads OK
                         setdict = yield self.executor.submit(
                             datasets.sqlite_get_dataset,
@@ -1078,7 +1063,6 @@ class BackgroundQueryMixin(object):
                     self.write(retdict)
                     self.finish()
 
-
             # if we didn't find anything, send back an error in most cases
             else:
 
@@ -1118,11 +1102,10 @@ class BackgroundQueryMixin(object):
                 self.write(retdict)
                 self.finish()
 
-
         #
         # if the query itself times out, then continue in the background
         #
-        except gen.TimeoutError as e:
+        except gen.TimeoutError:
 
             LOGGER.warning('search for setid: %s took too long, '
                            'moving query to background' % self.setid)
@@ -1150,7 +1133,6 @@ class BackgroundQueryMixin(object):
             }
             self.write(retdict)
             self.finish()
-
 
             # here, we'll yield to the uncancelled query_result_future Future to
             # continue waiting for its completion
@@ -1256,11 +1238,9 @@ class BackgroundQueryMixin(object):
                 LOGGER.warning('background query for setid: %s finished, '
                                'no objects were found')
 
-
             #
             # now we're actually done
             #
-
 
 
 ###########################
@@ -1308,8 +1288,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.ratelimit = ratelimit
         self.cachedir = cachedir
 
-
-
     def write_error(self, status_code, **kwargs):
         '''This overrides the usual write_error function so we can return JSON.
 
@@ -1348,8 +1326,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
         self.write(retdict)
 
-
-
     @gen.coroutine
     def post(self):
         '''This runs the query.
@@ -1383,7 +1359,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             self.write(retdict)
             raise tornado.web.Finish()
 
-
         LOGGER.info('request arguments: %r' % self.request.arguments)
 
         try:
@@ -1392,7 +1367,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
                 self.req_hostname = self.request.headers['X-Real-Host']
             else:
                 self.req_hostname = self.request.host
-
 
             # REQUIRED: conditions
             conditions = self.get_body_argument('filters', default=None)
@@ -1410,10 +1384,9 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
-                getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
+                getcolumns = list({xhtml_escape(x) for x in getcolumns})
             else:
                 getcolumns = None
-
 
             #
             # OPTIONAL: collections
@@ -1422,7 +1395,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             if lcclist is not None:
 
-                lcclist = list(set([xhtml_escape(x) for x in lcclist]))
+                lcclist = list({xhtml_escape(x) for x in lcclist})
                 if 'all' in lcclist:
                     lcclist.remove('all')
                 if len(lcclist) == 0:
@@ -1430,7 +1403,6 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             else:
                 lcclist = None
-
 
             #
             # OPTIONAL: email_when_done
@@ -1452,7 +1424,7 @@ class ColumnSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except Exception as e:
+        except Exception:
 
             LOGGER.exception(
                 'one or more of the required args are missing or invalid.'
@@ -1569,8 +1541,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.ratelimit = ratelimit
         self.cachedir = cachedir
 
-
-
     def write_error(self, status_code, **kwargs):
         '''This overrides the usual write_error function so we can return JSON.
 
@@ -1609,8 +1579,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
 
         self.write(retdict)
 
-
-
     @gen.coroutine
     def post(self):
         '''This runs the query.
@@ -1643,7 +1611,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             self.write(retdict)
             raise tornado.web.Finish()
 
-
         LOGGER.info('request arguments: %r' % self.request.arguments)
 
         try:
@@ -1652,7 +1619,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
                 self.req_hostname = self.request.headers['X-Real-Host']
             else:
                 self.req_hostname = self.request.host
-
 
             # REQUIRED: coords
             coordstr = xhtml_escape(self.get_body_argument('coords'))
@@ -1683,17 +1649,16 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
-                getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
+                getcolumns = list({xhtml_escape(x) for x in getcolumns})
             else:
                 getcolumns = None
-
 
             # OPTIONAL: collections
             lcclist = self.get_body_arguments('collections[]')
 
             if lcclist is not None:
 
-                lcclist = list(set([xhtml_escape(x) for x in lcclist]))
+                lcclist = list({xhtml_escape(x) for x in lcclist})
                 if 'all' in lcclist:
                     lcclist.remove('all')
                 if len(lcclist) == 0:
@@ -1701,7 +1666,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             else:
                 lcclist = None
-
 
             #
             # OPTIONAL: conditions
@@ -1729,14 +1693,13 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             else:
                 email_when_done = False
 
-
             #
             # now we've collected all the parameters for
             # sqlite_kdtree_conesearch
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except Exception as e:
+        except Exception:
 
             LOGGER.exception(
                 'one or more of the required args are missing or invalid'
@@ -1777,7 +1740,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
          results_limitspec,
          results_samplespec) = self.get_userinfo_datasetvis_resultspecs()
 
-
         # send the query to the background worker
         yield self.background_query(
             # query function
@@ -1817,7 +1779,6 @@ class ConeSearchHandler(BaseHandler, BackgroundQueryMixin):
             lczip_max_nrows=self.siteinfo['lczip_max_nrows'],
             ds_rows_per_page=self.siteinfo['dataset_rows_per_page']
         )
-
 
 
 #############################
@@ -1865,8 +1826,6 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
         self.ratelimit = ratelimit
         self.cachedir = cachedir
 
-
-
     def write_error(self, status_code, **kwargs):
         '''This overrides the usual write_error function so we can return JSON.
 
@@ -1904,8 +1863,6 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             }
 
         self.write(retdict)
-
-
 
     @gen.coroutine
     def post(self):
@@ -1950,7 +1907,6 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             else:
                 self.req_hostname = self.request.host
 
-
             # REQUIRED: ftstext
             ftstext = xhtml_escape(self.get_body_argument('ftstext'))
             ftstext = ftstext.replace('\n','')
@@ -1983,10 +1939,9 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
-                getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
+                getcolumns = list({xhtml_escape(x) for x in getcolumns})
             else:
                 getcolumns = None
-
 
             #
             # OPTIONAL: collections
@@ -1995,7 +1950,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             if lcclist is not None:
 
-                lcclist = list(set([xhtml_escape(x) for x in lcclist]))
+                lcclist = list({xhtml_escape(x) for x in lcclist})
                 if 'all' in lcclist:
                     lcclist.remove('all')
                 if len(lcclist) == 0:
@@ -2003,7 +1958,6 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
 
             else:
                 lcclist = None
-
 
             #
             # OPTIONAL: conditions
@@ -2037,7 +1991,7 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except Exception as e:
+        except Exception:
 
             LOGGER.exception(
                 'one or more of the required args are missing or invalid'
@@ -2123,7 +2077,6 @@ class FTSearchHandler(BaseHandler, BackgroundQueryMixin):
         )
 
 
-
 ###########################
 ## XMATCH SEARCH HANDLER ##
 ###########################
@@ -2168,8 +2121,6 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
         self.ratelimit = ratelimit
         self.cachedir = cachedir
 
-
-
     def write_error(self, status_code, **kwargs):
         '''This overrides the usual write_error function so we can return JSON.
 
@@ -2207,8 +2158,6 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             }
 
         self.write(retdict)
-
-
 
     @gen.coroutine
     def post(self):
@@ -2281,7 +2230,7 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             getcolumns = self.get_body_arguments('columns[]')
 
             if getcolumns is not None:
-                getcolumns = list(set([xhtml_escape(x) for x in getcolumns]))
+                getcolumns = list({xhtml_escape(x) for x in getcolumns})
             else:
                 getcolumns = None
 
@@ -2292,7 +2241,7 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
 
             if lcclist is not None:
 
-                lcclist = list(set([xhtml_escape(x) for x in lcclist]))
+                lcclist = list({xhtml_escape(x) for x in lcclist})
                 if 'all' in lcclist:
                     lcclist.remove('all')
                 if len(lcclist) == 0:
@@ -2321,7 +2270,7 @@ class XMatchHandler(BaseHandler, BackgroundQueryMixin):
             #
 
         # if something goes wrong parsing the args, bail out immediately
-        except Exception as e:
+        except Exception:
 
             LOGGER.exception(
                 'one or more of the required args are missing or invalid.'

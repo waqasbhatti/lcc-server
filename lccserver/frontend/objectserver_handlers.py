@@ -29,6 +29,7 @@ from cryptography.fernet import Fernet
 # - ndarray
 import json
 
+
 class FrontendEncoder(json.JSONEncoder):
 
     def default(self, obj):
@@ -46,6 +47,7 @@ class FrontendEncoder(json.JSONEncoder):
             return int(obj)
         else:
             return json.JSONEncoder.default(self, obj)
+
 
 # this replaces the default encoder and makes it so Tornado will do the right
 # thing when it converts dicts to JSON when a
@@ -116,7 +118,6 @@ def check_for_checkplots(objectid,
     else:
         cpdir = cpdir1
 
-
     if lcmagcols is None:
 
         cpfpath = os.path.join(cpdir, 'checkplot-%s*.pkl*' % objectid)
@@ -148,24 +149,19 @@ def check_for_checkplots(objectid,
                 if os.path.exists(cpfpath):
                     possible_checkplots.append(cpfpath)
 
-
     LOGGER.info('checkplot candidates found at: %r' %
                 possible_checkplots)
 
-
     if len(possible_checkplots) == 0:
-
         return None
 
     elif len(possible_checkplots) == 1:
-
         return possible_checkplots[0]
 
     # if there are multiple checkplots, they might .gz or cpserver-temp ones,
     # pick the canonical form of *.pkl if it exists, *.pkl.gz if it doesn't
     # exist. if neither of these exist, return None
     else:
-
         LOGGER.warning('multiple checkplots found for %s in %s' %
                        (objectid, collection))
 
@@ -177,7 +173,6 @@ def check_for_checkplots(objectid,
                 return cp
             else:
                 return None
-
 
 
 class ObjectInfoHandler(BaseHandler):
@@ -223,8 +218,6 @@ class ObjectInfoHandler(BaseHandler):
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.ratelimit = ratelimit
         self.cachedir = cachedir
-
-
 
     @gen.coroutine
     def get(self):
@@ -284,7 +277,6 @@ class ObjectInfoHandler(BaseHandler):
             lcmagcols = None
         else:
             lcmagcols = None
-
 
         # check if we actually have access to this object
         access_check = yield self.executor.submit(
@@ -377,7 +369,7 @@ class ObjectInfoHandler(BaseHandler):
                         )
                     )
 
-                except AttributeError as e:
+                except AttributeError:
 
                     rettext = json.dumps({
                         'status':'failed',
@@ -441,7 +433,6 @@ class ObjectInfoHandler(BaseHandler):
             self.write(retdict)
             self.finish()
 
-
     @gen.coroutine
     def post(self):
         '''
@@ -480,7 +471,6 @@ class ObjectInfoHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
         objectid = self.get_argument('objectid', default=None)
         collection = self.get_argument('collection', default=None)
@@ -539,7 +529,7 @@ class ObjectInfoHandler(BaseHandler):
                     try:
                         pfargs = json.loads(pfargs)
 
-                    except Exception as e:
+                    except Exception:
                         self.set_status(400)
                         retdict = {
                             'status':'failed',
@@ -550,7 +540,6 @@ class ObjectInfoHandler(BaseHandler):
                         }
                         self.write(retdict)
                         raise tornado.web.Finish()
-
 
         if not objectid:
 
@@ -678,7 +667,7 @@ class ObjectInfoHandler(BaseHandler):
                     self.finish()
 
             #
-            # handle period-search
+            # handle period-search. TODO: implement this
             #
             elif (checkplot_fpath is not None and action == 'period-search'):
 
@@ -696,7 +685,6 @@ class ObjectInfoHandler(BaseHandler):
                     self.write(retdict)
                     raise tornado.web.Finish()
 
-
                 retdict = {'status':'failed',
                            'message':(
                                'Not implemented yet.'
@@ -704,7 +692,6 @@ class ObjectInfoHandler(BaseHandler):
                            'result':None}
                 self.write(retdict)
                 self.finish()
-
 
             #
             # anything else is an error
@@ -740,8 +727,6 @@ class ObjectInfoHandler(BaseHandler):
             }
             self.write(retdict)
             self.finish()
-
-
 
 
 class ObjectInfoPageHandler(BaseHandler):
@@ -789,8 +774,6 @@ class ObjectInfoPageHandler(BaseHandler):
         self.ratelimit = ratelimit
         self.cachedir = cachedir
 
-
-
     @gen.coroutine
     def get(self, collection, objectid):
         '''This runs the query.
@@ -820,7 +803,7 @@ class ObjectInfoPageHandler(BaseHandler):
                 user_account_box=self.render_user_account_box(),
             )
 
-        except Exception as e:
+        except Exception:
 
             LOGGER.exception('could not handle incoming object request')
 

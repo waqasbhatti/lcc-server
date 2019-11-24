@@ -29,6 +29,7 @@ from cryptography.fernet import Fernet, InvalidToken
 import json
 import numpy as np
 
+
 class FrontendEncoder(json.JSONEncoder):
 
     def default(self, obj):
@@ -48,6 +49,7 @@ class FrontendEncoder(json.JSONEncoder):
             return int(obj)
         else:
             return json.JSONEncoder.default(self, obj)
+
 
 # this replaces the default encoder and makes it so Tornado will do the right
 # thing when it converts dicts to JSON when a
@@ -78,6 +80,7 @@ from tornado.httpclient import AsyncHTTPClient
 
 from lccserver import __version__
 from lccserver.frontend.basehandler import BaseHandler
+
 
 ###########################
 ## VARIOUS AUTH HANDLERS ##
@@ -126,8 +129,6 @@ class LoginHandler(BaseHandler):
             else:
                 self.render_blocked_message()
 
-
-
     @gen.coroutine
     def post(self):
         '''
@@ -159,7 +160,7 @@ class LoginHandler(BaseHandler):
             email = xhtml_escape(self.get_argument('email'))
             password = self.get_argument('password')
 
-        except Exception as e:
+        except Exception:
 
             LOGGER.error('email and password are both required.')
             self.save_flash_messages(
@@ -168,8 +169,9 @@ class LoginHandler(BaseHandler):
             )
             self.redirect('/users/login')
 
+        #
         # talk to the authnzerver to login this user
-
+        #
         reqtype = 'user-login'
         reqbody = {
             'session_token': current_user['session_token'],
@@ -207,7 +209,6 @@ class LoginHandler(BaseHandler):
             self.redirect('/')
 
 
-
 class LogoutHandler(BaseHandler):
     '''
     This handles /user/logout.
@@ -235,7 +236,6 @@ class LogoutHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
         current_user = self.current_user
 
@@ -265,7 +265,6 @@ class LogoutHandler(BaseHandler):
                 "warning"
             )
             self.redirect('/')
-
 
 
 class NewUserHandler(BaseHandler):
@@ -321,8 +320,6 @@ class NewUserHandler(BaseHandler):
 
                 self.render_blocked_message()
 
-
-
     @gen.coroutine
     def post(self):
         '''This handles the POST request to /users/new.
@@ -352,7 +349,7 @@ class NewUserHandler(BaseHandler):
             email = xhtml_escape(self.get_argument('email'))
             password = self.get_argument('password')
 
-        except Exception as e:
+        except Exception:
 
             LOGGER.error('email and password are both required.')
             self.save_flash_messages(
@@ -436,7 +433,6 @@ class NewUserHandler(BaseHandler):
                 self.save_flash_messages(msgs,'warning')
                 self.redirect('/users/new')
 
-
         # if the sign up request fails, tell the user what went wrong
         else:
 
@@ -490,7 +486,6 @@ class VerifyUserHandler(BaseHandler):
                 "warning"
             )
             self.redirect('/users/home')
-
 
     @gen.coroutine
     def post(self):
@@ -598,8 +593,7 @@ class VerifyUserHandler(BaseHandler):
                 )
                 self.redirect('/users/verify')
 
-
-        except InvalidToken as e:
+        except InvalidToken:
 
             yield self.new_session_token()
 
@@ -615,7 +609,7 @@ class VerifyUserHandler(BaseHandler):
 
             self.redirect('/users/verify')
 
-        except Exception as e:
+        except Exception:
 
             yield self.new_session_token()
 
@@ -629,7 +623,6 @@ class VerifyUserHandler(BaseHandler):
                 "warning"
             )
             self.redirect('/users/verify')
-
 
 
 class ForgotPassStep1Handler(BaseHandler):
@@ -674,7 +667,6 @@ class ForgotPassStep1Handler(BaseHandler):
             )
             self.redirect('/users/home')
 
-
     @gen.coroutine
     def post(self):
         '''This handles submission of the password reset step 1 form.
@@ -698,7 +690,6 @@ class ForgotPassStep1Handler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
         current_user = self.current_user
 
@@ -785,7 +776,7 @@ class ForgotPassStep1Handler(BaseHandler):
                         )
                         self.redirect('/users/forgot-password-step2')
 
-                except Exception as e:
+                except Exception:
 
                     self.save_flash_messages(
                         "An email address is required.",
@@ -802,7 +793,6 @@ class ForgotPassStep1Handler(BaseHandler):
                 "primary"
             )
             self.redirect('/users/home')
-
 
 
 class ForgotPassStep2Handler(BaseHandler):
@@ -842,8 +832,6 @@ class ForgotPassStep2Handler(BaseHandler):
                 "primary"
             )
             self.redirect('/users/home')
-
-
 
     @gen.coroutine
     def post(self):
@@ -918,7 +906,7 @@ class ForgotPassStep2Handler(BaseHandler):
                 )
                 self.redirect('/users/forgot-password-step2')
 
-        except Exception as e:
+        except Exception:
 
             self.save_flash_messages(
                 ["We couldn't validate your password reset request. ",
@@ -930,7 +918,6 @@ class ForgotPassStep2Handler(BaseHandler):
                 "warning"
             )
             self.redirect('/users/forgot-password-step2')
-
 
 
 class ChangePassHandler(BaseHandler):
@@ -974,8 +961,6 @@ class ChangePassHandler(BaseHandler):
             )
             self.redirect('/users/login')
 
-
-
     @gen.coroutine
     def post(self):
         '''This handles submission of the password change request form.
@@ -1000,7 +985,6 @@ class ChangePassHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
         if ((self.current_user) and
             (self.current_user['is_active']) and
@@ -1039,8 +1023,7 @@ class ChangePassHandler(BaseHandler):
                     )
                     self.redirect('/users/password-change')
 
-
-            except Exception as e:
+            except Exception:
 
                 self.save_flash_messages(
                     "We could not validate the password change form. "
@@ -1059,7 +1042,6 @@ class ChangePassHandler(BaseHandler):
                 "primary"
             )
             self.redirect('/users/login')
-
 
 
 class ChangeEmailStep1Handler(BaseHandler):
@@ -1120,8 +1102,6 @@ class ChangeEmailStep1Handler(BaseHandler):
             )
             self.redirect('/users/login')
 
-
-
     @gen.coroutine
     def post(self):
         '''This handles submission of the email change step-1 form.
@@ -1143,7 +1123,6 @@ class ChangeEmailStep1Handler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
         if ((self.current_user) and
             (self.current_user['is_active']) and
@@ -1185,8 +1164,7 @@ class ChangeEmailStep1Handler(BaseHandler):
                     )
                     self.redirect('/users/email-change-step1')
 
-
-            except Exception as e:
+            except Exception:
 
                 self.save_flash_messages(
                     "We could not validate the email change request form. "
@@ -1205,7 +1183,6 @@ class ChangeEmailStep1Handler(BaseHandler):
                 "primary"
             )
             self.redirect('/users/login')
-
 
 
 class ChangeEmailStep2Handler(BaseHandler):
@@ -1229,7 +1206,6 @@ class ChangeEmailStep2Handler(BaseHandler):
              ('authenticated','staff','superuser')) and
             current_user['is_active'] and
             current_user['email_verified']):
-
 
             # FIXME: get the user's new and old emails from the session
             # extra_info_json column and render them to the form.
@@ -1258,8 +1234,6 @@ class ChangeEmailStep2Handler(BaseHandler):
             )
             self.redirect('/users/login')
 
-
-
     @gen.coroutine
     def post(self):
         '''This handles submission of the email change step-2 form.
@@ -1282,7 +1256,6 @@ class ChangeEmailStep2Handler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
         if ((self.current_user) and
             (self.current_user['is_active']) and
@@ -1328,8 +1301,7 @@ class ChangeEmailStep2Handler(BaseHandler):
                     )
                     self.redirect('/users/email-change-step2')
 
-
-            except Exception as e:
+            except Exception:
 
                 self.save_flash_messages(
                     "We could not validate the email change form. "
@@ -1348,7 +1320,6 @@ class ChangeEmailStep2Handler(BaseHandler):
                 "primary"
             )
             self.redirect('/users/login')
-
 
 
 class DeleteUserHandler(BaseHandler):
@@ -1407,8 +1378,6 @@ class DeleteUserHandler(BaseHandler):
                 "primary"
             )
             self.redirect('/users/login')
-
-
 
     @gen.coroutine
     def post(self):
@@ -1492,7 +1461,7 @@ class DeleteUserHandler(BaseHandler):
                         )
                         self.redirect('/users/delete')
 
-            except Exception as e:
+            except Exception:
 
                 self.save_flash_messages(
                     "We could not validate the password change form. "
@@ -1511,7 +1480,6 @@ class DeleteUserHandler(BaseHandler):
                 "primary"
             )
             self.redirect('/users/login')
-
 
 
 class UserHomeHandler(BaseHandler):
@@ -1556,7 +1524,6 @@ class UserHomeHandler(BaseHandler):
                 "warning"
             )
             self.redirect('/users/login')
-
 
     @gen.coroutine
     def post(self):
@@ -1649,7 +1616,7 @@ class UserHomeHandler(BaseHandler):
                     self.write(retdict)
                     self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception('failed to update user information.')
 
@@ -1674,8 +1641,6 @@ class UserHomeHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
-
 
 
 ######################
@@ -1710,7 +1675,6 @@ class APIKeyHandler(BaseHandler):
         self.siteinfo = siteinfo
         self.ratelimit = ratelimit
         self.cachedir = cachedir
-
 
     @gen.coroutine
     def get(self):
@@ -1789,7 +1753,6 @@ class APIKeyHandler(BaseHandler):
             self.finish()
 
 
-
 class APIVerifyHandler(BaseHandler):
     '''This handles API key verification.
 
@@ -1818,8 +1781,6 @@ class APIVerifyHandler(BaseHandler):
         self.siteinfo = siteinfo
         self.ratelimit = ratelimit
         self.cachedir = cachedir
-
-
 
     @gen.coroutine
     def post(self):

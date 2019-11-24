@@ -31,6 +31,7 @@ from cryptography.fernet import Fernet
 # - ndarray
 import json
 
+
 class FrontendEncoder(json.JSONEncoder):
 
     def default(self, obj):
@@ -48,6 +49,7 @@ class FrontendEncoder(json.JSONEncoder):
             return int(obj)
         else:
             return json.JSONEncoder.default(self, obj)
+
 
 # this replaces the default encoder and makes it so Tornado will do the right
 # thing when it converts dicts to JSON when a
@@ -127,8 +129,6 @@ class DatasetHandler(BaseHandler):
         self.ratelimit = ratelimit
         self.cachedir = cachedir
 
-
-
     @gen.coroutine
     def get(self, setid):
         '''This runs the query.
@@ -175,7 +175,7 @@ class DatasetHandler(BaseHandler):
         try:
             returnjson = xhtml_escape(self.get_argument('json',default='0'))
             returnjson = True if returnjson == '1' else False
-        except Exception as e:
+        except Exception:
             returnjson = False
 
         if returnjson:
@@ -185,7 +185,7 @@ class DatasetHandler(BaseHandler):
                 strformat = xhtml_escape(self.get_argument('strformat',
                                                            default='0'))
                 strformat = True if strformat == '1' else False
-            except Exception as e:
+            except Exception:
                 strformat = False
 
             # get any page argument
@@ -199,7 +199,7 @@ class DatasetHandler(BaseHandler):
                 if setpage == 0:
                     setpage = 1
 
-            except Exception as e:
+            except Exception:
 
                 setpage = None
 
@@ -207,7 +207,6 @@ class DatasetHandler(BaseHandler):
 
             strformat = False
             setpage = None
-
 
         if setid is None or len(setid) == 0:
 
@@ -234,14 +233,12 @@ class DatasetHandler(BaseHandler):
                     user_account_box=self.render_user_account_box()
                 )
 
-
         #
         # get the dataset ID from the provided URL
         #
 
         # get the setid
         setid = xhtml_escape(setid)
-
 
         # figure out the spec for the backend function
         if returnjson is False:
@@ -299,7 +296,6 @@ class DatasetHandler(BaseHandler):
                             flash_messages=self.render_flash_messages(),
                             user_account_box=self.render_user_account_box())
 
-
         # next, if the dataset is returned but status is 'broken'
         elif ds is not None and ds['status'] == 'broken':
 
@@ -326,7 +322,6 @@ class DatasetHandler(BaseHandler):
                             siteinfo=self.siteinfo,
                             flash_messages=self.render_flash_messages(),
                             user_account_box=self.render_user_account_box())
-
 
         # next, if the dataset is returned but is in progress
         elif ds is not None and ds['status'] == 'in progress':
@@ -481,7 +476,6 @@ class DatasetHandler(BaseHandler):
                                            ds['currpage'] + 3)
                             if (1 <= x <= ds['npages'])
                         ]
-
 
                     page_futures = []
 
@@ -644,7 +638,6 @@ class DatasetHandler(BaseHandler):
                     )
                     raise tornado.web.Finish()
 
-
         #
         # if the dataset is complete
         #
@@ -663,7 +656,6 @@ class DatasetHandler(BaseHandler):
             else:
                 dataset_csv = None
                 ds['dataset_csv'] = None
-
 
             if os.path.exists(ds['lczipfpath']):
 
@@ -957,7 +949,6 @@ class DatasetHandler(BaseHandler):
                     )
                     raise tornado.web.Finish()
 
-
         # if we somehow get here, everything is broken
         else:
 
@@ -983,8 +974,6 @@ class DatasetHandler(BaseHandler):
                             siteinfo=self.siteinfo,
                             flash_messages=self.render_flash_messages(),
                             user_account_box=self.render_user_account_box())
-
-
 
     @gen.coroutine
     def post(self, setid):
@@ -1030,7 +1019,6 @@ class DatasetHandler(BaseHandler):
                         'message':message})
             raise tornado.web.Finish()
 
-
         if not self.keycheck['status'] == 'ok':
 
             self.set_status(403)
@@ -1041,7 +1029,6 @@ class DatasetHandler(BaseHandler):
             }
             self.write(retdict)
             raise tornado.web.Finish()
-
 
         #
         # get the dataset ID from the provided URL
@@ -1057,7 +1044,6 @@ class DatasetHandler(BaseHandler):
                         'result':None,
                         'message':message})
             raise tornado.web.Finish()
-
 
         # get the setid if it's fine
         setid = xhtml_escape(setid)
@@ -1096,7 +1082,6 @@ class DatasetHandler(BaseHandler):
                         'message':message})
             raise tornado.web.Finish()
 
-
         # get the action payload
         payload = self.get_argument('update', default=None)
 
@@ -1114,7 +1099,7 @@ class DatasetHandler(BaseHandler):
 
         try:
             payload = json.loads(payload)
-        except Exception as e:
+        except Exception:
             message = (
                 "Could not deserialize the action payload."
             )
@@ -1124,7 +1109,6 @@ class DatasetHandler(BaseHandler):
                         'result':None,
                         'message':message})
             raise tornado.web.Finish()
-
 
         # get some useful stuff for the user
         incoming_userid = self.current_user['user_id']
@@ -1174,7 +1158,7 @@ class DatasetHandler(BaseHandler):
                                 'message':message})
                     self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception(
                     'could not edit dataset: %s, user_id = %s, '
@@ -1233,7 +1217,7 @@ class DatasetHandler(BaseHandler):
                                 'message':message})
                     self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception(
                     'could not change dataset ownership: %s, user_id = %s, '
@@ -1292,7 +1276,7 @@ class DatasetHandler(BaseHandler):
                                 'message':message})
                     self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception(
                     'could not change dataset visibility: %s, user_id = %s, '
@@ -1350,7 +1334,7 @@ class DatasetHandler(BaseHandler):
                                 'message':message})
                     self.finish()
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception(
                     'could not delete dataset: %s, user_id = %s, '
@@ -1382,7 +1366,6 @@ class DatasetHandler(BaseHandler):
                         'result':None,
                         'message':message})
             self.finish()
-
 
 
 #############################
@@ -1425,7 +1408,6 @@ class AllDatasetsHandler(BaseHandler):
         self.httpclient = AsyncHTTPClient(force_instance=True)
         self.ratelimit = ratelimit
         self.cachedir = cachedir
-
 
     @gen.coroutine
     def get(self):

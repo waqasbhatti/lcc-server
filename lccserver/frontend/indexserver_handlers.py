@@ -31,6 +31,7 @@ from cryptography.fernet import Fernet
 # - ndarray
 import json
 
+
 class FrontendEncoder(json.JSONEncoder):
 
     def default(self, obj):
@@ -51,12 +52,11 @@ class FrontendEncoder(json.JSONEncoder):
         else:
             return json.JSONEncoder.default(self, obj)
 
+
 # this replaces the default encoder and makes it so Tornado will do the right
 # thing when it converts dicts to JSON when a
 # tornado.web.RequestHandler.write(dict) is called.
 json._default_encoder = FrontendEncoder()
-
-
 
 #############
 ## LOGGING ##
@@ -64,7 +64,6 @@ json._default_encoder = FrontendEncoder()
 
 # get a logger
 LOGGER = logging.getLogger(__name__)
-
 
 
 #####################
@@ -136,8 +135,6 @@ class IndexHandler(BaseHandler):
         self.cachedir = cachedir
         self.footprint_svg = footprint_svg
 
-
-
     def get(self):
         '''This handles GET requests to the index page.
 
@@ -153,7 +150,6 @@ class IndexHandler(BaseHandler):
             current_user=self.current_user,
             footprint_svg=self.footprint_svg
         )
-
 
 
 ###################
@@ -180,7 +176,6 @@ def doc_render_worker(docpage,
         return None, None
     if len(docpage) != len(squeeze(docpage).strip().replace(' ','')):
         return None, None
-
 
     # find the doc page requested
     if docpage in serverindex:
@@ -216,7 +211,6 @@ def doc_render_worker(docpage,
     if (doc_md_dir_abspath != doc_dir_abspath):
         return None, None
 
-
     # we'll open in 'r' mode since we want unicode for markdown
     with open(doc_md_file,'r') as infd:
         doc_markdown = infd.read()
@@ -243,7 +237,6 @@ def doc_render_worker(docpage,
     )
 
     return doc_html, page_title
-
 
 
 class DocsHandler(BaseHandler):
@@ -304,7 +297,6 @@ class DocsHandler(BaseHandler):
             self.request.protocol,
             self.req_hostname,
         )
-
 
     @tornado.web.removeslash
     @gen.coroutine
@@ -368,7 +360,7 @@ class DocsHandler(BaseHandler):
                         user_account_box=self.render_user_account_box()
                     )
 
-            except Exception as e:
+            except Exception:
 
                 LOGGER.exception('failed to render doc page: %s' % docpage)
                 self.set_status(404)
@@ -383,7 +375,6 @@ class DocsHandler(BaseHandler):
                     flash_messages=self.render_flash_messages(),
                     user_account_box=self.render_user_account_box()
                 )
-
 
 
 #############################
@@ -436,8 +427,6 @@ class CollectionListHandler(BaseHandler):
                         'markdown.extensions.tables'],
         )
 
-
-
     @gen.coroutine
     def get(self):
         '''This gets the list of collections currently available.
@@ -468,7 +457,7 @@ class CollectionListHandler(BaseHandler):
                     try:
                         desc = self.markdowner.convert(desc[6:])
                         collection_info['description'][collind] = desc
-                    except Exception as e:
+                    except Exception:
                         LOGGER.warning('markdown convert failed '
                                        'for description for collection: %s' %
                                        coll)
@@ -527,7 +516,6 @@ class CollectionListHandler(BaseHandler):
             self.finish()
 
 
-
 ##########################
 ## DATASET LIST HANDLER ##
 ##########################
@@ -571,7 +559,6 @@ class DatasetListHandler(BaseHandler):
         self.ratelimit = ratelimit
         self.cachedir = cachedir
 
-
     @gen.coroutine
     def get(self):
         '''This gets the list of datasets currently available.
@@ -581,7 +568,7 @@ class DatasetListHandler(BaseHandler):
         try:
             nrecent = self.get_argument('nsets')
             nrecent = int(xhtml_escape(nrecent))
-        except Exception as e:
+        except Exception:
             nrecent = 25
 
         setfilter = self.get_argument('filter', default=None)
@@ -630,7 +617,7 @@ class DatasetListHandler(BaseHandler):
                         os.path.join(self.basedir,'datasets'),
                         '/d'
                     )
-                except Exception as e:
+                except Exception:
                     dataset_fpath = None
 
                 try:
@@ -639,7 +626,7 @@ class DatasetListHandler(BaseHandler):
                         os.path.join(self.basedir,'datasets'),
                         '/d'
                     )
-                except Exception as e:
+                except Exception:
                     dataset_csv = None
 
                 try:
@@ -648,7 +635,7 @@ class DatasetListHandler(BaseHandler):
                         os.path.join(self.basedir,'products'),
                         '/p'
                     )
-                except Exception as e:
+                except Exception:
                     lczip_fpath = None
 
                 # update this listing with the URLs of the products
@@ -715,8 +702,6 @@ class DatasetListHandler(BaseHandler):
         self.write(dataset_info)
         self.finish()
 
-
-
     @gen.coroutine
     def post(self):
         '''This gets the list of datasets currently available.
@@ -734,11 +719,10 @@ class DatasetListHandler(BaseHandler):
             self.write(retdict)
             raise tornado.web.Finish()
 
-
         try:
             nrecent = self.get_argument('nsets')
             nrecent = int(xhtml_escape(nrecent))
-        except Exception as e:
+        except Exception:
             nrecent = 25
 
         setfilter = self.get_argument('datasetsearch', default=None)
@@ -777,7 +761,7 @@ class DatasetListHandler(BaseHandler):
                         os.path.join(self.basedir,'datasets'),
                         '/d'
                     )
-                except Exception as e:
+                except Exception:
                     dataset_fpath = None
 
                 try:
@@ -786,7 +770,7 @@ class DatasetListHandler(BaseHandler):
                         os.path.join(self.basedir,'datasets'),
                         '/d'
                     )
-                except Exception as e:
+                except Exception:
                     dataset_csv = None
 
                 try:
@@ -795,7 +779,7 @@ class DatasetListHandler(BaseHandler):
                         os.path.join(self.basedir,'products'),
                         '/p'
                     )
-                except Exception as e:
+                except Exception:
                     lczip_fpath = None
 
                 # update this listing with the URLs of the products

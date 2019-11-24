@@ -31,7 +31,6 @@ from hmac import compare_digest
 from cryptography.fernet import Fernet, InvalidToken
 
 
-
 ######################################
 ## CUSTOM JSON ENCODER FOR FRONTEND ##
 ######################################
@@ -41,6 +40,7 @@ from cryptography.fernet import Fernet, InvalidToken
 # - ndarray
 # - datetime
 import json
+
 
 class FrontendEncoder(json.JSONEncoder):
 
@@ -61,6 +61,7 @@ class FrontendEncoder(json.JSONEncoder):
             return int(obj)
         else:
             return json.JSONEncoder.default(self, obj)
+
 
 # this replaces the default encoder and makes it so Tornado will do the right
 # thing when it converts dicts to JSON when a
@@ -123,7 +124,7 @@ def decrypt_response(response_base64, fernetkey):
         LOGGER.error('invalid response could not be decrypted')
         return None
 
-    except Exception as e:
+    except Exception:
 
         LOGGER.exception('could not understand incoming response')
         return None
@@ -165,7 +166,6 @@ class BaseHandler(tornado.web.RequestHandler):
     </div>
     ''')
 
-
     nosignup_account_box = twd('''\
     <div class="user-signin-box">
     <a class="nav-item nav-link"
@@ -175,7 +175,6 @@ class BaseHandler(tornado.web.RequestHandler):
     </a>
     </div>
     ''')
-
 
     admin_account_box = twd('''\
     <div class="superuser-admin-box">
@@ -199,7 +198,6 @@ class BaseHandler(tornado.web.RequestHandler):
     </div>
     ''')
 
-
     signedin_account_box = twd('''\
     <div class="user-prefs-box">
     <a class="nav-item nav-link user-prefs-link"
@@ -214,7 +212,6 @@ class BaseHandler(tornado.web.RequestHandler):
     </button>
     </div>
     ''')
-
 
     def initialize(self,
                    authnzerver,
@@ -247,8 +244,6 @@ class BaseHandler(tornado.web.RequestHandler):
         self.apikey_verified = False
         self.apikey_info = None
 
-
-
     def save_flash_messages(self, messages, alert_type):
         '''
         This saves the flash messages to a secure cookie.
@@ -279,7 +274,6 @@ class BaseHandler(tornado.web.RequestHandler):
             secure=self.csecure,
             samesite='lax',
         )
-
 
     def render_flash_messages(self,
                               message_now_text=None,
@@ -334,7 +328,6 @@ class BaseHandler(tornado.web.RequestHandler):
         else:
             return ''
 
-
     def render_blocked_message(self):
         '''
         This renders the template indicating that the user is blocked.
@@ -354,7 +347,6 @@ class BaseHandler(tornado.web.RequestHandler):
             lccserver_version=__version__,
             user_account_box=self.render_user_account_box(),
         )
-
 
     def render_user_account_box(self):
         '''
@@ -376,7 +368,6 @@ class BaseHandler(tornado.web.RequestHandler):
                 user_account_box = self.nosignup_account_box
             else:
                 user_account_box = self.normal_account_box
-
 
         # normal authenticated user
         elif current_user and current_user['user_role'] == 'authenticated':
@@ -404,8 +395,6 @@ class BaseHandler(tornado.web.RequestHandler):
                 user_account_box = self.normal_account_box
 
         return user_account_box
-
-
 
     def set_cookie(self, name, value, domain=None, expires=None, path="/",
                    expires_days=None, **kwargs):
@@ -466,7 +455,6 @@ class BaseHandler(tornado.web.RequestHandler):
 
             morsel[k] = v
 
-
     @gen.coroutine
     def authnzerver_request(self,
                             request_type,
@@ -513,8 +501,6 @@ class BaseHandler(tornado.web.RequestHandler):
             messages = respdict['response']['messages']
 
             return success, response, messages
-
-
 
     @gen.coroutine
     def new_session_token(self,
@@ -579,8 +565,6 @@ class BaseHandler(tornado.web.RequestHandler):
                          'Will fail this request.')
             raise tornado.web.HTTPError(statuscode=401)
 
-
-
     @gen.coroutine
     def email_current_user(self,
                            subject,
@@ -613,7 +597,6 @@ class BaseHandler(tornado.web.RequestHandler):
         else:
 
             return False
-
 
     @gen.coroutine
     def check_auth_header_apikey(self):
@@ -725,7 +708,7 @@ class BaseHandler(tornado.web.RequestHandler):
                 self.set_status(401)
                 return retdict
 
-        except Exception as e:
+        except Exception:
 
             LOGGER.exception('could not verify API key.')
             retdict = {
@@ -738,8 +721,6 @@ class BaseHandler(tornado.web.RequestHandler):
             self.apikey_info = None
             self.set_status(401)
             return retdict
-
-
 
     def tornado_check_xsrf_cookie(self):
         '''This is the original Tornado XSRF token checker.
@@ -782,7 +763,6 @@ class BaseHandler(tornado.web.RequestHandler):
             self.set_status(401)
             return retdict
 
-
         if not compare_digest(utf8(token), utf8(expected_token)):
 
             retdict = {
@@ -803,8 +783,6 @@ class BaseHandler(tornado.web.RequestHandler):
             }
             LOGGER.warning(retdict['message'])
             return retdict
-
-
 
     def check_xsrf_cookie(self):
         '''This overrides the usual Tornado XSRF checker.
@@ -841,8 +819,6 @@ class BaseHandler(tornado.web.RequestHandler):
                 ),
                 'result':None
             }
-
-
 
     @gen.coroutine
     def prepare(self):
@@ -1041,8 +1017,9 @@ class BaseHandler(tornado.web.RequestHandler):
                     # smart enough to accept the set-cookie response header
                     self.redirect(self.request.uri)
 
-
+        #
         # if using the API Key
+        #
         else:
 
             LOGGER.info('checking the API key in prepare function.')
@@ -1163,7 +1140,6 @@ class BaseHandler(tornado.web.RequestHandler):
                         })
                         raise tornado.web.Finish()
 
-
     def on_finish(self):
         '''
         This just cleans up the httpclient.
@@ -1171,7 +1147,6 @@ class BaseHandler(tornado.web.RequestHandler):
         '''
 
         self.httpclient.close()
-
 
 
 ######################################
@@ -1255,10 +1230,9 @@ class AuthEnabledStaticHandler(BaseHandler):
 
     '''
 
-
     CACHE_MAX_AGE = 86400 * 365 * 10  # 10 years
 
-    _static_hashes = {}  # type: typing.Dict
+    _static_hashes = {}
     _lock = threading.Lock()  # protects _static_hashes
 
     def initialize(
@@ -1295,7 +1269,6 @@ class AuthEnabledStaticHandler(BaseHandler):
         self.cachedir = cachedir
         self.apiversion = apiversion
         self.ferneter = Fernet(fernetkey)
-
 
     @classmethod
     def reset(cls):
@@ -1743,7 +1716,7 @@ class AuthEnabledStaticHandler(BaseHandler):
         .. versionadded:: 3.1
         """
         data = cls.get_content(abspath)
-        hasher = hashlib.md5()
+        hasher = hashlib.sha512()
         if isinstance(data, bytes):
             hasher.update(data)
         else:
