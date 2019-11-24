@@ -237,7 +237,6 @@ def prepare_basedir(basedir,
 
             siteinfo["institution_logo"] = None
 
-
         # set up the email settings file
         emailsettings = {
             "email_sender":"LCC-Server <smtp_user_name@emailserver.org>",
@@ -304,7 +303,6 @@ def prepare_basedir(basedir,
                  basedir,
                  basedir))
 
-
     # create our authentication database if it doesn't exist
     authdb_path = os.path.join(basedir, '.authdb.sqlite')
 
@@ -324,7 +322,7 @@ def prepare_basedir(basedir,
 
             try:
                 userid = '%s@localhost' % getpass.getuser()
-            except Exception as e:
+            except Exception:
                 userid = 'lccadmin@localhost'
 
             inp_userid = input(
@@ -370,7 +368,6 @@ def prepare_basedir(basedir,
     else:
         LOGINFO('Using existing authentication database.')
 
-
     # finally, we'll generate the server secrets now so we don't have to deal
     # with them later
     LOGINFO('Generating LCC-Server secret tokens...')
@@ -398,7 +395,6 @@ def prepare_basedir(basedir,
     #
     LOGINFO('Done with LCC-Server basedir set up for: %s.' %
             os.path.abspath(basedir))
-
 
 
 ###################################
@@ -529,7 +525,6 @@ def new_collection_directories(basedir,
         return os.path.join(basedir, collection_id)
 
 
-
 def convert_original_lightcurves(basedir,
                                  collection_id,
                                  original_lcdir=None,
@@ -590,7 +585,7 @@ def convert_original_lightcurves(basedir,
 
             lcformatdict = abcat.get_lcformat_description(lcformjson)
 
-        except Exception as e:
+        except Exception:
 
             LOGEXCEPTION("lcformat-description.json "
                          "could not be loaded, can't continue")
@@ -664,13 +659,7 @@ def convert_original_lightcurves(basedir,
 
             LOGINFO('symlinking complete.')
 
-        # we'll also generate the basic lclist.pkl
-
-
-
-
         return results
-
 
 
 ################################################
@@ -928,7 +917,6 @@ def generate_augmented_lclist_catalog(
     return augcat
 
 
-
 def generate_catalog_kdtree(basedir,
                             collection_id):
     '''This generates the kd-tree pickle for spatial searches.
@@ -1063,7 +1051,6 @@ def generate_catalog_database(
     )
 
 
-
 ##########################################
 ## GENERATING LCC SERVER ROOT DATABASES ##
 ##########################################
@@ -1079,7 +1066,6 @@ def new_lcc_index_db(basedir):
     return abcat.sqlite_make_lcc_index_db(basedir)
 
 
-
 def new_lcc_datasets_db(basedir):
     '''
     This generates an lcc-datasets DB in the basedir.
@@ -1088,7 +1074,6 @@ def new_lcc_datasets_db(basedir):
     from .backend import datasets
 
     return datasets.sqlite_make_lcc_datasets_db(basedir)
-
 
 
 def add_collection_to_lcc_index(basedir,
@@ -1108,7 +1093,6 @@ def add_collection_to_lcc_index(basedir,
     return abcat.sqlite_collect_lcc_info(basedir,
                                          collection_id,
                                          raiseonfail=raiseonfail)
-
 
 
 def remove_collection_from_lcc_index(basedir,
@@ -1199,8 +1183,6 @@ def update_lcc_footprint_svg(basedir,
                                        use_colormap='inferno')
 
 
-
-
 ########################################
 ## STARTING AN INSTANCE OF THE SERVER ##
 ########################################
@@ -1261,7 +1243,6 @@ async def start_lccserver(basedir, executor):
     completed, pending = await asyncio.wait(tasks)
 
 
-
 ##############
 ## CLI MAIN ##
 ##############
@@ -1290,6 +1271,7 @@ shell               -> Starts an IPython shell in the context of the specified
                        lccserver.backend.datasets.py and
                        lccserver.backend.dbsearch.py modules
 '''
+
 
 def main():
     '''
@@ -1376,7 +1358,6 @@ def main():
         # go back to the original directory
         os.chdir(currdir)
 
-
     ############################
     ## BASEDIR INITIALIZATION ##
     ############################
@@ -1441,7 +1422,6 @@ def main():
 
         # make the lcc-datasets.sqlite database
         new_lcc_datasets_db(args.basedir)
-
 
     #########################################
     ## ADDING A NEW LIGHT CURVE COLLECTION ##
@@ -1508,7 +1488,7 @@ def main():
                 )
                 LOGINFO('Everything checks out!')
 
-            except Exception as e:
+            except Exception:
                 LOGERROR(
                     "Could not validate your lcformat-description.json file!"
                 )
@@ -1580,7 +1560,7 @@ def main():
                     )
                     print('Everything checks out!')
 
-                except Exception as e:
+                except Exception:
                     print("Could not validate your "
                           "lcformat-description.json file!")
                     raise
@@ -1761,7 +1741,7 @@ def main():
             readline.set_completer()
 
         # we can't proceed without doing an LC read test
-        except Exception as e:
+        except Exception:
 
             print("Could not run a light curve read test using LCs "
                   "in %s.\n" % os.path.join(collection_dir,
@@ -2152,7 +2132,6 @@ def main():
 
                 edit_coll = collinput.strip()
 
-
             else:
                 print('Unknown collection: %s' % collinput)
                 edit_coll = None
@@ -2276,7 +2255,6 @@ def main():
         database.close()
         sys.exit(0)
 
-
     elif args.command == 'del-collection':
 
         # find the root DB
@@ -2382,7 +2360,6 @@ def main():
 
         print('Could not understand your command: %s' % args.command)
         sys.exit(0)
-
 
 
 ##############################

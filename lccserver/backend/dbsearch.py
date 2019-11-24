@@ -79,7 +79,7 @@ try:
     from astrobase.checkplot.pkl_io import (
         _read_checkplot_picklefile, _write_checkplot_picklefile
     )
-except Exception as e:
+except Exception:
     from astrobase.checkplot import (
         _read_checkplot_picklefile, _write_checkplot_picklefile
     )
@@ -209,7 +209,6 @@ def sqlite3_readonly_authorizer(operation,      # opcode from table above
         return sqlite3.SQLITE_OK
 
 
-
 ############################
 ## PARSING FILTER STRINGS ##
 ############################
@@ -321,7 +320,7 @@ def validate_sqlite_filters(
     for x in stringelems:
         try:
             float(x)
-        except ValueError as e:
+        except ValueError:
             stringwords.append(x)
 
     # get rid of everything within quotes
@@ -385,7 +384,7 @@ SQLITE_ALLOWED_QUERY_STARTERS = [
     'explain query plan select',
 ]
 
-# FIXME: we need to add:
+# TODO: we need to add:
 # - [ ] absolutely paranoid input SQL parsing
 # - [ ] an SQL parser using https://sqlparse.readthedocs.io/en/latest
 # - [ ] use that to parse the SQL into an AST
@@ -395,7 +394,6 @@ SQLITE_ALLOWED_QUERY_STARTERS = [
 #       (the existing sqlite_kdtree_conesearch can probably do most of this if
 #       we give it the parsed filter string and add in the sort col/order spec
 #       and limit/offset spec)
-
 
 
 #################################
@@ -482,7 +480,6 @@ def sqlite_get_collections(basedir,
                 query = '%s order by collection_id asc' % query
             cur.execute(query)
 
-
     # otherwise, we'll use any LCC available in the database
     else:
 
@@ -568,7 +565,6 @@ def sqlite_get_collections(basedir,
                 newconn = None
                 newcur = None
 
-
             outdict = {
                 'connection':newconn,
                 'cursor':newcur,
@@ -622,7 +618,6 @@ def sqlite_get_collections(basedir,
         LOGERROR('could not find any information '
                  'about the requested LCC collections')
         return None
-
 
 
 def sqlite_list_collections(basedir,
@@ -717,12 +712,11 @@ def parse_coordstring(coordstring):
                 paramsok = False
                 radeg, decldeg, radiusdeg = None, None, None
 
-        except Exception as e:
+        except Exception:
 
             LOGGER.error('could not parse search string: %s' % coordstring)
             paramsok = False
             radeg, decldeg, radiusdeg = None, None, None
-
 
     else:
 
@@ -730,7 +724,6 @@ def parse_coordstring(coordstring):
         radeg, decldeg, radiusdeg = None, None, None
 
     return paramsok, radeg, decldeg, radiusdeg
-
 
 
 def parse_sesame_response(
@@ -835,7 +828,6 @@ def parse_sesame_response(
             }
 
 
-
 def sesame_query(
         object_name,
         timeout=5.0,
@@ -863,7 +855,7 @@ def sesame_query(
             reqok = True
             break
 
-        except Exception as e:
+        except Exception:
 
             # if this request failed, try the next mirror
             LOGGER.warning(
@@ -876,7 +868,6 @@ def sesame_query(
 
             continue
 
-
     # if the request succeeded,
     if reqok:
         parsed = parse_sesame_response(resp.text, object_name)
@@ -888,7 +879,6 @@ def sesame_query(
         LOGWARNING('SIMBAD SESAME server requests did not succeed '
                    'for object name: %s' % object_name)
         return None
-
 
 
 def parse_simbad_response(simbad_response):
@@ -959,7 +949,7 @@ def parse_simbad_response(simbad_response):
             ).replace(')','').replace(':','')
             try:
                 nidentifiers = int(nidentifiers)
-            except Exception as e:
+            except Exception:
                 nidentifiers = 0
 
             if nidentifiers > 0:
@@ -986,7 +976,6 @@ def parse_simbad_response(simbad_response):
         else:
             all_identifiers = None
 
-
         return {
             'simbad_best_mainid': main_objectid,
             'simbad_best_objtype': best_objtype,
@@ -994,11 +983,9 @@ def parse_simbad_response(simbad_response):
             'n_allids':nidentifiers
         }
 
-
     else:
         LOGERROR('could not parse SIMBAD response for this object')
         return None
-
 
 
 def updatedb_with_simbad_info(basedir,
@@ -1010,8 +997,6 @@ def updatedb_with_simbad_info(basedir,
                               incoming_role='anonymous'):
     '''
     This updates the SIMBAD info in the DB with the new results.
-
-    FIXME: the frontend should also update the checkplot with the new info.
 
     '''
 
@@ -1086,7 +1071,6 @@ def updatedb_with_simbad_info(basedir,
             (objectid, collection))
 
     return updated
-
 
 
 def sqlite_simbad_objectsearch(
@@ -1172,7 +1156,7 @@ def sqlite_simbad_objectsearch(
             reqok = True
             break
 
-        except Exception as e:
+        except Exception:
 
             # if this request failed, try the next mirror
             LOGGER.warning(
@@ -1278,7 +1262,6 @@ def sqlite_simbad_objectsearch(
         return res
 
 
-
 def sqlite_sesame_fulltext_search(
         basedir,
         ftsquerystr,
@@ -1320,9 +1303,9 @@ def sqlite_sesame_fulltext_search(
         censor_searchargs=censor_searchargs
     )
 
-    nmatches = sum([fulltext_search[x]['nmatches']
-                    for x in fulltext_search['databases']])
-
+    nmatches = sum(
+        fulltext_search[x]['nmatches'] for x in fulltext_search['databases']
+    )
 
     if nmatches == 0 or force_update:
 
@@ -1386,8 +1369,9 @@ def sqlite_sesame_fulltext_search(
 
             # if we're supposed to update the database after the query
             # completes, do that here
-            nmatches = sum([cone_search[x]['nmatches']
-                            for x in fulltext_search['databases']])
+            nmatches = sum(
+                cone_search[x]['nmatches'] for x in fulltext_search['databases']
+            )
 
             LOGINFO('matching objects found in cone '
                     'search after SIMBAD lookup: %s' %
@@ -1417,7 +1401,6 @@ def sqlite_sesame_fulltext_search(
                         params = [sesame_lookup['simbad_best_mainid'],
                                   sesame_lookup['simbad_best_allids'],
                                   sesame_lookup['simbad_best_objtype']]
-
 
                     # otherwise, the update mode is 'extra', so we'll be
                     # patching the JSON in the extra_info_json column of the
@@ -1593,7 +1576,6 @@ def sqlite_sesame_fulltext_search(
                                             cp
                                         )
 
-
                         db.commit()
                         db.close()
 
@@ -1625,7 +1607,6 @@ def sqlite_sesame_fulltext_search(
         return fulltext_search
 
 
-
 ###################
 ## SQLITE SEARCH ##
 ###################
@@ -1636,7 +1617,6 @@ def add_collection_info(row, collection):
     row = dict(row)
     row['collection'] = collection
     return row
-
 
 
 def sqlite_namewrap_fulltext_search(
@@ -1672,8 +1652,9 @@ def sqlite_namewrap_fulltext_search(
         censor_searchargs=censor_searchargs
     )
 
-    nmatches = sum([fulltext_search[x]['nmatches']
-                    for x in fulltext_search['databases']])
+    nmatches = sum(
+        fulltext_search[x]['nmatches'] for x in fulltext_search['databases']
+    )
 
     if nmatches == 0:
 
@@ -1699,7 +1680,6 @@ def sqlite_namewrap_fulltext_search(
 
     else:
         return fulltext_search
-
 
 
 def sqlite_fulltext_search(
@@ -1756,8 +1736,7 @@ def sqlite_fulltext_search(
                                         incoming_role=incoming_role,
                                         return_connection=False)
 
-
-    except Exception as e:
+    except Exception:
 
         LOGEXCEPTION(
             "could not fetch available LC collections for "
@@ -1774,7 +1753,7 @@ def sqlite_fulltext_search(
 
     if lcclist is not None:
 
-        inlcc = set([x.replace('-','_') for x in lcclist])
+        inlcc = {x.replace('-','_') for x in lcclist}
         uselcc = list(set(available_lcc).intersection(inlcc))
 
         if not uselcc:
@@ -1829,7 +1808,6 @@ def sqlite_fulltext_search(
                                        'relevance',
                                        'extra_info']
 
-
     # otherwise, if there are no columns, use the default ones
     else:
 
@@ -1869,7 +1847,6 @@ def sqlite_fulltext_search(
                      'and conditions did not pass '
                      'validate_sqlite_filters, returning early')
             return None
-
 
     # now we have to execute the FTS query for all of the attached databases.
     results = {}
@@ -2001,7 +1978,6 @@ def sqlite_fulltext_search(
 
                 conditionstr = ''
 
-
             # format the query
             thisq = q.format(columnstr=columnstr,
                              collection_id=lcc,
@@ -2021,7 +1997,7 @@ def sqlite_fulltext_search(
                 LOGINFO('query = %s' % thisq.replace('?',"'%s'" % ftsquerystr))
                 cur.execute(thisq, (ftsquerystr,))
                 rows = cur.fetchall()
-            except Exception as e:
+            except Exception:
                 LOGEXCEPTION('query failed, probably a syntax error')
                 rows = None
 
@@ -2094,7 +2070,6 @@ def sqlite_fulltext_search(
         finally:
             db.close()
 
-
     # at the end, add in some useful info
     results['databases'] = available_lcc
     results['columns'] = available_columns
@@ -2108,7 +2083,6 @@ def sqlite_fulltext_search(
     results['search'] = 'sqlite_fulltext_search'
 
     return results
-
 
 
 def sqlite_column_search(
@@ -2142,8 +2116,7 @@ def sqlite_column_search(
                                         incoming_role=incoming_role,
                                         return_connection=False)
 
-
-    except Exception as e:
+    except Exception:
 
         LOGEXCEPTION(
             "could not fetch available LC collections for "
@@ -2160,7 +2133,7 @@ def sqlite_column_search(
 
     if lcclist is not None:
 
-        inlcc = set([x.replace('-','_') for x in lcclist])
+        inlcc = {x.replace('-','_') for x in lcclist}
         uselcc = list(set(available_lcc).intersection(inlcc))
 
         if not uselcc:
@@ -2171,7 +2144,6 @@ def sqlite_column_search(
 
         LOGWARNING("no input LC collections specified, using all of them")
         uselcc = available_lcc
-
 
     # we have some default columns that we'll always get
     # if we have some columns to get, get them and append default cols
@@ -2256,7 +2228,6 @@ def sqlite_column_search(
                  'will not fetch the entire database')
         return None
 
-
     # validate the sortby condition
     if sortby is not None:
 
@@ -2276,7 +2247,6 @@ def sqlite_column_search(
 
         sortcondition = ''
 
-
     # validate the limit condition
     if limit is not None:
 
@@ -2295,7 +2265,6 @@ def sqlite_column_search(
     else:
 
         limitcondition = ''
-
 
     # finally, run the queries for each collection
     results = {}
@@ -2414,7 +2383,6 @@ def sqlite_column_search(
             results[lcc]['columnspec'] = lcc_columnspec
             results[lcc]['collid'] = lcc_collid
 
-
         except Exception as e:
 
             msg = ('failed to execute query for '
@@ -2453,7 +2421,6 @@ def sqlite_column_search(
     results['search'] = 'sqlite_column_search'
 
     return results
-
 
 
 def sqlite_sql_search(basedir,
@@ -2537,7 +2504,7 @@ def sqlite_kdtree_conesearch(basedir,
                                         incoming_role=incoming_role,
                                         return_connection=False)
 
-    except Exception as e:
+    except Exception:
 
         LOGEXCEPTION(
             "could not fetch available LC collections for "
@@ -2554,7 +2521,7 @@ def sqlite_kdtree_conesearch(basedir,
 
     if lcclist is not None:
 
-        inlcc = set([x.replace('-','_') for x in lcclist])
+        inlcc = {x.replace('-','_') for x in lcclist}
         uselcc = list(set(available_lcc).intersection(inlcc))
 
         if not uselcc:
@@ -2565,7 +2532,6 @@ def sqlite_kdtree_conesearch(basedir,
 
         LOGWARNING("no input LC collections specified, using all of them")
         uselcc = available_lcc
-
 
     # get the requested columns together
     if getcolumns is not None:
@@ -2583,7 +2549,6 @@ def sqlite_kdtree_conesearch(basedir,
             for c in column_check:
                 LOGWARNING('removing extraneous column: %s' % c)
                 getcolumns.remove(c)
-
 
         columnstr = ', '.join('a.%s' % c for c in getcolumns)
 
@@ -2637,12 +2602,10 @@ def sqlite_kdtree_conesearch(basedir,
                       'visibility',
                       'sharedwith']
 
-
     # this is the query that will be used to query the database only
     q = ("select {columnstr} from {collection_id}.object_catalog a "
          "join _temp_objectid_list b on (a.objectid = b.objectid) "
          "{conditions} order by b.objectid asc")
-
 
     # handle the extra conditions
     if conditions is not None and len(conditions) > 0:
@@ -2839,7 +2802,6 @@ def sqlite_kdtree_conesearch(basedir,
                              collection_id=lcc,
                              conditions=conditionstr)
 
-
             # first, we need to add a temporary table that contains the object
             # IDs of the kdtree results.
             create_temptable_q = (
@@ -2882,7 +2844,7 @@ def sqlite_kdtree_conesearch(basedir,
                     )
                 ]
 
-            except Exception as e:
+            except Exception:
                 LOGEXCEPTION('query failed, probably an SQL error')
                 rows = None
 
@@ -2910,7 +2872,6 @@ def sqlite_kdtree_conesearch(basedir,
                     # add in the distance column to the row
                     if 'dist_arcsec' not in row:
                         row['dist_arcsec'] = searchcenter_distarcsec
-
 
                 # make sure to resort the rows in the order of the distances
                 rows = sorted(rows, key=lambda row: row['dist_arcsec'])
@@ -2974,11 +2935,9 @@ def sqlite_kdtree_conesearch(basedir,
             if raiseonfail:
                 raise
 
-
         # don't forget to close the database at the end
         finally:
             db.close()
-
 
     # at the end, add in some useful info
     results['databases'] = available_lcc
@@ -2996,7 +2955,6 @@ def sqlite_kdtree_conesearch(basedir,
     results['search'] = 'sqlite_kdtree_conesearch'
 
     return results
-
 
 
 ###################
@@ -3069,8 +3027,7 @@ def sqlite_xmatch_search(basedir,
                                         incoming_role=incoming_role,
                                         return_connection=False)
 
-
-    except Exception as e:
+    except Exception:
 
         LOGEXCEPTION(
             "could not fetch available LC collections for "
@@ -3087,7 +3044,7 @@ def sqlite_xmatch_search(basedir,
 
     if lcclist is not None:
 
-        inlcc = set([x.replace('-','_') for x in lcclist])
+        inlcc = {x.replace('-','_') for x in lcclist}
         uselcc = list(set(available_lcc).intersection(inlcc))
 
         if not uselcc:
@@ -3098,7 +3055,6 @@ def sqlite_xmatch_search(basedir,
 
         LOGWARNING("no input LC collections specified, using all of them")
         uselcc = available_lcc
-
 
     # get the requested columns together
     if getcolumns is not None:
@@ -3116,7 +3072,6 @@ def sqlite_xmatch_search(basedir,
             for c in column_check:
                 LOGWARNING('removing extraneous column: %s' % c)
                 getcolumns.remove(c)
-
 
         columnstr = ', '.join('b.%s' % c for c in getcolumns)
         columnstr = ', '.join(
@@ -3200,7 +3155,6 @@ def sqlite_xmatch_search(basedir,
             ).replace(' ','_').replace('-','_').replace('.','_')
         )
 
-
     # or if we're doing something completely nonsensical
     else:
 
@@ -3208,7 +3162,6 @@ def sqlite_xmatch_search(basedir,
                  "of inputmatchcol/dbmatchcol is not provided, "
                  "can't continue")
         return None
-
 
     ###########################################
     ## figure out the xmatch type and run it ##
@@ -3228,7 +3181,6 @@ def sqlite_xmatch_search(basedir,
                      "validate_sqlite_filters, "
                      "returning early...")
             return None
-
 
     # handle xmatching by coordinates
     if xmatch_type == 'coord':
@@ -3427,7 +3379,6 @@ def sqlite_xmatch_search(basedir,
 
                 continue
 
-
             # if we found the lcc's kdtree, load it and do the xmatch now
             with open(kdtree_fpath, 'rb') as infd:
                 kdtreedict = pickle.load(infd)
@@ -3517,7 +3468,7 @@ def sqlite_xmatch_search(basedir,
                             target_sharedwith=x['sharedwith']
                         )
                     ]
-                except Exception as e:
+                except Exception:
                     LOGEXCEPTION(
                         'xmatch object lookup for input object '
                         'with data: %r '
@@ -3580,7 +3531,6 @@ def sqlite_xmatch_search(basedir,
             cur.execute('drop table _temp_xmatch_table')
             db.close()
 
-
         #
         # done with all LCCs
         #
@@ -3602,7 +3552,6 @@ def sqlite_xmatch_search(basedir,
         results['search'] = 'sqlite_xmatch_search'
 
         return results
-
 
     elif xmatch_type == 'column':
 

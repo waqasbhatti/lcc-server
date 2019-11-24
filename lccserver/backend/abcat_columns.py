@@ -586,7 +586,6 @@ COLUMN_INFO = {
 }
 
 
-
 # this contains columns that are composed of binary math operators joining two
 # columns. intended for stuff like sdssr - jmag, jmag - kmag, sdssr -
 # extinction_sdssr, etc.

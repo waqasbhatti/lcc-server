@@ -152,7 +152,6 @@ insert into lcc_datasets_fts(lcc_datasets_fts) values ('rebuild');
 '''
 
 
-
 def sqlite_make_lcc_datasets_db(basedir):
     '''
     This makes a new datasets DB in basedir.
@@ -212,7 +211,6 @@ def _sort_key(row, k=None, rev=False, dtype='f8'):
         return row[k]
 
 
-
 def results_sort_by_keys(rows, coldesc, sorts=()):
     '''
     This sorts the results by the given sorts list.
@@ -251,7 +249,6 @@ def results_sort_by_keys(rows, coldesc, sorts=()):
     return rows
 
 
-
 def results_limit_rows(rows,
                        rowlimit=None,
                        incoming_userid=2,
@@ -276,7 +273,6 @@ def results_limit_rows(rows,
         return rows[:role_limits['max_rows']]
 
 
-
 def results_random_sample(rows, sample_count=None):
     '''This returns sample_count uniformly sampled without replacement rows.
 
@@ -286,7 +282,6 @@ def results_random_sample(rows, sample_count=None):
         return sample(rows, sample_count)
     else:
         return rows
-
 
 
 ########################################
@@ -359,7 +354,6 @@ def sqlite_prepare_dataset(basedir,
     db.close()
 
     return setid, creationdt
-
 
 
 def process_dataset_pgrow(
@@ -457,7 +451,6 @@ def process_dataset_pgrow(
         return outrow, out_strformat_row
 
 
-
 def process_dataset_page(
         basedir,
         datasetdir,
@@ -535,7 +528,6 @@ def process_dataset_page(
     return page_rows_pkl, page_rows_strpkl
 
 
-
 def sqlite_new_dataset(basedir,
                        setid,
                        creationdt,
@@ -592,7 +584,7 @@ def sqlite_new_dataset(basedir,
         try:
             coll_columns = list(searchresult[coll]['result'][0].keys())
             xcolumns.append(set(coll_columns))
-        except Exception as e:
+        except Exception:
             pass
 
     # xcolumns is now a list of sets of column keys from all collections.
@@ -642,7 +634,6 @@ def sqlite_new_dataset(basedir,
     # order of operations: sample -> sort -> rowlimit
     if results_samplespec is not None:
         rows = results_random_sample(rows, sample_count=results_samplespec)
-
 
     if isinstance(results_sortspec, (tuple,list)):
 
@@ -852,7 +843,6 @@ def sqlite_new_dataset(basedir,
     )
 
 
-
 def sqlite_render_dataset_page(basedir,
                                setid,
                                page_number):
@@ -902,7 +892,6 @@ def sqlite_render_dataset_page(basedir,
         return None, None
 
 
-
 ############################################
 ## FUNCTIONS THAT DEAL WITH LC COLLECTION ##
 ############################################
@@ -925,11 +914,9 @@ def csvlc_convert_worker(task):
         LOGINFO('converted %s -> %s ok' % (lcfile, csvlc))
         return csvlc
 
-    except Exception as e:
+    except Exception:
 
         return '%s conversion to CSVLC failed' % os.path.basename(lcfile)
-
-
 
 
 def generate_lczip_cachekey(lczip_lclist):
@@ -942,7 +929,6 @@ def generate_lczip_cachekey(lczip_lclist):
     cachekey = hashlib.sha256(sorted_lclist_json.encode()).hexdigest()
 
     return cachekey
-
 
 
 def sqlite_make_dataset_lczip(basedir,
@@ -1033,7 +1019,6 @@ def sqlite_make_dataset_lczip(basedir,
             LOGINFO('no cached LC zip found for dataset: %s, regenerating...' %
                     setid)
 
-
             convertopts = {'csvlc_version':converter_csvlc_version,
                            'comment_char':converter_comment_char,
                            'column_separator':converter_column_separator,
@@ -1059,7 +1044,7 @@ def sqlite_make_dataset_lczip(basedir,
                 if not os.path.exists(outcsvlc):
                     try:
                         os.symlink(os.path.abspath(res), outcsvlc)
-                    except Exception as e:
+                    except Exception:
                         LOGEXCEPTION(
                             'could not symlink %s -> %s' % (
                                 os.path.abspath(res),
@@ -1126,7 +1111,6 @@ def sqlite_make_dataset_lczip(basedir,
                 LOGINFO('done, zip written successfully.')
                 lczip_generated = True
 
-
         # if we don't need to collect LCs, then we can just re-use the other
         # dataset's LC ZIP
         else:
@@ -1190,7 +1174,6 @@ def sqlite_make_dataset_lczip(basedir,
         LOGERROR('setid: %s, dataset pickle expected at %s does not exist!' %
                  (setid, dataset_fpath))
         return None, False
-
 
 
 ######################################
@@ -1293,7 +1276,6 @@ def sqlite_check_dataset_access(
         return False
 
 
-
 def sqlite_list_datasets(basedir,
                          setfilter=None,
                          useronly=False,
@@ -1381,7 +1363,7 @@ def sqlite_list_datasets(basedir,
                      "order by last_updated desc limit ?")
             params = (require_status, incoming_userid, nrecent)
 
-
+    # if some filters are specified, apply them
     else:
 
         if not useronly:
@@ -1437,7 +1419,6 @@ def sqlite_list_datasets(basedir,
                            unescapedstr)
             setfilter = setfilter.replace('\n','')
             params = (require_status, incoming_userid, setfilter, nrecent)
-
 
     # make sure we never get more than 1000 recent datasets
     if nrecent > 1000:
@@ -1506,7 +1487,6 @@ def sqlite_list_datasets(basedir,
 
     db.close()
     return returndict
-
 
 
 def sqlite_get_dataset(
@@ -1912,8 +1892,9 @@ def sqlite_change_dataset_visibility(
             db.close()
             return None
 
-
+        #
         # finally, do the actual update
+        #
 
         #
         # update the main dataset pickle
@@ -1980,7 +1961,6 @@ def sqlite_change_dataset_visibility(
         LOGERROR('could not find dataset with setid: %s' % setid)
         db.close()
         return None
-
 
 
 def sqlite_change_dataset_owner(
@@ -2162,7 +2142,6 @@ def _slugify_dataset_name(setname):
 
     slugified = re.sub(r'[^\w\s-]', '', normalized).strip().lower()
     return re.sub(r'[-\s]+', '-', slugified)
-
 
 
 def sqlite_edit_dataset(basedir,
@@ -2364,7 +2343,6 @@ def sqlite_edit_dataset(basedir,
         LOGERROR('could not find dataset with setid: %s' % setid)
         db.close()
         return None
-
 
 
 def sqlite_delete_dataset(basedir,

@@ -120,7 +120,6 @@ def alpha_shape(points, alpha):
         edges.add( (i, j) )
         edge_points.append(coords[ [i, j] ])
 
-
     tri = Delaunay(points)
     edges = set()
     edge_points = []
@@ -256,7 +255,7 @@ def collection_alpha_shape(basedir,
 
             hull_coords = np.array(shapely_concave_hull.exterior.coords)
 
-        except Exception as e:
+        except Exception:
 
             LOGWARNING('this concave hull may have multiple '
                        'unconnected sections, the alpha parameter '
@@ -287,9 +286,7 @@ def collection_alpha_shape(basedir,
                 LOGERROR('unknown geometry returned')
                 return None, None
 
-
         return shapely_concave_hull, hull_coords
-
 
 
 ####################################
@@ -353,7 +350,6 @@ def generate_collection_footprint(
         pickle.dump(footprint, outfd, pickle.HIGHEST_PROTOCOL)
 
     return outpickle
-
 
 
 #####################################
@@ -666,12 +662,12 @@ def collection_overview_plot(collection_dirlist,
     ax.grid()
     xt = [np.radians(x) for x in
           [-150.0,-120.0,-90.0,-60.0,-30.0,0.0,30,60,90,120,150.0]]
-    xtl = ['$14^{\mathrm{h}}$','$16^{\mathrm{h}}$',
-           '$18^{\mathrm{h}}$','$20^{\mathrm{h}}$',
-           '$22^{\mathrm{h}}$', '$0^{\mathrm{h}}$',
-           '$2^{\mathrm{h}}$','$4^{\mathrm{h}}$',
-           '$6^{\mathrm{h}}$','$8^{\mathrm{h}}$',
-           '$10^{\mathrm{h}}$']
+    xtl = [r'$14^{\mathrm{h}}$',r'$16^{\mathrm{h}}$',
+           r'$18^{\mathrm{h}}$',r'$20^{\mathrm{h}}$',
+           r'$22^{\mathrm{h}}$',r'$0^{\mathrm{h}}$',
+           r'$2^{\mathrm{h}}$',r'$4^{\mathrm{h}}$',
+           r'$6^{\mathrm{h}}$',r'$8^{\mathrm{h}}$',
+           r'$10^{\mathrm{h}}$']
     ax.set_xticks(xt)
 
     if east_is_left:
@@ -721,7 +717,6 @@ def collection_overview_plot(collection_dirlist,
                   color='k',
                   clip_on=False)
 
-
     # north text
     plt.text(0.165,0.295,'North',
              transform=plt.gcf().transFigure,
@@ -762,7 +757,6 @@ def collection_overview_plot(collection_dirlist,
 
     plt.close('all')
     return outfile, collection_labels
-
 
 
 def collection_overview_svg(

@@ -72,7 +72,6 @@ from tornado.escape import squeeze
 from .abcat_columns import COLUMN_INFO, COMPOSITE_COLUMN_INFO
 
 
-
 #####################################################
 ## FUNCTIONS TO BREAK OUT INFO FROM LCPROC RESULTS ##
 #####################################################
@@ -116,7 +115,6 @@ OPERATORS = {'+':operator.add,
              '-':operator.sub,
              '*':operator.mul,
              '/':operator.truediv}
-
 
 
 def objectinfo_to_sqlite(augcatpkl,
@@ -187,7 +185,6 @@ def objectinfo_to_sqlite(augcatpkl,
         LOGWARNING('not overwriting existing catalog DB and returning it')
         return outfile
 
-
     with open(augcatpkl, 'rb') as infd:
         augcat = pickle.load(infd)
 
@@ -207,7 +204,6 @@ def objectinfo_to_sqlite(augcatpkl,
                 mag_affil_cols.append(col)
 
     unaffiliated_cols = list(set(cols) - set(mag_affil_cols))
-
 
     # get the dtypes for each column to generate the create statement
     coldefs = []
@@ -252,7 +248,6 @@ def objectinfo_to_sqlite(augcatpkl,
             # this gets the string representation of the numpy dtype object
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
-
         # floats
         elif thiscol_dtype.type is np.float64:
 
@@ -264,7 +259,6 @@ def objectinfo_to_sqlite(augcatpkl,
                 defaultcolinfo[thiscol_name]['format'] = '%.7f'
 
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-
 
         # integers
         elif thiscol_dtype.type is np.int64:
@@ -278,7 +272,6 @@ def objectinfo_to_sqlite(augcatpkl,
 
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
-
         # everything else is coerced into a string
         else:
 
@@ -290,7 +283,6 @@ def objectinfo_to_sqlite(augcatpkl,
                 defaultcolinfo[thiscol_name]['format'] = '%s'
 
             defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-
 
     # go through the composite unaffiliated columns next (these are generated
     # from two key:val pairs in the objectinfo dict
@@ -335,7 +327,6 @@ def objectinfo_to_sqlite(augcatpkl,
 
             colinfo_key = col
 
-
             #
             # now go through the various formats
             #
@@ -355,7 +346,6 @@ def objectinfo_to_sqlite(augcatpkl,
                 # this gets the string representation of the numpy dtype
                 defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
-
             # floats
             elif thiscol_dtype.type is np.float64:
 
@@ -370,7 +360,6 @@ def objectinfo_to_sqlite(augcatpkl,
 
                 defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
-
             # integers
             elif thiscol_dtype.type is np.int64:
 
@@ -384,7 +373,6 @@ def objectinfo_to_sqlite(augcatpkl,
                     defaultcolinfo[thiscol_name]['format'] = '%i'
 
                 defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
-
 
             # everything else is coerced into a string
             else:
@@ -401,7 +389,7 @@ def objectinfo_to_sqlite(augcatpkl,
                 defaultcolinfo[thiscol_name]['dtype'] = thiscol_dtype.str
 
         # the operand columns aren't present in the augcat, skip
-        except Exception as e:
+        except Exception:
             pass
 
     # finally, go though the mag affiliated columns, per magcol
@@ -542,7 +530,6 @@ def objectinfo_to_sqlite(augcatpkl,
                         )
                     )
 
-
     # now, we'll generate the create statement
 
     # now these are all cols
@@ -673,7 +660,6 @@ def objectinfo_to_sqlite(augcatpkl,
                     elif isinstance(rowelem, str) and rowelem.strip() == 'nan':
                         thisrow[ind] = None
 
-
                 cur.execute(sqlinsert, tuple(thisrow))
                 instance_markers = icounter(start=1)
                 insert_done = True
@@ -691,7 +677,6 @@ def objectinfo_to_sqlite(augcatpkl,
                            this_marker)
                     )
 
-
     # get the column information if there is any
     if isinstance(colinfo, dict):
 
@@ -706,7 +691,7 @@ def objectinfo_to_sqlite(augcatpkl,
 
         try:
             overridecolinfo = json.loads(colinfo)
-        except Exception as e:
+        except Exception:
             LOGERROR('could not understand colinfo argument, skipping...')
             overridecolinfo = None
 
@@ -734,7 +719,6 @@ def objectinfo_to_sqlite(augcatpkl,
                     defaultcolinfo[col]['description'] = (
                         overridecolinfo[col]['description']
                     )
-
 
     # now create any indexes we want
     if indexcols:
@@ -908,7 +892,6 @@ def objectinfo_to_sqlite(augcatpkl,
     return outfile
 
 
-
 def objectinfo_to_postgres_table(lclistpkl,
                                  table,
                                  pghost=None,
@@ -919,7 +902,6 @@ def objectinfo_to_postgres_table(lclistpkl,
     This writes the object information to a Postgres table.
 
     '''
-
 
 
 ##############################################
@@ -943,7 +925,7 @@ def check_extmodule(module, formatkey):
         else:
             importedok = importlib.import_module(module)
 
-    except Exception as e:
+    except Exception:
 
         LOGEXCEPTION('could not import the module: %s for LC format: %s. '
                      'check the file path or fully qualified module name?'
@@ -963,7 +945,6 @@ def dict_get(datadict, keylist):
 
     '''
     return reduce(getitem, keylist, datadict)
-
 
 
 def get_lcformat_description(descpath):
@@ -1013,7 +994,6 @@ def get_lcformat_description(descpath):
                         'caster': caster}
         metadata_info[key] = thiskey_info
 
-
     # 2. get the column info
     column_info = {}
     column_keys = []
@@ -1045,7 +1025,6 @@ def get_lcformat_description(descpath):
                                     'format':textform,
                                     'dtype':dtype}
             column_keys.append(fullkey)
-
 
     # 3. load the reader module and get the reader and normalize functions
     reader_module_name = formatdesc['lc_readermodule']
@@ -1187,7 +1166,6 @@ def get_lcformat_description(descpath):
     return returndict
 
 
-
 def convert_to_csvlc(lcfile,
                      objectid,
                      lcformat_dict,
@@ -1269,7 +1247,6 @@ def convert_to_csvlc(lcfile,
             )
             return outpath
 
-
     # normalize the lcdict if we have to
     if normfunc:
         lcdict = normfunc(lcdict)
@@ -1286,7 +1263,7 @@ def convert_to_csvlc(lcfile,
                 'val':val,
                 'desc':thismetainfo['desc'],
             }
-        except Exception as e:
+        except Exception:
             pass
 
     # extract the column info
@@ -1315,7 +1292,7 @@ def convert_to_csvlc(lcfile,
             available_keys.append(key)
             ki = ki + 1
 
-        except Exception as e:
+        except Exception:
             pass
 
     # generate the header bits
@@ -1360,7 +1337,7 @@ def convert_to_csvlc(lcfile,
                         lcformat_dict['columns'][x]['format'] %
                         dict_get(lcdict, x.split('.'))[lineind]
                     )
-                except Exception as e:
+                except Exception:
                     thisline.append(
                         str(dict_get(lcdict, x.split('.'))[lineind])
                     )
@@ -1369,7 +1346,6 @@ def convert_to_csvlc(lcfile,
             outfd.write(formline.encode())
 
     return outpath
-
 
 
 ##############################################
@@ -1503,7 +1479,6 @@ def sqlite_make_lcc_index_db(lcc_basedir):
     database.commit()
 
     return lccdb
-
 
 
 def sqlite_collect_lcc_info(
@@ -1700,7 +1675,7 @@ def sqlite_collect_lcc_info(
             normfunc(lcdict)
             LOGINFO('normalization function tested and works OK')
 
-    except Exception as e:
+    except Exception:
 
         LOGEXCEPTION('could not import provided LC reader module/function or '
                      'could not read in a light curve from the expected '
@@ -1808,7 +1783,7 @@ def sqlite_collect_lcc_info(
         # return the path of the lcc-index.sqlite database
         return lccdb
 
-    except Exception as e:
+    except Exception:
 
         LOGEXCEPTION('could not get collection data from the object '
                      'catalog SQLite database: %s, cannot continue' %
