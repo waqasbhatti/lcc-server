@@ -286,7 +286,7 @@ var lcc_ui = {
 
 
   // this asks for an API key and puts it into the target elements
-  generate_new_apikey: function (target_key, target_expiry) {
+  generate_new_apikey: function () {
 
     let geturl = '/api/key';
     $.getJSON(geturl, function(data) {
@@ -303,10 +303,19 @@ var lcc_ui = {
         let now_datestr = moment().format('Y-M-D');
         let apikey_host = document.domain;
 
-        let apikey_fname = `apikey-${apikey_host}-generated-${now_datestr}-expires-${expiry_datestr}.json`;
+        let apikey_fname =
+            `apikey-${apikey_host}-generated-${now_datestr}-expires-${expiry_datestr}.json`;
 
-        let apikey_json = `data:text/json;charset=utf-8,${JSON.stringify(result, null, 2)}`;
+        let apikey_json =
+            `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(result))}`;
 
+        let download_str =
+            `<a download="${apikey_fname}" href="${apikey_json}">Download key in JSON format</a>`;
+        $('#prefs-apikey-fname').html('<code>' + apikey_fname + '</code><br>' + download_str);
+
+        // store the key's name in localStorage
+        localStorage.setItem('lccserver_apikey_fname', apikey_fname);
+        localStorage.setItem('lccserver_apikey_expiry', result.expires);
 
       }
 
@@ -322,29 +331,28 @@ var lcc_ui = {
 
 
   // this attempts to load a saved API key from local storage
-  load_previous_apikey: function (target_key, target_expiry) {
+  load_previous_apikey: function () {
 
-    let apikey = localStorage.getItem('lccserver_apikey_token');
+    let apikey = localStorage.getItem('lccserver_apikey_fname');
     let expires = localStorage.getItem('lccserver_apikey_expiry');
 
     if (apikey !== null && expires !== null) {
 
-      $(target_key).val(
-        JSON.stringify({apikey:apikey, expires:expires},null,2)
-      );
+      let expiry_info = '';
 
       // check expiry date
       let expiry_utc = moment.utc(expires);
       if (expiry_utc.isBefore(moment.utc())) {
-        $(target_expiry).html('. <span class="text-danger">' +
-                              'This API key has expired!' +
-                              '</span>');
+        expiry_info = '<span class="text-danger">' +
+            'This API key has expired!' +
+            '</span>';
       }
-      else {
-        $(target_expiry).html(
-          (' expires at ' + expiry_utc.format('Y-M-D HH:mm Z'))
-        );
-      }
+
+      // update the element
+      $('#prefs-apikey-fname').html('<code>' +
+                                    apikey +
+                                    '</code><br>' +
+                                    expiry_info);
 
     }
 
@@ -724,7 +732,7 @@ var lcc_ui = {
 
     // bind the apikey generate button
     $('#prefs-generate-apikey').on('click', function(evt) {
-      lcc_ui.generate_new_apikey('#api-key','#apikey-expiry');
+      lcc_ui.generate_new_apikey();
     });
 
     // handle the site settings update form

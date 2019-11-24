@@ -113,19 +113,15 @@
 
         <div class="row" >
           <div class="col-12" >
+            <p>Current API key: <span id="prefs-apikey-fname">None</span></p>
+          </div>
+        </div>
 
-            <label for="api-key">Current API key<span id="apikey-expiry"></span></label>
-            <textarea class="form-control"
-                      id="api-key"
-                      aria-describedby="apikey-help-block"
-                      placeholder="None"
-                      rows="1" readonly>
-            </textarea>
-            <small id="apikey-help-block" class="form-text text-muted">
-              See: <a href="/docs/api#api-keys">how to use API keys</a>. If you're using the <a href="https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py"><code>astrobase.services.lccs</code></a> LCC-Server API client Python module, the <a href="https://github.com/waqasbhatti/astrobase/blob/2ed4f2faab43f295f82b3b8afbafa7762cfe2f4b/astrobase/services/lccs.py#L303"><code>import_apikey</code></a>
+        <div class="row" >
+          <div class="col-12" >
+            <p>See: <a href="/docs/api#api-keys">how to use API keys</a>. If you're using the <a href="https://github.com/waqasbhatti/astrobase/blob/master/astrobase/services/lccs.py"><code>astrobase.services.lccs</code></a> LCC-Server API client Python module, the <a href="https://github.com/waqasbhatti/astrobase/blob/2ed4f2faab43f295f82b3b8afbafa7762cfe2f4b/astrobase/services/lccs.py#L303"><code>import_apikey</code></a>
               function will make this API key available for all search functions in that module.
-            </small>
-
+            </p>
           </div>
         </div>
 
@@ -189,7 +185,7 @@ lcc_ui.prefs_cookie_secure = {{ cookie_secure }};
 lcc_ui.load_cookie_prefs('prefs-page');
 
 // load the user's API keys if any
-lcc_ui.load_previous_apikey('#api-key','#apikey-expiry');
+lcc_ui.load_previous_apikey();
 
 });
 
