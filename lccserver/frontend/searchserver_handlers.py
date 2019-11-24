@@ -18,7 +18,7 @@ import logging
 import numpy as np
 from datetime import datetime, timedelta
 import re
-import copy
+import hashlib
 
 from cryptography.fernet import Fernet
 
@@ -487,6 +487,13 @@ def query_to_cachestr(name, args):
                 cacheable_dict[key] = args[key]
 
     cache_str = json.dumps(cacheable_dict, sort_keys=True)
+
+    # if the query spec contains a random rows request, don't cache the query
+    if 'results_samplespec' in args and args['results_samplespec'] is not None:
+        cache_str = None
+    else:
+        cache_str = hashlib.sha256(cache_str.encode()).hexdigest()
+
     return cache_str
 
 
@@ -651,6 +658,12 @@ class BackgroundQueryMixin(object):
         )
 
         self.setid, self.creationdt = setinfo
+
+        # generate the cache string
+        cachestr = query_to_cachestr(query_spec['name'],
+                                     query_spec['args'])
+
+        LOGGER.info("query cachestr: %r" % cachestr)
 
         # A1. we have a setid, send this back to the client
         retdict = {
