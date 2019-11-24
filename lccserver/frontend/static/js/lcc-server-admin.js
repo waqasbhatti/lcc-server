@@ -37,7 +37,10 @@ var lcc_admin = {
         institutionlogo: $('#institutionlogo').val(),
         department: $('#department').val(),
         departmentlink: $('#departmentlink').val(),
-
+        maxquerytimeout: $('#maxquerytimeout').val(),
+        maxziptimeout: $('#maxziptimeout').val(),
+        maxziprows: $('#maxziprows').val(),
+        rowsperdspage: $('#rowsperdspage').val()
       };
 
       $.post(posturl, postparams, function (data) {
@@ -63,6 +66,10 @@ var lcc_admin = {
           $('#institutionlogo').val(result.institution_logo);
           $('#department').val(result.department);
           $('#departmentlink').val(result.department_link);
+          $('#maxquerytimeout').val(result.query_timeout_sec);
+          $('#maxziptimeout').val(result.lczip_timeout_sec);
+          $('#maxziprows').val(result.lczip_max_nrows);
+          $('#rowsperdspage').val(result.dataset_rows_per_page);
 
           lcc_ui.alert_box(message, 'info');
 

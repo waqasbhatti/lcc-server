@@ -81,6 +81,42 @@
                  value="{{ siteinfo['department_link'] }}">
         </div>
 
+        <div class="form-group" >
+          <label for="maxquerytimeout" >Timeout for foreground query execution [sec]</label>
+          <input type="text" class="form-control"
+                 name="maxquerytimeout" id="maxquerytimeout" required
+                 placeholder="Query timeout value in seconds"
+                 minlength="1"
+                 value="{{ siteinfo['query_timeout_sec'] }}">
+        </div>
+
+        <div class="form-group" >
+          <label for="maxziprows" >Maximum dataset rows for LC ZIP generation</label>
+          <input type="text" class="form-control"
+                 name="maxziprows" id="maxziprows" required
+                 placeholder="Maximum rows for LC zip generation"
+                 minlength="1"
+                 value="{{ siteinfo['lczip_max_nrows'] }}">
+        </div>
+
+        <div class="form-group" >
+          <label for="maxziptimeout" >Timeout for dataset LC ZIP process [sec]</label>
+          <input type="text" class="form-control"
+                 name="maxziptimeout" id="maxziptimeout" required
+                 placeholder="LC zip timeout value in seconds"
+                 minlength="1"
+                 value="{{ siteinfo['lczip_timeout_sec'] }}">
+        </div>
+
+        <div class="form-group" >
+          <label for="rowsperdspage" >Maximum rows per dataset page</label>
+          <input type="text" class="form-control"
+                 name="rowsperdspage" id="rowsperdspage" required
+                 placeholder="Maximum rows per dataset page"
+                 minlength="1"
+                 value="{{ siteinfo['dataset_rows_per_page'] }}">
+        </div>
+
         <button type="submit" class="btn btn-primary" id="admin-site-update" >
           Update site settings
         </button>

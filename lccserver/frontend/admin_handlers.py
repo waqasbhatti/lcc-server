@@ -30,6 +30,7 @@ from cryptography.fernet import Fernet
 import json
 import numpy as np
 
+
 class FrontendEncoder(json.JSONEncoder):
 
     def default(self, obj):
@@ -50,10 +51,12 @@ class FrontendEncoder(json.JSONEncoder):
         else:
             return json.JSONEncoder.default(self, obj)
 
+
 # this replaces the default encoder and makes it so Tornado will do the right
 # thing when it converts dicts to JSON when a
 # tornado.web.RequestHandler.write(dict) is called.
 json._default_encoder = FrontendEncoder()
+
 
 #############
 ## LOGGING ##
@@ -266,6 +269,33 @@ class SiteSettingsHandler(BaseHandler):
                     self.get_argument('departmentlink')
                 ).strip()
 
+                # get the values
+                maxquerytimeout = float(xhtml_escape(
+                    self.get_argument('maxquerytimeout')
+                ).strip())
+                maxziptimeout = float(xhtml_escape(
+                    self.get_argument('maxziptimeout')
+                ).strip())
+                maxziprows = int(xhtml_escape(
+                    self.get_argument('maxziprows')
+                ).strip())
+                rowsperdspage = int(xhtml_escape(
+                    self.get_argument('rowsperdspage')
+                ).strip())
+
+                if maxquerytimeout < 1.0 or maxziptimeout < 1.0:
+                    raise ValueError(
+                        "Incorrect value provided in "
+                        "site-settings form for max query or LC zip timeout."
+                    )
+
+                if maxziprows < 1 or rowsperdspage < 1:
+                    raise ValueError(
+                        "Incorrect value provided in "
+                        "site-settings form for max zip "
+                        "rows or rows per DS page."
+                    )
+
                 if (institutionlogo.lower() == 'none' or
                     institutionlogo.lower() == 'null' or
                     len(institutionlogo) == 0):
@@ -290,6 +320,10 @@ class SiteSettingsHandler(BaseHandler):
                     "institution": institution,
                     "institution_link": institutionlink,
                     "institution_logo": institutionlogo,
+                    "query_timeout_sec":maxquerytimeout,
+                    "lczip_timeout_sec":maxziptimeout,
+                    "lczip_max_nrows":maxziprows,
+                    "dataset_rows_per_page":rowsperdspage,
                 }
 
                 # update the siteinfo dict
