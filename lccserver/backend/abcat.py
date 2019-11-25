@@ -78,7 +78,25 @@ from .abcat_columns import COLUMN_INFO, COMPOSITE_COLUMN_INFO
 
 def kdtree_from_lclist(lclistpkl, outfile):
     '''
-    This pulls out the kdtree and object IDs.
+    This pulls out the kdtree and object IDs from an astrobase.lcproc.catalogs
+    created light curve catalog pickle.
+
+    Parameters
+    ----------
+
+    lclistpkl : str
+        The catalog pickle file produced by the
+        ``astrobase.lcproc.catalogs.make_lclist`` function.
+
+    outfile : str
+        The output pickle file to write.
+
+    Returns
+    -------
+
+    outfile : str
+        Returns the name of the generated output pickle file containing the
+        kdtree and the object list.
 
     '''
 
@@ -146,14 +164,14 @@ def objectinfo_to_sqlite(augcatpkl,
     will use these to render HTML descriptions, etc.
 
     If colinfo is not None, it should be either a dict or JSON with elements
-    that are of the form:
+    that are of the form::
 
-    'column_name':{'title':'column title',
-                   'dtype':numpy dtype of the column,
-                   'format':string format specifier for this column,
-                   'description':'a long description of the column',
-                   'index': True if this should be indexed, False otherwise,
-                   'ftsindex': True if this should be FTS indexed, or False},
+        'column_name':{'title':'column title',
+                       'dtype':numpy dtype of the column,
+                       'format':string format specifier for this column,
+                       'description':'a long description of the column',
+                       'index': True if this should be indexed, False otherwise,
+                       'ftsindex': True if this should be FTS indexed},
 
     where column_name should be each column in the augcatpkl file. Any column
     that doesn't have a key in colinfo won't have any extra information
