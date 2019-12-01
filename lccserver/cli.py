@@ -4,40 +4,41 @@
 '''cli.py - Waqas Bhatti (wbhatti@astro.princeton.edu) - Aug 2018
 License: MIT - see the LICENSE file for the full text.
 
-This contains the CLI implementation for the LCC-Server.
+This contains the CLI implementation for the LCC-Server::
 
-lcc-server [options] COMMAND
+    lcc-server [options] COMMAND
 
-where COMMAND is one of:
+where COMMAND is one of::
 
-init-basedir        -> Initializes the basedir for the LCC-Server.
-                       This is an interactive command.
+    init-basedir        -> Initializes the basedir for the LCC-Server.
+                           This is an interactive command.
 
-add-collection      -> Adds a new LC collection to the LCC-Server.
-                       This is an interactive command.
+    add-collection      -> Adds a new LC collection to the LCC-Server.
+                           This is an interactive command.
 
-edit-collection     -> Edits an existing LC collection.
-                       This is an interactive command.
+    edit-collection     -> Edits an existing LC collection.
+                           This is an interactive command.
 
-del-collection      -> Removes an LC collection from the LCC-Server
-                       This will ask you for confirmation.
+    del-collection      -> Removes an LC collection from the LCC-Server
+                           This will ask you for confirmation.
 
-run-server          -> Runs an instance of the LCC-Server to provide
-                       the main search interface and a backing instance
-                       of the checkplotserver for serving objectinfo
+    run-server          -> Runs an instance of the LCC-Server to provide
+                           the main search interface and a backing instance
+                           of the checkplotserver for serving objectinfo
 
-shell               -> Starts an IPython shell in the context of the specified
-                       LCC-Server base directory. This is useful for debugging
-                       and running queries directly using the
-                       lccserver.backend.datasets.py and
-                       lccserver.backend.dbsearch.py modules
+    shell ->               Starts an IPython shell in the context of
+                           the specified LCC-Server base directory.
+                           This is useful for debugging and
+                           running queries directly using the
+                           lccserver.backend.datasets.py and
+                           lccserver.backend.dbsearch.py modules
 
-and options are:
+and options are::
 
---basedir           -> The base directory to execute all commands from
-                       this is the directory where all of the LCC-Server's
-                       files and directories will be created and where it will
-                       run from when executed.
+    --basedir           -> The base directory to execute all commands from
+                           this is the directory where all of the LCC-Server's
+                           files and directories will be created and where
+                           it will run from when executed.
 
 '''
 
@@ -105,6 +106,19 @@ def create_authentication_database(authdb_path):
     Does NOT return engine or metadata, because those are opened in the
     background workers.
 
+
+    Parameters
+    ----------
+
+    authdb_path : str
+        The file path where the authentication databse for the LCC-server will
+        be written. This should ideally end in ``.sqlite``.
+
+    Returns
+    -------
+
+    Nothing.
+
     '''
 
     authdb.create_sqlite_auth_db(authdb_path,
@@ -128,36 +142,77 @@ def prepare_basedir(basedir,
     '''
     This prepares the given base directory for use with LCC-Server.
 
-    We need the following structure (e.g. for two LC collections):
-    .
-    ├── csvlcs
-    │   ├── collection-id-1 -> ../collection-id-1/lightcurves
-    │   └── collection-id-2 -> ../collection-id-2/lightcurves
-    ├── datasets
-    ├── docs
-    │   └── static
-    ├── lccjsons
-    │   ├── collection-id-1/lcformat-description.json
-    │   └── collection-id-2/lcformat-description.json
-    ├── products
-    ├── collection-id-1
-    │   ├── checkplots -> canonical-directory-for-checkplots-collection-id-1
-    │   ├── lightcurves -> canonical-directory-for-lightcurves-collection-id-1
-    │   └── periodfinding -> canonical-directory-for-pfresults-collection-id-1
-    └── collection-id-2
-        ├── checkplots -> canonical-directory-for-checkplots-collection-id-2
-        ├── lightcurves -> canonical-directory-for-lightcurves-collection-id-2
-        └── periodfinding -> canonical-directory-for-pfresults-collection-id-2
+    We need the following structure (e.g. for two LC collections)::
+        .
+        ├── csvlcs
+        │   ├── collection-1 -> ../collection-1/lightcurves
+        │   └── collection-2 -> ../collection-2/lightcurves
+        ├── datasets
+        ├── docs
+        │   └── static
+        ├── lccjsons
+        │   ├── collection-1/lcformat-description.json
+        │   └── collection-2/lcformat-description.json
+        ├── products
+        ├── collection-1
+        │   ├── checkplots -> canonical-directory-for-checkplots-collection-1
+        │   ├── lightcurves -> canonical-directory-for-lightcurves-collection-1
+        │   └── periodfinding -> canonical-directory-for-pfresults-collection-1
+        └── collection-2
+            ├── checkplots -> canonical-directory-for-checkplots-collection-2
+            ├── lightcurves -> canonical-directory-for-lightcurves-collection-2
+            └── periodfinding -> canonical-directory-for-pfresults-collection-2
 
-    We need the following files in the basedir:
+    We need the following files in the basedir::
 
-    site-info.json: contains key:val pairs from siteinfo_* kwargs.
+        site-info.json: contains key:val pairs from siteinfo_* kwargs.
 
-    We need the following files in basedir/docs:
+    We need the following files in basedir/docs::
 
-    doc-index.json
-    citation.md
-    lcformat.md
+        doc-index.json
+        citation.md
+        lcformat.md
+
+    Parameters
+    ----------
+
+    basedir : str
+        The base directory to put the LCC-Server directory structure in.
+
+    site_project : str
+        The name of the project this LCC-Server belongs to.
+
+    site_project_link : str
+        The URL of the project this LCC-Server belongs to.
+
+    site_department : str
+        The institution department this LCC-Server is associated with.
+
+    site_department_link : str
+        The URL of the institution department the LCC-Server is associated with.
+
+    site_insitution : str
+        The institution this LCC-Server is associated with.
+
+    site_insitution_link : str
+        The URL of the institution this LCC-Server is associated with.
+
+    site_institution_logo : str or None
+        The path to the logo image file (JPEG, PNG, WEBP), that will be shown
+        and linked to the URL of the institution. Leave this as None if you want
+        a plain text link instead.
+
+    interactive : bool
+        If True, will ask the user that is setting up the LCC-Server for an
+        email address and password that will be used for the adminstration
+        account in the webapp (the "superuser" account). If this is False, will
+        generate a random password and use the user's UNIX account name @
+        localhost as the email address.
+
+    Returns
+    -------
+
+    Nothing.
 
     '''
 
@@ -408,10 +463,31 @@ def new_collection_directories(basedir,
                                pfresult_dir=None):
     '''This just adds a new collection's subdirs to the basedir.
 
-    Links the lightcurves subdir to basedir/csvlcs/collection_id
+    Links the lightcurves subdir to ``basedir/csvlcs/collection_id``.
 
     Also generates a stub lcformat-description.json in the collection subdir and
-    links it to basedir/lccjsons/collection_id/lcformat-description.json.
+    links it to ``basedir/lccjsons/collection_id/lcformat-description.json``.
+
+    Parameters
+    ----------
+
+    basedir : str
+        The base directory that was previous set up for the LCC-Server.
+
+    collection_id : str
+        The name of the collection that will be used by all subsequent
+        LCC-Server operations on this collection. This should not contain any
+        spaces or underscore characters. Separate words with a hyphen: '-'.
+
+    lightcurve_dir : str or None
+        If this is provided, will be symlinked to this collection's
+        ``lightcurves`` subdirectory. This directory should contain the light
+        curves for this collection in their original format, and will also be
+        used for light curves generated in the LCC-Server's common output CSV
+        format. If None, a new ``lightcurves`` subdirectory will be created.
+
+    checkplot_dir : str or None
+
 
     '''
 
