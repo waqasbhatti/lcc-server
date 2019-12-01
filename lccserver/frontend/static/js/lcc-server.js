@@ -2336,26 +2336,6 @@ var lcc_ui = {
 
 </details>
 
-
-<details class="mt-2"><summary class="h5-summary">Available database columns</summary>
-
-  <div class="ml-3 collection-column-list">
-    <details>
-      <summary>List of full-text-search indexed columns</summary>
-      ${formatted_ftscol_list}
-    </details>
-  </div>
-
-  <div class="mt-2 ml-3 collection-column-list">
-    <details>
-      <summary>List of other indexed columns</summary>
-      ${formatted_indexedcol_list}
-    </details>
-  </div>
-
-</details>
-
-
 <details class="mt-2"><summary class="h5-summary">Search this collection</summary>
 
   <ul class="list-unstyled">
@@ -2392,7 +2372,7 @@ var lcc_ui = {
 
 </details>
 
-<details class="mt-2 mb-4">
+<details class="mt-2">
   <summary class="h5-summary">Explore this collection</summary>
 
   <ul class="list-unstyled">
@@ -2433,6 +2413,25 @@ var lcc_ui = {
     </li>
 
   </ul>
+</details>
+
+<details class="mt-2 mb-4">
+<summary class="h5-summary">Available database columns</summary>
+
+  <div class="ml-3 collection-column-list">
+    <details>
+      <summary>List of full-text-search indexed columns</summary>
+      ${formatted_ftscol_list}
+    </details>
+  </div>
+
+  <div class="mt-2 ml-3 collection-column-list">
+    <details>
+      <summary>List of other indexed columns</summary>
+      ${formatted_indexedcol_list}
+    </details>
+  </div>
+
 </details>
 `;
 
